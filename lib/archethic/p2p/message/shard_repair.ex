@@ -6,9 +6,7 @@ defmodule Archethic.P2P.Message.ShardRepair do
   defstruct [:first_address, :storage_address, :io_addresses]
 
   alias Archethic.Crypto
-  alias Archethic.Election
   alias Archethic.SelfRepair
-  alias Archethic.P2P
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -30,20 +28,7 @@ defmodule Archethic.P2P.Message.ShardRepair do
         },
         _
       ) do
-    # Ensure all addresses are expected to be replicated
-    nodes = P2P.authorized_and_available_nodes()
-
-    addresses =
-      if storage_address != nil, do: [storage_address | io_addresses], else: io_addresses
-
-    public_key = Crypto.first_node_public_key()
-
-    if Enum.all?(
-         addresses,
-         &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
-       ) do
-      SelfRepair.resync(first_address, storage_address, io_addresses)
-    end
+    SelfRepair.resync(first_address, storage_address, io_addresses)
 
     %Ok{}
   end
