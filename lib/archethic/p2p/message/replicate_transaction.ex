@@ -47,7 +47,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           Replication.validate_and_store_transaction_chain(tx, contract_context, genesis_address)
 
         Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes) ->
-          Replication.validate_and_store_transaction(tx, genesis_address)
+          Replication.validate_and_store_transaction_chain(tx, contract_context, genesis_address)
 
         io_node?(tx, node_public_key, authorized_nodes) ->
           Replication.validate_and_store_transaction(tx, genesis_address)
