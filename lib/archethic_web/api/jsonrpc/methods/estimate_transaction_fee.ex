@@ -64,7 +64,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
   defp resolve_recipient_addresses(
          tx = %Transaction{data: %TransactionData{recipients: recipients}}
        ) do
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
 
     Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
       resolved = Map.get(resolved_addresses, address)

@@ -795,9 +795,9 @@ defmodule Archethic.TransactionChain do
 
   **This function raises if it cannot fetch a genesis**
   """
-  @spec resolve_transaction_addresses(Transaction.t()) ::
+  @spec resolve_transaction_addresses!(Transaction.t()) ::
           %{Crypto.prepended_hash() => Crypto.prepended_hash()}
-  def resolve_transaction_addresses(
+  def resolve_transaction_addresses!(
         tx = %Transaction{
           type: type,
           address: address,

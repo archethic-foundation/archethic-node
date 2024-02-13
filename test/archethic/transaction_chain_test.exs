@@ -46,7 +46,7 @@ defmodule Archethic.TransactionChainTest do
   import Mox
   import ArchethicCase
 
-  describe "resolve_transaction_addresses/1" do
+  describe "resolve_transaction_addresses!/1" do
     test "should resolve the genesis if local node knows it" do
       address2 = random_address()
       genesis2 = random_address()
@@ -64,7 +64,7 @@ defmodule Archethic.TransactionChainTest do
           }
         )
 
-      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses!(tx)
     end
 
     test "should resolve the genesis if local node does not know it" do
@@ -99,7 +99,7 @@ defmodule Archethic.TransactionChainTest do
           }
         )
 
-      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses!(tx)
     end
 
     test "should resolve the recipients" do
@@ -113,7 +113,7 @@ defmodule Archethic.TransactionChainTest do
           recipients: [%Recipient{address: address2}]
         )
 
-      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses!(tx)
     end
 
     test "should resolve the token creation recipients" do
@@ -145,7 +145,7 @@ defmodule Archethic.TransactionChainTest do
           """
         )
 
-      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses!(tx)
     end
 
     test "should raise if there is a network issue" do
@@ -174,7 +174,7 @@ defmodule Archethic.TransactionChainTest do
         )
 
       assert_raise RuntimeError, "Could not resolve movement address", fn ->
-        TransactionChain.resolve_transaction_addresses(tx)
+        TransactionChain.resolve_transaction_addresses!(tx)
       end
     end
   end

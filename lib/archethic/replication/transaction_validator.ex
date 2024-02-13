@@ -317,7 +317,7 @@ defmodule Archethic.Replication.TransactionValidator do
            }
          }
        ) do
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
     movements = Transaction.get_movements(tx)
 
     %LedgerOperations{transaction_movements: resolved_movements} =
