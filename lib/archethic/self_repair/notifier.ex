@@ -178,7 +178,7 @@ defmodule Archethic.SelfRepair.Notifier do
             [address, resolved_genesis_address]
           end,
           on_timeout: :kill_task,
-          max_concurrency: length(movements_addresses)
+          max_concurrency: max(System.schedulers_online(), length(movements_addresses))
         )
         |> Stream.filter(&match?({:ok, _}, &1))
         |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
