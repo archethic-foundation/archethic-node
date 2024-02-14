@@ -45,7 +45,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       TransactionMovementType.serialize(type)::binary>>
   end
 
-  # protocol_version 4+
   def serialize(
         %__MODULE__{type: :state, encoded_payload: encoded_payload},
         protocol_version
@@ -54,6 +53,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
 
     <<0::8, encoded_payload_size::binary, encoded_payload::bitstring>>
+  end
+
+  def serialize(
+        %__MODULE__{from: from, amount: amount, type: type, timestamp: timestamp},
+        protocol_version
+      )
+      when protocol_version < 7 do
+    <<1::8, from::binary, VarInt.from_value(amount)::binary,
+      DateTime.to_unix(timestamp, :millisecond)::64,
+      TransactionMovementType.serialize(type)::binary>>
   end
 
   def serialize(
@@ -123,13 +132,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  # protocol version 4+
   def deserialize(<<0::8, rest::bitstring>>, protocol_version)
       when is_bitstring(rest) and protocol_version < 7 do
     {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
     <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
 
     {%__MODULE__{type: :state, encoded_payload: encoded_payload}, rest}
+  end
+
+  def deserialize(<<1::8, rest::bitstring>>, protocol_version) when protocol_version < 7 do
+    {address, rest} = Utils.deserialize_address(rest)
+    {amount, <<timestamp::64, rest::bitstring>>} = VarInt.get_value(rest)
+    {type, rest} = TransactionMovementType.deserialize(rest)
+
+    {
+      %__MODULE__{
+        from: address,
+        amount: amount,
+        type: type,
+        timestamp: DateTime.from_unix!(timestamp, :millisecond)
+      },
+      rest
+    }
   end
 
   def deserialize(<<0::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
