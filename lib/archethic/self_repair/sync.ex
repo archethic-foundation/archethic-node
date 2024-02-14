@@ -361,18 +361,26 @@ defmodule Archethic.SelfRepair.Sync do
            transaction_summary:
              tx_summary = %TransactionSummary{
                address: tx_address,
-               version: version
+               version: version,
+               genesis_address: genesis_address
              }
          },
          download_nodes
        )
        when version <= 2 do
     genesis_address =
-      Map.get_lazy(tx_summary, :genesis_address, fn ->
-        storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
-        {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
-        genesis_address
-      end)
+      case genesis_address do
+        nil ->
+          storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
+
+          {:ok, genesis_address} =
+            TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+
+          genesis_address
+
+        genesis_address ->
+          genesis_address
+      end
 
     resolved_movements_addresses =
       TransactionSummary.resolve_movements_addresses(tx_summary, download_nodes)
