@@ -17,6 +17,8 @@ defmodule Migration_1_4_8 do
 
   alias Archethic.P2P
 
+  alias Archethic.Replication
+
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
@@ -28,7 +30,6 @@ defmodule Migration_1_4_8 do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
-  alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -59,6 +60,8 @@ defmodule Migration_1_4_8 do
       |> Enum.with_index()
 
     nb_genesis_addresses = length(elected_genesis_addresses)
+    # Log each 5 %
+    log_index_rate = trunc(nb_genesis_addresses / 20)
     Logger.debug("Migration_1_4_8 - Retrieved #{nb_genesis_addresses} genesis addresses to store")
 
     Task.Supervisor.async_stream(
@@ -72,12 +75,17 @@ defmodule Migration_1_4_8 do
             do: fetch_transaction(last_chain_address, authorized_nodes),
             else: nil
 
+        unless TransactionChain.transaction_exists?(last_chain_address) do
+          Replication.sync_transaction_chain(last_transaction, genesis_address, authorized_nodes,
+            self_repair: true
+          )
+        end
+
         inputs = fetch_transaction_inputs(last_chain_address, authorized_nodes)
 
         ingest_inputs(genesis_address, last_transaction, inputs)
 
-        # Log each 500 addresses
-        if rem(index, 500) == 0 do
+        if rem(index, log_index_rate) == 0 do
           percentage = (index * 100 / nb_genesis_addresses) |> Float.round(2)
           Logger.debug("Migration_1_4_8 - Processed #{percentage}% of genesis addresses")
         end
