@@ -15,10 +15,24 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
 
   setup :set_mox_global
 
-  test "seriazation/deserialization" do
+  test "serialization/deserialization" do
     address = random_address()
 
     msg = %GetUnspentOutputs{address: address}
+
+    assert {^msg, <<>>} =
+             msg
+             |> GetUnspentOutputs.serialize()
+             |> GetUnspentOutputs.deserialize()
+
+    msg = %GetUnspentOutputs{address: address, offset: 1}
+
+    assert {^msg, <<>>} =
+             msg
+             |> GetUnspentOutputs.serialize()
+             |> GetUnspentOutputs.deserialize()
+
+    msg = %GetUnspentOutputs{address: address, genesis?: true}
 
     assert {^msg, <<>>} =
              msg
