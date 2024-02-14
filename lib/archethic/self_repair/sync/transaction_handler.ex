@@ -14,6 +14,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   alias Archethic.Replication
 
+  alias Archethic.SelfRepair
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -113,12 +115,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         tx
 
       {:error, reason} ->
-        Logger.error("Cannot fetch the transaction to sync because of #{inspect(reason)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        raise "Error downloading transaction"
+        raise SelfRepair.Error,
+          function: "download_transaction",
+          message: "Cannot fetch the transaction to sync because of #{inspect(reason)}",
+          address: address
     end
   end
 
@@ -161,7 +161,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   defp verify_transaction(
          attestation = %ReplicationAttestation{version: 1},
-         tx = %Transaction{address: address, type: type}
+         tx = %Transaction{address: address}
        ) do
     # Replication attestation version 1 does not contains storage confirmations,
     # so we ensure the transaction is valid looking at validation signature
@@ -170,12 +170,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     validation_nodes_public_keys = get_validation_nodes_keys(tx)
 
     unless Transaction.valid_stamps_signature?(tx, validation_nodes_public_keys) do
-      Logger.error("Transaction signature error in self repair",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
-
-      raise "Transaction signature error in self repair"
+      raise SelfRepair.Error,
+        function: "verify_transaction",
+        message: "Transaction signature error in self repair",
+        address: address
     end
   end
 
@@ -228,12 +226,14 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       not ReplicationAttestation.reached_threshold?(attestation) ->
         Logger.error("Threshold error in self repair on attestation #{inspect(attestation)}")
 
-        raise "Attestation error in self repair"
+        raise SelfRepair.Error,
+          function: "verify_attestation",
+          message: "Threshold error in self repair on attestation #{inspect(attestation)}"
 
       :ok != ReplicationAttestation.validate(attestation) ->
-        Logger.error("Confirmation error in self repair on attestation #{inspect(attestation)}")
-
-        raise "Attestation error in self repair"
+        raise SelfRepair.Error,
+          function: "verify_attestation",
+          message: "Confirmation error in self repair on attestation #{inspect(attestation)}"
 
       true ->
         :ok

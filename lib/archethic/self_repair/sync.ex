@@ -179,7 +179,9 @@ defmodule Archethic.SelfRepair.Sync do
         false
 
       _ ->
-        raise "Cannot make the self-repair - Previous summary aggregate not fetched"
+        raise SelfRepair.Error,
+          function: "fetch_summaries_aggregates",
+          message: "Previous summary aggregate not fetched"
     end)
     |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
   end
@@ -197,7 +199,9 @@ defmodule Archethic.SelfRepair.Sync do
     else
       _ ->
         if SummaryAggregate.empty?(last_aggregate) do
-          raise "Cannot make the self repair - Last aggregate not fetched"
+          raise SelfRepair.Error,
+            function: "ensure_download_last_aggregate",
+            message: "Last aggregate not fetched"
         end
 
         :ok
@@ -294,12 +298,16 @@ defmodule Archethic.SelfRepair.Sync do
 
     attestations_to_sync =
       attestations
-      |> Task.async_stream(&adjust_attestation(&1, download_nodes))
-      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Task.async_stream(&adjust_attestation(&1, download_nodes),
+        timeout: Message.get_max_timeout(),
+        max_concurrency: System.schedulers_online(),
+        ordered: false
+      )
       |> Stream.filter(fn {:ok, attestation} ->
         TransactionHandler.download_transaction?(attestation, nodes_including_self)
       end)
-      |> Enum.map(fn {:ok, attestation} -> attestation end)
+      |> Stream.map(fn {:ok, attestation} -> attestation end)
+      |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
 
     synchronize_transactions(attestations_to_sync, download_nodes)
 
@@ -373,10 +381,16 @@ defmodule Archethic.SelfRepair.Sync do
         nil ->
           storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
 
-          {:ok, genesis_address} =
-            TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+          case TransactionChain.fetch_genesis_address(tx_address, storage_nodes) do
+            {:ok, genesis_address} ->
+              genesis_address
 
-          genesis_address
+            {:error, reason} ->
+              raise SelfRepair.Error,
+                function: "adjust_attestation",
+                message: "Failed to fetch genesis address with error #{inspect(reason)}",
+                address: tx_address
+          end
 
         genesis_address ->
           genesis_address
@@ -410,9 +424,7 @@ defmodule Archethic.SelfRepair.Sync do
         consolidated_attestation = consolidate_recipients(attestation, tx)
         {consolidated_attestation, tx}
       end,
-      on_timeout: :kill_task,
-      timeout: Message.get_max_timeout() + 2000,
-      max_concurrency: 100
+      timeout: Message.get_max_timeout() + 2000
     )
     |> Stream.each(fn {:ok, {attestation, tx}} ->
       :ok = TransactionHandler.process_transaction(attestation, tx, download_nodes)
@@ -438,15 +450,19 @@ defmodule Archethic.SelfRepair.Sync do
         fn recipient ->
           genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
 
-          {:ok, genesis_address} =
-            TransactionChain.fetch_genesis_address(recipient, genesis_nodes)
+          case TransactionChain.fetch_genesis_address(recipient, genesis_nodes) do
+            {:ok, genesis_address} ->
+              [recipient, genesis_address]
 
-          [recipient, genesis_address]
+            {:error, reason} ->
+              raise SelfRepair.Error,
+                function: "consolidate_recipients",
+                message: "Failed to fetch genesis address with error #{inspect(reason)}",
+                address: recipient
+          end
         end,
-        on_timeout: :kill_task,
         max_concurrency: length(recipients)
       )
-      |> Stream.filter(&match?({:ok, _}, &1))
       |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
       |> Enum.concat(movements_addresses)
 
