@@ -34,6 +34,19 @@ defmodule Archethic.SelfRepair do
 
   require Logger
 
+  defmodule Error do
+    defexception [:function, :message, :address]
+
+    @impl Exception
+    def message(%__MODULE__{function: function, message: message, address: nil}) do
+      "Self repair encounter an error in function #{function} with error #{message}"
+    end
+
+    def message(%__MODULE__{function: function, message: message, address: address}) do
+      "Self repair encounter an error in function #{function} on address: #{Base.encode16(address)} with error #{message}"
+    end
+  end
+
   @max_retry_count 10
 
   @doc """
