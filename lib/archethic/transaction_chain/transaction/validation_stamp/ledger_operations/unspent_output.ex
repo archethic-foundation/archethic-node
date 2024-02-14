@@ -295,4 +295,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       timestamp: timestamp
     }
   end
+
+  def to_map(%__MODULE__{
+        from: from,
+        type: :call,
+        timestamp: timestamp
+      }) do
+    %{
+      from: from,
+      type: "call",
+      timestamp: timestamp
+    }
+  end
 end
