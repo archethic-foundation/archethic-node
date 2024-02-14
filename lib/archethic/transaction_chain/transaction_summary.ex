@@ -247,15 +247,16 @@ defmodule Archethic.TransactionChain.TransactionSummary do
           {:ok, genesis_address} ->
             [genesis_address, address]
 
-          _ ->
-            [address]
+          {:error, reason} ->
+            raise Archethic.SelfRepair.Error,
+              function: "resolve_movements_addresses",
+              message: "Failed to fetch genesis address with error #{inspect(reason)}",
+              address: Base.encode16(address)
         end
       end,
-      on_timeout: :kill_task,
       max_concurrency: length(addresses)
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(fn {:ok, res} -> res end)
+    |> Enum.flat_map(fn {:ok, res} -> res end)
   end
 
   def resolve_movements_addresses(
