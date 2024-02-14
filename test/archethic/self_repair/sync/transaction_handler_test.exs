@@ -18,6 +18,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
 
+  alias Archethic.SelfRepair
   alias Archethic.SelfRepair.Sync.TransactionHandler
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
@@ -362,7 +363,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
 
-      assert_raise RuntimeError, "Error downloading transaction", fn ->
+      message =
+        "Self repair encounter an error in function download_transaction on address: #{Base.encode16(tx.address)} with error Cannot fetch the transaction to sync because of :acceptance_failed"
+
+      assert_raise SelfRepair.Error, message, fn ->
         TransactionHandler.download_transaction(
           attestation,
           P2P.authorized_and_available_nodes()
@@ -395,9 +399,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
 
-      message = "Error downloading transaction"
+      message =
+        "Self repair encounter an error in function download_transaction on address: #{Base.encode16(tx.address)} with error Cannot fetch the transaction to sync because of :acceptance_failed"
 
-      assert_raise RuntimeError, message, fn ->
+      assert_raise SelfRepair.Error, message, fn ->
         TransactionHandler.download_transaction(
           attestation,
           P2P.authorized_and_available_nodes()
@@ -625,7 +630,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         transaction_summary: tx_summary
       }
 
-      assert_raise RuntimeError, "Transaction signature error in self repair", fn ->
+      message =
+        "Self repair encounter an error in function verify_transaction on address: #{Base.encode16(tx.address)} with error Transaction signature error in self repair"
+
+      assert_raise SelfRepair.Error, message, fn ->
         TransactionHandler.process_transaction(
           attestation,
           tx,
@@ -664,9 +672,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         confirmations: [{index, signature}]
       }
 
-      message = "Attestation error in self repair"
-
-      assert_raise RuntimeError, message, fn ->
+      assert_raise SelfRepair.Error, fn ->
         TransactionHandler.process_transaction(
           attestation,
           tx,
