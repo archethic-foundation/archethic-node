@@ -30,12 +30,16 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   If not successful, perform storage nodes election based on the transaction movements.
   """
   @spec download_transaction?(ReplicationAttestation.t(), list(Node.t())) :: boolean()
-  def download_transaction?(%ReplicationAttestation{
-        transaction_summary: %TransactionSummary{
-          version: 1
-        }
-      }),
-      do: true
+  def download_transaction?(
+        %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: address,
+            version: 1
+          }
+        },
+        _
+      ),
+      do: not TransactionChain.transaction_exists?(address, :io)
 
   def download_transaction?(
         %ReplicationAttestation{
