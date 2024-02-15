@@ -210,6 +210,13 @@
                        ['Elixir.Archethic.Telemetry',prometheus_metrics]}},
     {apply,{supervisor,restart_child,
                        ['Elixir.Archethic.Telemetry',prometheus_metrics]}},
+    {apply,{supervisor,start_child,
+                       ['Elixir.Archethic.Supervisor', #{
+                                id => 'Elixir.Archethic.UTXO.Supervisor',
+                                start => {'Elixir.Archethic.UTXO.Supervisor', start_link, [[]]},
+                                type => supervisor
+                            }
+                       ]}},
     {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.4.8",true]}}]}],
  [{"1.4.7",
    [{delete_module,'Elixir.Archethic.SelfRepair.Error'},
