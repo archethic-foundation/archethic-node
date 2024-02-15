@@ -245,7 +245,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
 
         case TransactionChain.fetch_genesis_address(address, storage_nodes) do
           {:ok, genesis_address} ->
-            [genesis_address, address]
+            [address, genesis_address]
 
           {:error, reason} ->
             raise Archethic.SelfRepair.Error,

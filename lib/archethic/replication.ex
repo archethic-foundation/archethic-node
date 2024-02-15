@@ -107,7 +107,7 @@ defmodule Archethic.Replication do
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
 
-  @type sync_options :: [self_repair?: boolean()]
+  @type sync_options :: [self_repair?: boolean(), resolved_addresses: map()]
 
   @doc """
   Replicate and store the transaction chain from the transaction cached in the pool
@@ -149,7 +149,8 @@ defmodule Archethic.Replication do
           do: true,
           else: Election.chain_storage_node?(address, first_node_key, download_nodes)
 
-      if ingest?, do: ingest_transaction(tx, genesis_address, ingest_opts)
+      opts = Keyword.delete(ingest_opts, :resolved_addresses)
+      if ingest?, do: ingest_transaction(tx, genesis_address, opts)
     end)
     |> Stream.run()
 
@@ -543,7 +544,8 @@ defmodule Archethic.Replication do
 
   @type ingest_options :: [
           io_transaction?: boolean(),
-          self_repair?: boolean()
+          self_repair?: boolean(),
+          resolved_addresses: map()
         ]
 
   @doc """
@@ -566,6 +568,7 @@ defmodule Archethic.Replication do
   def ingest_transaction(tx = %Transaction{}, genesis_address, opts \\ []) when is_list(opts) do
     io_transaction? = Keyword.get(opts, :io_transaction?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
+    resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
 
     # There's currently no usage of the pending mem tables for transactions, so we comment it for now
     # TransactionChain.load_transaction(tx)
@@ -573,7 +576,7 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?: io_transaction?)
-    UTXO.load_transaction(tx, genesis_address)
+    UTXO.load_transaction(tx, genesis_address, resolved_addresses: resolved_addresses)
 
     Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,
