@@ -178,7 +178,7 @@ defmodule Archethic.SelfRepair.Sync do
       {:ok, {:error, :not_exists}} ->
         false
 
-      _ ->
+      {:ok, _} ->
         raise SelfRepair.Error,
           function: "fetch_summaries_aggregates",
           message: "Previous summary aggregate not fetched"
