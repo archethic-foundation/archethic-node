@@ -298,15 +298,8 @@ defmodule Archethic.SelfRepair.Sync do
 
     attestations_to_sync =
       attestations
-      |> Task.async_stream(&adjust_attestation(&1, download_nodes),
-        timeout: Message.get_max_timeout(),
-        max_concurrency: System.schedulers_online(),
-        ordered: false
-      )
-      |> Stream.filter(fn {:ok, attestation} ->
-        TransactionHandler.download_transaction?(attestation, nodes_including_self)
-      end)
-      |> Stream.map(fn {:ok, attestation} -> attestation end)
+      |> adjust_attestations(download_nodes)
+      |> Stream.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
       |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
 
     synchronize_transactions(attestations_to_sync, download_nodes)
@@ -364,48 +357,90 @@ defmodule Archethic.SelfRepair.Sync do
   # Hence, we need to adjust or revised the attestation to include the genesis addresses
   # which is not present in the version 1 of transaction's summary.
   # Also to unify the handling of attestation post AEIP-21, the genesis addresses are included in movements
+  defp adjust_attestations([], _), do: []
+
+  defp adjust_attestations(attestations, download_nodes) do
+    if Enum.any?(attestations, &(&1.transaction_summary.version <= 2)) do
+      # log each 5%
+      nb_attestations = length(attestations)
+      log_index_rate = ceil(nb_attestations / 20)
+
+      Logger.info("Adjusting #{nb_attestations} attestations")
+
+      Task.async_stream(attestations, &adjust_attestation(&1, download_nodes),
+        timeout: Message.get_max_timeout(),
+        max_concurrency: System.schedulers_online() * 2,
+        ordered: false
+      )
+      |> Stream.with_index(1)
+      |> Stream.map(fn {{:ok, attestation}, index} ->
+        if rem(index, log_index_rate) == 0,
+          do: Logger.debug("Processed #{trunc(index / nb_attestations * 100)}% attestations")
+
+        attestation
+      end)
+    else
+      attestations
+    end
+  end
+
   defp adjust_attestation(
          attestation = %ReplicationAttestation{
            transaction_summary:
              tx_summary = %TransactionSummary{
                address: tx_address,
-               version: version,
-               genesis_address: genesis_address
+               version: version
              }
          },
          download_nodes
        )
-       when version <= 2 do
-    genesis_address =
-      case genesis_address do
-        nil ->
-          storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
+       when version == 1 do
+    genesis_task =
+      Task.async(fn ->
+        storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
 
-          case TransactionChain.fetch_genesis_address(tx_address, storage_nodes) do
-            {:ok, genesis_address} ->
-              genesis_address
+        case TransactionChain.fetch_genesis_address(tx_address, storage_nodes) do
+          {:ok, genesis_address} ->
+            genesis_address
 
-            {:error, reason} ->
-              raise SelfRepair.Error,
-                function: "adjust_attestation",
-                message: "Failed to fetch genesis address with error #{inspect(reason)}",
-                address: tx_address
-          end
+          {:error, reason} ->
+            raise SelfRepair.Error,
+              function: "adjust_attestation",
+              message: "Failed to fetch genesis address with error #{inspect(reason)}",
+              address: tx_address
+        end
+      end)
 
-        genesis_address ->
-          genesis_address
-      end
+    io_addresses_task =
+      Task.async(fn ->
+        TransactionSummary.resolve_movements_addresses(tx_summary, download_nodes)
+      end)
 
+    adjusted_tx_summary = %TransactionSummary{
+      tx_summary
+      | genesis_address: Task.await(genesis_task),
+        movements_addresses: Task.await(io_addresses_task)
+    }
+
+    %ReplicationAttestation{attestation | transaction_summary: adjusted_tx_summary}
+  end
+
+  defp adjust_attestation(
+         attestation = %ReplicationAttestation{
+           transaction_summary: tx_summary = %TransactionSummary{version: version}
+         },
+         download_nodes
+       )
+       when version == 2 do
     resolved_movements_addresses =
       TransactionSummary.resolve_movements_addresses(tx_summary, download_nodes)
 
-    adjusted_tx_summary = %{
+    adjusted_tx_summary = %TransactionSummary{
       tx_summary
-      | genesis_address: genesis_address,
-        movements_addresses: resolved_movements_addresses
+      | movements_addresses: resolved_movements_addresses
     }
 
-    %{attestation | transaction_summary: adjusted_tx_summary}
+    %ReplicationAttestation{attestation | transaction_summary: adjusted_tx_summary}
   end
 
   defp adjust_attestation(attestation, _), do: attestation
@@ -424,6 +459,7 @@ defmodule Archethic.SelfRepair.Sync do
         consolidated_attestation = consolidate_recipients(attestation, tx)
         {consolidated_attestation, tx}
       end,
+      max_concurrency: System.schedulers_online() * 2,
       timeout: Message.get_max_timeout() + 2000
     )
     |> Stream.each(fn {:ok, {attestation, tx}} ->
@@ -466,8 +502,12 @@ defmodule Archethic.SelfRepair.Sync do
       |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
       |> Enum.concat(movements_addresses)
 
-    adjusted_summary = %{tx_summary | movements_addresses: consolidated_movements_addresses}
-    %{attestation | transaction_summary: adjusted_summary}
+    adjusted_summary = %TransactionSummary{
+      tx_summary
+      | movements_addresses: consolidated_movements_addresses
+    }
+
+    %ReplicationAttestation{attestation | transaction_summary: adjusted_summary}
   end
 
   defp consolidate_recipients(attestation, _tx), do: attestation
