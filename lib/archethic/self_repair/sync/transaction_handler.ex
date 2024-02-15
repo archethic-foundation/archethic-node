@@ -138,23 +138,52 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       ) do
     verify_transaction(attestation, tx)
 
+    resolved_addresses = get_resolved_addresses(attestation)
+
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
     node_public_key = Crypto.first_node_public_key()
 
     cond do
       Election.chain_storage_node?(address, type, node_public_key, node_list) ->
-        Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
+        Replication.sync_transaction_chain(tx, genesis_address, node_list,
+          self_repair?: true,
+          resolved_addresses: resolved_addresses
+        )
 
       Election.chain_storage_node?(genesis_address, node_public_key, node_list) ->
-        Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
+        Replication.sync_transaction_chain(tx, genesis_address, node_list,
+          self_repair?: true,
+          resolved_addresses: resolved_addresses
+        )
 
       io_node?(movements_addresses, node_public_key, node_list) ->
-        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
+        Replication.synchronize_io_transaction(tx, genesis_address,
+          self_repair?: true,
+          resolved_addresses: resolved_addresses
+        )
 
       true ->
         :ok
     end
   end
+
+  defp get_resolved_addresses(%ReplicationAttestation{
+         transaction_summary: %TransactionSummary{
+           version: version,
+           movements_addresses: addresses
+         }
+       })
+       when version <= 2 do
+    # When retrieving transaction summary, Sync module resolved addresses
+    # for transaction summary before AEIP-21, addresses are concatenated in movements addresses
+    # with as genesis address is inserted after the last address
+    addresses
+    |> Enum.chunk_every(2)
+    |> Enum.map(&List.to_tuple/1)
+    |> Map.new()
+  end
+
+  defp get_resolved_addresses(_), do: %{}
 
   defp io_node?(addresses, node_public_key, nodes),
     do: addresses |> Election.io_storage_nodes(nodes) |> Utils.key_in_node_list?(node_public_key)
