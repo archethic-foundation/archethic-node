@@ -6,6 +6,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.Crypto
 
   alias Archethic.PubSub
@@ -14,7 +16,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   alias Archethic.Utils.VarInt
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   @table_name :archethic_summary_cache
 
@@ -37,6 +39,38 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     PubSub.register_to_self_repair()
 
     {:ok, %{}}
+  end
+
+  # update the TransactionSummary in memory
+  def code_change(1, state, _extra) do
+    # credo:disable-for-lines:26
+    elements =
+      :ets.tab2list(@table_name)
+      |> Enum.map(fn {subset, {slot, node_public_key}} ->
+        slot =
+          Map.update!(
+            slot,
+            :transaction_attestations,
+            fn attestations ->
+              Enum.map(
+                attestations,
+                fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
+                  %ReplicationAttestation{
+                    attestation
+                    | transaction_summary: struct(TransactionSummary, Map.from_struct(summary))
+                  }
+                end
+              )
+            end
+          )
+
+        {subset, {slot, node_public_key}}
+      end)
+
+    :ets.delete_all_objects(@table_name)
+    :ets.insert(@table_name, elements)
+
+    {:ok, state}
   end
 
   def code_change(_version, state, _extra), do: {:ok, state}
