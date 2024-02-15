@@ -24,18 +24,25 @@ defmodule Archethic.UTXO do
 
   require Logger
 
-  @spec load_transaction(tx :: Transaction.t(), genesis_address :: Crypto.prepended_hash()) :: :ok
+  @spec load_transaction(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          opts :: Keyword.t()
+        ) :: :ok
   def load_transaction(
         tx = %Transaction{validation_stamp: %ValidationStamp{protocol_version: protocol_version}},
-        genesis_address
+        genesis_address,
+        opts \\ []
       ) do
+    resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
+
     authorized_nodes = P2P.authorized_and_available_nodes()
     node_public_key = Crypto.first_node_public_key()
 
-    # TODO: After AEIP-21 phase 2, protocol_version <= 7 will come only from self repair or notifier
-    # Self repair is already resolvong the genesis addresses. We should find a way to avoid resolving
-    # the genesis addresses many times for the same transaction
-    tx = if protocol_version <= 7, do: resolve_io_genesis(tx, authorized_nodes), else: tx
+    tx =
+      if protocol_version <= 7,
+        do: resolve_io_genesis(tx, authorized_nodes, resolved_addresses),
+        else: tx
 
     # Ingest all the movements and recipients to fill up the UTXO list
     ingest_movements(tx, node_public_key, authorized_nodes)
@@ -123,9 +130,10 @@ defmodule Archethic.UTXO do
              recipients: recipients
            }
          },
-         authorized_nodes
+         authorized_nodes,
+         resolved_addresses
        )
-       when length(movements) + length(recipients) > 0 do
+       when length(movements) + length(recipients) > 0 and map_size(resolved_addresses) == 0 do
     resolved_addresses =
       movements
       |> Enum.map(& &1.to)
@@ -145,6 +153,25 @@ defmodule Archethic.UTXO do
       |> Enum.map(fn {:ok, addresses} -> addresses end)
       |> Map.new()
 
+    update_tx_io_addresses(tx, resolved_addresses)
+  end
+
+  defp resolve_io_genesis(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{transaction_movements: movements},
+             recipients: recipients
+           }
+         },
+         _authorized_nodes,
+         resolved_addresses
+       )
+       when length(movements) + length(recipients) > 0,
+       do: update_tx_io_addresses(tx, resolved_addresses)
+
+  defp resolve_io_genesis(tx, _, _), do: tx
+
+  defp update_tx_io_addresses(tx, resolved_addresses) do
     tx
     |> update_in(
       [
@@ -153,7 +180,7 @@ defmodule Archethic.UTXO do
         Access.key!(:transaction_movements)
       ],
       fn movements ->
-        Enum.map(movements, &%TransactionMovement{&1 | to: Map.get(resolved_addresses, &1.to)})
+        Enum.map(movements, &%TransactionMovement{&1 | to: Map.fetch!(resolved_addresses, &1.to)})
       end
     )
     |> update_in(
@@ -161,11 +188,9 @@ defmodule Archethic.UTXO do
         Access.key!(:validation_stamp),
         Access.key!(:recipients)
       ],
-      fn recipients -> Enum.map(recipients, &Map.get(resolved_addresses, &1)) end
+      fn recipients -> Enum.map(recipients, &Map.fetch!(resolved_addresses, &1)) end
     )
   end
-
-  defp resolve_io_genesis(tx, _), do: tx
 
   defp utxo_consumed?(genesis_address, utxo = %UnspentOutput{timestamp: utxo_timestamp}) do
     {_, last_timestamp} = TransactionChain.get_last_address(genesis_address)
