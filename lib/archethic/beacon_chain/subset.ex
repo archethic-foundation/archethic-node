@@ -37,7 +37,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Utils
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   require Logger
 
@@ -97,6 +97,28 @@ defmodule Archethic.BeaconChain.Subset do
        },
        subscribed_nodes: []
      }}
+  end
+
+  # update the TransactionSummary in memory
+  def code_change(1, state, _extra) do
+    state =
+      update_in(
+        state,
+        [Access.key!(:current_slot), Access.key!(:transaction_attestations)],
+        fn attestations ->
+          Enum.map(
+            attestations,
+            fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
+              %ReplicationAttestation{
+                attestation
+                | transaction_summary: struct(TransactionSummary, Map.from_struct(summary))
+              }
+            end
+          )
+        end
+      )
+
+    {:ok, state}
   end
 
   def code_change(_, state, _extra), do: {:ok, state}
