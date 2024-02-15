@@ -90,6 +90,7 @@ defmodule Archethic.SelfRepair do
     0..@max_retry_count
     |> Enum.reduce_while(:error, fn _, _ ->
       try do
+        Process.flag(:trap_exit, true)
         :ok = last_sync_date() |> Sync.load_missed_transactions(download_nodes)
         {:halt, :ok}
       rescue
