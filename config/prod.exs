@@ -11,6 +11,9 @@ config :archethic, :root_mut_dir, System.get_env("ARCHETHIC_ROOT_MUT_DIR", "~/ae
 config :archethic, Archethic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
+config :archethic, Archethic.TransactionChain.MemTables.PendingLedger, enabled: false
+config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
+
 config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_pools:
     [
