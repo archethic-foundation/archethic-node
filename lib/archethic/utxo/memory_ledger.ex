@@ -73,7 +73,7 @@ defmodule Archethic.UTXO.MemoryLedger do
         :ets.update_counter(@table_stats_name, genesis_address, {2, size}, {genesis_address, 0})
 
         Logger.debug(
-          "UTXO #{Base.encode16(from)}@#{inspect(type)} added for genesis #{Base.encode16(genesis_address)}"
+          "UTXO #{Base.encode16(from)}@#{UnspentOutput.type_to_str(type)} added for genesis #{Base.encode16(genesis_address)}"
         )
 
         :ok
