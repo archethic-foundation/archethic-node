@@ -121,7 +121,7 @@ defmodule Archethic.Contracts.Loader do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
         TransactionLookup.clear_contract_transactions(address)
-        TransactionChain.clear_pending_transactions(address)
+        # TransactionChain.clear_pending_transactions(address)
         Logger.info("Stop smart contract at #{Base.encode16(address)}")
 
       _ ->

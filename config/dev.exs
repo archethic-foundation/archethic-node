@@ -128,6 +128,9 @@ config :archethic, Archethic.P2P.Listener,
 config :archethic, ArchethicWeb.Explorer.FaucetController, enabled: true
 config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: true
 
+config :archethic, Archethic.TransactionChain.MemTables.PendingLedger, enabled: false
+config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
+
 config :archethic, Archethic.Contracts.Interpreter.Library.Common.HttpImpl,
   supported_schemes: ["https", "http"]
 
