@@ -23,6 +23,20 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         }
 
   @doc """
+  Return the type as a string (used in logs).
+  """
+  @spec type_to_str(t()) :: String.t()
+  def type_to_str(%__MODULE__{type: :UCO}), do: "UCO"
+  def type_to_str(%__MODULE__{type: :state}), do: "state"
+  def type_to_str(%__MODULE__{type: :call}), do: "call"
+
+  def type_to_str(%__MODULE__{type: {:token, token_address, 0}}),
+    do: "token(#{Base.encode16(token_address)})"
+
+  def type_to_str(%__MODULE__{type: {:token, token_address, token_id}}),
+    do: "nft(#{Base.encode16(token_address)}, #{token_id})"
+
+  @doc """
   Serialize unspent output into binary format
   """
   @spec serialize(utxo :: t(), protocol_version :: non_neg_integer()) :: bitstring()
