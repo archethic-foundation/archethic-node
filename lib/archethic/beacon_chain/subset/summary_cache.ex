@@ -7,7 +7,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.Crypto
 
   alias Archethic.PubSub
@@ -57,7 +56,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
                 fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
                   %ReplicationAttestation{
                     attestation
-                    | transaction_summary: struct(TransactionSummary, Map.from_struct(summary))
+                    | transaction_summary: Map.put(summary, :genesis_address, nil)
                   }
                 end
               )

@@ -111,7 +111,7 @@ defmodule Archethic.BeaconChain.Subset do
             fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
               %ReplicationAttestation{
                 attestation
-                | transaction_summary: struct(TransactionSummary, Map.from_struct(summary))
+                | transaction_summary: Map.put(summary, :genesis_address, nil)
               }
             end
           )
