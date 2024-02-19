@@ -35,8 +35,9 @@ defmodule Archethic.UTXO do
         opts \\ []
       ) do
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
+    download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
+    authorized_nodes = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
 
-    authorized_nodes = P2P.authorized_and_available_nodes()
     node_public_key = Crypto.first_node_public_key()
 
     tx =

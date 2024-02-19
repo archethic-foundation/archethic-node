@@ -133,7 +133,8 @@ defmodule Archethic.Replication do
     # Stream the insertion of the chain
     first_node_key = Crypto.first_node_public_key()
 
-    ingest_opts = Keyword.put(opts, :io_transaction?, false)
+    ingest_opts =
+      Keyword.put(opts, :io_transaction?, false) |> Keyword.put(:download_nodes, download_nodes)
 
     tx
     |> stream_previous_chain(genesis_address, download_nodes)
@@ -545,7 +546,8 @@ defmodule Archethic.Replication do
   @type ingest_options :: [
           io_transaction?: boolean(),
           self_repair?: boolean(),
-          resolved_addresses: map()
+          resolved_addresses: map(),
+          download_nodes: list(Node.t())
         ]
 
   @doc """
@@ -569,6 +571,7 @@ defmodule Archethic.Replication do
     io_transaction? = Keyword.get(opts, :io_transaction?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
+    download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
 
     # There's currently no usage of the pending mem tables for transactions, so we comment it for now
     # TransactionChain.load_transaction(tx)
@@ -576,7 +579,11 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?: io_transaction?)
-    UTXO.load_transaction(tx, genesis_address, resolved_addresses: resolved_addresses)
+
+    UTXO.load_transaction(tx, genesis_address,
+      resolved_addresses: resolved_addresses,
+      download_nodes: download_nodes
+    )
 
     Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,
