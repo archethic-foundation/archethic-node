@@ -14,10 +14,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
+  @type utxo_type :: TransactionMovementType.t() | :state | :call
+
   @type t :: %__MODULE__{
           amount: nil | non_neg_integer(),
           from: nil | Crypto.versioned_hash(),
-          type: TransactionMovementType.t() | :state | :call,
+          type: utxo_type(),
           timestamp: nil | DateTime.t(),
           encoded_payload: nil | binary()
         }
@@ -25,15 +27,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @doc """
   Return the type as a string (used in logs).
   """
-  @spec type_to_str(t()) :: String.t()
-  def type_to_str(%__MODULE__{type: :UCO}), do: "UCO"
-  def type_to_str(%__MODULE__{type: :state}), do: "state"
-  def type_to_str(%__MODULE__{type: :call}), do: "call"
+  @spec type_to_str(utxo_type()) :: String.t()
+  def type_to_str(:UCO), do: "UCO"
+  def type_to_str(:state), do: "state"
+  def type_to_str(:call), do: "call"
 
-  def type_to_str(%__MODULE__{type: {:token, token_address, 0}}),
+  def type_to_str({:token, token_address, 0}),
     do: "token(#{Base.encode16(token_address)})"
 
-  def type_to_str(%__MODULE__{type: {:token, token_address, token_id}}),
+  def type_to_str({:token, token_address, token_id}),
     do: "nft(#{Base.encode16(token_address)}, #{token_id})"
 
   @doc """
