@@ -194,8 +194,9 @@ defmodule Migration_1_4_8 do
        ) do
     # We need to use tx unspent outputs as fetch inputs does not return the contract state
     versionned_utxos =
-      Enum.map(
-        unspent_outputs,
+      unspent_outputs
+      |> Enum.filter(& &1.amount == nil or &1.amount > 0)
+      |> Enum.map(
         &%VersionedUnspentOutput{
           unspent_output: UnspentOutput.cast(&1),
           protocol_version: version
