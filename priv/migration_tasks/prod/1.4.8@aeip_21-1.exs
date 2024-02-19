@@ -61,7 +61,7 @@ defmodule Migration_1_4_8 do
 
     nb_genesis_addresses = length(elected_genesis_addresses)
     # Log each 5 %
-    log_index_rate = trunc(nb_genesis_addresses / 20)
+    log_index_rate = ceil(nb_genesis_addresses / 20)
     Logger.debug("Migration_1_4_8 - Retrieved #{nb_genesis_addresses} genesis addresses to store")
 
     Task.Supervisor.async_stream(
