@@ -124,7 +124,7 @@ defmodule Migration_1_4_8 do
         |> fetch_genesis_addresses(authorized_nodes)
         |> Enum.filter(&genesis_node?(&1, authorized_nodes, node_key))
       end,
-      max_concurrency: System.schedulers_online() * 4
+      timeout: :infinity
     )
     |> Stream.flat_map(fn {:ok, genesis_addresses} -> genesis_addresses end)
     |> Stream.uniq()
@@ -192,6 +192,7 @@ defmodule Migration_1_4_8 do
          },
          inputs
        ) do
+    # We need to use tx unspent outputs as fetch inputs does not return the contract state
     versionned_utxos =
       Enum.map(
         unspent_outputs,
