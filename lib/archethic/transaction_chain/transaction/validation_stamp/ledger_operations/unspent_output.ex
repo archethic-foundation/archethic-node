@@ -80,34 +80,27 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   end
 
   def serialize(
-        %__MODULE__{
-          type: :state,
-          encoded_payload: encoded_payload,
+        utxo = %__MODULE__{
           timestamp: timestamp,
           from: from
         },
-        _protocol_version
+        protocol_version
       ) do
+    <<from::binary, DateTime.to_unix(timestamp, :millisecond)::64,
+      serialize_type(utxo, protocol_version)::bitstring>>
+  end
+
+  defp serialize_type(%__MODULE__{type: :state, encoded_payload: encoded_payload}, _) do
     encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
-
-    <<0::8, from::binary, DateTime.to_unix(timestamp, :millisecond)::64,
-      encoded_payload_size::binary, encoded_payload::bitstring>>
+    <<1::8, encoded_payload_size::binary, encoded_payload::bitstring>>
   end
 
-  def serialize(
-        %__MODULE__{from: from, type: :call, timestamp: timestamp},
-        _protocol_version
-      ) do
-    <<1::8, from::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  defp serialize_type(%__MODULE__{type: :call}, _) do
+    <<2::8>>
   end
 
-  def serialize(
-        %__MODULE__{from: from, amount: amount, type: type, timestamp: timestamp},
-        _protocol_version
-      ) do
-    <<2::8, from::binary, VarInt.from_value(amount)::binary,
-      DateTime.to_unix(timestamp, :millisecond)::64,
-      TransactionMovementType.serialize(type)::binary>>
+  defp serialize_type(%__MODULE__{type: type, amount: amount}, _) do
+    <<0::8, TransactionMovementType.serialize(type)::binary, VarInt.from_value(amount)::binary>>
   end
 
   @doc """
@@ -115,7 +108,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
           {t(), bitstring}
-  def deserialize(data, protocol_version) when protocol_version <= 2 do
+  def deserialize(data, protocol_version) when protocol_version < 3 do
     {address, <<amount::64, timestamp::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
@@ -170,43 +163,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  def deserialize(<<0::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
-    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+  def deserialize(<<rest::bitstring>>, protocol_version) do
+    {from, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    utxo = %__MODULE__{from: from, timestamp: DateTime.from_unix!(timestamp, :millisecond)}
+    {fields, rest} = deserialize_type(rest, protocol_version)
+    utxo = Enum.reduce(fields, utxo, fn {key, value}, acc -> Map.put(acc, key, value) end)
+
+    {utxo, rest}
+  end
+
+  defp deserialize_type(<<0::8, rest::bitstring>>, _) do
+    {type, rest} = TransactionMovementType.deserialize(rest)
+    {amount, rest} = VarInt.get_value(rest)
+
+    {[{:type, type}, {:amount, amount}], rest}
+  end
+
+  defp deserialize_type(<<1::8, rest::bitstring>>, _) do
     {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
     <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
 
-    {%__MODULE__{
-       type: :state,
-       encoded_payload: encoded_payload,
-       from: address,
-       timestamp: DateTime.from_unix!(timestamp, :millisecond)
-     }, rest}
+    {[{:type, :state}, {:encoded_payload, encoded_payload}], rest}
   end
 
-  def deserialize(<<1::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
-    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
-
-    {%__MODULE__{
-       type: :call,
-       from: address,
-       timestamp: DateTime.from_unix!(timestamp, :millisecond)
-     }, rest}
-  end
-
-  def deserialize(<<2::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
-    {address, rest} = Utils.deserialize_address(rest)
-    {amount, <<timestamp::64, rest::bitstring>>} = VarInt.get_value(rest)
-    {type, rest} = TransactionMovementType.deserialize(rest)
-
-    {
-      %__MODULE__{
-        from: address,
-        amount: amount,
-        type: type,
-        timestamp: DateTime.from_unix!(timestamp, :millisecond)
-      },
-      rest
-    }
+  defp deserialize_type(<<2::8, rest::bitstring>>, _) do
+    {[{:type, :call}], rest}
   end
 
   @doc """

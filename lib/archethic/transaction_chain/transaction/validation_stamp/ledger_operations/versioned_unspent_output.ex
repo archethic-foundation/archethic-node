@@ -13,6 +13,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         }
 
   @spec serialize(t()) :: bitstring()
+  def serialize(
+        utxo = %__MODULE__{
+          protocol_version: protocol_version,
+          unspent_output: %UnspentOutput{type: :call}
+        }
+      )
+      when protocol_version < 7,
+      # Before AEIP-21 call where not serialized in unspent output so the serialization / deserialization
+      # does not work with protocol version < 7
+      do: serialize(%__MODULE__{utxo | protocol_version: 7})
+
   def serialize(%__MODULE__{
         protocol_version: protocol_version,
         unspent_output: unspent_output = %UnspentOutput{}
