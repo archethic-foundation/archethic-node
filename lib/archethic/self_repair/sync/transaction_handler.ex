@@ -41,7 +41,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         },
         _
       ),
-      do: not TransactionChain.transaction_exists?(address, :io)
+      do: not TransactionChain.transaction_exists?(address)
 
   def download_transaction?(
         %ReplicationAttestation{
