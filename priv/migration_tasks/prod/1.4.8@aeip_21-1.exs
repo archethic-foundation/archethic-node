@@ -196,12 +196,7 @@ defmodule Migration_1_4_8 do
     versionned_utxos =
       unspent_outputs
       |> Enum.filter(& &1.amount == nil or &1.amount > 0)
-      |> Enum.map(
-        &%VersionedUnspentOutput{
-          unspent_output: UnspentOutput.cast(&1),
-          protocol_version: version
-        }
-      )
+      |> VersionedUnspentOutput.wrap_unspent_outputs(verison)
 
     # Delete memory table before inserting entire utxos
     :ets.delete(@table_name, genesis_address)
@@ -226,7 +221,10 @@ defmodule Migration_1_4_8 do
       protocol_version: @last_protocol_version
     }
 
-    Loader.add_utxo(versionned_utxo, genesis_address)
+    input
+    |> UnspentOutput.cast()
+    |> VersionedUnspentOutput.wrap_unspent_output(@last_protocol_version)
+    |> Loader.add_utxo(genesis_address)
   end
 end
 

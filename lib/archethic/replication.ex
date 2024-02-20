@@ -322,21 +322,21 @@ defmodule Archethic.Replication do
     {previous_transaction, inputs}
   end
 
-  defp fetch_inputs(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}}) do
+  defp fetch_inputs(tx = %Transaction{address: address, type: type}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
       "Fetch inputs for #{Base.encode16(previous_address)}",
       transaction_address: Base.encode16(previous_address),
-      transaction_type: tx.type
+      transaction_type: type
     )
 
     previous_address
-    |> TransactionContext.fetch_transaction_unspent_outputs(tx_time)
+    |> TransactionContext.fetch_transaction_unspent_outputs()
     |> tap(fn inputs ->
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
-        transaction_address: Base.encode16(tx.address),
-        type: tx.type
+        transaction_address: Base.encode16(address),
+        type: type
       )
     end)
   end

@@ -83,9 +83,7 @@ defmodule Archethic.UTXO.Loader do
     new_unspent_outputs =
       genesis_address
       |> UTXO.stream_unspent_outputs()
-      |> Stream.reject(fn %VersionedUnspentOutput{unspent_output: utxo} ->
-        utxo in consumed_inputs
-      end)
+      |> Stream.reject(&Enum.member?(consumed_inputs, &1))
       |> Enum.concat(transaction_unspent_outputs)
 
     # We compact all the unspent outputs into new ones, cleaning the previous unspent outputs
@@ -103,9 +101,7 @@ defmodule Archethic.UTXO.Loader do
   defp stamp_unspent_outputs(
          %ValidationStamp{
            protocol_version: protocol_version,
-           ledger_operations: %LedgerOperations{
-             unspent_outputs: unspent_outputs
-           }
+           ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
          },
          transaction_address
        ) do
@@ -116,8 +112,6 @@ defmodule Archethic.UTXO.Loader do
       %UnspentOutput{from: ^transaction_address} -> true
       _ -> false
     end)
-    |> Enum.map(fn utxo = %UnspentOutput{} ->
-      %VersionedUnspentOutput{unspent_output: utxo, protocol_version: protocol_version}
-    end)
+    |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
   end
 end

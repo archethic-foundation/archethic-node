@@ -46,10 +46,14 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
+  import ArchethicCase
 
   setup do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
@@ -1303,6 +1307,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           type: :UCO,
           timestamp: validation_time
         }
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
       ],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
@@ -1320,8 +1325,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
-    fee =
-      Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, ArchethicCase.current_protocol_version())
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
 
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -1333,7 +1337,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -1344,7 +1348,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
   end
 end

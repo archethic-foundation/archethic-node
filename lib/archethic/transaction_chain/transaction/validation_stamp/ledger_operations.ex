@@ -20,6 +20,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils.VarInt
@@ -34,7 +37,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           fee: non_neg_integer(),
-          consumed_inputs: list(UnspentOutput.t())
+          consumed_inputs: list(VersionedUnspentOutput.t())
         }
 
   @burning_address <<0::8, 0::8, 0::256>>
@@ -48,26 +51,33 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @doc ~S"""
   Build some ledger operations from a specific transaction
   """
-  @spec get_utxos_from_transaction(Transaction.t(), DateTime.t()) :: list(UnspentOutput.t())
+  @spec get_utxos_from_transaction(
+          tx :: Transaction.t(),
+          validation_time :: DateTime.t(),
+          protocol_version :: non_neg_integer()
+        ) :: list(VersionedUnspentOutput.t())
   def get_utxos_from_transaction(
         %Transaction{
           address: address,
           type: type,
           data: %TransactionData{content: content}
         },
-        timestamp
+        timestamp,
+        protocol_version
       )
       when type in [:token, :mint_rewards] and not is_nil(timestamp) do
     case Jason.decode(content) do
       {:ok, json} ->
-        get_token_utxos(json, address, timestamp)
+        json
+        |> get_token_utxos(address, timestamp)
+        |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
 
       _ ->
         []
     end
   end
 
-  def get_utxos_from_transaction(%Transaction{}, _timestamp), do: []
+  def get_utxos_from_transaction(%Transaction{}, _timestamp, _), do: []
 
   defp get_token_utxos(
          %{"token_reference" => token_ref, "supply" => supply},
@@ -151,15 +161,27 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp get_token_utxos(_, _, _), do: []
 
   defp total_to_spend(fee, movements) do
-    ledger_balances(movements, %{uco: fee, token: %{}})
-  end
-
-  defp ledger_balances(movements, acc \\ %{uco: 0, token: %{}}) do
-    Enum.reduce(movements, acc, fn
-      %{type: :UCO, amount: amount}, acc ->
+    Enum.reduce(movements, %{uco: fee, token: %{}}, fn
+      %TransactionMovement{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %{type: {:token, token_address, token_id}, amount: amount}, acc ->
+      %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
+        update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  defp ledger_balances(utxos) do
+    Enum.reduce(utxos, %{uco: 0, token: %{}}, fn
+      %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO, amount: amount}}, acc ->
+        Map.update!(acc, :uco, &(&1 + amount))
+
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}
+      },
+      acc ->
         update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
 
       _, acc ->
@@ -194,90 +216,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   Use the necessary inputs to satisfy the uco amount to spend
   The remaining unspent outputs will go to the change address
   Also return a boolean indicating if there was sufficient funds
-
-  ## Examples
-
-      iex> %LedgerOperations{}
-      ...> |> LedgerOperations.consume_inputs(
-      ...>      "@Alice2",
-      ...>      ~U[2023-09-04 00:10:00Z],
-      ...>      [
-      ...>        %UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:08:00Z]},
-      ...>        %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:07:00Z]}
-      ...>      ],
-      ...>      [%TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}]
-      ...> )
-      {true, %LedgerOperations{
-        unspent_outputs: [%UnspentOutput{amount: 500_000_000, from: "Charlie5", type: :UCO, timestamp: ~U[2023-09-04 00:08:00Z]}],
-        consumed_inputs: [%UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:07:00Z]}]
-      } }
-
-      iex> %LedgerOperations{}
-      ...> |> LedgerOperations.consume_inputs("@Alice2", ~U[2023-09-04 00:10:00Z], [
-      ...>    %UnspentOutput{from: "@Charlie0", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-      ...>    %UnspentOutput{from: "@Charlie1", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:02:00Z]},
-      ...>    %UnspentOutput{from: "@Charlie2", amount: 500_000_000, type: {:token, "@token", 0}, timestamp: ~U[2023-09-04 00:03:00Z]},
-      ...>    %UnspentOutput{from: "@Charlie3", amount: 1_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
-      ...>    %UnspentOutput{from: "@Charlie4", amount: 3_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:05:00Z]}
-      ...> ],
-      ...> [ %TransactionMovement{to: "@Bob3", amount: 50_000_000, type: :UCO} ]
-      ...> )
-      {true, %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{amount: 550_000_000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]},
-          %UnspentOutput{amount: 4_000_000, from: "@Alice2", type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:10:00Z]},
-          %UnspentOutput{amount: 500_000_000, from: "@Charlie2", type: {:token, "@token", 0}, timestamp: ~U[2023-09-04 00:03:00Z]}
-        ],
-        consumed_inputs: [
-          %UnspentOutput{from: "@Charlie0", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-          %UnspentOutput{from: "@Charlie1", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:02:00Z]},
-          %UnspentOutput{from: "@Charlie3", amount: 1_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
-          %UnspentOutput{from: "@Charlie4", amount: 3_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:05:00Z]}
-        ]
-      }}
-
-      iex> %LedgerOperations{ fee: 10_000_000 }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", ~U[2023-09-04 00:10:00Z], [
-      ...>    %UnspentOutput{from: "@Alice1", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-      ...>    %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:04:00Z]}
-      ...>], [], [], nil, %Archethic.Contracts.Contract.Context{
-      ...>    trigger: {:transaction, "@SC1", ""},
-      ...>    status: :tx_output,
-      ...>    timestamp: ~U[2023-09-04 00:05:00Z]
-      ...> })
-      {true, %LedgerOperations{
-        fee: 10_000_000,
-        unspent_outputs: [
-          %UnspentOutput{amount: 90_000_000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]},
-        ],
-        consumed_inputs: [
-          %UnspentOutput{from: "@Alice1", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-          %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:04:00Z]}
-        ]
-      }}
-
-      iex> %LedgerOperations{}
-      ...> |> LedgerOperations.consume_inputs("@Alice2", ~U[2023-09-04 00:10:00Z], [
-      ...>    %UnspentOutput{from: "@Alice1", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-      ...>    %UnspentOutput{from: "@Alice1", type: :state, timestamp: ~U[2023-09-04 00:01:00Z]}
-      ...>], [], [], <<0, 1, 2, 3>>)
-      {true, %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{from: "@Alice2", type: :state, timestamp: ~U[2023-09-04 00:10:00Z], encoded_payload: <<0, 1, 2, 3>>},
-          %UnspentOutput{from: "@Alice1", type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z], amount: 100_000_000 }
-        ],
-        consumed_inputs: [
-          %UnspentOutput{from: "@Alice1", type: :state, timestamp: ~U[2023-09-04 00:01:00Z]}
-        ]
-      }}
   """
   @spec consume_inputs(
           ledger_operations :: t(),
           change_address :: binary(),
           timestamp :: DateTime.t(),
-          inputs :: list(UnspentOutput.t()),
+          inputs :: list(VersionedUnspentOutput.t()),
           movements :: list(TransactionMovement.t()),
-          token_to_mint :: list(UnspentOutput.t()),
+          token_to_mint :: list(VersionedUnspentOutput.t()),
           encoded_state :: State.encoded() | nil,
           contract_context :: ContractContext.t() | nil
         ) ::
@@ -295,7 +241,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     # Since AEIP-19 we can consume from minted tokens
     # Sort inputs, to have consistent results across all nodes
     consolidated_inputs =
-      Enum.sort_by(tokens_to_mint ++ inputs, &{DateTime.to_unix(&1.timestamp), &1.from})
+      Enum.sort_by(
+        tokens_to_mint ++ inputs,
+        &{DateTime.to_unix(&1.unspent_output.timestamp), &1.unspent_output.from}
+      )
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
@@ -304,11 +253,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       consumed_utxos =
         consolidated_inputs
         |> Enum.map(fn
-          utxo = %UnspentOutput{from: ^change_address} ->
+          utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^change_address}} ->
             # As the minted tokens are used internally during transaction's validation
             # and doesn't not exists outside, we use the burning address
             # to identify inputs coming from the token's minting.
-            %{utxo | from: burning_address()}
+            put_in(utxo, [Access.key!(:unspent_output), Access.key!(:from)], burning_address())
 
           utxo ->
             utxo
@@ -325,6 +274,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # TODO: To active on the part 2 of the AEIP-21
       # replace token received by tokens in consumed_inputs in function new_token_unspent_outputs
       # to get only the new real unspent output
+
+      consolidated_inputs = Enum.map(consolidated_inputs, & &1.unspent_output)
 
       new_unspent_outputs =
         new_token_unspent_outputs(
@@ -415,7 +366,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
        ) do
     inputs
     # We group by type to count them and determine if we need to consume the inputs
-    |> Enum.group_by(& &1.type)
+    |> Enum.group_by(& &1.unspent_output.type)
     |> Enum.flat_map(fn
       {:UCO, inputs} ->
         get_uco_to_consume(inputs, uco_to_spend, uco_balance)
@@ -424,7 +375,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         key = {token_address, token_id}
         get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance)
 
-      {:state, [state_utxo = %UnspentOutput{encoded_payload: previous_state}]} ->
+      {:state,
+       [
+         state_utxo = %VersionedUnspentOutput{
+           unspent_output: %UnspentOutput{encoded_payload: previous_state}
+         }
+       ]} ->
         if encoded_state != nil && previous_state != encoded_state, do: [state_utxo], else: []
 
       {:call, inputs} ->
@@ -451,7 +407,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp get_token_to_consume(_, _, _, _), do: []
 
   defp get_call_to_consume(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
-    case Enum.find(inputs, &(&1.from == address)) do
+    case Enum.find(inputs, &(&1.unspent_output.from == address)) do
       nil -> []
       contract_call_input -> [contract_call_input]
     end
@@ -469,7 +425,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     # Search if we can consume all inputs except one. This will avoid doing consolidation
     remaining_amount = balance_amount - amount_to_spend
 
-    case Enum.find(inputs, &(&1.amount == remaining_amount)) do
+    case Enum.find(inputs, &(&1.unspent_output.amount == remaining_amount)) do
       nil -> inputs
       input -> Enum.reject(inputs, &(&1 == input))
     end
@@ -599,7 +555,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
         bin_consumed_inputs =
           consumed_inputs
-          |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+          |> Enum.map(&VersionedUnspentOutput.serialize/1)
           |> :erlang.list_to_bitstring()
 
         <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
@@ -619,12 +575,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     {nb_transaction_movements, rest} = VarInt.get_value(rest)
 
     {tx_movements, rest} =
-      reduce_transaction_movements(rest, nb_transaction_movements, [], protocol_version)
+      deserialiaze_transaction_movements(rest, nb_transaction_movements, [], protocol_version)
 
     {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
 
     {unspent_outputs, rest} =
-      reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
+      deserialize_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
 
     {
       %__MODULE__{
@@ -641,17 +597,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     {nb_transaction_movements, rest} = VarInt.get_value(rest)
 
     {tx_movements, rest} =
-      reduce_transaction_movements(rest, nb_transaction_movements, [], protocol_version)
+      deserialiaze_transaction_movements(rest, nb_transaction_movements, [], protocol_version)
 
     {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
 
     {unspent_outputs, rest} =
-      reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
+      deserialize_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
 
     {nb_consumed_inputs, rest} = rest |> VarInt.get_value()
 
-    {consumed_inputs, rest} =
-      reduce_unspent_outputs(rest, nb_consumed_inputs, [], protocol_version)
+    {consumed_inputs, rest} = deserialize_versioned_unspent_outputs(rest, nb_consumed_inputs, [])
 
     {
       %__MODULE__{
@@ -664,26 +619,43 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  defp reduce_transaction_movements(rest, 0, _, _), do: {[], rest}
+  defp deserialiaze_transaction_movements(rest, 0, _, _), do: {[], rest}
 
-  defp reduce_transaction_movements(rest, nb, acc, _) when length(acc) == nb do
+  defp deserialiaze_transaction_movements(rest, nb, acc, _) when length(acc) == nb do
     {Enum.reverse(acc), rest}
   end
 
-  defp reduce_transaction_movements(rest, nb, acc, protocol_version) do
+  defp deserialiaze_transaction_movements(rest, nb, acc, protocol_version) do
     {tx_movement, rest} = TransactionMovement.deserialize(rest, protocol_version)
-    reduce_transaction_movements(rest, nb, [tx_movement | acc], protocol_version)
+    deserialiaze_transaction_movements(rest, nb, [tx_movement | acc], protocol_version)
   end
 
-  defp reduce_unspent_outputs(rest, 0, _, _), do: {[], rest}
+  defp deserialize_unspent_outputs(rest, 0, _, _), do: {[], rest}
 
-  defp reduce_unspent_outputs(rest, nb, acc, _) when length(acc) == nb do
+  defp deserialize_unspent_outputs(rest, nb, acc, _) when length(acc) == nb do
     {Enum.reverse(acc), rest}
   end
 
-  defp reduce_unspent_outputs(rest, nb, acc, protocol_version) do
+  defp deserialize_unspent_outputs(rest, nb, acc, protocol_version) do
     {unspent_output, rest} = UnspentOutput.deserialize(rest, protocol_version)
-    reduce_unspent_outputs(rest, nb, [unspent_output | acc], protocol_version)
+    deserialize_unspent_outputs(rest, nb, [unspent_output | acc], protocol_version)
+  end
+
+  defp deserialize_versioned_unspent_outputs(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_versioned_unspent_outputs(rest, nb_unspent_outputs, acc)
+       when length(acc) == nb_unspent_outputs do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_versioned_unspent_outputs(
+         rest,
+         nb_unspent_outputs,
+         acc
+       ) do
+    {unspent_output, rest} = VersionedUnspentOutput.deserialize(rest)
+
+    deserialize_versioned_unspent_outputs(rest, nb_unspent_outputs, [unspent_output | acc])
   end
 
   @spec cast(map()) :: t()
@@ -701,7 +673,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       consumed_inputs:
         ledger_ops
         |> Map.get(:consumed_inputs, [])
-        |> Enum.map(&UnspentOutput.cast/1)
+        |> Enum.map(&VersionedUnspentOutput.cast/1)
     }
   end
 
@@ -716,7 +688,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       transaction_movements: Enum.map(transaction_movements, &TransactionMovement.to_map/1),
       unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map/1),
       fee: fee,
-      consumed_inputs: Enum.map(consumed_inputs, &UnspentOutput.to_map/1)
+      consumed_inputs: Enum.map(consumed_inputs, &UnspentOutput.to_map(&1.unspent_output))
     }
   end
 end

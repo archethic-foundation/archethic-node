@@ -37,14 +37,8 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
       tx_address
       |> Contracts.list_contract_transactions()
       |> Enum.map(fn {address, timestamp, protocol_version} ->
-        %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: address,
-            type: :call,
-            timestamp: timestamp
-          },
-          protocol_version: protocol_version
-        }
+        %UnspentOutput{from: address, type: :call, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
       end)
 
     ledger_utxos = Account.get_unspent_outputs(tx_address)

@@ -55,7 +55,7 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp
 
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
-  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.TransactionInput
 
@@ -640,7 +640,7 @@ defmodule Archethic.TransactionChain do
           address :: Crypto.prepended_hash(),
           nodes :: list(Node.t()),
           genesis? :: boolean()
-        ) :: Enumerable.t() | list(UnspentOutput.t())
+        ) :: Enumerable.t() | list(VersionedUnspentOutput.t())
   def fetch_unspent_outputs(address, nodes, genesis? \\ false)
   def fetch_unspent_outputs(_, [], _), do: []
 
@@ -682,9 +682,7 @@ defmodule Archethic.TransactionChain do
          more?: more?,
          offset: offset
        }} ->
-        unspent_outputs = Enum.map(versioned_unspent_outputs, & &1.unspent_output)
-
-        {unspent_outputs, more?, offset}
+        {versioned_unspent_outputs, more?, offset}
 
       {:error, :network_issue} ->
         {[], false, nil}

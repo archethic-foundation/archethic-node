@@ -162,10 +162,20 @@ defmodule Archethic.UTXOTest do
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
-            consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO}
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: transaction_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                },
+                %UnspentOutput{
+                  from: destination_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
@@ -250,10 +260,20 @@ defmodule Archethic.UTXOTest do
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
-            consumed_inputs: [
-              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: destination_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                },
+                %UnspentOutput{
+                  from: transaction_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
@@ -284,6 +304,7 @@ defmodule Archethic.UTXOTest do
                 type: :UCO,
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
+              |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
             ]
           }
         },

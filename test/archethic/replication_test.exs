@@ -14,11 +14,11 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetGenesisAddress
@@ -32,14 +32,15 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionFactory
 
   doctest Archethic.Replication
 
   import Mox
+  import ArchethicCase
 
   setup do
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -84,22 +85,14 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionInputs{}, _ ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok,
-         %TransactionInputList{
-           inputs:
-             Enum.map(unspent_outputs, fn utxo ->
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: utxo.from,
-                   amount: utxo.amount,
-                   type: utxo.type,
-                   timestamp:
-                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
-                 },
-                 protocol_version: 1
-               }
-             end)
+         %UnspentOutputList{
+           unspent_outputs:
+             VersionedUnspentOutput.wrap_unspent_outputs(
+               unspent_outputs,
+               current_protocol_version()
+             )
          }}
 
       _, %GetTransaction{}, _ ->
@@ -130,14 +123,16 @@ defmodule Archethic.ReplicationTest do
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
-    unspent_outputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
-    ]
+    unspent_outputs =
+      [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+      |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
     now = ~U[2023-01-01 00:00:00Z]
 
@@ -163,23 +158,8 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionInputs{}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs:
-             Enum.map(unspent_outputs, fn utxo ->
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: utxo.from,
-                   amount: utxo.amount,
-                   type: utxo.type,
-                   timestamp:
-                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
-                 },
-                 protocol_version: 1
-               }
-             end)
-         }}
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
 
       _, %GetTransaction{address: ^previous_address}, _ ->
         {:ok, prev_tx}
@@ -231,22 +211,14 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionInputs{}, _ ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok,
-         %TransactionInputList{
-           inputs:
-             Enum.map(unspent_outputs, fn utxo ->
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: utxo.from,
-                   amount: utxo.amount,
-                   type: utxo.type,
-                   timestamp:
-                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
-                 },
-                 protocol_version: 1
-               }
-             end)
+         %UnspentOutputList{
+           unspent_outputs:
+             VersionedUnspentOutput.wrap_unspent_outputs(
+               unspent_outputs,
+               current_protocol_version()
+             )
          }}
 
       _, %GetTransactionChain{}, _ ->

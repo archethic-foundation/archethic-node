@@ -79,7 +79,8 @@ defmodule Archethic.UTXO do
 
       with true <- Election.chain_storage_node?(to, node_public_key, authorized_nodes),
            false <- utxo_consumed?(to, utxo) do
-        %VersionedUnspentOutput{unspent_output: utxo, protocol_version: protocol_version}
+        utxo
+        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
         |> Loader.add_utxo(to)
       end
     end)
@@ -100,16 +101,9 @@ defmodule Archethic.UTXO do
     recipients
     |> Enum.each(fn recipient ->
       if Election.chain_storage_node?(recipient, node_public_key, authorized_nodes) do
-        utxo = %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: address,
-            type: :call,
-            timestamp: timestamp
-          },
-          protocol_version: protocol_version
-        }
-
-        Loader.add_utxo(utxo, recipient)
+        %UnspentOutput{from: address, type: :call, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
+        |> Loader.add_utxo(recipient)
       end
     end)
   end
@@ -205,7 +199,10 @@ defmodule Archethic.UTXO do
 
         if protocol_version < 7,
           do: not Enum.member?(unspent_outputs, utxo),
-          else: Enum.member?(consumed_inputs, utxo)
+          else:
+            consumed_inputs
+            |> VersionedUnspentOutput.unwrap_unspent_outputs()
+            |> Enum.member?(utxo)
       end)
     else
       false
