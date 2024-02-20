@@ -109,7 +109,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           utxos :: list(UnspentOutput.t()),
           protocol_version :: non_neg_integer()
         ) :: list(t())
-  def wrap_unspent_outputs(utxos, protocol_version) when is_list(utxos),
+  def wrap_unspent_outputs(utxos, protocol_version),
     do: Enum.map(utxos, &wrap_unspent_output(&1, protocol_version))
 
   @doc """
@@ -125,6 +125,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     [utxo1, utxo2]
   """
   @spec unwrap_unspent_outputs(versioned_utxos :: list(t())) :: list(UnspentOutput.t())
-  def unwrap_unspent_outputs(utxos) when is_list(utxos),
+  def unwrap_unspent_outputs(utxos),
     do: Enum.map(utxos, &unwrap_unspent_output/1)
 end
