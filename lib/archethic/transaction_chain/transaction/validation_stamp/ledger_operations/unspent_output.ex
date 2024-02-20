@@ -170,27 +170,26 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     utxo = %__MODULE__{from: from, timestamp: DateTime.from_unix!(timestamp, :millisecond)}
     {fields, rest} = deserialize_type(rest, protocol_version)
-    utxo = Enum.reduce(fields, utxo, fn {key, value}, acc -> Map.put(acc, key, value) end)
 
-    {utxo, rest}
+    {Map.merge(utxo, fields), rest}
   end
 
   defp deserialize_type(<<0::8, rest::bitstring>>, _) do
     {type, rest} = TransactionMovementType.deserialize(rest)
     {amount, rest} = VarInt.get_value(rest)
 
-    {[{:type, type}, {:amount, amount}], rest}
+    {%{type: type, amount: amount}, rest}
   end
 
   defp deserialize_type(<<1::8, rest::bitstring>>, _) do
     {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
     <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
 
-    {[{:type, :state}, {:encoded_payload, encoded_payload}], rest}
+    {%{type: :state, encoded_payload: encoded_payload}, rest}
   end
 
   defp deserialize_type(<<2::8, rest::bitstring>>, _) do
-    {[{:type, :call}], rest}
+    {%{type: :call}, rest}
   end
 
   @doc """
