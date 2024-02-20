@@ -56,6 +56,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   end
 
   @doc """
+  Build %VersionedUnspentOutput struct from map
+  """
+  @spec to_map(versioned_unspent_output :: t()) :: map()
+  def to_map(%__MODULE__{unspent_output: utxo, protocol_version: protocol_version}) do
+    utxo |> UnspentOutput.to_map() |> Map.put(:protocol_version, protocol_version)
+  end
+
+  @doc """
   Wrap an UnspentOuput into a VersionedUnspentOutput
 
   ## Examples

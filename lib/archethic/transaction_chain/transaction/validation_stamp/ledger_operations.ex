@@ -688,7 +688,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       transaction_movements: Enum.map(transaction_movements, &TransactionMovement.to_map/1),
       unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map/1),
       fee: fee,
-      consumed_inputs: Enum.map(consumed_inputs, &UnspentOutput.to_map(&1.unspent_output))
+      consumed_inputs: Enum.map(consumed_inputs, &VersionedUnspentOutput.to_map/1)
     }
   end
 end
