@@ -124,17 +124,23 @@ defmodule Migration_1_4_8 do
         |> fetch_genesis_addresses(authorized_nodes)
         |> Enum.filter(&genesis_node?(&1, authorized_nodes, node_key))
       end,
-      timeout: :infinity
+      timeout: :infinity,
+      max_concurrency: 4
     )
     |> Stream.flat_map(fn {:ok, genesis_addresses} -> genesis_addresses end)
     |> Stream.uniq()
   end
 
   defp fetch_genesis_addresses(addresses, authorized_nodes) do
-    Task.Supervisor.async_stream(TaskSupervisor, addresses, fn address ->
-      storage_nodes = Election.storage_nodes(address, authorized_nodes)
-      TransactionChain.fetch_genesis_address(address, storage_nodes)
-    end)
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      addresses,
+      fn address ->
+        storage_nodes = Election.storage_nodes(address, authorized_nodes)
+        TransactionChain.fetch_genesis_address(address, storage_nodes)
+      end,
+      max_concurrency: 4
+    )
     |> Stream.map(fn {:ok, {:ok, genesis_address}} -> genesis_address end)
   end
 
@@ -195,7 +201,7 @@ defmodule Migration_1_4_8 do
     # We need to use tx unspent outputs as fetch inputs does not return the contract state
     versionned_utxos =
       unspent_outputs
-      |> Enum.filter(& &1.amount == nil or &1.amount > 0)
+      |> Enum.filter(&(&1.amount == nil or &1.amount > 0))
       |> VersionedUnspentOutput.wrap_unspent_outputs(verison)
 
     # Delete memory table before inserting entire utxos
