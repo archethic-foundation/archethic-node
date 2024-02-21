@@ -194,15 +194,18 @@ defmodule Archethic.UTXO do
       genesis_address
       |> TransactionChain.list_chain_addresses()
       |> Stream.filter(fn {_, timestamp} -> DateTime.compare(timestamp, utxo_timestamp) == :gt end)
-      |> Enum.any?(fn {address, _} ->
-        {protocol_version, consumed_inputs, unspent_outputs} = get_transaction_fields(address)
+      |> Stream.map(fn {address, _} -> get_transaction_fields(address) end)
+      |> Enum.any?(fn
+        {:ok, {protocol_version, consumed_inputs, unspent_outputs}} ->
+          if protocol_version < 7,
+            do: not Enum.member?(unspent_outputs, utxo),
+            else:
+              consumed_inputs
+              |> VersionedUnspentOutput.unwrap_unspent_outputs()
+              |> Enum.member?(utxo)
 
-        if protocol_version < 7,
-          do: not Enum.member?(unspent_outputs, utxo),
-          else:
-            consumed_inputs
-            |> VersionedUnspentOutput.unwrap_unspent_outputs()
-            |> Enum.member?(utxo)
+        :error ->
+          false
       end)
     else
       false
@@ -217,18 +220,22 @@ defmodule Archethic.UTXO do
       ]
     ]
 
-    {:ok,
-     %Transaction{
-       validation_stamp: %ValidationStamp{
-         protocol_version: protocol_version,
-         ledger_operations: %LedgerOperations{
-           consumed_inputs: consumed_inputs,
-           unspent_outputs: unspent_outputs
+    case TransactionChain.get_transaction(address, fields) do
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           protocol_version: protocol_version,
+           ledger_operations: %LedgerOperations{
+             consumed_inputs: consumed_inputs,
+             unspent_outputs: unspent_outputs
+           }
          }
-       }
-     }} = TransactionChain.get_transaction(address, fields)
+       }} ->
+        {:ok, {protocol_version, consumed_inputs, unspent_outputs}}
 
-    {protocol_version, consumed_inputs, unspent_outputs}
+      {:error, _} ->
+        :error
+    end
   end
 
   @doc """
