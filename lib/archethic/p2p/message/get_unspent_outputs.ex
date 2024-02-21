@@ -69,7 +69,11 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
     utxos_length = Enum.count(utxos)
 
     utxos
-    |> Enum.sort_by(& &1.unspent_output.timestamp, {:desc, DateTime})
+    |> Enum.sort_by(fn %VersionedUnspentOutput{
+                         unspent_output: %UnspentOutput{timestamp: timestamp}
+                       } ->
+      if is_nil(timestamp), do: DateTime.from_unix!(0), else: timestamp
+    end)
     |> Enum.with_index()
     |> Enum.drop(offset)
     |> Enum.reduce_while(
