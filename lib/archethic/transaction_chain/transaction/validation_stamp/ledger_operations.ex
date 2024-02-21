@@ -243,7 +243,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     consolidated_inputs =
       Enum.sort_by(
         tokens_to_mint ++ inputs,
-        &{DateTime.to_unix(&1.unspent_output.timestamp), &1.unspent_output.from}
+        fn %VersionedUnspentOutput{
+             unspent_output: %UnspentOutput{timestamp: timestamp, from: from}
+           } ->
+          if is_nil(timestamp), do: {0, from}, else: {DateTime.to_unix(timestamp), from}
+        end
       )
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
