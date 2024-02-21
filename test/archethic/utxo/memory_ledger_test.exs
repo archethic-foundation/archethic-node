@@ -14,6 +14,7 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
   alias Archethic.UTXO.MemoryLedger
 
   import Mox
+  import ArchethicCase
 
   setup :verify_on_exit!
   setup :set_mox_global
@@ -165,77 +166,70 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
     end
 
     test "should remove the unspent outputs matching the consumed input" do
-      utxo = %UnspentOutput{
-        from: ArchethicCase.random_address(),
-        type: :UCO,
-        amount: 100_000_000,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
+      utxo =
+        %UnspentOutput{
+          from: random_address(),
+          type: :UCO,
+          amount: 100_000_000,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
 
-      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{unspent_output: utxo})
+      address = random_address()
 
-      assert [%VersionedUnspentOutput{unspent_output: ^utxo}] =
-               "@Alice0"
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+      MemoryLedger.add_chain_utxo(address, utxo)
 
-      MemoryLedger.remove_consumed_input("@Alice0", utxo)
+      assert [^utxo] = address |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
 
-      assert "@Alice0"
-             |> MemoryLedger.stream_unspent_outputs()
-             |> Enum.empty?()
+      MemoryLedger.remove_consumed_input(address, utxo)
+
+      assert address |> MemoryLedger.stream_unspent_outputs() |> Enum.empty?()
     end
 
     test "should reduce the size of unspent outputs in memory" do
-      utxo1 = %UnspentOutput{
-        from: ArchethicCase.random_address(),
-        type: :UCO,
-        amount: 100_000_000,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
+      protocol_version = current_protocol_version()
 
-      utxo2 = %UnspentOutput{
-        from: ArchethicCase.random_address(),
-        type: :UCO,
-        amount: 200_000_000,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
+      utxo1 =
+        %UnspentOutput{
+          from: random_address(),
+          type: :UCO,
+          amount: 100_000_000,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
 
-      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
-        unspent_output: utxo1,
-        protocol_version: ArchethicCase.current_protocol_version()
-      })
+      utxo2 =
+        %UnspentOutput{
+          from: random_address(),
+          type: :UCO,
+          amount: 200_000_000,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
 
-      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
-        unspent_output: utxo2,
-        protocol_version: ArchethicCase.current_protocol_version()
-      })
+      address = random_address()
 
-      assert [
-               %VersionedUnspentOutput{unspent_output: ^utxo2},
-               %VersionedUnspentOutput{unspent_output: ^utxo1}
-             ] =
-               "@Alice0"
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+      MemoryLedger.add_chain_utxo(address, utxo1)
+      MemoryLedger.add_chain_utxo(address, utxo2)
+
+      mem_utxos = address |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+
+      assert length(mem_utxos) == 2
+      assert Enum.all?([utxo1, utxo2], &Enum.member?(mem_utxos, &1))
 
       expected_size =
-        "@Alice0"
+        address
         |> MemoryLedger.stream_unspent_outputs()
         |> Enum.map(&:erlang.external_size/1)
         |> Enum.sum()
 
-      assert %{
-               size: ^expected_size
-             } = MemoryLedger.get_genesis_stats("@Alice0")
+      assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats(address)
 
-      MemoryLedger.remove_consumed_input("@Alice0", utxo2)
+      MemoryLedger.remove_consumed_input(address, utxo2)
 
       expected_size = div(expected_size, 2)
 
-      assert %{
-               size: ^expected_size
-             } = MemoryLedger.get_genesis_stats("@Alice0")
+      assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats(address)
     end
   end
 end

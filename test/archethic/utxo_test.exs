@@ -2,10 +2,12 @@ defmodule Archethic.UTXOTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.UTXO
-  alias Archethic.UTXO.MemoryLedger
+  alias Archethic.Crypto
 
   alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias Archethic.Reward.MemTables.RewardTokens
 
@@ -24,6 +26,9 @@ defmodule Archethic.UTXOTest do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
+  alias Archethic.UTXO
+  alias Archethic.UTXO.MemoryLedger
+
   alias Archethic.TransactionFactory
 
   import Mox
@@ -31,6 +36,19 @@ defmodule Archethic.UTXOTest do
 
   setup do
     start_supervised!(RewardTokens)
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.first_node_public_key(),
+      network_patch: "AAA",
+      geo_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+    })
+
     :ok
   end
 
@@ -144,10 +162,20 @@ defmodule Archethic.UTXOTest do
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
-            consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO}
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: transaction_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                },
+                %UnspentOutput{
+                  from: destination_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
@@ -232,10 +260,20 @@ defmodule Archethic.UTXOTest do
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
-            consumed_inputs: [
-              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: destination_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                },
+                %UnspentOutput{
+                  from: transaction_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
@@ -266,6 +304,7 @@ defmodule Archethic.UTXOTest do
                 type: :UCO,
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
+              |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
             ]
           }
         },

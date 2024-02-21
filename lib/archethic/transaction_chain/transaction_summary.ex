@@ -254,7 +254,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
               address: Base.encode16(address)
         end
       end,
-      max_concurrency: length(addresses)
+      max_concurrency: 16
     )
     |> Enum.flat_map(fn {:ok, res} -> res end)
   end

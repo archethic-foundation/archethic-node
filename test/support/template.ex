@@ -233,6 +233,7 @@ defmodule ArchethicCase do
   end
 
   def setup_before_send_tx() do
+    :persistent_term.put(:archethic_up, :up)
     start_supervised!(Archethic.SelfRepair.NetworkView)
     nss_key = SharedSecrets.genesis_address_keys().nss
 

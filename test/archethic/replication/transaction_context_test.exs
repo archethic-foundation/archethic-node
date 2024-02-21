@@ -9,8 +9,8 @@ defmodule Archethic.Replication.TransactionContextTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
 
@@ -20,9 +20,6 @@ defmodule Archethic.Replication.TransactionContextTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
 
   import Mox
 
@@ -90,36 +87,23 @@ defmodule Archethic.Replication.TransactionContextTest do
     assert [%Transaction{previous_public_key: ^pub1}] = chain
   end
 
-  test "fetch_transaction_inputs/2 should retrieve the inputs of a transaction at a given date" do
-    UCOLedger.add_unspent_output(
-      "@Alice1",
-      %VersionedUnspentOutput{
-        unspent_output: %UnspentOutput{
-          from: "@Bob3",
-          amount: 19_300_000,
-          type: :UCO,
-          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-        },
-        protocol_version: 1
+  test "fetch_transaction_unspent_outputs/1 should retrieve the inputs of a transaction at a given date" do
+    v_utxo =
+      %UnspentOutput{
+        from: random_address(),
+        amount: 19_300_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
-    )
+      |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
+    address = random_address()
+
+    UCOLedger.add_unspent_output(address, v_utxo)
 
     MockClient
-    |> stub(:send_message, fn _, %GetTransactionInputs{}, _ ->
-      {:ok,
-       %TransactionInputList{
-         inputs: [
-           %VersionedTransactionInput{
-             input: %TransactionInput{
-               from: "@Bob3",
-               amount: 19_300_000,
-               type: :UCO,
-               timestamp: DateTime.utc_now()
-             },
-             protocol_version: 1
-           }
-         ]
-       }}
+    |> expect(:send_message, fn _, %GetUnspentOutputs{address: ^address}, _ ->
+      {:ok, %UnspentOutputList{unspent_outputs: [v_utxo]}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -134,7 +118,6 @@ defmodule Archethic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
-             TransactionContext.fetch_transaction_unspent_outputs("@Alice1", DateTime.utc_now())
+    assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(address)
   end
 end

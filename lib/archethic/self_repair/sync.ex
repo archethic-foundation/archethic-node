@@ -369,7 +369,7 @@ defmodule Archethic.SelfRepair.Sync do
 
       Task.async_stream(attestations, &adjust_attestation(&1, download_nodes),
         timeout: Message.get_max_timeout(),
-        max_concurrency: System.schedulers_online() * 2,
+        max_concurrency: System.schedulers_online(),
         ordered: false
       )
       |> Stream.with_index(1)
@@ -419,7 +419,7 @@ defmodule Archethic.SelfRepair.Sync do
     adjusted_tx_summary = %TransactionSummary{
       tx_summary
       | genesis_address: Task.await(genesis_task),
-        movements_addresses: Task.await(io_addresses_task)
+        movements_addresses: Task.await(io_addresses_task, Message.get_max_timeout())
     }
 
     %ReplicationAttestation{attestation | transaction_summary: adjusted_tx_summary}

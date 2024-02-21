@@ -23,6 +23,9 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -353,6 +356,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           type: :UCO,
           timestamp: validation_time
         }
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
       ],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
@@ -379,7 +383,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -412,7 +416,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -445,7 +449,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -476,7 +480,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -506,7 +510,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       ],
       unspent_outputs: [
         %UnspentOutput{
-          amount: Enum.reduce(unspent_outputs, 0, &(&1.amount + &2)) - fee,
+          amount: Enum.reduce(unspent_outputs, 0, &(&1.unspent_output.amount + &2)) - fee,
           from: tx.address,
           type: :UCO,
           timestamp: timestamp
@@ -568,7 +572,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)

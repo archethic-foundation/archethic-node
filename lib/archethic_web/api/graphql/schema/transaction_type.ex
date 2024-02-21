@@ -157,7 +157,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
     field(:unspent_outputs, list_of(:unspent_output))
-    field(:consumed_inputs, list_of(:unspent_output))
+    field(:consumed_inputs, list_of(:consumed_inputs))
     field(:fee, :integer)
   end
 
@@ -166,11 +166,10 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   It includes:
   - From: transaction which send the amount of assets
   - Amount: asset amount
-  - Type: UCO/token
+  - Type: UCO / token / state
   - token address: address of the token if the type is token
   - token id: It is the id for a token which is allocated when the token is minted.
   - Timestamp: Date time when the UTXO created/manipulated
-  - Version: Version of the UTXO data structure
   - State: It is the state of a smart contract
   """
   object :unspent_output do
@@ -180,7 +179,29 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:token_address, :address)
     field(:token_id, :integer)
     field(:timestamp, :timestamp)
-    field(:version, :integer)
+    field(:state, :state)
+  end
+
+  @desc """
+  [ConsumedInputs] represents the inputs consumed by the transaction
+  It includes:
+  - From: transaction which send the amount of assets
+  - Amount: asset amount
+  - Type: UCO / token / state / call
+  - token address: address of the token if the type is token
+  - token id: It is the id for a token which is allocated when the token is minted.
+  - Timestamp: Date time when the UTXO created/manipulated
+  - Protocol Version: Version of the UTXO data structure
+  - State: It is the state of a smart contract
+  """
+  object :consumed_inputs do
+    field(:from, :address)
+    field(:amount, :integer)
+    field(:type, :string)
+    field(:token_address, :address)
+    field(:token_id, :integer)
+    field(:timestamp, :timestamp)
+    field(:protocol_version, :integer)
     field(:state, :state)
   end
 

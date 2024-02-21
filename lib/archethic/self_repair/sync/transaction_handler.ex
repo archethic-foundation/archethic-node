@@ -41,7 +41,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         },
         _
       ),
-      do: not TransactionChain.transaction_exists?(address, :io)
+      do: not TransactionChain.transaction_exists?(address)
 
   def download_transaction?(
         %ReplicationAttestation{
@@ -159,7 +159,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       io_node?(movements_addresses, node_public_key, node_list) ->
         Replication.synchronize_io_transaction(tx, genesis_address,
           self_repair?: true,
-          resolved_addresses: resolved_addresses
+          resolved_addresses: resolved_addresses,
+          download_nodes: node_list
         )
 
       true ->

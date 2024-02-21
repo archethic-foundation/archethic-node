@@ -32,7 +32,7 @@ defmodule Archethic.Account.MemTablesLoader do
     validation_stamp: [
       :timestamp,
       :protocol_version,
-      ledger_operations: [:fee, :unspent_outputs, :transaction_movements, :consumed_inputs]
+      ledger_operations: [:fee, :unspent_outputs, :transaction_movements]
     ]
   ]
 

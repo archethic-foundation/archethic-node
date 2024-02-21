@@ -64,7 +64,8 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -74,7 +75,7 @@ defmodule Archethic.Mining.ValidationContext do
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
           previous_transaction: nil | Transaction.t(),
-          unspent_outputs: list(UnspentOutput.t()),
+          unspent_outputs: list(VersionedUnspentOutput.t()),
           resolved_addresses: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
           welcome_node: Node.t(),
           coordinator_node: Node.t(),
@@ -519,7 +520,7 @@ defmodule Archethic.Mining.ValidationContext do
   @spec put_transaction_context(
           t(),
           Transaction.t(),
-          list(UnspentOutput.t()),
+          list(VersionedUnspentOutput.t()),
           list(Node.t()),
           bitstring(),
           bitstring(),
@@ -752,6 +753,7 @@ defmodule Archethic.Mining.ValidationContext do
          encoded_state
        ) do
     movements = Transaction.get_movements(tx)
+    protocol_version = Mining.protocol_version()
 
     {sufficient_funds?, ops} =
       LedgerOperations.consume_inputs(
@@ -760,7 +762,7 @@ defmodule Archethic.Mining.ValidationContext do
         validation_time |> DateTime.truncate(:millisecond),
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, validation_time),
+        LedgerOperations.get_utxos_from_transaction(tx, validation_time, protocol_version),
         encoded_state,
         contract_context
       )
