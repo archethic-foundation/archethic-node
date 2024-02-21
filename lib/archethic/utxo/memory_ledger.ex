@@ -14,6 +14,8 @@ defmodule Archethic.UTXO.MemoryLedger do
 
   require Logger
 
+  alias Archethic.Crypto
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -49,7 +51,7 @@ defmodule Archethic.UTXO.MemoryLedger do
   Add new utxo in the genesis ledger
   """
   @spec add_chain_utxo(
-          genesis_address :: binary(),
+          genesis_address :: Crypto.prepended_hash(),
           unspent_output :: VersionedUnspentOutput.t()
         ) :: :ok
   def add_chain_utxo(
@@ -72,9 +74,15 @@ defmodule Archethic.UTXO.MemoryLedger do
         :ets.insert(@table_name, {genesis_address, utxo})
         :ets.update_counter(@table_stats_name, genesis_address, {2, size}, {genesis_address, 0})
 
-        Logger.debug(
-          "UTXO #{Base.encode16(from)}@#{UnspentOutput.type_to_str(type)} added for genesis #{Base.encode16(genesis_address)}"
-        )
+        if from != nil do
+          Logger.debug(
+            "UTXO #{Base.encode16(from)}@#{UnspentOutput.type_to_str(type)} added for genesis #{Base.encode16(genesis_address)}"
+          )
+        else
+          Logger.debug(
+            "UTXO type #{UnspentOutput.type_to_str(type)} added for genesis #{Base.encode16(genesis_address)}"
+          )
+        end
 
         :ok
     end
@@ -83,14 +91,24 @@ defmodule Archethic.UTXO.MemoryLedger do
   @doc """
   Remove of the consumed input from the memory ledger for the given genesis
   """
-  @spec remove_consumed_input(binary(), UnspentOutput.t()) :: :ok
-  def remove_consumed_input(genesis_address, utxo = %UnspentOutput{from: from}) do
-    Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
+  @spec remove_consumed_input(
+          genesis_address :: Crypto.prepended_hash(),
+          utxo :: VersionedUnspentOutput.t()
+        ) ::
+          :ok
+  def remove_consumed_input(
+        genesis_address,
+        utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from, type: type}}
+      ) do
+    if from != nil do
+      Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
+    else
+      Logger.debug(
+        "Consuming #{UnspentOutput.type_to_str(type)} - for #{Base.encode16(genesis_address)}"
+      )
+    end
 
-    match = [
-      {{genesis_address, %{__struct__: VersionedUnspentOutput, unspent_output: utxo}}, [],
-       [:"$_"]}
-    ]
+    match = [{{genesis_address, utxo}, [], [:"$_"]}]
 
     Enum.each(:ets.select(@table_name, match), fn elem = {_, utxo} ->
       size = :erlang.external_size(utxo)

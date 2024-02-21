@@ -1,5 +1,6 @@
 defmodule Archethic.Bootstrap.NetworkInitTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Account
   alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
@@ -43,6 +44,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -137,30 +141,22 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
-    tx =
-      Transaction.new(
-        :transfer,
-        %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{to: "@Alice2", amount: 500_000_000_000}
-              ]
-            }
-          }
-        },
-        "seed",
-        0
-      )
+    ledger = %Ledger{
+      uco: %UCOLedger{transfers: [%Transfer{to: "@Alice2", amount: 500_000_000_000}]}
+    }
 
-    unspent_outputs = [
-      %UnspentOutput{
-        amount: 1_000_000_000_000,
-        from: tx.address,
-        type: :UCO,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
-    ]
+    tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
+
+    unspent_outputs =
+      [
+        %UnspentOutput{
+          amount: 1_000_000_000_000,
+          from: tx.address,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+      |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
     tx = NetworkInit.self_validation(tx, unspent_outputs)
 

@@ -7,7 +7,8 @@ defmodule Archethic.Replication.TransactionContext do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.P2P
 
@@ -55,14 +56,10 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch the transaction unspent outputs for a transaction address at a given time
   """
-  @spec fetch_transaction_unspent_outputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
-          list(UnspentOutput.t())
-  def fetch_transaction_unspent_outputs(address, timestamp = %DateTime{})
-      when is_binary(address) do
+  @spec fetch_transaction_unspent_outputs(address :: Crypto.versioned_hash()) ::
+          list(VersionedUnspentOutput.t())
+  def fetch_transaction_unspent_outputs(address) when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    address
-    |> TransactionChain.fetch_inputs(storage_nodes, timestamp)
-    |> Enum.map(&UnspentOutput.cast/1)
+    TransactionChain.fetch_unspent_outputs(address, storage_nodes) |> Enum.to_list()
   end
 end

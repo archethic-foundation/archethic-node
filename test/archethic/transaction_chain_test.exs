@@ -673,26 +673,16 @@ defmodule Archethic.TransactionChainTest do
 
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
+      utxo =
+        %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
       MockClient
       |> stub(:send_message, fn _, %GetUnspentOutputs{address: _}, _ ->
-        {:ok,
-         %UnspentOutputList{
-           unspent_outputs: [
-             %VersionedUnspentOutput{
-               unspent_output: %UnspentOutput{
-                 from: "Alice2",
-                 amount: 10,
-                 type: :UCO,
-                 timestamp: timestamp
-               },
-               protocol_version: 1
-             }
-           ]
-         }}
+        {:ok, %UnspentOutputList{unspent_outputs: [utxo]}}
       end)
 
-      assert [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}] =
-               TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
+      assert [^utxo] = TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
 
     test "should resolve the longest utxos when conflicts" do
@@ -723,57 +713,30 @@ defmodule Archethic.TransactionChainTest do
       Enum.each(nodes, &P2P.add_and_connect_node/1)
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
+      user_address = random_address()
+
+      utxo1 =
+        %UnspentOutput{from: random_address(), amount: 10, type: :UCO, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
+      utxo2 =
+        %UnspentOutput{from: random_address(), amount: 2, type: :UCO, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
       MockClient
       |> stub(:send_message, fn
-        %Node{port: 3000}, %GetUnspentOutputs{address: _}, _ ->
+        %Node{port: 3000}, %GetUnspentOutputs{address: ^user_address}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        %Node{port: 3001}, %GetUnspentOutputs{address: _}, _ ->
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "Alice2",
-                   amount: 10,
-                   type: :UCO,
-                   timestamp: timestamp
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
+        %Node{port: 3001}, %GetUnspentOutputs{address: ^user_address}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: [utxo1]}}
 
-        %Node{port: 3002}, %GetUnspentOutputs{address: _}, _ ->
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "Alice2",
-                   amount: 10,
-                   type: :UCO,
-                   timestamp: timestamp
-                 },
-                 protocol_version: 1
-               },
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "Bob3",
-                   amount: 2,
-                   type: :UCO,
-                   timestamp: timestamp
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
+        %Node{port: 3002}, %GetUnspentOutputs{address: ^user_address}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: [utxo1, utxo2]}}
       end)
 
-      assert [
-               %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
-               %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
-             ] = TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
+      assert [^utxo1, ^utxo2] =
+               TransactionChain.fetch_unspent_outputs(user_address, nodes) |> Enum.to_list()
     end
   end
 

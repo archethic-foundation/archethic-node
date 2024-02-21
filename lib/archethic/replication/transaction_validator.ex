@@ -16,7 +16,9 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
@@ -50,7 +52,7 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           tx :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs :: list(UnspentOutput.t()),
+          inputs :: list(VersionedUnspentOutput.t()),
           contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
@@ -379,6 +381,8 @@ defmodule Archethic.Replication.TransactionValidator do
          encoded_state,
          contract_context
        ) do
+    protocol_version = Mining.protocol_version()
+
     {sufficient_funds?, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} =
       LedgerOperations.consume_inputs(
         %LedgerOperations{fee: fee},
@@ -386,7 +390,7 @@ defmodule Archethic.Replication.TransactionValidator do
         timestamp,
         inputs,
         Transaction.get_movements(tx),
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
         encoded_state,
         contract_context
       )

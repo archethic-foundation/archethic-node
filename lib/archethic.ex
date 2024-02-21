@@ -29,6 +29,9 @@ defmodule Archethic do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -383,7 +386,9 @@ defmodule Archethic do
           list(UnspentOutput.t())
   def get_unspent_outputs(address, genesis? \\ false) do
     nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_unspent_outputs(address, nodes, genesis?) |> Enum.to_list()
+
+    TransactionChain.fetch_unspent_outputs(address, nodes, genesis?)
+    |> VersionedUnspentOutput.unwrap_unspent_outputs()
   end
 
   @doc """

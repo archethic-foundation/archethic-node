@@ -29,6 +29,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -142,16 +144,18 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    tx
-    |> self_validation([
-      %UnspentOutput{
-        from: Bootstrap.genesis_unspent_output_address(),
-        amount: genesis_transfers_amount,
-        type: :UCO,
-        timestamp: timestamp
-      }
-    ])
-    |> self_replication()
+    inputs =
+      [
+        %UnspentOutput{
+          from: Bootstrap.genesis_unspent_output_address(),
+          amount: genesis_transfers_amount,
+          type: :UCO,
+          timestamp: timestamp
+        }
+      ]
+      |> VersionedUnspentOutput.wrap_unspent_outputs(1)
+
+    tx |> self_validation(inputs) |> self_replication()
   end
 
   @spec init_network_reward_pool() :: :ok
@@ -178,7 +182,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
     )
   end
 
-  @spec self_validation(Transaction.t(), list(UnspentOutput.t())) :: Transaction.t()
+  @spec self_validation(Transaction.t(), list(VersionedUnspentOutput.t())) :: Transaction.t()
   def self_validation(tx = %Transaction{address: address, type: tx_type}, unspent_outputs \\ []) do
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
     fee = Mining.get_transaction_fee(tx, nil, 0.07, timestamp, nil)
@@ -193,7 +197,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
         timestamp,
         unspent_outputs,
         Transaction.get_movements(tx),
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, 1)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
