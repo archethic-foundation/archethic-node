@@ -1,4 +1,4 @@
-{"1.4.8",
+{"1.4.8-rc1",
  [{"1.4.7",
    [{add_module,'Elixir.Archethic.SelfRepair.Error'},
     {add_module,'Elixir.Archethic.UTXO.DBLedger.FileImpl.Supervisor'},
@@ -226,7 +226,7 @@
                                 type => supervisor
                             }
                        ]}},
-    {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.4.8",true]}}]}],
+    {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.4.8-rc1",true]}}]}],
  [{"1.4.7",
    [{delete_module,'Elixir.Archethic.SelfRepair.Error'},
     {delete_module,'Elixir.Archethic.UTXO.DBLedger.FileImpl.Supervisor'},
