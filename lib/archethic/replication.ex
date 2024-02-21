@@ -146,9 +146,9 @@ defmodule Archethic.Replication do
       # we also ingest the transaction if we are storage node of it
 
       ingest? =
-        if Transaction.network_type?(type),
-          do: true,
-          else: Election.chain_storage_node?(address, first_node_key, download_nodes)
+        Transaction.network_type?(type) or
+          Election.chain_storage_node?(address, first_node_key, download_nodes) or
+          Election.chain_storage_node?(genesis_address, first_node_key, download_nodes)
 
       opts = Keyword.delete(ingest_opts, :resolved_addresses)
       if ingest?, do: ingest_transaction(tx, genesis_address, opts)
