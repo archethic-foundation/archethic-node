@@ -631,7 +631,7 @@
                   'Elixir.Archethic.SelfRepair',
                   'Elixir.Archethic.SharedSecrets',
                   'Elixir.Archethic.TransactionChain']},
-    
+
     {load_module,'Elixir.Archethic.DB.EmbeddedImpl',brutal_purge,soft_purge,
                  ['Elixir.Archethic.DB.EmbeddedImpl.BootstrapInfo',
                   'Elixir.Archethic.DB.EmbeddedImpl.ChainIndex',
@@ -2075,5 +2075,3 @@
     {add_module,'Elixir.Archethic.Contracts.Interpreter.TransactionStatements'},
     {add_module,'Elixir.Archethic.Contracts.Interpreter.Utils'},
     {add_module,'Elixir.Archethic.P2P.Message.ReplicateTransactionChain'}]}]}.
-
-
