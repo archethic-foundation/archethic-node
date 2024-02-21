@@ -10,7 +10,7 @@ defmodule Archethic.Account.MemTables.StateLedger do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   require Logger
 
@@ -88,4 +88,20 @@ defmodule Archethic.Account.MemTables.StateLedger do
     :ets.new(@ledger_table, [:set, :named_table, :public, read_concurrency: true])
     {:ok, :no_state}
   end
+
+  # add timestamp in the ETS table
+  def code_change(1, state, _extra) do
+    elements =
+      :ets.tab2list(@ledger_table)
+      |> Enum.map(fn {address, encoded_payload, protocol_version} ->
+        {address, encoded_payload, nil, protocol_version}
+      end)
+
+    # since it's a set it will override them
+    :ets.insert(@ledger_table, elements)
+
+    {:ok, state}
+  end
+
+  def code_change(_version, state, _extra), do: {:ok, state}
 end

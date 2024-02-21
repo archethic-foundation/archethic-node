@@ -75,11 +75,12 @@ defmodule Migration_1_4_8 do
             do: fetch_transaction(last_chain_address, authorized_nodes),
             else: nil
 
-        unless TransactionChain.transaction_exists?(last_chain_address) do
-          Replication.sync_transaction_chain(last_transaction, genesis_address, authorized_nodes,
-            self_repair: true
-          )
-        end
+          if not is_nil(last_transaction) && not TransactionChain.transaction_exists?(last_chain_address) do
+            Replication.sync_transaction_chain(last_transaction, genesis_address, authorized_nodes,
+              self_repair: true
+            )
+          end
+
 
         inputs = fetch_transaction_inputs(last_chain_address, authorized_nodes)
 
