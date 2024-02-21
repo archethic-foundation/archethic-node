@@ -15,6 +15,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionFactory
 
@@ -150,9 +153,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert :ok =
-               TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(nil, unspent_outputs, nil)
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
+      assert(
+        :ok =
+          TransactionFactory.create_valid_transaction(unspent_outputs)
+          |> TransactionValidator.validate(nil, v_unspent_outputs, nil)
+      )
     end
 
     test "should validate when the transaction coming from a contract is valid" do
@@ -174,14 +182,16 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       next_tx =
         ContractFactory.create_next_contract_tx(prev_tx, content: "ok", state: encoded_state)
 
-      inputs = [
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 1_000_000_000,
-          type: :UCO,
-          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-        }
-      ]
+      inputs =
+        [
+          %UnspentOutput{
+            from: "@Alice2",
+            amount: 1_000_000_000,
+            type: :UCO,
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       assert :ok =
                TransactionValidator.validate(next_tx, prev_tx, inputs, %Contract.Context{

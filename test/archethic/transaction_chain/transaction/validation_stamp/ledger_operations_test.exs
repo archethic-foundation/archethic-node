@@ -8,6 +8,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   use ArchethicCase
   import ArchethicCase
 
@@ -59,7 +61,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         assert [] =
                  LedgerOperations.get_utxos_from_transaction(
                    TransactionFactory.create_valid_transaction([], type: t),
-                   DateTime.utc_now()
+                   DateTime.utc_now(),
+                   current_protocol_version()
                  )
       end)
     end
@@ -71,13 +74,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    type: :token,
                    content: "not a json"
                  ),
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 current_protocol_version()
                )
 
       assert [] =
                LedgerOperations.get_utxos_from_transaction(
                  TransactionFactory.create_valid_transaction([], type: :token, content: "{}"),
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 current_protocol_version()
                )
     end
   end
@@ -108,7 +113,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, ^token_address, 0},
                  timestamp: ^now
                }
-             ] = LedgerOperations.get_utxos_from_transaction(tx, now)
+             ] =
+               LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
+               |> VersionedUnspentOutput.unwrap_unspent_outputs()
     end
 
     test "should return an empty list if invalid tx" do
@@ -125,7 +132,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -138,7 +145,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
 
       token_address = random_address()
       token_address_hex = token_address |> Base.encode16()
@@ -154,7 +161,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
     end
   end
 
@@ -185,7 +192,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, ^tx_address, 0},
                  timestamp: ^now
                }
-             ] = LedgerOperations.get_utxos_from_transaction(tx, now)
+             ] =
+               LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
+               |> VersionedUnspentOutput.unwrap_unspent_outputs()
     end
 
     test "should return a utxo (for non-fungible)" do
@@ -210,14 +219,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       tx_address = tx.address
 
+      protocol_version = current_protocol_version()
+
       assert [
-               %UnspentOutput{
-                 amount: 100_000_000,
-                 from: ^tx_address,
-                 type: {:token, ^tx_address, 1},
-                 timestamp: ^now
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   amount: 100_000_000,
+                   from: ^tx_address,
+                   type: {:token, ^tx_address, 1},
+                   timestamp: ^now
+                 },
+                 protocol_version: ^protocol_version
                }
-             ] = LedgerOperations.get_utxos_from_transaction(tx, now)
+             ] = LedgerOperations.get_utxos_from_transaction(tx, now, protocol_version)
     end
 
     test "should return a utxo (for non-fungible collection)" do
@@ -249,26 +263,31 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       tx_address = tx.address
 
-      assert [
-               %UnspentOutput{
-                 amount: 100_000_000,
-                 from: ^tx_address,
-                 type: {:token, ^tx_address, 1},
-                 timestamp: ^now
-               },
-               %UnspentOutput{
-                 amount: 100_000_000,
-                 from: ^tx_address,
-                 type: {:token, ^tx_address, 2},
-                 timestamp: ^now
-               },
-               %UnspentOutput{
-                 amount: 100_000_000,
-                 from: ^tx_address,
-                 type: {:token, ^tx_address, 3},
-                 timestamp: ^now
-               }
-             ] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      expected_utxos =
+        [
+          %UnspentOutput{
+            amount: 100_000_000,
+            from: tx_address,
+            type: {:token, tx_address, 1},
+            timestamp: now
+          },
+          %UnspentOutput{
+            amount: 100_000_000,
+            from: tx_address,
+            type: {:token, tx_address, 2},
+            timestamp: now
+          },
+          %UnspentOutput{
+            amount: 100_000_000,
+            from: tx_address,
+            type: {:token, tx_address, 3},
+            timestamp: now
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+      assert ^expected_utxos =
+               LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
     end
 
     test "should return an empty list if amount is incorrect (for non-fungible)" do
@@ -291,7 +310,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
     end
 
     test "should return an empty list if invalid tx" do
@@ -307,7 +326,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -319,7 +338,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -331,7 +350,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           """
         )
 
-      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now, current_protocol_version())
     end
   end
 
@@ -348,11 +367,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ],
                consumed_inputs: [
-                 %UnspentOutput{
-                   from: "@Bob3",
-                   amount: 2_000_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
+                     from: "@Bob3",
+                     amount: 2_000_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
                  }
                ]
              } =
@@ -367,6 +388,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
@@ -377,6 +399,35 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
 
     test "When multiple little unspent output are sufficient to satisfy the transaction movements" do
+      expected_consumed_inputs =
+        [
+          %UnspentOutput{
+            from: "@Bob3",
+            amount: 500_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            from: "@Christina",
+            amount: 400_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            from: "@Hugo",
+            amount: 800_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            from: "@Tom4",
+            amount: 700_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
       assert %LedgerOperations{
                fee: 40_000_000,
                unspent_outputs: [
@@ -387,32 +438,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
                ],
-               consumed_inputs: [
-                 %UnspentOutput{
-                   from: "@Bob3",
-                   amount: 500_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Christina",
-                   amount: 400_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Hugo",
-                   amount: 800_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Tom4",
-                   amount: 700_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 }
-               ]
+               consumed_inputs: ^expected_consumed_inputs
              } =
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
@@ -443,7 +469,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-10 10:44:38.983Z]
                    }
-                 ],
+                 ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version()),
                  [
                    %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
                    %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
@@ -453,6 +480,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
 
     test "When using Token unspent outputs are sufficient to satisfy the transaction movements" do
+      expected_consumed_inputs =
+        [
+          %UnspentOutput{
+            from: "@Charlie1",
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            from: "@Bob3",
+            amount: 1_200_000_000,
+            type: {:token, "@CharlieToken", 0},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
       assert %LedgerOperations{
                fee: 40_000_000,
                unspent_outputs: [
@@ -469,20 +513,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
                ],
-               consumed_inputs: [
-                 %UnspentOutput{
-                   from: "@Charlie1",
-                   amount: 200_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Bob3",
-                   amount: 1_200_000_000,
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
-                 }
-               ]
+               consumed_inputs: ^expected_consumed_inputs
              } =
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
@@ -501,7 +532,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@CharlieToken", 0},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
+                 ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version()),
                  [
                    %TransactionMovement{
                      to: "@Bob4",
@@ -514,6 +546,35 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
 
     test "When multiple Token unspent outputs are sufficient to satisfy the transaction movements" do
+      expected_consumed_inputs =
+        [
+          %UnspentOutput{
+            from: "@Charlie1",
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            from: "@Bob3",
+            amount: 500_000_000,
+            type: {:token, "@CharlieToken", 0},
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            from: "@Hugo5",
+            amount: 700_000_000,
+            type: {:token, "@CharlieToken", 0},
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          },
+          %UnspentOutput{
+            amount: 700_000_000,
+            from: "@Tom1",
+            type: {:token, "@CharlieToken", 0},
+            timestamp: ~U[2022-10-10 10:44:38.983Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
       assert %LedgerOperations{
                fee: 40_000_000,
                unspent_outputs: [
@@ -532,32 +593,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
                ],
-               consumed_inputs: [
-                 %UnspentOutput{
-                   from: "@Charlie1",
-                   amount: 200_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Bob3",
-                   amount: 500_000_000,
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   from: "@Hugo5",
-                   amount: 700_000_000,
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 %UnspentOutput{
-                   amount: 700_000_000,
-                   from: "@Tom1",
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 }
-               ]
+               consumed_inputs: ^expected_consumed_inputs
              } =
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
@@ -588,7 +624,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@CharlieToken", 0},
                      timestamp: ~U[2022-10-10 10:44:38.983Z]
                    }
-                 ],
+                 ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version()),
                  [
                    %TransactionMovement{
                      to: "@Bob4",
@@ -601,6 +638,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
 
     test "When non-fungible tokens are used as input but want to consume only a single input" do
+      expected_consumed_inputs =
+        [
+          %UnspentOutput{
+            from: "@Charlie1",
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            from: "@CharlieToken",
+            amount: 100_000_000,
+            type: {:token, "@CharlieToken", 2},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
       assert %LedgerOperations{
                fee: 40_000_000,
                unspent_outputs: [
@@ -625,20 +679,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    timestamp: ~U[2022-10-09 08:39:10.463Z]
                  }
                ],
-               consumed_inputs: [
-                 %UnspentOutput{
-                   from: "@Charlie1",
-                   amount: 200_000_000,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
-                 },
-                 %UnspentOutput{
-                   from: "@CharlieToken",
-                   amount: 100_000_000,
-                   type: {:token, "@CharlieToken", 2},
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
-                 }
-               ]
+               consumed_inputs: ^expected_consumed_inputs
              } =
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
@@ -669,7 +710,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@CharlieToken", 3},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
+                 ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version()),
                  [
                    %TransactionMovement{
                      to: "@Bob4",
@@ -702,6 +744,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{
@@ -730,6 +773,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{
@@ -745,6 +789,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 0},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ]
                )
 
@@ -772,7 +817,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, "@Token", 0},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
-             ] = ops_result.consumed_inputs
+             ] = ops_result.consumed_inputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
     end
 
     test "should be able to pay with the minted non-fungible tokens" do
@@ -792,6 +837,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{
@@ -807,6 +853,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ]
                )
 
@@ -827,7 +874,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, "@Token", 1},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
-             ] = ops_result.consumed_inputs
+             ] = ops_result.consumed_inputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
     end
 
     test "should be able to pay with the minted non-fungible tokens (collection)" do
@@ -847,6 +894,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{
@@ -869,6 +917,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
                )
 
       assert [
@@ -895,7 +944,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, "@Token", 2},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
-             ] = ops_result.consumed_inputs
+             ] = ops_result.consumed_inputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
     end
 
     test "should not be able to pay with the same non-fungible token twice" do
@@ -915,6 +964,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: :UCO,
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ],
                  [
                    %TransactionMovement{
@@ -935,6 +985,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
                  ]
                )
     end
@@ -989,6 +1040,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: old_timestamp
                    }
                  ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
                )
 
       assert {true, ops} =
@@ -1009,7 +1061,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token1", 0},
                      timestamp: ~U[2022-10-20 08:00:20.463Z]
                    }
-                 ],
+                 ]
+                 |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version()),
                  [
                    %TransactionMovement{
                      to: "@Bob3",
@@ -1028,21 +1081,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ],
                consumed_inputs: [
-                 %UnspentOutput{from: "@Charlie1"},
-                 %UnspentOutput{from: "@Tom5"}
+                 %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Charlie1"}},
+                 %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Tom5"}}
                ]
              } = ops
     end
 
     test "should consume state if it's not the same" do
-      inputs = [
-        %UnspentOutput{
-          type: :state,
-          from: ArchethicCase.random_address(),
-          encoded_payload: :crypto.strong_rand_bytes(32),
-          timestamp: DateTime.utc_now()
-        }
-      ]
+      inputs =
+        [
+          %UnspentOutput{
+            type: :state,
+            from: random_address(),
+            encoded_payload: :crypto.strong_rand_bytes(32),
+            timestamp: DateTime.utc_now()
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       new_state = :crypto.strong_rand_bytes(32)
 
@@ -1071,14 +1126,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should not consume state if it's the same" do
       state = :crypto.strong_rand_bytes(32)
 
-      inputs = [
-        %UnspentOutput{
-          type: :state,
-          from: ArchethicCase.random_address(),
-          encoded_payload: state,
-          timestamp: DateTime.utc_now()
-        }
-      ]
+      inputs =
+        [
+          %UnspentOutput{
+            type: :state,
+            from: random_address(),
+            encoded_payload: state,
+            timestamp: DateTime.utc_now()
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       tx_validation_time = DateTime.utc_now()
 
@@ -1124,20 +1181,26 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         }
       ]
 
-      consumed_utxo = [
-        %UnspentOutput{
-          from: random_address(),
-          amount: 700_000_000,
-          type: {:token, token_address, 0},
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        },
-        %UnspentOutput{
-          amount: 700_000_000,
-          from: random_address(),
-          type: {:token, token_address, 0},
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        }
-      ]
+      consumed_utxo =
+        [
+          %UnspentOutput{
+            from: random_address(),
+            amount: 700_000_000,
+            type: {:token, token_address, 0},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            amount: 700_000_000,
+            from: random_address(),
+            type: {:token, token_address, 0},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+      all_utxos =
+        VersionedUnspentOutput.wrap_unspent_outputs(utxo_not_used, current_protocol_version()) ++
+          consumed_utxo
 
       assert {true,
               %LedgerOperations{
@@ -1149,7 +1212,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  %LedgerOperations{fee: 0},
                  random_address(),
                  ~U[2022-10-10 10:44:38.983Z],
-                 utxo_not_used ++ consumed_utxo,
+                 all_utxos,
                  [
                    %TransactionMovement{
                      to: random_address(),
@@ -1177,26 +1240,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         }
       ]
 
-      consumed_utxo = [
-        %UnspentOutput{
-          from: random_address(),
-          amount: 10_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        },
-        %UnspentOutput{
-          from: random_address(),
-          amount: 40_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        },
-        %UnspentOutput{
-          from: random_address(),
-          amount: 150_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        }
-      ]
+      consumed_utxo =
+        [
+          %UnspentOutput{
+            from: random_address(),
+            amount: 10_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            from: random_address(),
+            amount: 40_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            from: random_address(),
+            amount: 150_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+      all_utxos =
+        VersionedUnspentOutput.wrap_unspent_outputs(optimized_utxo, current_protocol_version()) ++
+          consumed_utxo
 
       assert {true,
               %LedgerOperations{
@@ -1208,7 +1277,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  %LedgerOperations{fee: 0},
                  random_address(),
                  ~U[2022-10-10 10:44:38.983Z],
-                 optimized_utxo ++ consumed_utxo,
+                 all_utxos,
                  [%TransactionMovement{to: random_address(), amount: 200_000_000, type: :UCO}]
                )
 
@@ -1232,28 +1301,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         }
       ]
 
-      consumed_utxo = [
-        %UnspentOutput{
-          from: random_address(),
-          amount: 10_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:00.463Z]
-        },
-        %UnspentOutput{
-          from: higher_address,
-          amount: 150_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:07.463Z]
-        },
-        %UnspentOutput{
-          from: random_address(),
-          amount: 150_000_000,
-          type: :UCO,
-          timestamp: ~U[2022-10-09 08:39:10.463Z]
-        }
-      ]
+      consumed_utxo =
+        [
+          %UnspentOutput{
+            from: random_address(),
+            amount: 10_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:00.463Z]
+          },
+          %UnspentOutput{
+            from: higher_address,
+            amount: 150_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:07.463Z]
+          },
+          %UnspentOutput{
+            from: random_address(),
+            amount: 150_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
-      all_utxo = optimized_utxo ++ consumed_utxo
+      all_utxo =
+        VersionedUnspentOutput.wrap_unspent_outputs(optimized_utxo, current_protocol_version()) ++
+          consumed_utxo
 
       Enum.each(1..5, fn _ ->
         randomized_utxo = Enum.shuffle(all_utxo)
@@ -1314,13 +1387,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             type: :UCO,
             timestamp: ~U[2022-10-11 07:27:22.815Z]
           }
+          |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
         ]
       }
 
       assert ops ==
                ops
-               |> LedgerOperations.serialize(ArchethicCase.current_protocol_version())
-               |> LedgerOperations.deserialize(ArchethicCase.current_protocol_version())
+               |> LedgerOperations.serialize(current_protocol_version())
+               |> LedgerOperations.deserialize(current_protocol_version())
                |> elem(0)
     end
 

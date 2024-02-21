@@ -61,7 +61,7 @@ defmodule Migration_1_4_8 do
 
     nb_genesis_addresses = length(elected_genesis_addresses)
     # Log each 5 %
-    log_index_rate = trunc(nb_genesis_addresses / 20)
+    log_index_rate = ceil(nb_genesis_addresses / 20)
     Logger.debug("Migration_1_4_8 - Retrieved #{nb_genesis_addresses} genesis addresses to store")
 
     Task.Supervisor.async_stream(
@@ -124,17 +124,23 @@ defmodule Migration_1_4_8 do
         |> fetch_genesis_addresses(authorized_nodes)
         |> Enum.filter(&genesis_node?(&1, authorized_nodes, node_key))
       end,
-      max_concurrency: System.schedulers_online() * 4
+      timeout: :infinity,
+      max_concurrency: 4
     )
     |> Stream.flat_map(fn {:ok, genesis_addresses} -> genesis_addresses end)
     |> Stream.uniq()
   end
 
   defp fetch_genesis_addresses(addresses, authorized_nodes) do
-    Task.Supervisor.async_stream(TaskSupervisor, addresses, fn address ->
-      storage_nodes = Election.storage_nodes(address, authorized_nodes)
-      TransactionChain.fetch_genesis_address(address, storage_nodes)
-    end)
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      addresses,
+      fn address ->
+        storage_nodes = Election.storage_nodes(address, authorized_nodes)
+        TransactionChain.fetch_genesis_address(address, storage_nodes)
+      end,
+      max_concurrency: 4
+    )
     |> Stream.map(fn {:ok, {:ok, genesis_address}} -> genesis_address end)
   end
 
@@ -192,14 +198,11 @@ defmodule Migration_1_4_8 do
          },
          inputs
        ) do
+    # We need to use tx unspent outputs as fetch inputs does not return the contract state
     versionned_utxos =
-      Enum.map(
-        unspent_outputs,
-        &%VersionedUnspentOutput{
-          unspent_output: UnspentOutput.cast(&1),
-          protocol_version: version
-        }
-      )
+      unspent_outputs
+      |> Enum.filter(&(&1.amount == nil or &1.amount > 0))
+      |> VersionedUnspentOutput.wrap_unspent_outputs(verison)
 
     # Delete memory table before inserting entire utxos
     :ets.delete(@table_name, genesis_address)
@@ -224,7 +227,10 @@ defmodule Migration_1_4_8 do
       protocol_version: @last_protocol_version
     }
 
-    Loader.add_utxo(versionned_utxo, genesis_address)
+    input
+    |> UnspentOutput.cast()
+    |> VersionedUnspentOutput.wrap_unspent_output(@last_protocol_version)
+    |> Loader.add_utxo(genesis_address)
   end
 end
 

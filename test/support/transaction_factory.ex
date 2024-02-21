@@ -14,6 +14,8 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.TransactionData
@@ -68,9 +70,12 @@ defmodule Archethic.TransactionFactory do
     recipients = Keyword.get(opts, :recipients, [])
     encoded_state = Keyword.get(opts, :state)
     prev_tx = Keyword.get(opts, :prev_tx)
+    protocol_version = Keyword.get(opts, :protocol_version, current_protocol_version())
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
+
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
 
     tx =
       Transaction.new(
@@ -98,7 +103,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
         encoded_state
       )
       |> elem(1)
@@ -106,11 +111,8 @@ defmodule Archethic.TransactionFactory do
 
     poi =
       case prev_tx do
-        nil ->
-          TransactionChain.proof_of_integrity([tx])
-
-        _ ->
-          TransactionChain.proof_of_integrity([tx, prev_tx])
+        nil -> TransactionChain.proof_of_integrity([tx])
+        _ -> TransactionChain.proof_of_integrity([tx, prev_tx])
       end
 
     validation_stamp =
@@ -121,7 +123,7 @@ defmodule Archethic.TransactionFactory do
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version(),
+        protocol_version: protocol_version,
         recipients: Enum.map(recipients, & &1.address)
       }
       |> ValidationStamp.sign()
@@ -147,7 +149,10 @@ defmodule Archethic.TransactionFactory do
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
+
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -159,7 +164,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -172,7 +177,7 @@ defmodule Archethic.TransactionFactory do
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: protocol_version
       }
       |> ValidationStamp.sign()
 
@@ -190,7 +195,10 @@ defmodule Archethic.TransactionFactory do
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
+
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -202,7 +210,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -214,7 +222,7 @@ defmodule Archethic.TransactionFactory do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: protocol_version
     }
 
     cross_validation_stamp =
@@ -236,7 +244,10 @@ defmodule Archethic.TransactionFactory do
 
     tx = Transaction.new(type, %TransactionData{}, seed, index)
 
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
+
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -248,7 +259,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
@@ -260,21 +271,24 @@ defmodule Archethic.TransactionFactory do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: protocol_version
     }
 
-    cross_validation_stamp =
-      CrossValidationStamp.sign(
-        %CrossValidationStamp{},
-        validation_stamp
-      )
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+    %Transaction{
+      tx
+      | validation_stamp: validation_stamp,
+        cross_validation_stamps: [cross_validation_stamp]
+    }
   end
 
   def create_transaction_with_invalid_fee(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
 
     movements = Transaction.get_movements(tx)
 
@@ -287,7 +301,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -300,24 +314,27 @@ defmodule Archethic.TransactionFactory do
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: protocol_version
       }
       |> ValidationStamp.sign()
 
-    cross_validation_stamp =
-      CrossValidationStamp.sign(
-        %CrossValidationStamp{},
-        validation_stamp
-      )
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+    %Transaction{
+      tx
+      | validation_stamp: validation_stamp,
+        cross_validation_stamps: [cross_validation_stamp]
+    }
   end
 
   def create_transaction_with_invalid_transaction_movements(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
+
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
     movements = [%TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}]
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -329,7 +346,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -342,17 +359,17 @@ defmodule Archethic.TransactionFactory do
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: protocol_version
       }
       |> ValidationStamp.sign()
 
-    cross_validation_stamp =
-      CrossValidationStamp.sign(
-        %CrossValidationStamp{},
-        validation_stamp
-      )
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+    %Transaction{
+      tx
+      | validation_stamp: validation_stamp,
+        cross_validation_stamps: [cross_validation_stamp]
+    }
   end
 
   @doc """
@@ -368,6 +385,9 @@ defmodule Archethic.TransactionFactory do
     aes_key = :crypto.strong_rand_bytes(32)
     prev_txn = Keyword.get(opts, :prev_txn, [])
 
+    protocol_version = current_protocol_version()
+    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
+
     tx =
       SharedSecrets.new_node_shared_secrets_transaction(
         [Crypto.last_node_public_key()],
@@ -376,7 +396,7 @@ defmodule Archethic.TransactionFactory do
         index
       )
 
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
@@ -388,7 +408,7 @@ defmodule Archethic.TransactionFactory do
         timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -400,13 +420,13 @@ defmodule Archethic.TransactionFactory do
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx | prev_txn]),
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: protocol_version
       }
       |> ValidationStamp.sign()
 
     cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
-    %{
+    %Transaction{
       tx
       | validation_stamp: validation_stamp,
         cross_validation_stamps: [cross_validation_stamp]
