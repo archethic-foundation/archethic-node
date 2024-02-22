@@ -798,8 +798,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
             context = %ValidationContext{
               welcome_node: welcome_node = %Node{},
               storage_nodes_confirmations: confirmations,
-              genesis_address: genesis_address,
-              contract_context: contract_context
+              genesis_address: genesis_address
             }
         }
       ) do
@@ -824,7 +823,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
     |> ValidationContext.get_io_replication_nodes()
     |> P2P.broadcast_message(%ReplicateTransaction{
       transaction: validated_tx,
-      contract_context: contract_context,
       genesis_address: genesis_address
     })
 
