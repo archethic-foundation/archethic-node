@@ -10,6 +10,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
   alias Archethic.Replication.TransactionValidator
   alias Archethic.SharedSecrets
@@ -34,8 +36,10 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
     welcome_node = %Node{
-      first_public_key: "key1",
-      last_public_key: "key1",
+      first_public_key: random_public_key(),
+      last_public_key: random_public_key(),
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB"
@@ -55,8 +59,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: "key3",
-        last_public_key: "key3",
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        authorized?: true,
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
@@ -247,7 +252,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      recipient = %Recipient{address: random_address()}
+      recipient_address = random_address()
+      recipient_genesis = random_address()
+      recipient = %Recipient{address: recipient_address}
       tx = TransactionFactory.create_valid_transaction(unspent_outputs, recipients: [recipient])
 
       MockClient
@@ -256,6 +263,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       end)
       |> expect(:send_message, fn _, %ValidateSmartContractCall{}, _ ->
         {:ok, %SmartContractCallValidation{status: :invalid_execution, fee: 0}}
+      end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^recipient_address}, _ ->
+        {:ok, %GenesisAddress{address: recipient_genesis, timestamp: DateTime.utc_now()}}
       end)
 
       assert {:error, :invalid_recipients_execution} =

@@ -54,7 +54,6 @@ defmodule Archethic.UTXOTest do
 
   describe "load_transaction/2" do
     test "should load outputs as io storage nodes but not for chain" do
-      destination_address = random_address()
       destination_previous_address = random_address()
       destination_genesis_address = random_address()
 
@@ -70,7 +69,11 @@ defmodule Archethic.UTXOTest do
           protocol_version: current_protocol_version(),
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
+              %TransactionMovement{
+                to: destination_genesis_address,
+                amount: 100_000_000,
+                type: :UCO
+              }
             ],
             unspent_outputs: [
               %UnspentOutput{
@@ -88,9 +91,6 @@ defmodule Archethic.UTXOTest do
         },
         previous_public_key: random_public_key()
       }
-
-      MockDB
-      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -136,7 +136,6 @@ defmodule Archethic.UTXOTest do
     end
 
     test "should load outputs as chain storage node" do
-      destination_address = random_address()
       destination_previous_address = random_address()
       destination_genesis_address = random_address()
 
@@ -152,7 +151,11 @@ defmodule Archethic.UTXOTest do
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
+              %TransactionMovement{
+                to: destination_genesis_address,
+                amount: 100_000_000,
+                type: :UCO
+              }
             ],
             unspent_outputs: [
               %UnspentOutput{
@@ -180,9 +183,6 @@ defmodule Archethic.UTXOTest do
         },
         previous_public_key: random_public_key()
       }
-
-      MockDB
-      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -247,7 +247,7 @@ defmodule Archethic.UTXOTest do
           ledger_operations: %LedgerOperations{
             transaction_movements: [
               %TransactionMovement{
-                to: transaction_previous_address,
+                to: transaction_genesis_address,
                 amount: 100_000_000,
                 type: :UCO
               }
@@ -287,7 +287,11 @@ defmodule Archethic.UTXOTest do
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination_address, amount: 50_000_000, type: :UCO}
+              %TransactionMovement{
+                to: destination_genesis_address,
+                amount: 50_000_000,
+                type: :UCO
+              }
             ],
             unspent_outputs: [
               %UnspentOutput{
@@ -310,12 +314,6 @@ defmodule Archethic.UTXOTest do
         },
         previous_public_key: random_public_key()
       }
-
-      MockDB
-      |> expect(:get_genesis_address, 2, fn
-        ^destination_address -> destination_genesis_address
-        ^transaction_previous_address -> transaction_genesis_address
-      end)
 
       me = self()
 
@@ -368,7 +366,6 @@ defmodule Archethic.UTXOTest do
     end
 
     test "should load contract call unspent output" do
-      destination_address = random_address()
       destination_genesis_address = random_address()
 
       transaction_address = random_address()
@@ -380,13 +377,10 @@ defmodule Archethic.UTXOTest do
         validation_stamp: %ValidationStamp{
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           protocol_version: current_protocol_version(),
-          recipients: [destination_address]
+          recipients: [destination_genesis_address]
         },
         previous_public_key: random_public_key()
       }
-
-      MockDB
-      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -423,13 +417,8 @@ defmodule Archethic.UTXOTest do
       transaction_address = random_address()
       transaction_genesis = random_address()
 
-      destination1_address = random_address()
       destination1_genesis = random_address()
-
-      destination2_address = random_address()
       destination2_genesis = random_address()
-
-      destination3_address = random_address()
       destination3_genesis = random_address()
 
       token_address = random_address()
@@ -447,9 +436,9 @@ defmodule Archethic.UTXOTest do
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination1_address, amount: 500_000, type: token_type},
-              %TransactionMovement{to: destination2_address, amount: 300_000, type: token_type},
-              %TransactionMovement{to: destination3_address, amount: 200_000, type: token_type}
+              %TransactionMovement{to: destination1_genesis, amount: 500_000, type: token_type},
+              %TransactionMovement{to: destination2_genesis, amount: 300_000, type: token_type},
+              %TransactionMovement{to: destination3_genesis, amount: 200_000, type: token_type}
             ],
             unspent_outputs: [],
             consumed_inputs: [
@@ -522,11 +511,6 @@ defmodule Archethic.UTXOTest do
       chain3_keep_tx2 = TransactionFactory.create_valid_transaction([uco_utxo, chain3_utxo])
 
       MockDB
-      |> expect(:get_genesis_address, 3, fn
-        ^destination1_address -> destination1_genesis
-        ^destination2_address -> destination2_genesis
-        ^destination3_address -> destination3_genesis
-      end)
       |> expect(:get_last_chain_address, 3, fn
         # Destination 1 does not have transaction after utxo timestamp so it will be stored
         ^destination1_genesis -> {random_address(), ~U[2023-09-11 05:00:00.000Z]}

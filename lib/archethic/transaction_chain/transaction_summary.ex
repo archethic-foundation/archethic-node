@@ -3,7 +3,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   Represents transaction header or extract to summarize it
   """
 
-  @version 2
+  @version 3
 
   defstruct [
     :timestamp,
@@ -51,6 +51,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
           type: type,
           validation_stamp:
             validation_stamp = %ValidationStamp{
+              protocol_version: protocol_version,
               timestamp: timestamp,
               ledger_operations:
                 operations = %LedgerOperations{
@@ -65,6 +66,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       when is_binary(genesis_address) do
     raw_stamp = validation_stamp |> ValidationStamp.serialize() |> Utils.wrap_binary()
     validation_stamp_checksum = :crypto.hash(:sha256, raw_stamp)
+
+    version = if protocol_version <= 7 and version > 2, do: 2, else: version
 
     movements_addresses =
       if version >= 2 do
