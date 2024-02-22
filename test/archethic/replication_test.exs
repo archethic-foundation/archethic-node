@@ -13,16 +13,13 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetGenesisAddress
-  # alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.Replication
 
@@ -171,72 +168,6 @@ defmodule Archethic.ReplicationTest do
                trigger: {:datetime, now},
                timestamp: now
              })
-  end
-
-  test "validate_and_store_transaction_chain/2" do
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      authorized?: true,
-      last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
-
-    me = self()
-
-    unspent_outputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      }
-    ]
-
-    p2p_context()
-    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
-    genesis_address = Transaction.previous_address(tx)
-
-    MockDB
-    |> expect(:write_transaction, fn ^tx, _ ->
-      send(me, :replicated)
-      :ok
-    end)
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok,
-         %UnspentOutputList{
-           unspent_outputs:
-             VersionedUnspentOutput.wrap_unspent_outputs(
-               unspent_outputs,
-               current_protocol_version()
-             )
-         }}
-
-      _, %GetTransactionChain{}, _ ->
-        Process.sleep(10)
-        {:ok, %TransactionList{transactions: []}}
-
-      _, %GetTransaction{}, _ ->
-        {:ok, %NotFound{}}
-
-      _, %GetTransactionChainLength{}, _ ->
-        %TransactionChainLength{length: 1}
-
-      _, %GetGenesisAddress{}, _ ->
-        {:ok, %NotFound{}}
-    end)
-
-    assert :ok = Replication.validate_and_store_transaction_chain(tx, nil, genesis_address)
-    assert_receive :replicated
   end
 
   test "validate_and_store_transaction/3" do

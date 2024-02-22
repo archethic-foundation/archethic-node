@@ -107,7 +107,7 @@ defmodule Archethic.Replication do
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
 
-  @type sync_options :: [self_repair?: boolean(), resolved_addresses: map()]
+  @type sync_options :: [self_repair?: boolean(), resolved_addresses: map(), chain?: boolean()]
 
   @doc """
   Replicate and store the transaction chain from the transaction cached in the pool
@@ -177,37 +177,6 @@ defmodule Archethic.Replication do
   end
 
   @doc """
-  Process a new transaction replication for a new chain handling.
-
-  It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
-  and update the internal ledger and views
-  """
-  @spec validate_and_store_transaction_chain(
-          validated_tx :: Transaction.t(),
-          contract_context :: nil | Contract.Context.t(),
-          genesis_address :: Crypto.prepended_hash()
-        ) ::
-          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction_chain(
-        tx = %Transaction{address: address, type: type},
-        contract_context,
-        genesis_address
-      ) do
-    case validate_transaction(tx, contract_context) do
-      :ok ->
-        sync_transaction_chain(tx, genesis_address)
-
-      {:error, reason} ->
-        Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, reason}
-    end
-  end
-
-  @doc """
   Process a new transaction replication for the I/O chains.
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
@@ -224,7 +193,14 @@ defmodule Archethic.Replication do
         opts \\ []
       )
       when is_list(opts) do
-    if TransactionChain.transaction_exists?(address, :io) do
+    chain? = Keyword.get(opts, :chain?, false)
+
+    transaction_exists? =
+      if chain?,
+        do: TransactionChain.transaction_exists?(address),
+        else: TransactionChain.transaction_exists?(address, :io)
+
+    if transaction_exists? do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
         transaction_type: type
@@ -241,8 +217,6 @@ defmodule Archethic.Replication do
 
       case TransactionValidator.validate(tx) do
         :ok ->
-          synchronize_io_transaction(tx, genesis_address, opts)
-
           :telemetry.execute(
             [:archethic, :replication, :validation],
             %{
@@ -251,7 +225,9 @@ defmodule Archethic.Replication do
             %{role: :IO}
           )
 
-          :ok
+          if chain?,
+            do: sync_transaction_chain(tx, genesis_address),
+            else: synchronize_io_transaction(tx, genesis_address, opts)
 
         {:error, reason} ->
           :ok = TransactionChain.write_ko_transaction(tx)
