@@ -791,13 +791,18 @@ defmodule Archethic.TransactionChain do
   # ------------------------------------------------------------
 
   @doc """
-  Resolve all the last addresses from the transaction data
+  Resolve all the genesis addresses from the transaction data
+
+  **This function raises if it cannot fetch a genesis**
   """
-  @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
+  @spec resolve_transaction_addresses!(Transaction.t()) ::
           %{Crypto.prepended_hash() => Crypto.prepended_hash()}
-  def resolve_transaction_addresses(
-        tx = %Transaction{data: %TransactionData{recipients: recipients}},
-        time = %DateTime{}
+  def resolve_transaction_addresses!(
+        tx = %Transaction{
+          type: type,
+          address: address,
+          data: %TransactionData{recipients: recipients}
+        }
       ) do
     burning_address = LedgerOperations.burning_address()
 
@@ -820,20 +825,30 @@ defmodule Archethic.TransactionChain do
           {burning_address, burning_address}
 
         to ->
-          nodes = Election.chain_storage_nodes(to, authorized_nodes)
+          case fetch_genesis_address(to, Election.chain_storage_nodes(to, authorized_nodes)) do
+            {:ok, genesis} ->
+              {to, genesis}
 
-          case fetch_last_address(to, nodes, timestamp: time) do
-            {:ok, resolved} ->
-              {to, resolved}
+            {:error, :network_issue} ->
+              Logger.error("Could not resolve movement address: #{Base.encode16(to)}",
+                transaction_address: Base.encode16(address),
+                transaction_type: type
+              )
 
-            _ ->
-              {to, to}
+              raise "Could not resolve movement address"
           end
       end,
+      max_concurrency: 20,
       on_timeout: :kill_task
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.map(fn {:ok, res} -> res end)
+    |> Enum.map(fn
+      {:exit, {%RuntimeError{message: msg}, _stack}} ->
+        # bubble up the error
+        raise msg
+
+      {:ok, res} ->
+        res
+    end)
     |> Enum.into(%{})
   end
 
