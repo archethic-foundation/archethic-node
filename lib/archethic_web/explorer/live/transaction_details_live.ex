@@ -136,9 +136,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
       transfers = uco_transfers ++ token_transfers ++ transfers_from_content
 
+      transfers_to_resolve = if protocol_version <= 7, do: transfers ++ movements, else: transfers
+
       linked_movements =
-        transfers
-        |> Enum.concat(movements)
+        transfers_to_resolve
         |> Enum.map(& &1.to)
         |> Enum.uniq()
         |> resolve_genesis_addresses()
@@ -182,7 +183,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          transfers,
          protocol_version
        ) do
-    movement_genesis = Map.get(resolved_genesis, movement_recipient)
+    movement_genesis = Map.get(resolved_genesis, movement_recipient, movement_recipient)
 
     filtered_transfers =
       Enum.filter(transfers, fn
@@ -207,7 +208,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          transfers,
          _protocol_version
        ) do
-    movement_genesis = Map.get(resolved_genesis, movement_recipient)
+    movement_genesis = Map.get(resolved_genesis, movement_recipient, movement_recipient)
 
     filtered_transfers =
       Enum.filter(transfers, fn
