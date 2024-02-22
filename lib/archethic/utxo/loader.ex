@@ -105,7 +105,6 @@ defmodule Archethic.UTXO.Loader do
          },
          transaction_address
        ) do
-    # Filter unspent outputs which have been consumed and updated (required in the AEIP21 Phase 1)
     unspent_outputs
     |> Enum.filter(fn
       %UnspentOutput{amount: amount} when protocol_version < 7 -> amount == nil or amount > 0
