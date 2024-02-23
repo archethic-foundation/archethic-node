@@ -39,43 +39,47 @@ defmodule Archethic.Mining.ValidationContextTest do
     test "should do the intersection of utxos" do
       now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-      utxos_coordinator = [
-        %UnspentOutput{
-          from: "@Alice1",
-          amount: 1,
-          type: :UCO,
-          timestamp: now
-        },
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 2,
-          type: :UCO,
-          timestamp: now
-        }
-      ]
+      utxos_coordinator =
+        [
+          %UnspentOutput{
+            from: "@Alice1",
+            amount: 1,
+            type: :UCO,
+            timestamp: now
+          },
+          %UnspentOutput{
+            from: "@Alice2",
+            amount: 2,
+            type: :UCO,
+            timestamp: now
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
-      utxos_validator = [
-        %UnspentOutput{
-          from: "@Alice1",
-          amount: 1,
-          type: :UCO,
-          timestamp: now
-        },
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 2,
-          type: :UCO,
-          timestamp: now
-        },
+      utxos_validator =
+        [
+          %UnspentOutput{
+            from: "@Alice1",
+            amount: 1,
+            type: :UCO,
+            timestamp: now
+          },
+          %UnspentOutput{
+            from: "@Alice2",
+            amount: 2,
+            type: :UCO,
+            timestamp: now
+          },
 
-        # this utxo does not intersect so it'll ignored
-        %UnspentOutput{
-          from: "@Alice3",
-          amount: 3,
-          type: :UCO,
-          timestamp: now
-        }
-      ]
+          # this utxo does not intersect so it'll ignored
+          %UnspentOutput{
+            from: "@Alice3",
+            amount: 3,
+            type: :UCO,
+            timestamp: now
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       assert %ValidationContext{
                previous_storage_nodes: [
@@ -110,7 +114,7 @@ defmodule Archethic.Mining.ValidationContextTest do
                  <<1::1, 1::1, 1::1>>,
                  <<1::1, 0::1, 0::1>>,
                  "key5",
-                 Enum.map(utxos_validator, &UnspentOutput.hash/1)
+                 Enum.map(utxos_validator, &VersionedUnspentOutput.hash/1)
                )
     end
   end

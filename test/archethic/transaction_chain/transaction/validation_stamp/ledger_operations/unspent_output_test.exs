@@ -8,54 +8,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   doctest UnspentOutput
 
-  describe "hash/1" do
-    test "should return the same hash (32B) for the same utxo" do
-      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      token_address = random_address()
-      from_address = random_address()
-
-      expected_hash =
-        UnspentOutput.hash(%UnspentOutput{
-          amount: Utils.to_bigint(1000),
-          type: {:token, token_address, 0},
-          from: from_address,
-          timestamp: timestamp
-        })
-
-      assert ^expected_hash =
-               UnspentOutput.hash(%UnspentOutput{
-                 amount: Utils.to_bigint(1000),
-                 type: {:token, token_address, 0},
-                 from: from_address,
-                 timestamp: timestamp
-               })
-
-      assert 32 = byte_size(expected_hash)
-    end
-
-    test "should return different hashes (32B) for the different utxo" do
-      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      token_address = random_address()
-      from_address = random_address()
-
-      utxo1 = %UnspentOutput{
-        amount: Utils.to_bigint(1000),
-        type: {:token, token_address, 0},
-        from: from_address,
-        timestamp: timestamp
-      }
-
-      utxo2 = %UnspentOutput{
-        amount: Utils.to_bigint(100),
-        type: {:token, token_address, 0},
-        from: from_address,
-        timestamp: timestamp
-      }
-
-      assert UnspentOutput.hash(utxo1) != UnspentOutput.hash(utxo2)
-    end
-  end
-
   describe "serialization/deserialization workflow" do
     test "should work for :uco/:token in all protocol version" do
       for version <- 1..Mining.protocol_version() do

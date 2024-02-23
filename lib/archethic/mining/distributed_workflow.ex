@@ -46,7 +46,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -1025,7 +1027,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     P2P.send_message(coordinator_node, %AddMiningContext{
       address: tx_address,
-      utxos_hashes: Enum.map(unspent_outputs, &UnspentOutput.hash(&1.unspent_output)),
+      utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
       validation_node_public_key: node_public_key,
       previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
       chain_storage_nodes_view: chain_storage_nodes_view,

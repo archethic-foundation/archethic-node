@@ -8,6 +8,8 @@ defmodule Archethic.P2P.Message.AddMiningContextTest do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   doctest AddMiningContext
 
   test "serialization/deserialization" do
@@ -30,20 +32,24 @@ defmodule Archethic.P2P.Message.AddMiningContextTest do
 
   test "serialization/deserialization of utxos_hashes" do
     hash1 =
-      UnspentOutput.hash(%UnspentOutput{
+      %UnspentOutput{
         amount: 1,
         type: {:token, random_address(), 0},
         from: random_address(),
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      })
+      }
+      |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+      |> VersionedUnspentOutput.hash()
 
     hash2 =
-      UnspentOutput.hash(%UnspentOutput{
+      %UnspentOutput{
         amount: 2,
         type: {:token, random_address(), 0},
         from: random_address(),
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      })
+      }
+      |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+      |> VersionedUnspentOutput.hash()
 
     msg = %AddMiningContext{
       address: random_address(),
