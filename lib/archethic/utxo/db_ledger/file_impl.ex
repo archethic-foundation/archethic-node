@@ -44,6 +44,14 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
   Flush to disk the unspent outputs for a genesis address
   """
   @spec flush(binary(), list(VersionedUnspentOutput.t())) :: :ok
+  def flush(genesis_address, []) do
+    genesis_address
+    |> file_path()
+    |> File.rm()
+
+    :ok
+  end
+
   def flush(genesis_address, unspent_outputs) do
     bin =
       unspent_outputs
@@ -57,9 +65,9 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
       end)
       |> :erlang.list_to_binary()
 
-    File.write!(file_path(genesis_address), bin, [
-      :binary
-    ])
+    genesis_address
+    |> file_path()
+    |> File.write!(bin, [:binary])
   end
 
   @doc """
