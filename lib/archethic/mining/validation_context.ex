@@ -65,6 +65,8 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData
@@ -587,7 +589,7 @@ defmodule Archethic.Mining.ValidationContext do
   defp aggregate_utxos(context = %__MODULE__{unspent_outputs: utxos}, utxos_hashes) do
     utxos_intersection =
       utxos
-      |> Enum.map(&UnspentOutput.hash/1)
+      |> Enum.map(&UnspentOutput.hash(&1.unspent_output))
       |> Enum.zip(utxos)
       |> Enum.filter(&(elem(&1, 0) in utxos_hashes))
       |> Enum.map(&elem(&1, 1))
