@@ -184,26 +184,36 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx =
-        ContractFactory.create_next_contract_tx(prev_tx, content: "ok", state: encoded_state)
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
 
-      inputs =
-        [
-          %UnspentOutput{
-            from: "@Alice2",
-            amount: 1_000_000_000,
-            type: :UCO,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          }
-        ]
-        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+      versioned_inputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(inputs, current_protocol_version())
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx,
+          content: "ok",
+          state: encoded_state,
+          inputs: inputs
+        )
 
       assert :ok =
-               TransactionValidator.validate(next_tx, prev_tx, inputs, %Contract.Context{
-                 status: :tx_output,
-                 timestamp: now,
-                 trigger: {:datetime, now}
-               })
+               TransactionValidator.validate(
+                 next_tx,
+                 prev_tx,
+                 versioned_inputs,
+                 %Contract.Context{
+                   status: :tx_output,
+                   timestamp: now,
+                   trigger: {:datetime, now}
+                 }
+               )
     end
 
     test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
