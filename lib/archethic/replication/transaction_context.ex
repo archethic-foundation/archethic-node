@@ -8,8 +8,6 @@ defmodule Archethic.Replication.TransactionContext do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
   alias Archethic.P2P
 
   require Logger
@@ -68,7 +66,19 @@ defmodule Archethic.Replication.TransactionContext do
 
     genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
 
-    TransactionChain.fetch_unspent_outputs(genesis_address, genesis_storage_nodes, true)
+    Logger.debug(
+      "Fetch inputs for #{Base.encode16(genesis_address)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    TransactionChain.fetch_unspent_outputs(genesis_address, genesis_storage_nodes)
     |> Enum.to_list()
+    |> tap(fn inputs ->
+      Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(genesis_address)}",
+        transaction_address: Base.encode16(tx.address),
+        type: tx.type
+      )
+    end)
   end
 end

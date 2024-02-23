@@ -382,12 +382,12 @@ defmodule Archethic do
   @doc """
   Request to fetch the unspent outputs for a transaction address from the closest nodes
   """
-  @spec get_unspent_outputs(address :: Crypto.prepended_hash(), genesis? :: boolean()) ::
+  @spec get_unspent_outputs(address :: Crypto.prepended_hash()) ::
           list(UnspentOutput.t())
-  def get_unspent_outputs(address, genesis? \\ false) do
+  def get_unspent_outputs(address) do
     nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    TransactionChain.fetch_unspent_outputs(address, nodes, genesis?)
+    TransactionChain.fetch_unspent_outputs(address, nodes)
     |> VersionedUnspentOutput.unwrap_unspent_outputs()
   end
 

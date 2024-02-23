@@ -104,7 +104,7 @@ defmodule Archethic.Mining.TransactionContext do
     genesis_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
 
     Task.Supervisor.async(TaskSupervisor, fn ->
-      TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes, true)
+      TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes)
       |> Enum.to_list()
     end)
   end

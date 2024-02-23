@@ -57,7 +57,7 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
-  alias __MODULE__.TransactionInput
+  alias __MODULE__.VersionedTransactionInput
 
   require Logger
 
@@ -579,7 +579,7 @@ defmodule Archethic.TransactionChain do
           DateTime.t(),
           offset :: non_neg_integer(),
           limit :: non_neg_integer()
-        ) :: Enumerable.t() | list(TransactionInput.t())
+        ) :: Enumerable.t() | list(VersionedTransactionInput.t())
   def fetch_inputs(address, nodes, timestamp, offset \\ 0, limit \\ 0)
   def fetch_inputs(_, [], _, _, _), do: []
 
@@ -623,8 +623,7 @@ defmodule Archethic.TransactionChain do
       {:ok, %TransactionInputList{inputs: versioned_inputs, more?: more?, offset: offset}} ->
         filtered_inputs =
           versioned_inputs
-          |> Enum.map(& &1.input)
-          |> Enum.filter(&(DateTime.diff(&1.timestamp, timestamp) <= 0))
+          |> Enum.filter(&(DateTime.diff(&1.input.timestamp, timestamp) <= 0))
 
         {filtered_inputs, more?, offset}
 
@@ -638,19 +637,18 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_unspent_outputs(
           address :: Crypto.prepended_hash(),
-          nodes :: list(Node.t()),
-          genesis? :: boolean()
+          nodes :: list(Node.t())
         ) :: Enumerable.t() | list(VersionedUnspentOutput.t())
-  def fetch_unspent_outputs(address, nodes, genesis? \\ false)
-  def fetch_unspent_outputs(_, [], _), do: []
+  def fetch_unspent_outputs(address, nodes)
+  def fetch_unspent_outputs(_, []), do: []
 
-  def fetch_unspent_outputs(address, nodes, genesis?)
+  def fetch_unspent_outputs(address, nodes)
       when is_binary(address) and is_list(nodes) do
     Stream.resource(
-      fn -> do_fetch_inspent_outputs(address, nodes, genesis?) end,
+      fn -> do_fetch_unspent_outputs(address, nodes) end,
       fn
         {utxos, true, offset} ->
-          {utxos, do_fetch_inspent_outputs(address, nodes, genesis?, offset)}
+          {utxos, do_fetch_unspent_outputs(address, nodes, offset)}
 
         {utxos, false, _} ->
           {utxos, :eof}
@@ -662,9 +660,9 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp do_fetch_inspent_outputs(address, nodes, genesis?, offset \\ 0)
+  defp do_fetch_unspent_outputs(address, nodes, offset \\ 0)
 
-  defp do_fetch_inspent_outputs(address, nodes, genesis?, offset) do
+  defp do_fetch_unspent_outputs(address, nodes, offset) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
@@ -673,7 +671,7 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetUnspentOutputs{address: address, offset: offset, genesis?: genesis?},
+           %GetUnspentOutputs{address: address, offset: offset},
            conflict_resolver
          ) do
       {:ok,

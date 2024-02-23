@@ -10,16 +10,11 @@ defmodule Archethic.ReplicationTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetGenesisAddress
 
   alias Archethic.Replication
   alias Archethic.Replication.TransactionContext
