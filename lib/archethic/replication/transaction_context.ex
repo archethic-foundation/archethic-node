@@ -9,6 +9,8 @@ defmodule Archethic.Replication.TransactionContext do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.P2P
 
   require Logger

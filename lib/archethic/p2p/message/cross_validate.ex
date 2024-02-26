@@ -6,10 +6,18 @@ defmodule Archethic.P2P.Message.CrossValidate do
     :address,
     :validation_stamp,
     :replication_tree,
-    :confirmed_validation_nodes
+    :confirmed_validation_nodes,
+    :aggregated_utxos
   ]
-  defstruct [:address, :validation_stamp, :replication_tree, :confirmed_validation_nodes]
+  defstruct [
+    :address,
+    :validation_stamp,
+    :replication_tree,
+    :confirmed_validation_nodes,
+    :aggregated_utxos
+  ]
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Mining
@@ -24,7 +32,8 @@ defmodule Archethic.P2P.Message.CrossValidate do
             beacon: list(bitstring()),
             IO: list(bitstring())
           },
-          confirmed_validation_nodes: bitstring()
+          confirmed_validation_nodes: bitstring(),
+          aggregated_utxos: list(VersionedUnspentOutput.t())
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
@@ -33,11 +42,19 @@ defmodule Archethic.P2P.Message.CrossValidate do
           address: tx_address,
           validation_stamp: stamp,
           replication_tree: replication_tree,
-          confirmed_validation_nodes: confirmed_validation_nodes
+          confirmed_validation_nodes: confirmed_validation_nodes,
+          aggregated_utxos: aggregated_utxos
         },
         _
       ) do
-    Mining.cross_validate(tx_address, stamp, replication_tree, confirmed_validation_nodes)
+    Mining.cross_validate(
+      tx_address,
+      stamp,
+      replication_tree,
+      confirmed_validation_nodes,
+      aggregated_utxos
+    )
+
     %Ok{}
   end
 
@@ -50,7 +67,8 @@ defmodule Archethic.P2P.Message.CrossValidate do
           beacon: beacon_replication_tree,
           IO: io_replication_tree
         },
-        confirmed_validation_nodes: confirmed_validation_nodes
+        confirmed_validation_nodes: confirmed_validation_nodes,
+        aggregated_utxos: aggregated_utxos
       }) do
     nb_validation_nodes = length(chain_replication_tree)
     chain_tree_size = chain_replication_tree |> List.first() |> bit_size()
@@ -67,11 +85,22 @@ defmodule Archethic.P2P.Message.CrossValidate do
           |> bit_size()
       end
 
+    size_aggregated_utxos =
+      aggregated_utxos
+      |> length()
+      |> Utils.VarInt.from_value()
+
+    aggregated_utxos_bin =
+      aggregated_utxos
+      |> Enum.map(&VersionedUnspentOutput.serialize/1)
+      |> :erlang.list_to_bitstring()
+
     <<address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
       chain_tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
       beacon_tree_size::8, :erlang.list_to_bitstring(beacon_replication_tree)::bitstring,
       io_tree_size::8, :erlang.list_to_bitstring(io_replication_tree)::bitstring,
-      bit_size(confirmed_validation_nodes)::8, confirmed_validation_nodes::bitstring>>
+      bit_size(confirmed_validation_nodes)::8, confirmed_validation_nodes::bitstring,
+      size_aggregated_utxos::binary, aggregated_utxos_bin::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
@@ -98,6 +127,11 @@ defmodule Archethic.P2P.Message.CrossValidate do
       cross_validation_node_confirmation::bitstring-size(nb_cross_validation_nodes),
       rest::bitstring>> = rest
 
+    {size_aggregated_utxos, rest} = Utils.VarInt.get_value(rest)
+
+    {aggregated_utxos, rest} =
+      deserialize_versioned_unspent_outputs(rest, size_aggregated_utxos, [])
+
     {%__MODULE__{
        address: address,
        validation_stamp: validation_stamp,
@@ -106,7 +140,8 @@ defmodule Archethic.P2P.Message.CrossValidate do
          beacon: beacon_tree,
          IO: io_tree
        },
-       confirmed_validation_nodes: cross_validation_node_confirmation
+       confirmed_validation_nodes: cross_validation_node_confirmation,
+       aggregated_utxos: aggregated_utxos
      }, rest}
   end
 
@@ -118,5 +153,22 @@ defmodule Archethic.P2P.Message.CrossValidate do
   defp deserialize_bit_sequences(rest, nb_sequences, sequence_size, acc) do
     <<sequence::bitstring-size(sequence_size), rest::bitstring>> = rest
     deserialize_bit_sequences(rest, nb_sequences, sequence_size, [sequence | acc])
+  end
+
+  defp deserialize_versioned_unspent_outputs(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_versioned_unspent_outputs(rest, nb_unspent_outputs, acc)
+       when length(acc) == nb_unspent_outputs do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_versioned_unspent_outputs(
+         rest,
+         nb_unspent_outputs,
+         acc
+       ) do
+    {unspent_output, rest} = VersionedUnspentOutput.deserialize(rest)
+
+    deserialize_versioned_unspent_outputs(rest, nb_unspent_outputs, [unspent_output | acc])
   end
 end

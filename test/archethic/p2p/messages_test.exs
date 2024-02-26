@@ -267,7 +267,18 @@ defmodule Archethic.P2P.MessageTest do
           beacon: [<<1::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>],
           IO: [<<1::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>]
         },
-        confirmed_validation_nodes: <<1::1, 1::1>>
+        confirmed_validation_nodes: <<1::1, 1::1>>,
+        aggregated_utxos: [
+          %VersionedUnspentOutput{
+            protocol_version: ArchethicCase.current_protocol_version(),
+            unspent_output: %UnspentOutput{
+              from: ArchethicCase.random_address(),
+              type: :UCO,
+              amount: 100_000_000,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+            }
+          }
+        ]
       }
 
       assert msg ==
@@ -316,7 +327,18 @@ defmodule Archethic.P2P.MessageTest do
           beacon: [<<1::1, 0::1>>, <<0::1, 1::1>>, <<0::1, 0::1>>],
           IO: [<<1::1, 0::1>>, <<0::1, 1::1>>, <<0::1, 0::1>>]
         },
-        confirmed_validation_nodes: <<1::1, 1::1>>
+        confirmed_validation_nodes: <<1::1, 1::1>>,
+        aggregated_utxos: [
+          %VersionedUnspentOutput{
+            protocol_version: ArchethicCase.current_protocol_version(),
+            unspent_output: %UnspentOutput{
+              from: ArchethicCase.random_address(),
+              type: :UCO,
+              amount: 100_000_000,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+            }
+          }
+        ]
       }
 
       assert msg ==

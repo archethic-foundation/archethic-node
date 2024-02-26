@@ -36,7 +36,8 @@ defmodule Archethic.Mining.ValidationContext do
     valid_pending_transaction?: false,
     pending_transaction_error_detail: "",
     storage_nodes_confirmations: [],
-    sub_replication_tree_validations: []
+    sub_replication_tree_validations: [],
+    aggregated_utxos: []
   ]
 
   alias Archethic.BeaconChain.ReplicationAttestation
@@ -104,7 +105,8 @@ defmodule Archethic.Mining.ValidationContext do
           pending_transaction_error_detail: binary(),
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
-          genesis_address: binary()
+          genesis_address: binary(),
+          aggregated_utxos: list(VersionedUnspentOutput.t())
         }
 
   @doc """
@@ -1390,5 +1392,15 @@ defmodule Archethic.Mining.ValidationContext do
       [%Recipient{r | address: resolved} | acc]
     end)
     |> Enum.reverse()
+  end
+
+  @spec add_aggregated_utxos(t(), list(VersionedUnspentOutput.t())) :: t()
+  def add_aggregated_utxos(context = %__MODULE__{}, aggregated_utxos) do
+    %__MODULE__{context | aggregated_utxos: aggregated_utxos}
+  end
+
+  @spec valid_aggregated_utxo?(t(), list(VersionedUnspentOutput.t())) :: boolean()
+  def valid_aggregated_utxo?(%__MODULE__{unspent_outputs: unspent_outputs}, aggregated_utxos) do
+    Enum.all?(aggregated_utxos, &(&1 in unspent_outputs))
   end
 end
