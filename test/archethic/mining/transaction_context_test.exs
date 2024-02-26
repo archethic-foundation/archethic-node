@@ -101,7 +101,7 @@ defmodule Archethic.Mining.TransactionContextTest do
 
       assert {%Transaction{}, [%VersionedUnspentOutput{}], _, <<1::1, 1::1>>, <<1::1, 1::1>>,
               <<1::1, 1::1>>} =
-               TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"], [
+               TransactionContext.get("@Alice1", "@Alice1", ["key1", "key2"], ["key1", "key2"], [
                  "key2",
                  "key1"
                ])

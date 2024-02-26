@@ -667,7 +667,8 @@ defmodule Archethic.Mining.ValidationContext do
           valid_pending_transaction?: valid_pending_transaction?,
           validation_time: validation_time,
           resolved_addresses: resolved_addresses,
-          contract_context: contract_context
+          contract_context: contract_context,
+          unspent_outputs: unspent_outputs
         }
       ) do
     protocol_version = Mining.protocol_version()
@@ -690,7 +691,7 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, fee, validation_time, encoded_state)
+      get_ledger_operations(context, fee, unspent_outputs, validation_time, encoded_state)
 
     validation_stamp =
       %ValidationStamp{
@@ -744,11 +745,11 @@ defmodule Archethic.Mining.ValidationContext do
   defp get_ledger_operations(
          %__MODULE__{
            transaction: tx = %Transaction{address: address, type: tx_type},
-           unspent_outputs: unspent_outputs,
            resolved_addresses: resolved_addresses,
            contract_context: contract_context
          },
          fee,
+         inputs,
          validation_time,
          encoded_state
        ) do
@@ -760,7 +761,7 @@ defmodule Archethic.Mining.ValidationContext do
         %LedgerOperations{fee: fee},
         address,
         validation_time |> DateTime.truncate(:millisecond),
-        unspent_outputs,
+        inputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, validation_time, protocol_version),
         encoded_state,
@@ -1027,7 +1028,10 @@ defmodule Archethic.Mining.ValidationContext do
            validation_stamp:
              stamp = %ValidationStamp{
                timestamp: validation_time,
-               ledger_operations: %LedgerOperations{fee: stamp_fee}
+               ledger_operations: %LedgerOperations{
+                 fee: stamp_fee,
+                 consumed_inputs: consumed_inputs
+               }
              }
          }
        ) do
@@ -1048,8 +1052,14 @@ defmodule Archethic.Mining.ValidationContext do
         next_state
       )
 
+    inputs =
+      Enum.reject(
+        consumed_inputs,
+        &(&1.unspent_output.from == LedgerOperations.burning_address())
+      )
+
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, stamp_fee, validation_time, next_state)
+      get_ledger_operations(context, stamp_fee, inputs, validation_time, next_state)
 
     subsets_verifications = [
       timestamp: fn -> valid_timestamp(stamp, context) end,
@@ -1060,6 +1070,7 @@ defmodule Archethic.Mining.ValidationContext do
       transaction_fee: fn -> valid_stamp_fee?(stamp, fee) end,
       transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
+      consumed_inputs: fn -> valid_consumed_inputs?(inputs, context) end,
       unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, ledger_operations) end,
       error: fn ->
         valid_stamp_error?(
@@ -1191,9 +1202,15 @@ defmodule Archethic.Mining.ValidationContext do
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
   end
 
+  defp valid_consumed_inputs?(inputs, %__MODULE__{unspent_outputs: unspent_outputs}) do
+    Enum.all?(inputs, &(&1 in unspent_outputs))
+  end
+
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
+           ledger_operations: %LedgerOperations{
+             unspent_outputs: next_unspent_outputs
+           }
          },
          %LedgerOperations{unspent_outputs: expected_unspent_outputs}
        ) do

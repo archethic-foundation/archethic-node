@@ -105,6 +105,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
      io_storage_nodes_view} =
       TransactionContext.get(
         Transaction.previous_address(tx),
+        genesis_address,
         Enum.map(chain_storage_nodes, & &1.first_public_key),
         Enum.map(beacon_storage_nodes, & &1.first_public_key),
         Enum.map(io_storage_nodes, & &1.first_public_key)
