@@ -701,7 +701,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
           assert Enum.all?(beacon_tree, &(bit_size(&1) == nb_authorized_nodes))
 
-          Workflow.cross_validate(cross_validator_pid, stamp, tree, <<1::1, 1::1, 1::1>>)
+          Workflow.cross_validate(cross_validator_pid, stamp, tree, <<1::1, 1::1, 1::1>>, [])
 
           {:wait_cross_validation_stamps,
            %{context: %ValidationContext{cross_validation_stamps: cross_validation_stamps}}} =
@@ -979,7 +979,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             cross_validator_pid,
             stamp,
             tree,
-            confirmed_cross_validation_nodes
+            confirmed_cross_validation_nodes,
+            []
           )
       end
 

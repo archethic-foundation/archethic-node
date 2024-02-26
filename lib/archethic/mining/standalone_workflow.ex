@@ -172,7 +172,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp start_replication(
          context = %ValidationContext{
            contract_context: contract_context,
-           genesis_address: genesis_address
+           genesis_address: genesis_address,
+           unspent_outputs: unspent_outputs
          }
        ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
@@ -187,7 +188,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
     message = %ValidateTransaction{
       transaction: validated_tx,
-      contract_context: contract_context
+      contract_context: contract_context,
+      inputs: unspent_outputs
     }
 
     results =

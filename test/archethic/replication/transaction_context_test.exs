@@ -108,9 +108,7 @@ defmodule Archethic.Replication.TransactionContextTest do
     |> expect(:send_message, fn _, %GetGenesisAddress{address: ^previous_address}, _ ->
       {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
     end)
-    |> expect(:send_message, fn _,
-                                %GetUnspentOutputs{address: ^genesis_address},
-                                _ ->
+    |> expect(:send_message, fn _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
       {:ok, %UnspentOutputList{unspent_outputs: [v_utxo]}}
     end)
 
