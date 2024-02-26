@@ -15,13 +15,10 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.ChainIndex
   alias __MODULE__.ChainReader
   alias __MODULE__.ChainWriter
-  alias __MODULE__.InputsReader
-  alias __MODULE__.InputsWriter
   alias __MODULE__.P2PView
   alias __MODULE__.StatsInfo
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.VersionedTransactionInput
 
   alias Archethic.Utils
 
@@ -383,33 +380,6 @@ defmodule Archethic.DB.EmbeddedImpl do
              network_patch :: String.t() | nil}
           )
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views
-
-  @doc """
-  Start a process responsible to write the inputs
-  """
-  @spec start_inputs_writer(input_type :: InputsWriter.input_type(), address :: binary()) ::
-          {:ok, pid()}
-  defdelegate start_inputs_writer(input_type, address), to: InputsWriter, as: :start_link
-
-  @doc """
-  Stop the process responsible to write the inputs
-  """
-  @spec stop_inputs_writer(pid :: pid()) :: :ok
-  defdelegate stop_inputs_writer(pid), to: InputsWriter, as: :stop
-
-  @doc """
-  Appends one input to existing inputs
-  """
-  @spec append_input(pid :: pid(), VersionedTransactionInput.t()) ::
-          :ok
-  defdelegate append_input(pid, input), to: InputsWriter, as: :append_input
-
-  @doc """
-  Read the list of inputs available at address
-  """
-  @spec get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
-          list(VersionedTransactionInput.t())
-  defdelegate get_inputs(ledger, address), to: InputsReader, as: :get_inputs
 
   @doc """
   Stream first transactions address of a chain from genesis_address.

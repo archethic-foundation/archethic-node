@@ -2,12 +2,11 @@ defmodule ArchethicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias ArchethicWeb.{API.Schema.UCOLedger, TransactionSubscriber}
+  alias ArchethicWeb.{TransactionSubscriber}
 
   alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
-  alias Archethic.{Account, Election.Constraints}
+  alias Archethic.{Election.Constraints}
 
-  alias Account.MemTables.{TokenLedger, UCOLedger}
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
 
   alias TransactionChain.{
@@ -83,10 +82,6 @@ defmodule ArchethicCase do
     |> stub(:clear_beacon_summaries, fn -> :ok end)
     |> stub(:get_beacon_summary, fn _ -> {:error, :not_exists} end)
     |> stub(:get_last_chain_public_key, fn public_key, _ -> public_key end)
-    |> stub(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
-    |> stub(:stop_inputs_writer, fn _ -> :ok end)
-    |> stub(:append_input, fn _, _ -> :ok end)
-    |> stub(:get_inputs, fn _, _ -> [] end)
     |> stub(:get_last_chain_address_stored, fn addr -> addr end)
     |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
@@ -95,6 +90,10 @@ defmodule ArchethicCase do
     |> stub(:append, fn _, _ -> :ok end)
     |> stub(:flush, fn _, _ -> :ok end)
     |> stub(:stream, fn _ -> [] end)
+
+    MockTransactionLedger
+    |> stub(:stream_inputs, fn _ -> [] end)
+    |> stub(:write_inputs, fn _, _ -> :ok end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
@@ -217,8 +216,6 @@ defmodule ArchethicCase do
     end)
     |> stub(:connected?, fn _ -> true end)
 
-    start_supervised!(TokenLedger)
-    start_supervised!(UCOLedger)
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)
     start_supervised!(OriginKeyLookup)
