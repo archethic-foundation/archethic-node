@@ -23,6 +23,7 @@ Mox.defmock(MockCrypto.SharedSecretsKeystore, for: Archethic.Crypto.SharedSecret
 
 Mox.defmock(MockDB, for: Archethic.DB)
 Mox.defmock(MockUTXOLedger, for: Archethic.UTXO.DBLedger)
+Mox.defmock(MockTransactionLedger, for: Archethic.TransactionChain.DBLedger)
 
 Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
 

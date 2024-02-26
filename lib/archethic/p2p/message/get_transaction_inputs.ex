@@ -1,15 +1,13 @@
 defmodule Archethic.P2P.Message.GetTransactionInputs do
   @moduledoc """
-  Represents a message with to request the inputs (spent or unspents) from a transaction
+  Represents a message to request the inputs (spent or unspents) from a transaction
   """
   @enforce_keys [:address]
   defstruct [:address, offset: 0, limit: 0]
 
   alias Archethic.Crypto
-  alias Archethic.Contracts
-  alias Archethic.Account
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.VersionedTransactionInput
-  alias Archethic.TransactionChain.TransactionInput
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -22,18 +20,8 @@ defmodule Archethic.P2P.Message.GetTransactionInputs do
 
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionInputList.t()
   def process(%__MODULE__{address: address, offset: offset, limit: limit}, _) do
-    contract_inputs =
-      address
-      |> Contracts.list_contract_transactions()
-      |> Enum.map(fn {address, timestamp, protocol_version} ->
-        %VersionedTransactionInput{
-          input: %TransactionInput{from: address, type: :call, timestamp: timestamp},
-          protocol_version: protocol_version
-        }
-      end)
-
-    inputs = Account.get_inputs(address) ++ contract_inputs
-    inputs_length = length(inputs)
+    inputs = address |> TransactionChain.get_inputs() |> Enum.to_list()
+    inputs_length = Enum.count(inputs)
 
     %{inputs: inputs, offset: offset, more?: more?} =
       inputs
