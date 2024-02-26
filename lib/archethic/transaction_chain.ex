@@ -58,6 +58,7 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.VersionedTransactionInput
+  alias __MODULE__.DBLedger
 
   require Logger
 
@@ -1218,4 +1219,16 @@ defmodule Archethic.TransactionChain do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTablesLoader
+
+  @doc """
+  Return the list inputs for a given transaction
+  """
+  @spec get_inputs(binary()) :: Enumerable.t() | list(VersionedTransactionInput.t())
+  defdelegate get_inputs(adddress), to: DBLedger, as: :stream_inputs
+
+  @doc """
+  Write the validation's input for a given transaction
+  """
+  @spec write_inputs(binary(), list(VersionedTransactionInput.t())) :: :ok
+  defdelegate write_inputs(address, inputs), to: DBLedger
 end

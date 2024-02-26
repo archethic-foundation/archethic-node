@@ -353,7 +353,7 @@ defmodule Archethic do
 
     address
     |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now(), paging_offset, limit)
-    |> Enum.to_list()
+    |> Enum.map(& &1.input)
   end
 
   @doc """
