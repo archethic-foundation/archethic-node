@@ -43,6 +43,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_unspent_outputs
           | :invalid_recipients_execution
           | :invalid_contract_execution
+          | :invalid_validation_inputs
 
   @doc """
   Validate transaction with context
