@@ -85,7 +85,16 @@ defmodule Archethic.ReplicationTest do
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
       end
     ) do
-      assert :ok = Replication.validate_transaction(tx, nil)
+      assert :ok =
+               Replication.validate_transaction(
+                 tx,
+                 nil,
+                 VersionedUnspentOutput.wrap_unspent_outputs(
+                   unspent_outputs,
+                   current_protocol_version()
+                 )
+               )
+
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
     end
   end
@@ -132,11 +141,14 @@ defmodule Archethic.ReplicationTest do
     encoded_state = State.serialize(%{"key" => "value"})
 
     prev_tx = ContractFactory.create_valid_contract_tx(code)
+    previous_address = prev_tx.address
 
     next_tx =
-      ContractFactory.create_next_contract_tx(prev_tx, content: "ok", state: encoded_state)
-
-    previous_address = prev_tx.address
+      ContractFactory.create_next_contract_tx(prev_tx,
+        content: "ok",
+        state: encoded_state,
+        inputs: unspent_outputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
+      )
 
     MockClient
     |> stub(:send_message, fn
@@ -148,11 +160,15 @@ defmodule Archethic.ReplicationTest do
       fetch_transaction_unspent_outputs: fn _ -> unspent_outputs end
     ) do
       assert :ok =
-               Replication.validate_transaction(next_tx, %Contract.Context{
-                 status: :tx_output,
-                 trigger: {:datetime, now},
-                 timestamp: now
-               })
+               Replication.validate_transaction(
+                 next_tx,
+                 %Contract.Context{
+                   status: :tx_output,
+                   trigger: {:datetime, now},
+                   timestamp: now
+                 },
+                 unspent_outputs
+               )
 
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
     end

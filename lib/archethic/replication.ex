@@ -30,6 +30,9 @@ defmodule Archethic.Replication do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.Utils
   alias Archethic.UTXO
 
@@ -42,10 +45,15 @@ defmodule Archethic.Replication do
   """
   @spec validate_transaction(
           tx :: Transaction.t(),
-          contract_context :: nil | Contract.Context.t()
+          contract_context :: nil | Contract.Context.t(),
+          validation_inputs :: list(VersionedUnspentOutput.t())
         ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_transaction(tx = %Transaction{address: address, type: type}, contract_context) do
+  def validate_transaction(
+        tx = %Transaction{address: address, type: type},
+        contract_context,
+        validation_inputs
+      ) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
@@ -61,25 +69,25 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {previous_tx, inputs} = fetch_context(tx)
-      # Validate the transaction and check integrity from the previous transaction
-      case TransactionValidator.validate(tx, previous_tx, inputs, contract_context) do
-        :ok ->
-          Logger.info("Replication validation finished",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
+      with {:ok, previous_tx, inputs} <- fetch_context(tx, validation_inputs),
+           :ok <- TransactionValidator.validate(tx, previous_tx, inputs, contract_context) do
+        # Validate the transaction and check integrity from the previous transaction
 
-          :telemetry.execute(
-            [:archethic, :replication, :validation],
-            %{
-              duration: System.monotonic_time() - start_time
-            },
-            %{role: :chain}
-          )
+        Logger.info("Replication validation finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-          :ok
+        :telemetry.execute(
+          [:archethic, :replication, :validation],
+          %{
+            duration: System.monotonic_time() - start_time
+          },
+          %{role: :chain}
+        )
 
+        :ok
+      else
         {:error, reason} ->
           :ok = TransactionChain.write_ko_transaction(tx)
 
@@ -96,14 +104,17 @@ defmodule Archethic.Replication do
   @doc """
   Push a new transaction in the transaction pool awaiting atomic commitment
   """
-  @spec add_transaction_to_commit_pool(Transaction.t()) :: :ok
-  defdelegate add_transaction_to_commit_pool(tx), to: TransactionPool, as: :add_transaction
+  @spec add_transaction_to_commit_pool(Transaction.t(), list(VersionedUnspentOutput.t())) :: :ok
+  defdelegate add_transaction_to_commit_pool(tx, inputs),
+    to: TransactionPool,
+    as: :add_transaction
 
   @doc """
   Pop a registered transaction in the pool awaiting atomic commitment
   """
   @spec get_transaction_in_commit_pool(binary()) ::
-          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t(), list(VersionedUnspentOutput.t())}
+          | {:error, :transaction_not_exists}
   defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
 
   @type sync_options :: [self_repair?: boolean(), resolved_addresses: map(), chain?: boolean()]
@@ -270,7 +281,7 @@ defmodule Archethic.Replication do
     PubSub.notify_new_transaction(address, type, timestamp)
   end
 
-  defp fetch_context(tx = %Transaction{}) do
+  defp fetch_context(tx = %Transaction{}, validation_inputs) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -286,15 +297,22 @@ defmodule Archethic.Replication do
         TransactionContext.fetch_transaction(previous_address)
       end)
 
-    inputs = fetch_inputs(tx)
-    previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
+    unspent_outputs = fetch_inputs(tx)
 
-    Logger.debug("Previous transaction #{inspect(previous_transaction)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
+    if Enum.all?(validation_inputs, &(&1 in unspent_outputs)) do
+      previous_transaction =
+        Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
-    {previous_transaction, inputs}
+      Logger.debug("Previous transaction #{inspect(previous_transaction)}",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
+      )
+
+      {:ok, previous_transaction, unspent_outputs}
+    else
+      Task.shutdown(previous_transaction_task, :brutal_kill)
+      {:error, :invalid_validation_inputs}
+    end
   end
 
   defp fetch_inputs(tx = %Transaction{address: address, type: type}) do
