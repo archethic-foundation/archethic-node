@@ -5,7 +5,6 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
 
-  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -44,8 +43,6 @@ defmodule Archethic.ReplicationTest do
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:list_io_transactions, fn _ -> [] end)
-
-    start_supervised!(AccountMemTableLoader)
 
     :ok
   end

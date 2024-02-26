@@ -5,7 +5,6 @@ alias Archethic.DB
 alias Archethic.P2P
 alias Archethic.P2P.Node
 alias Archethic.SharedSecrets
-alias Archethic.Account
 alias Archethic.Election
 alias Archethic.Governance
 alias Archethic.Contracts

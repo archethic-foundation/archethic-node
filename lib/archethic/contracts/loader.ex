@@ -6,7 +6,6 @@ defmodule Archethic.Contracts.Loader do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.TransactionLookup
   alias Archethic.Contracts.Worker
 
   alias Archethic.TransactionChain
@@ -52,9 +51,7 @@ defmodule Archethic.Contracts.Loader do
             recipients: recipients
           },
           validation_stamp: %ValidationStamp{
-            recipients: resolved_recipients,
-            timestamp: timestamp,
-            protocol_version: protocol_version
+            recipients: resolved_recipients
           }
         },
         execute_contract?: execute_contract?,
@@ -87,13 +84,6 @@ defmodule Archethic.Contracts.Loader do
     recipients
     |> Enum.zip(resolved_recipients)
     |> Enum.each(fn {recipient, contract_address} ->
-      TransactionLookup.add_contract_transaction(
-        contract_address,
-        address,
-        timestamp,
-        protocol_version
-      )
-
       if execute_contract? do
         # execute contract asynchronously only if we are in live replication
         Logger.info(
@@ -120,7 +110,6 @@ defmodule Archethic.Contracts.Loader do
     case Registry.lookup(ContractRegistry, address) do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
-        TransactionLookup.clear_contract_transactions(address)
         # TransactionChain.clear_pending_transactions(address)
         Logger.info("Stop smart contract at #{Base.encode16(address)}")
 

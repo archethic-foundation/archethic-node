@@ -1,7 +1,6 @@
 defmodule Archethic.BootstrapTest do
   use ArchethicCase
 
-  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
@@ -39,7 +38,6 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.Replication
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
-  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
@@ -96,8 +94,6 @@ defmodule Archethic.BootstrapTest do
     |> stub(:set_node_key_index, fn _ -> :ok end)
 
     start_supervised!(RewardMemTable)
-    start_supervised!(RewardTableLoader)
-    start_supervised!(AccountMemTableLoader)
 
     :ok
   end

@@ -24,6 +24,13 @@ defmodule Archethic.UTXO do
 
   require Logger
 
+  @type balance :: %{
+          uco: amount :: pos_integer(),
+          token: %{
+            {address :: binary(), token_id :: non_neg_integer()} => amount :: pos_integer()
+          }
+        }
+
   @spec load_transaction(
           tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
@@ -255,12 +262,7 @@ defmodule Archethic.UTXO do
   @doc """
   Returns the balance for an address using the unspent outputs
   """
-  @spec get_balance(binary()) :: %{
-          uco: amount :: pos_integer(),
-          token: %{
-            {address :: binary(), token_id :: non_neg_integer()} => amount :: pos_integer()
-          }
-        }
+  @spec get_balance(binary()) :: balance()
   def get_balance(address) do
     address
     |> stream_unspent_outputs()
