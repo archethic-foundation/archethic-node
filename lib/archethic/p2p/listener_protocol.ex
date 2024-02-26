@@ -73,12 +73,13 @@ defmodule Archethic.P2P.ListenerProtocol do
          message_id: message_id,
          message: message,
          sender_public_key: sender_pkey,
-         signature: signature
+         signature: signature,
+         decrypted_raw_message: decrypted_raw_message
        }} ->
         valid_signature? =
           Crypto.verify?(
             signature,
-            message |> Message.encode() |> Utils.wrap_binary(),
+            decrypted_raw_message,
             sender_pkey
           )
 

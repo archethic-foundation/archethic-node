@@ -485,7 +485,8 @@ defmodule Archethic.P2P.Client.Connection do
         %MessageEnvelop{
           message_id: message_id,
           message: message,
-          signature: signature
+          signature: signature,
+          decrypted_raw_message: decrypted_raw_message
         } = MessageEnvelop.decode(msg)
 
         :telemetry.execute(
@@ -499,7 +500,7 @@ defmodule Archethic.P2P.Client.Connection do
         with true <-
                Crypto.verify?(
                  signature,
-                 message |> Message.encode() |> Utils.wrap_binary(),
+                 decrypted_raw_message,
                  node_public_key
                ),
              {%{

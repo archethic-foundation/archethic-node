@@ -65,13 +65,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Wrap an UnspentOuput into a VersionedUnspentOutput
-
-  ## Examples
-
-    iex> utxo = %UnspentOutput(from: random_address(), type: :UCO, amount: 100_000_000)
-    iex> protocol_version = 1
-    iex> VersionedUnspentOutput.wrap_unspent_output(utxo, protocol_version)
-    %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo}
   """
   @spec wrap_unspent_output(utxo :: UnspentOutput.t(), protocol_version :: non_neg_integer()) ::
           t()
@@ -80,30 +73,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Unwrap a VersionedUnspentOuput into an UnspentOutput
-
-  ## Examples
-
-    iex> utxo = %UnspentOutput(from: random_address(), type: :UCO, amount: 100_000_000)
-    iex> v_utxo = %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo}
-    iex> VersionedUnspentOutput.unwrap_unspent_output(v_utxo)
-    utxo
   """
   @spec unwrap_unspent_output(versioned_utxo :: t()) :: UnspentOutput.t()
   def unwrap_unspent_output(%__MODULE__{unspent_output: utxo}), do: utxo
 
   @doc """
   Wrap a list of UnspentOuput into a list of VersionedUnspentOutput
-
-  ## Examples
-
-    iex> utxo1 = %UnspentOutput(from: random_address(), type: :UCO, amount: 100_000_000)
-    iex> utxo2 = %UnspentOutput(from: random_address(), type: :UCO, amount: 200_000_000)
-    iex> protocol_version = 1
-    iex> VersionedUnspentOutput.wrap_unspent_outputs([utxo1, utxo2], protocol_version)
-    [
-      %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo1},
-      %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo2}
-    ]
   """
   @spec wrap_unspent_outputs(
           utxos :: list(UnspentOutput.t()),
@@ -114,17 +89,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Unwrap a list of VersionedUnspentOuput into a list of UnspentOutput
-
-  ## Examples
-
-    iex> utxo1 = %UnspentOutput(from: random_address(), type: :UCO, amount: 100_000_000)
-    iex> utxo2 = %UnspentOutput(from: random_address(), type: :UCO, amount: 200_000_000)
-    iex> v_utxo1 = %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo1}
-    iex> v_utxo2 = %VersionedUnspentOutput{protocol_version: 1, unspent_output: utxo2}
-    iex> VersionedUnspentOutput.unwrap_unspent_outputs([v_utxo1, v_utxo2])
-    [utxo1, utxo2]
   """
   @spec unwrap_unspent_outputs(versioned_utxos :: list(t())) :: list(UnspentOutput.t())
   def unwrap_unspent_outputs(utxos),
     do: Enum.map(utxos, &unwrap_unspent_output/1)
+
+  @doc """
+  Return a hash of the utxo
+  Used for cheap comparaison
+  """
+  @spec hash(t()) :: binary()
+  def hash(%__MODULE__{protocol_version: protocol_version, unspent_output: utxo}),
+    do: utxo |> UnspentOutput.serialize(protocol_version) |> then(&:crypto.hash(:sha256, &1))
 end

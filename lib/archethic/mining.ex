@@ -152,6 +152,7 @@ defmodule Archethic.Mining do
   """
   @spec add_mining_context(
           address :: binary(),
+          utxos_hashes :: list(binary()),
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes_keys :: list(Crypto.key()),
           chain_storage_nodes_view :: bitstring(),
@@ -161,6 +162,7 @@ defmodule Archethic.Mining do
           :ok
   def add_mining_context(
         tx_address,
+        utxos_hashes,
         validation_node_public_key,
         previous_storage_nodes_keys,
         chain_storage_nodes_view,
@@ -170,6 +172,7 @@ defmodule Archethic.Mining do
     tx_address
     |> get_mining_process!(Message.get_max_timeout())
     |> DistributedWorkflow.add_mining_context(
+      utxos_hashes,
       validation_node_public_key,
       P2P.get_nodes_info(previous_storage_nodes_keys),
       chain_storage_nodes_view,
