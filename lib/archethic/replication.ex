@@ -72,11 +72,17 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {previous_tx, inputs} = fetch_context(tx)
+      {genesis_address, previous_tx, inputs} = fetch_context(tx)
 
       with :ok <- validate_validation_inputs(tx, validation_inputs, inputs),
            :ok <-
-             TransactionValidator.validate(tx, previous_tx, validation_inputs, contract_context) do
+             TransactionValidator.validate(
+               tx,
+               previous_tx,
+               genesis_address,
+               validation_inputs,
+               contract_context
+             ) do
         # Validate the transaction and check integrity from the previous transaction
 
         Logger.info("Replication validation finished",
@@ -296,15 +302,19 @@ defmodule Archethic.Replication do
       transaction_type: tx.type
     )
 
-    # First, we check locally if the transaction exists
-    # Otherwise we check others nodes
+    genesis_task =
+      Task.Supervisor.async(TaskSupervisor, fn ->
+        TransactionContext.fetch_genesis_address(previous_address)
+      end)
+
     previous_transaction_task =
       Task.Supervisor.async(TaskSupervisor, fn ->
         TransactionContext.fetch_transaction(previous_address)
       end)
 
-    unspent_outputs = fetch_inputs(tx)
+    genesis_address = Task.await(genesis_task)
 
+    inputs = fetch_unspent_outputs(tx, genesis_address)
     previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
@@ -312,7 +322,7 @@ defmodule Archethic.Replication do
       transaction_type: tx.type
     )
 
-    {previous_transaction, unspent_outputs}
+    {genesis_address, previous_transaction, unspent_outputs}
   end
 
   defp validate_validation_inputs(
@@ -335,19 +345,17 @@ defmodule Archethic.Replication do
     end
   end
 
-  defp fetch_inputs(tx = %Transaction{address: address, type: type}) do
-    previous_address = Transaction.previous_address(tx)
-
+  defp fetch_unspent_outputs(%Transaction{address: address, type: type}, genesis_address) do
     Logger.debug(
-      "Fetch inputs for #{Base.encode16(previous_address)}",
-      transaction_address: Base.encode16(previous_address),
+      "Fetch inputs for #{Base.encode16(genesis_address)}",
+      transaction_address: Base.encode16(address),
       transaction_type: type
     )
 
-    tx
+    genesis_address
     |> TransactionContext.fetch_transaction_unspent_outputs()
     |> tap(fn inputs ->
-      Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
+      Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(genesis_address)}",
         transaction_address: Base.encode16(address),
         type: type
       )
@@ -597,9 +605,9 @@ defmodule Archethic.Replication do
       download_nodes: download_nodes
     )
 
-    Contracts.load_transaction(tx,
+    Contracts.load_transaction(tx, genesis_address,
       execute_contract?: not self_repair?,
-      io_transaction?: io_transaction?
+      download_nodes: download_nodes
     )
 
     OracleChain.load_transaction(tx)

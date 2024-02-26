@@ -190,7 +190,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
     end
   end
 
-  describe "valid_contract_execution?/3" do
+  describe "valid_contract_execution?/5" do
     setup do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -221,8 +221,16 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(nil, prev_tx, next_tx)
+               SmartContractValidation.valid_contract_execution?(
+                 nil,
+                 prev_tx,
+                 genesis,
+                 next_tx,
+                 []
+               )
     end
 
     test "should return true if there is no context and there is no trigger" do
@@ -239,8 +247,16 @@ defmodule Archethic.Mining.SmartContractValidationTest do
           type: :oracle
         )
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(nil, prev_tx, next_tx)
+               SmartContractValidation.valid_contract_execution?(
+                 nil,
+                 prev_tx,
+                 genesis,
+                 next_tx,
+                 []
+               )
     end
 
     test "should return true when the transaction have been triggered by datetime and timestamp matches" do
@@ -263,11 +279,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -290,11 +310,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -323,11 +347,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: DateTime.utc_now()
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -351,11 +379,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -379,11 +411,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: DateTime.utc_now()
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -407,11 +443,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -435,11 +475,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -467,11 +511,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {true, ^encoded_state} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -499,11 +547,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
 
@@ -531,11 +583,15 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
+      genesis = Transaction.previous_address(prev_tx)
+
       assert {false, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
-                 next_tx
+                 genesis,
+                 next_tx,
+                 []
                )
     end
   end

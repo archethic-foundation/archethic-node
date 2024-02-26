@@ -45,7 +45,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
           timeout: timeout
         }
       ) do
-    with {:exists, false} <- {:exists, TransactionChain.transaction_exists?(address)},
+    with {:exists, false} <- {:exists, TransactionChain.transaction_exists?(address, :io)},
          {:mining, false} <- {:mining, Mining.processing?(address)},
          {:remaining, true} <- {:remaining, count < max_retry} do
       Logger.info("calling replay fn with count=#{count}",

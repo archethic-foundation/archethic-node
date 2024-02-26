@@ -678,29 +678,23 @@ defmodule Archethic.TransactionChainTest do
 
       now = DateTime.utc_now()
 
+      v_utxo = %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: "Alice2",
+          amount: 10,
+          type: :UCO,
+          spent?: false,
+          timestamp: now
+        },
+        protocol_version: 1
+      }
+
       MockClient
       |> stub(:send_message, fn _, %GetTransactionInputs{address: _}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [
-             %VersionedTransactionInput{
-               input: %TransactionInput{
-                 from: "Alice2",
-                 amount: 10,
-                 type: :UCO,
-                 spent?: false,
-                 timestamp: now
-               },
-               protocol_version: 1
-             }
-           ]
-         }}
+        {:ok, %TransactionInputList{inputs: [v_utxo]}}
       end)
 
-      assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
-               "Alice1"
-               |> TransactionChain.fetch_inputs(nodes)
-               |> Enum.map(& &1.input)
+      assert [^v_utxo] = TransactionChain.fetch_inputs("Alice1", nodes, now) |> Enum.to_list()
     end
 
     test "should resolve the longest inputs when conflicts" do
@@ -730,57 +724,41 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
+      v_utxo1 = %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: "Alice2",
+          amount: 10,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        },
+        protocol_version: 1
+      }
+
+      v_utxo2 = %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: "Bob3",
+          amount: 2,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        },
+        protocol_version: 1
+      }
+
       MockClient
       |> stub(:send_message, fn
         %Node{port: 3000}, %GetTransactionInputs{address: _}, _ ->
           {:ok, %TransactionInputList{inputs: []}}
 
         %Node{port: 3001}, %GetTransactionInputs{address: _}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "Alice2",
-                   amount: 10,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
+          {:ok, %TransactionInputList{inputs: [v_utxo1]}}
 
         %Node{port: 3002}, %GetTransactionInputs{address: _}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "Alice2",
-                   amount: 10,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               },
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "Bob3",
-                   amount: 2,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
+          {:ok, %TransactionInputList{inputs: [v_utxo1, v_utxo2]}}
       end)
 
-      assert [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}] =
-               "Alice1"
-               |> TransactionChain.fetch_inputs(nodes)
-               |> Enum.map(& &1.input)
+      assert [^v_utxo1, ^v_utxo2] =
+               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
+               |> Enum.to_list()
     end
   end
 

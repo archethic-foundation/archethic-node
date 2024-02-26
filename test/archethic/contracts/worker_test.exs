@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.P2P.Node
   alias Archethic.PubSub
 
+  alias Archethic.ContractSupervisor
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Worker
 
@@ -88,6 +89,13 @@ defmodule Archethic.Contracts.WorkerTest do
       }
     }
 
+    on_exit(fn ->
+      Supervisor.which_children(ContractSupervisor)
+      |> Enum.each(fn {_, pid, _, _} ->
+        DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+      end)
+    end)
+
     {:ok,
      %{
        seed: transaction_seed,
@@ -97,11 +105,8 @@ defmodule Archethic.Contracts.WorkerTest do
      }}
   end
 
-  describe "start_link/1" do
-    test "should spawn a process accessible by its address", %{
-      seed: seed,
-      contract_address: contract_address
-    } do
+  describe "new/2" do
+    test "should spawn a process accessible by its address", %{seed: seed} do
       code = """
       @version 1
       condition transaction: []
@@ -110,11 +115,13 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+
+      {:ok, pid} = Worker.new(genesis, contract)
       assert Process.alive?(pid)
       %{contract: ^contract} = :sys.get_state(pid)
 
-      assert [{^pid, _}] = Registry.lookup(ContractRegistry, contract_address)
+      assert [{^pid, _}] = Registry.lookup(ContractRegistry, genesis)
     end
 
     test "should schedule a timer for a an datetime trigger", %{
@@ -138,7 +145,9 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       receive do
         {:transaction_sent, tx} ->
@@ -171,7 +180,8 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       receive do
         {:transaction_sent, tx} ->
@@ -206,9 +216,10 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
-      Worker.execute(contract_address, %Transaction{address: "@Alice2"}, %Recipient{
+      Worker.execute(genesis, %Transaction{address: "@Alice2"}, %Recipient{
         address: contract_address
       })
 
@@ -239,11 +250,12 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      Worker.execute(contract_address, trigger_tx, %Recipient{address: contract_address})
+      Worker.execute(genesis, trigger_tx, %Recipient{address: contract_address})
 
       receive do
         {:transaction_sent, tx} ->
@@ -291,11 +303,12 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "Mr.X")
 
-      Worker.execute(contract_address, trigger_tx, %Recipient{address: contract_address})
+      Worker.execute(genesis, trigger_tx, %Recipient{address: contract_address})
 
       receive do
         {:transaction_sent, tx} ->
@@ -363,7 +376,8 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, pid} = Worker.new(genesis, contract)
       allow(MockDB, self(), pid)
 
       PubSub.notify_new_transaction(oracle_address, :oracle, DateTime.utc_now())
@@ -411,7 +425,8 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       ledger = %Ledger{
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
@@ -423,7 +438,7 @@ defmodule Archethic.Contracts.WorkerTest do
         %Transaction{address: trigger_tx_address} =
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
-      Worker.execute(contract_address, trigger_tx, recipient)
+      Worker.execute(genesis, trigger_tx, recipient)
 
       receive do
         {:transaction_sent,
@@ -465,14 +480,15 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, _pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, _pid} = Worker.new(genesis, contract)
 
       recipient = %Recipient{address: contract_address, action: "vote", args: ["Ms. Smith"]}
 
       trigger_tx =
         TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
 
-      Worker.execute(contract_address, trigger_tx, recipient)
+      Worker.execute(genesis, trigger_tx, recipient)
 
       receive do
         {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
@@ -502,7 +518,8 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
-      {:ok, worker_pid} = Worker.start_link(contract)
+      genesis = Transaction.previous_address(contract.transaction)
+      {:ok, worker_pid} = Worker.new(genesis, contract)
 
       ledger = %Ledger{
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
@@ -513,7 +530,7 @@ defmodule Archethic.Contracts.WorkerTest do
       trigger_tx =
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
-      Worker.execute(contract_address, trigger_tx, recipient)
+      Worker.execute(genesis, trigger_tx, recipient)
 
       Process.sleep(100)
 
