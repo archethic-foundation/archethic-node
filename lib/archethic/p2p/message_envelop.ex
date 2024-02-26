@@ -8,7 +8,8 @@ defmodule Archethic.P2P.MessageEnvelop do
     :message_id,
     :message,
     :sender_public_key,
-    :signature
+    :signature,
+    :decrypted_raw_message
   ]
 
   alias Archethic.Crypto
@@ -19,7 +20,8 @@ defmodule Archethic.P2P.MessageEnvelop do
           message: Message.t(),
           message_id: non_neg_integer(),
           sender_public_key: Crypto.key(),
-          signature: binary()
+          signature: binary(),
+          decrypted_raw_message: binary() | nil
         }
 
   @doc """
@@ -85,7 +87,8 @@ defmodule Archethic.P2P.MessageEnvelop do
       message_id: message_id,
       message: data,
       sender_public_key: sender_public_key,
-      signature: signature
+      signature: signature,
+      decrypted_raw_message: message
     }
   end
 
@@ -105,7 +108,8 @@ defmodule Archethic.P2P.MessageEnvelop do
       message_id: message_id,
       message: data,
       sender_public_key: sender_public_key,
-      signature: signature
+      signature: signature,
+      decrypted_raw_message: message
     }
   end
 

@@ -46,6 +46,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -74,6 +77,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   """
   @spec add_mining_context(
           worker_pid :: pid(),
+          utxos_hashes :: list(binary()),
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes :: list(Node.t()),
           chain_storage_nodes_view :: bitstring(),
@@ -83,6 +87,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           :ok
   def add_mining_context(
         pid,
+        utxos_hashes,
         validation_node_public_key,
         previous_storage_nodes,
         chain_storage_nodes_view,
@@ -92,7 +97,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     GenStateMachine.cast(
       pid,
       {:add_mining_context, validation_node_public_key, previous_storage_nodes,
-       chain_storage_nodes_view, beacon_storage_nodes_view, io_storage_nodes_view}
+       chain_storage_nodes_view, beacon_storage_nodes_view, io_storage_nodes_view, utxos_hashes}
     )
   end
 
@@ -462,7 +467,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def handle_event(
         :cast,
         {:add_mining_context, from, previous_storage_nodes, chain_storage_nodes_view,
-         beacon_storage_nodes_view, io_storage_nodes_view},
+         beacon_storage_nodes_view, io_storage_nodes_view, utxos_hashes},
         :coordinator,
         data = %{
           context:
@@ -484,7 +489,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
           chain_storage_nodes_view,
           beacon_storage_nodes_view,
           io_storage_nodes_view,
-          from
+          from,
+          utxos_hashes
         )
 
       if ValidationContext.enough_confirmations?(new_context) do
@@ -1006,6 +1012,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   defp notify_transaction_context(
          %ValidationContext{
            transaction: %Transaction{address: tx_address, type: tx_type},
+           unspent_outputs: unspent_outputs,
            coordinator_node: coordinator_node,
            previous_storage_nodes: previous_storage_nodes,
            chain_storage_nodes_view: chain_storage_nodes_view,
@@ -1022,6 +1029,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     P2P.send_message(coordinator_node, %AddMiningContext{
       address: tx_address,
+      utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
       validation_node_public_key: node_public_key,
       previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
       chain_storage_nodes_view: chain_storage_nodes_view,

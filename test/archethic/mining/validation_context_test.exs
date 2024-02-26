@@ -35,6 +35,90 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   doctest ValidationContext
 
+  describe "aggregate_mining_context/7" do
+    test "should do the intersection of utxos" do
+      now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
+      utxos_coordinator =
+        [
+          %UnspentOutput{
+            from: "@Alice1",
+            amount: 1,
+            type: :UCO,
+            timestamp: now
+          },
+          %UnspentOutput{
+            from: "@Alice2",
+            amount: 2,
+            type: :UCO,
+            timestamp: now
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+      utxos_validator =
+        [
+          %UnspentOutput{
+            from: "@Alice1",
+            amount: 1,
+            type: :UCO,
+            timestamp: now
+          },
+          %UnspentOutput{
+            from: "@Alice2",
+            amount: 2,
+            type: :UCO,
+            timestamp: now
+          },
+
+          # this utxo does not intersect so it'll ignored
+          %UnspentOutput{
+            from: "@Alice3",
+            amount: 3,
+            type: :UCO,
+            timestamp: now
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+      assert %ValidationContext{
+               previous_storage_nodes: [
+                 %Node{first_public_key: "key1"},
+                 %Node{first_public_key: "key2"}
+               ],
+               chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
+               beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
+               io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
+               cross_validation_nodes_confirmation: <<0::1, 1::1>>,
+               cross_validation_nodes: [
+                 %Node{last_public_key: "key3"},
+                 %Node{last_public_key: "key5"}
+               ],
+               unspent_outputs: ^utxos_coordinator
+             } =
+               %ValidationContext{
+                 previous_storage_nodes: [%Node{first_public_key: "key1"}],
+                 chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
+                 beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
+                 io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
+                 cross_validation_nodes: [
+                   %Node{last_public_key: "key3"},
+                   %Node{last_public_key: "key5"}
+                 ],
+                 cross_validation_nodes_confirmation: <<0::1, 0::1>>,
+                 unspent_outputs: utxos_coordinator
+               }
+               |> ValidationContext.aggregate_mining_context(
+                 [%Node{first_public_key: "key2"}],
+                 <<1::1, 0::1, 1::1>>,
+                 <<1::1, 1::1, 1::1>>,
+                 <<1::1, 0::1, 0::1>>,
+                 "key5",
+                 Enum.map(utxos_validator, &VersionedUnspentOutput.hash/1)
+               )
+    end
+  end
+
   describe "create_validation_stamp/1" do
     test "should return the correct movements even if there are multiple to the same address" do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
