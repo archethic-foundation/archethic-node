@@ -1,7 +1,6 @@
 defmodule Archethic.Contracts.WorkerTest do
   use ArchethicCase
 
-  alias Archethic.Account
   alias Archethic.ContractRegistry
   alias Archethic.Crypto
   alias Archethic.P2P
@@ -17,9 +16,6 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -69,21 +65,6 @@ defmodule Archethic.Contracts.WorkerTest do
 
     {first_pub, _} = Crypto.derive_keypair(transaction_seed, 1)
     contract_address = Crypto.derive_address(first_pub)
-
-    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-    Account.MemTables.UCOLedger.add_unspent_output(
-      contract_address,
-      %VersionedUnspentOutput{
-        unspent_output: %UnspentOutput{
-          from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          amount: 100_000_000_000,
-          type: :UCO,
-          timestamp: timestamp
-        },
-        protocol_version: 1
-      }
-    )
 
     {next_pub, _} = Crypto.derive_keypair(transaction_seed, 2)
     next_address = Crypto.derive_address(next_pub)
@@ -397,20 +378,6 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "ICO crowdsale", %{seed: seed, contract_address: contract_address} do
-      # the contract need uco to be executed
-      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
-        contract_address,
-        %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: "@Bob3",
-            amount: 100_000_000 * 10_000,
-            type: {:token, contract_address, 0},
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
-          protocol_version: ArchethicCase.current_protocol_version()
-        }
-      )
-
       code = """
 
       # Ensure the next transaction will be a transfer
@@ -523,20 +490,6 @@ defmodule Archethic.Contracts.WorkerTest do
       seed: seed,
       contract_address: contract_address
     } do
-      # the contract need uco to be executed
-      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
-        contract_address,
-        %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: "@Bob3",
-            amount: 100_000_000 * 10_000,
-            type: {:token, contract_address, 0},
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
-          protocol_version: ArchethicCase.current_protocol_version()
-        }
-      )
-
       code = """
       @version 1
       condition triggered_by: transaction, as: []

@@ -6,8 +6,6 @@ defmodule Archethic.Reward do
   alias __MODULE__.MemTablesLoader
   alias __MODULE__.Scheduler
 
-  alias Archethic.Account
-
   alias Archethic.Crypto
 
   alias Archethic.OracleChain
@@ -23,6 +21,8 @@ defmodule Archethic.Reward do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer
+
+  alias Archethic.UTXO
 
   alias Archethic.Utils
 
@@ -138,7 +138,7 @@ defmodule Archethic.Reward do
 
     network_pool_balance =
       SharedSecrets.get_network_pool_address()
-      |> Account.get_balance()
+      |> UTXO.get_balance()
       |> Map.get(:token)
       |> Map.to_list()
       |> Enum.sort(fn {_, qty1}, {_, qty2} -> qty1 < qty2 end)

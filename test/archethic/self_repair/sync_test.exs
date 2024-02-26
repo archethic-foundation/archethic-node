@@ -1,8 +1,6 @@
 defmodule Archethic.SelfRepair.SyncTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
-
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
   alias Archethic.BeaconChain.SummaryAggregate
@@ -80,10 +78,6 @@ defmodule Archethic.SelfRepair.SyncTest do
     setup do
       MockDB
       |> stub(:register_stats, fn _, _, _, _ -> :ok end)
-      |> stub(:list_io_transactions, fn _fields -> [] end)
-      |> stub(:list_transactions, fn _fields -> [] end)
-
-      start_supervised!(AccountMemTableLoader)
 
       :ok
     end
@@ -420,12 +414,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   describe "process_summary_aggregate/2" do
     setup do
-      MockDB
-      |> stub(:list_io_transactions, fn _ -> [] end)
-      |> stub(:list_transactions, fn _ -> [] end)
-
-      start_supervised!(AccountMemTableLoader)
-
       :ok
     end
 

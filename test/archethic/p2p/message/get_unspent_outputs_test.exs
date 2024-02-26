@@ -3,7 +3,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
   use ExUnit.Case
   import ArchethicCase
 
-  alias Archethic.Account
+  alias Archethic.UTXO
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
 
@@ -41,19 +41,12 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
   end
 
   describe "process/2" do
-    setup do
-      MockDB
-      |> stub(:get_inputs, fn _, _ -> [] end)
-
-      :ok
-    end
-
     test "should return no utxo when account is empty" do
       address = random_address()
 
       expected_utxos = []
 
-      with_mock(Account, get_unspent_outputs: fn _address -> expected_utxos end) do
+      with_mock(UTXO, stream_unspent_outputs: fn _address -> expected_utxos end) do
         assert %UnspentOutputList{
                  unspent_outputs: ^expected_utxos,
                  offset: 0,
@@ -103,7 +96,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
       # this is implementation detail but the process function reverse the utxos
       expected_utxos = Enum.reverse(utxos)
 
-      with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
+      with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
                  unspent_outputs: ^expected_utxos,
                  offset: 3,
@@ -153,7 +146,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
       # this is implementation detail but the process function reverse the utxos
       expected_utxos = Enum.reverse(tl(utxos))
 
-      with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
+      with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
                  unspent_outputs: ^expected_utxos,
                  offset: 3,
@@ -191,7 +184,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
       # this is implementation detail but the process function reverse the utxos
       expected_utxos = Enum.reverse(Enum.slice(utxos, 0..(max_utxos - 1)))
 
-      with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
+      with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
                  unspent_outputs: ^expected_utxos,
                  offset: ^max_utxos,
