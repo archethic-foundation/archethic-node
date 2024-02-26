@@ -4,7 +4,6 @@ defmodule Archethic.Contracts.Supervisor do
   use Supervisor
 
   alias Archethic.Contracts.Loader
-  alias Archethic.Contracts.TransactionLookup
 
   alias Archethic.Utils
 
@@ -13,7 +12,7 @@ defmodule Archethic.Contracts.Supervisor do
   end
 
   def init(_args) do
-    optional_children = [{TransactionLookup, []}, {Loader, [], []}]
+    optional_children = [{Loader, [], []}]
 
     static_children = [
       {Registry, keys: :unique, name: Archethic.ContractRegistry},

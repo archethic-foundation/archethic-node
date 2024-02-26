@@ -2,9 +2,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Account
-  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
-
   alias Archethic.Crypto
 
   alias Archethic.BeaconChain
@@ -56,11 +53,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
+  alias Archethic.UTXO
+
   alias Archethic.P2P.Message.GetGenesisAddress
   import Mox
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
-  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
@@ -125,8 +123,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     |> stub(:list_io_transactions, fn _ -> [] end)
 
     start_supervised!(RewardMemTable)
-    start_supervised!(RewardTableLoader)
-    start_supervised!(AccountMemTableLoader)
 
     :ok
   end
@@ -362,7 +358,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     genesis_pools = Application.get_env(:archethic, NetworkInit)[:genesis_pools]
 
     assert Enum.all?(genesis_pools, fn %{address: address, amount: amount} ->
-             match?(%{uco: ^amount}, Account.get_balance(address))
+             match?(%{uco: ^amount}, UTXO.get_balance(address))
            end)
   end
 
@@ -410,7 +406,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     network_address = SharedSecrets.get_network_pool_address()
     key = {network_address, 0}
 
-    assert %{token: %{^key => 3_444_185_300_000_000}} = Account.get_balance(network_address)
+    network_pool_genesis = Crypto.network_pool_public_key(0) |> Crypto.derive_address()
+
+    assert %{token: %{^key => 3_444_185_300_000_000}} = UTXO.get_balance(network_pool_genesis)
   end
 
   test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do

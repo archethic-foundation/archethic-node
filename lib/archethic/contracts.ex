@@ -14,7 +14,6 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
-  alias __MODULE__.TransactionLookup
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -305,18 +304,6 @@ defmodule Archethic.Contracts do
          stacktrace: stacktrace
        }}
   end
-
-  @doc """
-  List the address of the transaction which has contacted a smart contract
-  """
-  @spec list_contract_transactions(contract_address :: binary()) ::
-          list(
-            {transaction_address :: binary(), transaction_timestamp :: DateTime.t(),
-             protocol_version :: non_neg_integer()}
-          )
-  defdelegate list_contract_transactions(address),
-    to: TransactionLookup,
-    as: :list_contract_transactions
 
   @doc """
   Termine a smart contract execution when a new transaction on the chain happened
