@@ -698,7 +698,9 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
-               TransactionChain.fetch_inputs("Alice1", nodes, now) |> Enum.to_list()
+               "Alice1"
+               |> TransactionChain.fetch_inputs(nodes, now)
+               |> Enum.map(& &1.input)
     end
 
     test "should resolve the longest inputs when conflicts" do
@@ -776,8 +778,9 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}] =
-               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
-               |> Enum.to_list()
+               "Alice1"
+               |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now())
+               |> Enum.map(& &1.input)
     end
   end
 

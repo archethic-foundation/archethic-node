@@ -163,6 +163,9 @@ config :archethic, Archethic.TransactionChain.MemTables.PendingLedger, enabled: 
 config :archethic, Archethic.TransactionChain.MemTables.KOLedger, enabled: false
 config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
+config :archethic, Archethic.TransactionChain.DBLedger, MockTransactionLedger
+config :archethic, MockTransactionLedger, enabled: false
+
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 
 config :archethic, Archethic.UTXO.MemoryLedger, enabled: false

@@ -87,6 +87,10 @@ config :archethic, Archethic.Crypto,
 config :archethic, Archethic.DB, Archethic.DB.EmbeddedImpl
 config :archethic, Archethic.UTXO.DBLedger, Archethic.UTXO.DBLedger.FileImpl
 
+config :archethic,
+       Archethic.TransactionChain.DBLedger,
+       Archethic.TransactionChain.DBLedger.FileImpl
+
 config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_seed:
     <<226, 4, 212, 129, 254, 162, 178, 168, 206, 139, 176, 91, 179, 29, 83, 20, 50, 98, 0, 25,
