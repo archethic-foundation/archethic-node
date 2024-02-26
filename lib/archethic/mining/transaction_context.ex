@@ -14,8 +14,6 @@ defmodule Archethic.Mining.TransactionContext do
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
 
-  alias __MODULE__.NodeDistribution
-
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
@@ -32,7 +30,8 @@ defmodule Archethic.Mining.TransactionContext do
   as long as the involved nodes for the retrieval
   """
   @spec get(
-          previous_tx_address :: binary(),
+          previous_tx_address :: Crypto.prepended_hash(),
+          genesis_address :: Crypto.prepended_hash(),
           chain_storage_node_public_keys :: list(Crypto.key()),
           beacon_storage_nodes_public_keys :: list(Crypto.key()),
           io_storage_nodes_public_keys :: list(Crypto.key())
@@ -41,12 +40,12 @@ defmodule Archethic.Mining.TransactionContext do
            bitstring()}
   def get(
         previous_address,
+        genesis_address,
         chain_storage_node_public_keys,
         beacon_storage_node_public_keys,
         io_storage_node_public_keys
       ) do
-    [prev_tx_nodes_split, unspent_outputs_nodes_split] =
-      previous_nodes_distribution(previous_address, 2, 3)
+    authorized_nodes = P2P.authorized_and_available_nodes()
 
     node_public_keys =
       [
@@ -57,8 +56,8 @@ defmodule Archethic.Mining.TransactionContext do
       |> List.flatten()
       |> Enum.uniq()
 
-    prev_tx_task = request_previous_tx(previous_address, prev_tx_nodes_split)
-    utxos_task = request_utxos(previous_address, unspent_outputs_nodes_split)
+    prev_tx_task = request_previous_tx(previous_address, authorized_nodes)
+    utxos_task = request_utxos(genesis_address, authorized_nodes)
     nodes_view_task = request_nodes_view(node_public_keys)
 
     [prev_tx, utxos, nodes_view] = Task.await_many([prev_tx_task, utxos_task, nodes_view_task])
@@ -79,24 +78,15 @@ defmodule Archethic.Mining.TransactionContext do
      io_storage_nodes_view}
   end
 
-  defp previous_nodes_distribution(previous_address, nb_sub_lists, sample_size) do
-    elected_nodes =
-      Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
+  defp request_previous_tx(previous_address, authorized_nodes) do
+    previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
-    if Enum.count(elected_nodes) < sample_size do
-      Enum.map(1..nb_sub_lists, fn _ -> elected_nodes end)
-    else
-      NodeDistribution.split_storage_nodes(elected_nodes, nb_sub_lists, sample_size)
-    end
-  end
-
-  defp request_previous_tx(previous_address, nodes) do
     Task.Supervisor.async(
       TaskSupervisor,
       fn ->
         # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
         # from the cross validation nodes
-        case TransactionChain.fetch_transaction(previous_address, nodes,
+        case TransactionChain.fetch_transaction(previous_address, previous_storage_nodes,
                search_mode: :remote,
                timeout: 4000
              ) do
@@ -110,9 +100,12 @@ defmodule Archethic.Mining.TransactionContext do
     )
   end
 
-  defp request_utxos(previous_address, nodes) do
+  defp request_utxos(genesis_address, authorized_nodes) do
+    genesis_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
     Task.Supervisor.async(TaskSupervisor, fn ->
-      TransactionChain.fetch_unspent_outputs(previous_address, nodes) |> Enum.to_list()
+      TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes)
+      |> Enum.to_list()
     end)
   end
 

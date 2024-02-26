@@ -2,25 +2,27 @@ defmodule Archethic.Replication.TransactionContextTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Account.MemTables.UCOLedger
-
   alias Archethic.Crypto
-
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
-
   alias Archethic.Replication.TransactionContext
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  alias Archethic.TransactionFactory
+
+  import ArchethicCase
   import Mox
 
   test "fetch_transaction/1 should retrieve the transaction" do
@@ -87,7 +89,7 @@ defmodule Archethic.Replication.TransactionContextTest do
     assert [%Transaction{previous_public_key: ^pub1}] = chain
   end
 
-  test "fetch_transaction_unspent_outputs/1 should retrieve the inputs of a transaction at a given date" do
+  test "fetch_transaction_unspent_outputs/1 should retrieve the utxos of the chain" do
     v_utxo =
       %UnspentOutput{
         from: random_address(),
@@ -97,12 +99,18 @@ defmodule Archethic.Replication.TransactionContextTest do
       }
       |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
 
-    address = random_address()
+    tx = TransactionFactory.create_valid_transaction()
+    previous_address = Transaction.previous_address(tx)
 
-    UCOLedger.add_unspent_output(address, v_utxo)
+    genesis_address = random_address()
 
     MockClient
-    |> expect(:send_message, fn _, %GetUnspentOutputs{address: ^address}, _ ->
+    |> expect(:send_message, fn _, %GetGenesisAddress{address: ^previous_address}, _ ->
+      {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
+    end)
+    |> expect(:send_message, fn _,
+                                %GetUnspentOutputs{address: ^genesis_address, genesis?: true},
+                                _ ->
       {:ok, %UnspentOutputList{unspent_outputs: [v_utxo]}}
     end)
 
@@ -118,6 +126,6 @@ defmodule Archethic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(address)
+    assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(tx)
   end
 end

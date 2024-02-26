@@ -250,6 +250,23 @@ defmodule Archethic.Mining.ValidationContextTest do
                |> ValidationContext.cross_validate()
     end
 
+    test "should get inconsistency when the consumed inputs are invalid" do
+      validation_context = create_context()
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:consumed_inputs]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_consumed_inputs(validation_context)
+               )
+               |> ValidationContext.cross_validate()
+    end
+
     test "should get inconsistency when the errors are invalid" do
       validation_context = create_context()
 
@@ -508,6 +525,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       transaction_movements: [
         %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
       ],
+      consumed_inputs: unspent_outputs,
       unspent_outputs: [
         %UnspentOutput{
           amount: Enum.reduce(unspent_outputs, 0, &(&1.unspent_output.amount + &2)) - fee,
@@ -531,7 +549,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_unspent_outputs(%ValidationContext{
          transaction: tx,
-         unspent_outputs: _unspent_outputs,
+         unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
     %ValidationStamp{
@@ -542,6 +560,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       ledger_operations: %LedgerOperations{
         fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx),
+        consumed_inputs: unspent_outputs,
         unspent_outputs: [
           %UnspentOutput{
             amount: 100_000_000_000,
@@ -584,6 +603,55 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
       error: :invalid_pending_transaction,
+      protocol_version: current_protocol_version()
+    }
+    |> ValidationStamp.sign()
+  end
+
+  defp create_validation_stamp_with_invalid_consumed_inputs(%ValidationContext{
+         transaction: tx,
+         validation_time: timestamp,
+         unspent_outputs: _unspent_outputs
+       }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{
+        fee: fee,
+        transaction_movements: [
+          %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
+        ],
+        consumed_inputs: [
+          %VersionedUnspentOutput{
+            unspent_output: %UnspentOutput{
+              amount: 100_000_000,
+              from: random_address(),
+              type: :UCO,
+              timestamp: DateTime.add(timestamp, -1000)
+            },
+            protocol_version: 7
+          }
+        ],
+        unspent_outputs: [
+          %UnspentOutput{
+            amount: 100_000_000 - fee,
+            from: tx.address,
+            type: :UCO,
+            timestamp: timestamp
+          }
+        ]
+      }
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
+    %ValidationStamp{
+      timestamp: timestamp,
+      proof_of_work: Crypto.origin_node_public_key(),
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
