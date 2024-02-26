@@ -300,7 +300,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   defp get_transaction_inputs(address, _debug? = true) do
     case Archethic.fetch_genesis_address(address) do
-      {:ok, genesis_address} -> Archethic.get_unspent_outputs(genesis_address, true)
+      {:ok, genesis_address} -> Archethic.get_unspent_outputs(genesis_address)
       _ -> []
     end
   end
