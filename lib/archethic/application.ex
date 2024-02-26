@@ -3,8 +3,6 @@ defmodule Archethic.Application do
 
   use Application
 
-  alias Archethic.Account.Supervisor, as: AccountSupervisor
-
   alias Archethic.BeaconChain.Supervisor, as: BeaconChainSupervisor
 
   alias Archethic.Bootstrap
@@ -87,7 +85,6 @@ defmodule Archethic.Application do
       SharedSecretsSupervisor,
       ReplicationSupervisor,
       RewardSupervisor,
-      AccountSupervisor,
       UTXOSupervisor,
       GovernanceSupervisor,
       SelfRepairSupervisor,

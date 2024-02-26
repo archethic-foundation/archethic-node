@@ -1,9 +1,6 @@
 defmodule Archethic.Bootstrap.SyncTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Account
-  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
-
   alias Archethic.Bootstrap.Sync
 
   alias Archethic.Crypto
@@ -40,6 +37,8 @@ defmodule Archethic.Bootstrap.SyncTest do
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
   alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
+
+  alias Archethic.UTXO
 
   doctest Sync
 
@@ -101,7 +100,6 @@ defmodule Archethic.Bootstrap.SyncTest do
 
     start_supervised!(RewardMemTable)
     start_supervised!(RewardTableLoader)
-    start_supervised!(AccountMemTableLoader)
 
     :ok
   end
@@ -330,7 +328,7 @@ defmodule Archethic.Bootstrap.SyncTest do
 
       Application.get_env(:archethic, Archethic.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.each(fn %{address: address, amount: amount} ->
-        assert %{uco: amount, token: %{}} == Account.get_balance(address)
+        assert %{uco: amount, token: %{}} == UTXO.get_balance(address)
       end)
     end
   end

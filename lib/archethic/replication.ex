@@ -12,7 +12,6 @@ defmodule Archethic.Replication do
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionPool
   alias __MODULE__.TransactionValidator
-  alias Archethic.Account
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
@@ -554,7 +553,6 @@ defmodule Archethic.Replication do
     Crypto.load_transaction(tx)
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
-    Account.load_transaction(tx, io_transaction?: io_transaction?)
 
     UTXO.load_transaction(tx, genesis_address,
       resolved_addresses: resolved_addresses,

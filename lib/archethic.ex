@@ -3,7 +3,7 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias Archethic.Account
+  alias Archethic.UTXO
   alias Archethic.BeaconChain
   alias Archethic.Crypto
   alias Archethic.Election
@@ -311,7 +311,7 @@ defmodule Archethic do
   @doc """
   Retrieve the balance from an address from the closest nodes
   """
-  @spec get_balance(binary) :: {:ok, Account.balance()} | {:error, :network_issue}
+  @spec get_balance(binary) :: {:ok, UTXO.balance()} | {:error, :network_issue}
   def get_balance(address) when is_binary(address) do
     address
     |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
