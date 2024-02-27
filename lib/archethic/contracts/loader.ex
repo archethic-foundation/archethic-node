@@ -12,6 +12,7 @@ defmodule Archethic.Contracts.Loader do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -36,22 +37,22 @@ defmodule Archethic.Contracts.Loader do
   def init(_opts) do
     :ets.new(@worker_lock, [:set, :named_table, :public, read_concurrency: true])
 
-    TransactionChain.list_io_transactions([])
-    |> Stream.filter(&(&1.data.recipients != []))
-    |> Stream.each(fn tx = %Transaction{address: address} ->
-      genesis = TransactionChain.get_genesis_address(address)
-      load_transaction(tx, genesis, execute_contract?: false)
-    end)
-    |> Stream.run()
+    node_key = Crypto.first_node_public_key()
+    authorized_nodes = P2P.authorized_and_available_nodes()
 
     # Network transactions does not contains trigger or recipient
-    TransactionChain.list_all([])
-    |> Stream.reject(&Transaction.network_type?(&1.type))
-    |> Stream.filter(&(&1.data.recipients != [] or &1.data.code != ""))
-    |> Stream.each(fn tx = %Transaction{address: address} ->
-      genesis = TransactionChain.get_genesis_address(address)
-      load_transaction(tx, genesis, execute_contract?: false)
+    TransactionChain.list_genesis_addresses()
+    |> Stream.filter(&Election.chain_storage_node?(&1, node_key, authorized_nodes))
+    |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
+    |> Stream.reject(fn
+      {_, {:ok, %Transaction{type: type, data: %TransactionData{code: code}}}} ->
+        Transaction.network_type?(type) or code == ""
+
+      {_, {:error, _}} ->
+        true
     end)
+    |> Stream.map(fn {genesis, {:ok, last_tx}} -> {genesis, last_tx} end)
+    |> Stream.each(fn {genesis, tx} -> load_transaction(tx, genesis, execute_contract?: false) end)
     |> Stream.run()
 
     {:ok, []}

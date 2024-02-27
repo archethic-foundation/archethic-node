@@ -88,6 +88,12 @@ defmodule Archethic.TransactionChain do
   defdelegate list_all(fields \\ []), to: DB, as: :list_transactions
 
   @doc """
+  List all the genesis addresses
+  """
+  @spec list_genesis_addresses() :: Enumerable.t()
+  defdelegate list_genesis_addresses(), to: DB
+
+  @doc """
   List all the io transactions stored
   """
   @spec list_io_transactions(fields :: list()) :: Enumerable.t()
