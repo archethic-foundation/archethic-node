@@ -23,6 +23,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -165,6 +166,24 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert {:error, "Transaction data exceeds limit"} =
+               PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "validate_previous_public_key" do
+    test "should return error if previous transaction address is the same address as the current transaction" do
+      {public_key, private_key} = Crypto.derive_keypair("seed", 0)
+
+      tx =
+        Transaction.new_with_keys(
+          :transfer,
+          %TransactionData{},
+          private_key,
+          public_key,
+          public_key
+        )
+
+      assert {:error, "Invalid previous public key (should be chain index - 1)"} =
                PendingTransactionValidation.validate(tx)
     end
   end
