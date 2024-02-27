@@ -34,6 +34,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
     %{utxos: utxos, offset: offset, more?: more?} =
       genesis_address
       |> UTXO.stream_unspent_outputs()
+      |> Enum.to_list()
       |> reduce_utxos(offset)
 
     %UnspentOutputList{
