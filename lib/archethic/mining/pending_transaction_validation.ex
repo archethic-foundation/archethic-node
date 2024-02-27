@@ -82,6 +82,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     with :ok <- validate_size(tx),
          :ok <- valid_not_exists(tx),
+         :ok <- valid_previous_public_key(tx),
          :ok <- valid_previous_signature(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_ownerships(tx),
@@ -128,7 +129,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  @spec valid_previous_signature(tx :: Transaction.t()) :: :ok | {:error, any()}
+  defp valid_previous_public_key(tx = %Transaction{address: address}) do
+    if Transaction.previous_address(tx) == address do
+      {:error, "Invalid previous public key (should be chain index - 1)"}
+    else
+      :ok
+    end
+  end
+
   defp valid_previous_signature(tx = %Transaction{}) do
     if Transaction.verify_previous_signature?(tx) do
       :ok
