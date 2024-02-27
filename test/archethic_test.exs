@@ -597,7 +597,7 @@ defmodule ArchethicTest do
   end
 
   describe "get_transaction_inputs/1" do
-    test "should request the storages nodes to fetch the inputs remotely, this is latest tx" do
+    test "should request the storages nodes to fetch the inputs remotely" do
       address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       P2P.add_and_connect_node(%Node{
@@ -639,136 +639,6 @@ defmodule ArchethicTest do
                }
              ]
            }}
-
-        _, %GetLastTransactionAddress{address: ^address1}, _ ->
-          {:ok, %LastTransactionAddress{address: address1, timestamp: DateTime.utc_now()}}
-      end)
-
-      assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
-               Archethic.get_transaction_inputs(address1)
-    end
-
-    test "should request the storages nodes to fetch the inputs remotely, inputs are spent in a later tx" do
-      address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      address1bis = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetTransactionInputs{address: ^address1}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "@Bob3",
-                   amount: 1_000_000_000,
-                   spent?: false,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
-
-        _, %GetTransactionInputs{address: ^address1bis}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: []
-           }}
-
-        _, %GetLastTransactionAddress{address: ^address1}, _ ->
-          {:ok, %LastTransactionAddress{address: address1bis, timestamp: DateTime.utc_now()}}
-      end)
-
-      assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: true, type: :UCO}] =
-               Archethic.get_transaction_inputs(address1)
-    end
-
-    test "should request the storages nodes to fetch the inputs remotely, inputs are not spent in a later tx" do
-      address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      address1bis = Crypto.derive_address(address1)
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetTransactionInputs{address: ^address1}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "@Bob3",
-                   amount: 1_000_000_000,
-                   spent?: false,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
-
-        _, %GetTransactionInputs{address: ^address1bis}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs: [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: "@Bob3",
-                   amount: 1_000_000_000,
-                   spent?: false,
-                   type: :UCO,
-                   timestamp: DateTime.utc_now()
-                 },
-                 protocol_version: 1
-               }
-             ]
-           }}
-
-        _, %GetLastTransactionAddress{address: ^address1}, _ ->
-          {:ok, %LastTransactionAddress{address: address1bis, timestamp: DateTime.utc_now()}}
       end)
 
       assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =

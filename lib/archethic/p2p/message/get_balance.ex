@@ -7,7 +7,7 @@ defmodule Archethic.P2P.Message.GetBalance do
 
   alias Archethic.Crypto
   alias Archethic.Utils
-  alias Archethic.Account
+  alias Archethic.UTXO
   alias Archethic.P2P.Message.Balance
 
   @type t :: %__MODULE__{
@@ -16,7 +16,7 @@ defmodule Archethic.P2P.Message.GetBalance do
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Balance.t()
   def process(%__MODULE__{address: address}, _) do
-    %{uco: uco, token: token} = Account.get_balance(address)
+    %{uco: uco, token: token} = UTXO.get_balance(address)
 
     %Balance{
       uco: uco,
