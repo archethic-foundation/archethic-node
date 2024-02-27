@@ -87,9 +87,14 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   end
 
   def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
-    tx_time_inputs = Archethic.get_transaction_inputs(address, paging_offset, limit)
+    [tx_time_inputs, genesis_address_task_res] =
+      [
+        Task.async(fn -> Archethic.get_transaction_inputs(address, paging_offset, limit) end),
+        Task.async(fn -> Archethic.fetch_genesis_address(address) end)
+      ]
+      |> Task.await_many()
 
-    case Archethic.fetch_genesis_address(address) do
+    case genesis_address_task_res do
       {:ok, genesis_address} ->
         genesis_inputs =
           genesis_address
