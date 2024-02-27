@@ -7,6 +7,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation

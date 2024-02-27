@@ -31,6 +31,13 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
              msg
              |> GetUnspentOutputs.serialize()
              |> GetUnspentOutputs.deserialize()
+
+    msg = %GetUnspentOutputs{address: address}
+
+    assert {^msg, <<>>} =
+             msg
+             |> GetUnspentOutputs.serialize()
+             |> GetUnspentOutputs.deserialize()
   end
 
   describe "process/2" do

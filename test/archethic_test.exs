@@ -621,6 +621,18 @@ defmodule ArchethicTest do
         authorization_date: ~U[2020-01-01 10:00:00Z]
       })
 
+      v_input = %VersionedTransactionInput{
+        input:
+          input = %TransactionInput{
+            from: "@Bob3",
+            amount: 1_000_000_000,
+            spent?: false,
+            type: :UCO,
+            timestamp: DateTime.utc_now()
+          },
+        protocol_version: 1
+      }
+
       MockClient
       |> stub(:send_message, fn
         _, %GetTransactionInputs{address: "@Alice2"}, _ ->
