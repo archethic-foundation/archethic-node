@@ -89,10 +89,14 @@ defmodule Archethic.Contracts.Worker do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
+    PubSub.register_to_node_status()
+
     contract = Keyword.fetch!(opts, :contract)
     genesis_address = Keyword.fetch!(opts, :genesis_address)
 
-    {:ok, %{contract: contract, genesis_address: genesis_address}, {:continue, :start_schedulers}}
+    state = %{contract: contract, genesis_address: genesis_address}
+
+    if Archethic.up?(), do: {:ok, state, {:continue, :start_schedulers}}, else: {:ok, state}
   end
 
   def handle_continue(:start_schedulers, state = %{contract: %Contract{triggers: triggers}}) do
@@ -109,10 +113,7 @@ defmodule Archethic.Contracts.Worker do
         end
       end)
 
-    # Only process call when node is up
-    if Archethic.up?(),
-      do: {:noreply, new_state, {:continue, :process_next_call}},
-      else: {:noreply, new_state}
+    {:noreply, new_state, {:continue, :process_next_call}}
   end
 
   def handle_continue(
@@ -139,13 +140,13 @@ defmodule Archethic.Contracts.Worker do
   end
 
   def handle_cast({:new_contract, contract}, state = %{genesis_address: genesis_address}) do
-    {timers, new_state} = Map.pop(state, :timers, %{})
-
-    timers |> Map.values() |> Enum.each(&Process.cancel_timer/1)
+    new_state = state |> cancel_schedulers() |> Map.put(:contract, contract)
 
     Loader.unlock_worker(genesis_address)
 
-    {:noreply, Map.put(new_state, :contract, contract), {:continue, :start_schedulers}}
+    if Archethic.up?(),
+      do: {:noreply, new_state, {:continue, :start_schedulers}},
+      else: {:noreply, new_state}
   end
 
   # TRIGGER: TRANSACTION
@@ -210,6 +211,12 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
+  # Node is up, starting schedulers
+  def handle_info(:node_up, state), do: {:noreply, state, {:continue, :start_schedulers}}
+
+  # Node is down, stoping schedulers
+  def handle_info(:node_down, state), do: {:noreply, cancel_schedulers(state)}
+
   # Node responsiveness timeout
   def handle_info({:EXIT, _pid, _}, state = %{genesis_address: genesis_address}) do
     Loader.unlock_worker(genesis_address)
@@ -238,30 +245,26 @@ defmodule Archethic.Contracts.Worker do
          maybe_recipient,
          contract_genesis_address
        ) do
-    if Archethic.up?() do
-      meta = log_metadata(contract_address, maybe_trigger_tx)
-      Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
+    meta = log_metadata(contract_address, maybe_trigger_tx)
+    Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
-      with {:ok, %ActionWithTransaction{next_tx: next_tx}} <-
-             Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
-           index = TransactionChain.get_size(contract_address),
-           {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
-           contract_context <-
-             get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
-           :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
-        Logger.debug("Contract execution success", meta)
-      else
-        {:ok, %ActionWithoutTransaction{}} ->
-          Logger.debug("Contract execution success but there is no new transaction", meta)
-
-        {:error, %Failure{user_friendly_error: reason}} ->
-          Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
-
-        _ ->
-          Logger.debug("Contract execution failed", meta)
-      end
+    with {:ok, %ActionWithTransaction{next_tx: next_tx}} <-
+           Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
+         index = TransactionChain.get_size(contract_address),
+         {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
+         contract_context <-
+           get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
+         :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
+      Logger.debug("Contract execution success", meta)
     else
-      :ok
+      {:ok, %ActionWithoutTransaction{}} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
+      {:error, %Failure{user_friendly_error: reason}} ->
+        Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
+
+      _ ->
+        Logger.debug("Contract execution failed", meta)
     end
   end
 
@@ -334,6 +337,14 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp schedule_trigger(_trigger_type, _triggers_type), do: :ok
+
+  defp cancel_schedulers(state) do
+    {timers, new_state} = Map.pop(state, :timers, %{})
+    timers |> Map.values() |> Enum.each(&Process.cancel_timer/1)
+    PubSub.unregister_to_new_transaction_by_type(:oracle)
+
+    new_state
+  end
 
   defp send_transaction(contract_context, next_transaction, contract_genesis_address) do
     genesis_nodes = get_sorted_genesis_nodes(next_transaction, contract_genesis_address)
