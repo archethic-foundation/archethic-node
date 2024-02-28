@@ -739,4 +739,58 @@ defmodule Archethic.Election do
       get_storage_constraints()
     )
   end
+
+  @doc """
+
+  Get the synchronized and available nodes at before the given time
+
+  ## Examples
+
+      iex>  [
+      ...>   %Node{
+      ...>     first_public_key: "node1",
+      ...>     authorized?: true,
+      ...>     authorization_date: ~U[2024-02-01 00:01:00Z],
+      ...>     available?: true,
+      ...>     availability_update: ~U[2024-02-02 00:00:15Z]
+      ...>   },
+      ...>   %Node{
+      ...>     first_public_key: "node2",
+      ...>     authorized?: true,
+      ...>     authorization_date: ~U[2023-12-20 00:01:00Z],
+      ...>     available?: true,
+      ...>     availability_update: ~U[2023-12-21 00:00:15Z]
+      ...>   },
+      ...>   %Node{
+      ...>     first_public_key: "node3",
+      ...>     authorized?: true,
+      ...>     authorization_date: ~U[2024-02-10 00:01:00Z],
+      ...>     available?: false,
+      ...>     availability_update: ~U[2024-02-20 00:00:15Z]
+      ...>   },
+      ...>   %Node{
+      ...>     first_public_key: "node4",
+      ...>     authorized?: true,
+      ...>     authorization_date: ~U[2024-02-20 00:00:00Z],
+      ...>     available?: false,
+      ...>     availability_update: ~U[2024-02-10 00:00:15Z]
+      ...>   }
+      ...> ]
+      ...> |> Election.get_synchronized_nodes_before(~U[2024-02-20 00:00:00Z])
+      [
+        %Node{ first_public_key: "node1", authorized?: true, available?: true, authorization_date: ~U[2024-02-01 00:01:00Z], availability_update: ~U[2024-02-02 00:00:15Z]},
+        %Node{ first_public_key: "node2", authorized?: true, available?: true, authorization_date: ~U[2023-12-20 00:01:00Z], availability_update: ~U[2023-12-21 00:00:15Z]}
+      ]
+  """
+  @spec get_synchronized_nodes_before(
+          authorized_and_available_nodes :: list(Node.t()),
+          previous_summary_time :: DateTime.t()
+        ) :: list(Node.t())
+  def get_synchronized_nodes_before(nodes_list, previous_summary_time) do
+    Enum.filter(
+      nodes_list,
+      &(DateTime.compare(&1.availability_update, previous_summary_time) == :lt and
+          DateTime.compare(&1.authorization_date, previous_summary_time) == :lt)
+    )
+  end
 end
