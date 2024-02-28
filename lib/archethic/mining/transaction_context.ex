@@ -5,6 +5,7 @@ defmodule Archethic.Mining.TransactionContext do
   - unspent outputs
   """
 
+  alias Archethic.BeaconChain
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -101,10 +102,16 @@ defmodule Archethic.Mining.TransactionContext do
   end
 
   defp request_utxos(genesis_address, authorized_nodes) do
-    genesis_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    genesis_nodes =
+      genesis_address
+      |> Election.chain_storage_nodes(authorized_nodes)
+      |> Election.get_synchronized_nodes_before(previous_summary_time) 
 
     Task.Supervisor.async(TaskSupervisor, fn ->
-      TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes)
+      genesis_address
+      |> TransactionChain.fetch_unspent_outputs(genesis_nodes)
       |> Enum.to_list()
     end)
   end
@@ -128,12 +135,45 @@ defmodule Archethic.Mining.TransactionContext do
     end)
   end
 
-  defp aggregate_views(
-         nodes_view,
-         chain_storage_node_public_keys,
-         beacon_storage_node_public_keys,
-         io_storage_node_public_keys
-       ) do
+  @doc """
+  Set bitmap of the available nodes for each group of node
+
+  ## Examples
+
+      iex> TransactionContext.aggregate_views(
+      ...>    %{
+      ...>      "node1" => true,
+      ...>      "node2" => false,
+      ...>      "node3" => true,
+      ...>      "node4" => true,
+      ...>      "node5" => false
+      ...>    },
+      ...>    ["node1", "node2", "node3"],
+      ...>    ["node4", "node2", "node5"],
+      ...>    ["node2", "node3", "node1"]
+      ...> )
+      %{
+        chain_nodes_view: <<1::1, 0::1, 1::1>>,
+        beacon_nodes_view: <<1::1, 0::1, 0::1>>,
+        io_nodes_view: <<0::1, 1::1, 1::1>>
+      }
+  """
+  @spec aggregate_views(
+          nodes_view :: list({public_key :: Crypto.key(), available? :: boolean()}),
+          chain_storage_node_public_keys :: list(Crypto.key()),
+          beacon_storage_node_public_keys :: list(Crypto.key()),
+          io_storage_node_public_keys :: list(Crypto.key())
+        ) :: %{
+          chain_nodes_view: bitstring(),
+          beacon_nodes_view: bitstring(),
+          io_nodes_view: bitstring()
+        }
+  def aggregate_views(
+        nodes_view,
+        chain_storage_node_public_keys,
+        beacon_storage_node_public_keys,
+        io_storage_node_public_keys
+      ) do
     nb_chain_storage_nodes = length(chain_storage_node_public_keys)
     nb_beacon_storage_nodes = length(beacon_storage_node_public_keys)
     nb_io_storage_nodes = length(io_storage_node_public_keys)

@@ -361,7 +361,12 @@ defmodule Archethic do
   """
   @spec get_unspent_outputs(address :: Crypto.prepended_hash()) :: list(UnspentOutput.t())
   def get_unspent_outputs(address) do
-    nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    nodes =
+      address
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     address
     |> TransactionChain.fetch_unspent_outputs(nodes)
