@@ -2,6 +2,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.Crypto
 
   alias Archethic.Mining.StandaloneWorkflow
@@ -33,6 +34,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
   test "run/1 should auto validate the transaction and request storage" do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+    start_supervised!({BeaconSummaryTimer, interval: "0 * * * * *"})
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

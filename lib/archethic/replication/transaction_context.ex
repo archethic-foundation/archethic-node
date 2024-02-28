@@ -1,6 +1,7 @@
 defmodule Archethic.Replication.TransactionContext do
   @moduledoc false
 
+  alias Archethic.BeaconChain
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -64,7 +65,11 @@ defmodule Archethic.Replication.TransactionContext do
     {:ok, genesis_address} =
       TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
 
-    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    genesis_storage_nodes = genesis_address
+    |> Election.chain_storage_nodes(authorized_nodes)
+    |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     Logger.debug(
       "Fetch inputs for #{Base.encode16(genesis_address)}",
