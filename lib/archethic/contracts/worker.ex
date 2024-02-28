@@ -132,7 +132,7 @@ defmodule Archethic.Contracts.Worker do
 
       trigger = Contract.get_trigger_for_recipient(recipient)
 
-      execute_contract(contract, trigger, trigger_tx, recipient)
+      execute_contract(contract, trigger, trigger_tx, recipient, genesis_address)
     end
 
     {:noreply, state}
@@ -162,14 +162,17 @@ defmodule Archethic.Contracts.Worker do
 
     trigger = Contract.get_trigger_for_recipient(recipient)
 
-    execute_contract(contract, trigger, trigger_tx, recipient)
+    execute_contract(contract, trigger, trigger_tx, recipient, genesis_address)
 
     {:noreply, state}
   end
 
   # TRIGGER: DATETIME
-  def handle_info({:trigger, trigger_type = {:datetime, _}}, state = %{contract: contract}) do
-    execute_contract(contract, trigger_type, nil, nil)
+  def handle_info(
+        {:trigger, trigger_type = {:datetime, _}},
+        state = %{contract: contract, genesis_address: genesis_address}
+      ) do
+    execute_contract(contract, trigger_type, nil, nil, genesis_address)
 
     {:noreply, Map.update!(state, :timers, &Map.delete(&1, trigger_type))}
   end
@@ -177,9 +180,12 @@ defmodule Archethic.Contracts.Worker do
   # TRIGGER: INTERVAL
   def handle_info(
         {:trigger, trigger_type = {:interval, interval}},
-        state = %{contract: contract = %Contract{triggers: triggers}}
+        state = %{
+          contract: contract = %Contract{triggers: triggers},
+          genesis_address: genesis_address
+        }
       ) do
-    execute_contract(contract, trigger_type, nil, nil)
+    execute_contract(contract, trigger_type, nil, nil, genesis_address)
 
     interval_timer = schedule_trigger({:interval, interval}, Map.keys(triggers))
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
@@ -188,14 +194,14 @@ defmodule Archethic.Contracts.Worker do
   # TRIGGER: ORACLE
   def handle_info(
         {:new_transaction, tx_address, :oracle, _timestamp},
-        state = %{contract: contract}
+        state = %{contract: contract, genesis_address: genesis_address}
       ) do
     trigger_datetime = DateTime.utc_now()
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
     case Contracts.execute_condition(:oracle, contract, oracle_tx, nil, trigger_datetime) do
       {:ok, _logs} ->
-        execute_contract(contract, :oracle, oracle_tx, nil)
+        execute_contract(contract, :oracle, oracle_tx, nil, genesis_address)
 
       _ ->
         :skip
@@ -229,7 +235,8 @@ defmodule Archethic.Contracts.Worker do
          contract = %Contract{transaction: %Transaction{address: contract_address}},
          trigger,
          maybe_trigger_tx,
-         maybe_recipient
+         maybe_recipient,
+         contract_genesis_address
        ) do
     if Archethic.up?() do
       meta = log_metadata(contract_address, maybe_trigger_tx)
@@ -241,7 +248,7 @@ defmodule Archethic.Contracts.Worker do
            {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
            contract_context <-
              get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
-           :ok <- send_transaction(contract_context, next_tx) do
+           :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
         Logger.debug("Contract execution success", meta)
       else
         {:ok, %ActionWithoutTransaction{}} ->
@@ -328,20 +335,20 @@ defmodule Archethic.Contracts.Worker do
 
   defp schedule_trigger(_trigger_type, _triggers_type), do: :ok
 
-  defp send_transaction(contract_context, next_transaction) do
-    validation_nodes = get_validation_nodes(next_transaction)
+  defp send_transaction(contract_context, next_transaction, contract_genesis_address) do
+    genesis_nodes = get_sorted_genesis_nodes(next_transaction, contract_genesis_address)
 
     # The first storage node of the contract initiate the sending of the new transaction
-    if trigger_node?(validation_nodes) do
+    if trigger_node?(genesis_nodes) do
       Archethic.send_new_transaction(next_transaction, contract_context: contract_context)
     else
       DetectNodeResponsiveness.start_link(
         next_transaction.address,
-        length(validation_nodes),
+        length(genesis_nodes),
         fn count ->
           Logger.info("contract transaction ...attempt #{count}")
 
-          if trigger_node?(validation_nodes, count) do
+          if trigger_node?(genesis_nodes, count) do
             Archethic.send_new_transaction(next_transaction, contract_context: contract_context)
           end
         end
@@ -351,10 +358,12 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp get_validation_nodes(next_transaction = %Transaction{}) do
-    next_transaction
-    |> Transaction.previous_address()
-    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+  defp get_sorted_genesis_nodes(%Transaction{address: address}, contract_genesis_address) do
+    Election.storage_nodes_sorted_by_address(
+      contract_genesis_address,
+      address,
+      P2P.authorized_and_available_nodes()
+    )
   end
 
   defp trigger_node?(validation_nodes, count \\ 0) do
