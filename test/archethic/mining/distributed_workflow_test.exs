@@ -9,6 +9,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   @publickey2 Crypto.generate_deterministic_keypair("seed3")
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SubsetRegistry
 
@@ -57,6 +58,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
   setup do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
+    start_supervised!({BeaconSummaryTimer, interval: "0 * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
     P2P.add_and_connect_node(%Node{
