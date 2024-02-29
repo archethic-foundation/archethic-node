@@ -1,8 +1,6 @@
 defmodule ArchethicTest do
   use ArchethicCase
 
-  alias Archethic.BeaconChain.SummaryTimer
-
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -143,7 +141,6 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
       })
 
-      start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
 
       now = DateTime.utc_now()
 
@@ -237,8 +234,6 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
       })
 
-      start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
-
       MockDB
       |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
         {nss_last_address, DateTime.utc_now() |> DateTime.add(-20_000)}
@@ -305,8 +300,6 @@ defmodule ArchethicTest do
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
       })
-
-      start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
 
       MockDB
       |> stub(:get_last_chain_address, fn ^nss_genesis_address ->

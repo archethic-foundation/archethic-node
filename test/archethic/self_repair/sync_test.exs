@@ -4,7 +4,6 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
 
   alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
@@ -90,8 +89,7 @@ defmodule Archethic.SelfRepair.SyncTest do
     end
 
     test "should retrieve the missing beacon summaries from the given date" do
-      start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
-      start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
+      Application.put_env(:archethic, BeaconSummaryTimer, interval: "0 0 0 * * * *")
 
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
@@ -250,8 +248,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
       # Summary timer each hour
-      start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * *"})
-      start_supervised!({BeaconSlotTimer, interval: "0 */10 * * * *"})
+      Application.put_env(:archethic, BeaconSummaryTimer, interval: "0 0 * * * * *")
 
       # Create 11 nodes on last summary
       nodes_keypair =
@@ -423,9 +420,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   describe "process_summary_aggregate/2" do
     setup do
-      start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
-      start_supervised!({BeaconSummaryTimer, [interval: "0 * * * * *"]})
-
       MockDB
       |> stub(:list_io_transactions, fn _ -> [] end)
       |> stub(:list_transactions, fn _ -> [] end)

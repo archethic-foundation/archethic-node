@@ -2,7 +2,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
   use ArchethicCase, async: false
 
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SubsetRegistry
 
   alias Archethic.Crypto
@@ -24,7 +23,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
 
   setup do
     SelfRepairScheduler.start_link([interval: "0 0 0 * *"], [])
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
     setup_before_send_tx()

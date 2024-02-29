@@ -56,14 +56,18 @@ defmodule Archethic.BeaconChain do
   @doc """
   Get the next beacon summary time
   """
-  @spec next_summary_date(DateTime.t()) :: DateTime.t()
-  defdelegate next_summary_date(date), to: SummaryTimer, as: :next_summary
+  @spec next_summary_date(DateTime.t(), cron_interval :: binary()) :: DateTime.t()
+  defdelegate next_summary_date(date, cron_interval \\ get_summary_interval()), to: SummaryTimer, as: :next_summary
 
   @doc """
   Get the next beacon slot time from a given date
   """
-  @spec next_slot(last_sync_date :: DateTime.t()) :: DateTime.t()
-  defdelegate next_slot(last_sync_date), to: SlotTimer
+  @spec next_slot(last_sync_date :: DateTime.t(), cron_interval :: binary()) :: DateTime.t()
+  defdelegate next_slot(last_sync_date, cron_interval \\ get_slot_interval()), to: SlotTimer
+
+  def get_slot_interval(), do: SlotTimer.get_interval()
+
+  def get_summary_interval(), do: SummaryTimer.get_interval()
 
   @doc """
   Extract the beacon subset from an address
@@ -157,16 +161,6 @@ defmodule Archethic.BeaconChain do
   """
   @spec list_p2p_sampling_nodes(binary()) :: list(Node.t())
   defdelegate list_p2p_sampling_nodes(subset), to: P2PSampling, as: :list_nodes_to_sample
-
-  def config_change(changed_conf) do
-    changed_conf
-    |> Keyword.get(SummaryTimer)
-    |> SummaryTimer.config_change()
-
-    changed_conf
-    |> Keyword.get(SlotTimer)
-    |> SlotTimer.config_change()
-  end
 
   @doc """
   Get a beacon chain summary representation by loading from the database the transaction

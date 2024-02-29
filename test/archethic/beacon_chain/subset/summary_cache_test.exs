@@ -17,7 +17,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
   import Mock
 
   test "should clean the previous backup on summary time" do
-    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * *"], [])
+    Application.put_env(:archethic, SummaryTimer, interval: "0 * * * * *")
+
     {:ok, pid} = SummaryCache.start_link()
     File.mkdir_p!(Utils.mut_dir())
 
@@ -56,7 +57,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
                  DateTime,
                  [:passthrough],
                  utc_now: fn -> ~U[2023-01-01 08:00:50Z] end do
-    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * *"], [])
     {:ok, pid} = SummaryCache.start_link()
     File.mkdir_p!(Utils.mut_dir())
 
@@ -103,7 +103,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
   end
 
   test "summary cache should backup a slot, recover it on restart" do
-    {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
+    Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * * *")
     File.mkdir_p!(Utils.mut_dir())
 
     next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
@@ -178,7 +178,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
   end
 
   test "should cleanup as soon as selfrepair is triggered" do
-    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * *"], [])
+    Application.put_env(:archethic, SummaryTimer, interval: "0 * * * * *")
     {:ok, pid} = SummaryCache.start_link()
     File.mkdir_p!(Utils.mut_dir())
 
