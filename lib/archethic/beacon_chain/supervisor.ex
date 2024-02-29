@@ -18,8 +18,8 @@ defmodule Archethic.BeaconChain.Supervisor do
   def init(_args) do
     children =
       [
-        {SlotTimer, Application.get_env(:archethic, SlotTimer), []},
-        {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []},
+        {SlotTimer, [], []},
+        {SummaryTimer, [], []},
         {SubsetSupervisor, [], []},
         {Update, [], []}
       ]

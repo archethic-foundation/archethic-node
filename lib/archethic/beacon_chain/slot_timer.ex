@@ -4,7 +4,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   """
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   alias Archethic.BeaconChain.SummaryTimer
 
@@ -19,8 +19,6 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
   require Logger
 
-  @slot_timer_ets :archethic_slot_timer
-
   @doc """
   Create a new slot timer
   """
@@ -30,30 +28,53 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
   @doc """
   Give the next beacon chain slot using the `SlotTimer` interval
+
+  ## Examples
+
+      iex> SlotTimer.next_slot(~U[2021-01-02 03:00:10Z], "*/10 * * * * * *")
+      ~U[2021-01-02 03:00:20Z]
   """
-  @spec next_slot(DateTime.t()) :: DateTime.t()
-  def next_slot(date_from = %DateTime{}) do
-    get_interval() |> Utils.next_date(date_from)
+  @spec next_slot(date_from :: DateTime.t(), cron_interval :: binary()) :: DateTime.t()
+  def next_slot(date_from = %DateTime{}, cron_interval \\ get_interval()) do
+    Utils.next_date(cron_interval, date_from)
   end
 
   @doc """
   Returns the previous slot from the given date
+
+  ## Examples
+
+      iex> SlotTimer.previous_slot(~U[2021-01-02 03:00:10Z], "*/10 * * * * * *")
+      ~U[2021-01-02 03:00:00Z]
   """
-  @spec previous_slot(DateTime.t()) :: DateTime.t()
-  def previous_slot(date_from = %DateTime{}) do
-    get_interval()
+  @spec previous_slot(date_from :: DateTime.t(), cron_interval :: binary()) :: DateTime.t()
+  def previous_slot(date_from = %DateTime{}, cron_interval \\ get_interval()) do
+    cron_interval
     |> CronParser.parse!(true)
     |> Utils.previous_date(date_from)
   end
 
   @doc """
   Return the previous slot times
+
+  ## Examples
+
+      iex> SlotTimer.previous_slots(~U[2021-01-02 03:00:00Z], ~U[2021-01-02 03:00:30Z], "*/10 * * * * * *")
+      [
+        ~U[2021-01-02 03:00:30Z],
+        ~U[2021-01-02 03:00:20Z],
+        ~U[2021-01-02 03:00:10Z]
+      ]
   """
-  @spec previous_slots(DateTime.t()) :: list(DateTime.t())
-  def previous_slots(date_from) do
-    get_interval()
+  @spec previous_slots(date_from :: DateTime.t(), cron_interval :: binary()) :: list(DateTime.t())
+  def previous_slots(
+        date_from = %DateTime{},
+        date_to = %DateTime{} \\ DateTime.utc_now(),
+        cron_interval \\ get_interval()
+      ) do
+    cron_interval
     |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
+    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date_to))
     |> Stream.take_while(fn datetime ->
       datetime
       |> DateTime.from_naive!("Etc/UTC")
@@ -63,36 +84,58 @@ defmodule Archethic.BeaconChain.SlotTimer do
     |> Enum.to_list()
   end
 
-  def get_time_interval(unit \\ :second) do
-    now = DateTime.utc_now()
-    DateTime.diff(next_slot(now), previous_slot(now), unit)
+  @doc """
+  Returns time interval between next and previous slot
+
+  ## Examples
+
+      iex> SlotTimer.get_time_interval(~U[2021-01-02 03:00:00Z], "*/10 * * * * * *")
+      20
+  """
+  @spec get_time_interval(
+          date_from :: DateTime.t(),
+          cron_interval :: binary(),
+          unit :: System.time_unit()
+        ) ::
+          non_neg_integer()
+  def get_time_interval(
+        date_from = %DateTime{} \\ DateTime.utc_now(),
+        cron_interval \\ get_interval(),
+        unit \\ :second
+      ) do
+    DateTime.diff(
+      next_slot(date_from, cron_interval),
+      previous_slot(date_from, cron_interval),
+      unit
+    )
   end
 
-  defp get_interval do
-    [{_, interval}] = :ets.lookup(@slot_timer_ets, :interval)
-    interval
+  @doc """
+  Return the slot timer cron interval
+  """
+  @spec get_interval() :: binary()
+  def get_interval do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.fetch!(:interval)
   end
 
   @doc false
-  def init(opts) do
-    :ets.new(@slot_timer_ets, [:named_table, :public, read_concurrency: true])
-    interval = Keyword.get(opts, :interval)
-    :ets.insert(@slot_timer_ets, {:interval, interval})
-
+  def init(_) do
     if Archethic.up?() do
       Logger.info("Slot Timer: Starting...")
       next_time = next_slot(DateTime.utc_now())
 
-      {:ok, %{interval: interval, timer: schedule_new_slot(interval), next_time: next_time}}
+      {:ok, %{timer: schedule_new_slot(get_interval()), next_time: next_time}}
     else
       Logger.info("Slot Timer:  Waiting for Node to complete Bootstrap.")
 
       Archethic.PubSub.register_to_node_status()
-      {:ok, %{interval: interval}}
+      {:ok, %{}}
     end
   end
 
-  def handle_info(:node_up, state = %{interval: interval}) do
+  def handle_info(:node_up, state) do
     Logger.info("Slot Timer: Starting...")
 
     case Map.get(state, :timer, nil) do
@@ -102,31 +145,30 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     new_state =
       state
-      |> Map.put(:timer, schedule_new_slot(interval))
+      |> Map.put(:timer, schedule_new_slot(get_interval()))
       |> Map.put(:next_time, next_slot(DateTime.utc_now()))
 
     {:noreply, new_state, :hibernate}
   end
 
-  def handle_info(:node_down, %{interval: interval, timer: timer}) do
+  def handle_info(:node_down, %{timer: timer}) do
     Logger.info("Slot Timer: Stopping...")
     Process.cancel_timer(timer)
-    {:noreply, %{interval: interval}, :hibernate}
+    {:noreply, %{}, :hibernate}
   end
 
-  def handle_info(:node_down, %{interval: interval}) do
+  def handle_info(:node_down, _state) do
     Logger.info("Slot Timer: Stopping...")
-    {:noreply, %{interval: interval}, :hibernate}
+    {:noreply, %{}, :hibernate}
   end
 
   def handle_info(
         :new_slot,
         state = %{
-          interval: interval,
           next_time: next_time
         }
       ) do
-    timer = schedule_new_slot(interval)
+    timer = schedule_new_slot(get_interval())
 
     slot_time = next_time
 
@@ -148,24 +190,12 @@ defmodule Archethic.BeaconChain.SlotTimer do
     {:noreply, new_state, :hibernate}
   end
 
-  def handle_cast({:new_conf, conf}, state) do
-    case Keyword.get(conf, :interval) do
-      nil ->
-        {:noreply, state}
-
-      new_interval ->
-        :ets.insert(@slot_timer_ets, {:interval, new_interval})
-        {:noreply, Map.put(state, :interval, new_interval)}
-    end
+  def code_change(1, state, _) do 
+    :ets.delete(:archethic_slot_timer)
+    {:ok, Map.delete(state, :interval) }
   end
 
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval))
-  end
-
-  def config_change(nil), do: :ok
-
-  def config_change(conf) do
-    GenServer.cast(__MODULE__, {:new_conf, conf})
   end
 end

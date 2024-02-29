@@ -4,8 +4,6 @@ defmodule Archethic.Bootstrap.SyncTest do
   alias Archethic.Account
   alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
 
-  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-
   alias Archethic.Bootstrap.Sync
 
   alias Archethic.Crypto
@@ -256,7 +254,7 @@ defmodule Archethic.Bootstrap.SyncTest do
 
   describe "initialize_network/2" do
     setup do
-      start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+      # start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
       start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
       P2P.add_and_connect_node(%Node{
@@ -430,8 +428,6 @@ defmodule Archethic.Bootstrap.SyncTest do
   end
 
   test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do
-    BeaconSlotTimer.start_link([interval: "0 * * * * *"], [])
-
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -452,7 +448,7 @@ defmodule Archethic.Bootstrap.SyncTest do
       {:ok, %Ok{}}
     end)
 
-    assert :ok = Sync.publish_end_of_sync()
+    assert :ok = Sync.publish_end_of_sync("0 * * * * *")
     assert_receive :end_of_sync
   end
 end

@@ -216,8 +216,8 @@ defmodule Archethic.Bootstrap.Sync do
   @doc """
   Notify the beacon chain for the first node public key about the readiness of the node and the end of the bootstrapping
   """
-  @spec publish_end_of_sync() :: :ok
-  def publish_end_of_sync do
+  @spec publish_end_of_sync(slot_cron_interval :: binary()) :: :ok
+  def publish_end_of_sync(slot_cron_interval \\ BeaconChain.get_slot_interval()) do
     ready_date = DateTime.utc_now()
 
     message = %NotifyEndOfNodeSync{
@@ -229,7 +229,7 @@ defmodule Archethic.Bootstrap.Sync do
 
     Election.beacon_storage_nodes(
       subset,
-      BeaconChain.next_slot(ready_date),
+      BeaconChain.next_slot(ready_date, slot_cron_interval),
       P2P.authorized_and_available_nodes(),
       Election.get_storage_constraints()
     )

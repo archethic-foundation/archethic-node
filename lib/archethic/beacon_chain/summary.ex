@@ -66,9 +66,7 @@ defmodule Archethic.BeaconChain.Summary do
 
     ### Aggregate the P2P view and the transaction summaries for a static list of nodes during the beacon chain
 
-      iex> :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
-      ...> :ets.insert(:archethic_slot_timer, {:interval, "0 */10 * * * * *"})
-      ...> Summary.aggregate_slots(%Summary{}, [
+      iex> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
       ...>   transaction_attestations: [
@@ -111,7 +109,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]}
-      ...> ])
+      ...> ], SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *"))
       %Summary{
           transaction_attestations: [
             %ReplicationAttestation{
@@ -130,9 +128,7 @@ defmodule Archethic.BeaconChain.Summary do
 
     ### Aggregate the P2P view and the transaction attestations with new node joining during the beacon chain epoch
 
-      iex> :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
-      ...> :ets.insert(:archethic_slot_timer, {:interval, "0 */10 * * * * *"})
-      ...> Summary.aggregate_slots(%Summary{}, [
+      iex> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
       ...>   transaction_attestations: [
@@ -174,7 +170,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key4", enrollment_date: ~U[2020-06-25 15:11:45Z]}
-      ...> ])
+      ...> ], SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *"))
       %Summary{
         transaction_attestations: [
           %ReplicationAttestation {
@@ -196,10 +192,15 @@ defmodule Archethic.BeaconChain.Summary do
           beacon_chain_slots :: Enumerable.t() | list(Slot.t()),
           subset_nodes :: list(Node.t())
         ) :: t()
-  def aggregate_slots(summary = %__MODULE__{}, slots, subset_nodes) do
+  def aggregate_slots(
+        summary = %__MODULE__{},
+        slots,
+        subset_nodes,
+        slot_interval \\ SlotTimer.get_time_interval()
+      ) do
     summary
     |> aggregate_transaction_attestations(slots)
-    |> aggregate_availabilities(slots, subset_nodes)
+    |> aggregate_availabilities(slots, subset_nodes, slot_interval)
     |> aggregate_end_of_sync(slots)
   end
 
@@ -220,7 +221,7 @@ defmodule Archethic.BeaconChain.Summary do
     %{summary | transaction_attestations: transaction_attestations}
   end
 
-  defp aggregate_availabilities(summary = %__MODULE__{}, slots, node_list) do
+  defp aggregate_availabilities(summary = %__MODULE__{}, slots, node_list, slot_interval) do
     nb_nodes = length(node_list)
 
     %{availabilities: availabilities, average_availabilities: average_availabilities} =
@@ -239,7 +240,7 @@ defmodule Archethic.BeaconChain.Summary do
               []
             end
         },
-        &reduce_summary_availabilities/2
+        &reduce_summary_availabilities(&1, &2, slot_interval)
       )
 
     %{
@@ -299,7 +300,8 @@ defmodule Archethic.BeaconChain.Summary do
 
   defp reduce_summary_availabilities(
          {node_index, availabilities},
-         acc
+         acc,
+         slot_interval
        ) do
     # First, do a median for each slot
     # Then do a wheighted mean of the result
@@ -324,7 +326,7 @@ defmodule Archethic.BeaconChain.Summary do
       end)
 
     availability_time = Map.get(map, :total_availability_time) / Map.get(map, :total_weight)
-    avg_availability = availability_time / SlotTimer.get_time_interval()
+    avg_availability = availability_time / slot_interval
     # TODO We may change the value where the node is considered as available
     # to get only stable nodes like avg_availability > 0.85
     available? = avg_availability > 0.5

@@ -217,7 +217,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     nodes = [node | nodes]
 
-    start_supervised!({SummaryTimer, interval: "0 * * * *"})
+    Application.put_env(:archethic, SummaryTimer, interval: "0 * * * *")
 
     [first_date | rest] = SummaryTimer.next_summaries(enrollment_date) |> Enum.to_list()
     random_date = Enum.random(rest)
