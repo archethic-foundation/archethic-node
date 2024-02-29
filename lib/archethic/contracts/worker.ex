@@ -8,7 +8,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Loader
-  alias Archethic.ContractSupervisor
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
@@ -49,33 +48,6 @@ defmodule Archethic.Contracts.Worker do
   @spec exists?(genesis_address :: Crypto.prepended_hash()) :: boolean()
   def exists?(genesis_address),
     do: genesis_address |> via_tuple() |> GenServer.whereis() != nil
-
-  @doc """
-  Start a new worker for the genesis address
-  """
-  @spec new(genesis_address :: Crypto.prepended_hash(), contract :: Contract.t()) ::
-          DynamicSupervisor.on_start_child()
-  def new(genesis_address, contract) do
-    DynamicSupervisor.start_child(
-      ContractSupervisor,
-      {__MODULE__, contract: contract, genesis_address: genesis_address}
-    )
-  end
-
-  @doc """
-  Stop a worker for the genesis address
-  """
-  @spec stop(genesis_address :: Crypto.prepended_hash()) :: :ok | {:error, :not_found}
-  def stop(genesis_address) do
-    case genesis_address |> via_tuple() |> GenServer.whereis() do
-      nil ->
-        :ok
-
-      pid ->
-        Logger.info("Stop smart contract at #{Base.encode16(genesis_address)}")
-        DynamicSupervisor.terminate_child(ContractSupervisor, pid)
-    end
-  end
 
   @doc """
   Set a new contract version in the worker

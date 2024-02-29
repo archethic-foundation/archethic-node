@@ -1,6 +1,9 @@
 defmodule Archethic.Contracts.Loader do
   @moduledoc false
 
+  alias Archethic.ContractRegistry
+  alias Archethic.ContractSupervisor
+
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Worker
 
@@ -51,8 +54,9 @@ defmodule Archethic.Contracts.Loader do
       {_, {:error, _}} ->
         true
     end)
-    |> Stream.map(fn {genesis, {:ok, last_tx}} -> {genesis, last_tx} end)
-    |> Stream.each(fn {genesis, tx} -> load_transaction(tx, genesis, execute_contract?: false) end)
+    |> Stream.each(fn {genesis, {:ok, tx}} ->
+      load_transaction(tx, genesis, execute_contract?: false)
+    end)
     |> Stream.run()
 
     {:ok, []}
@@ -73,7 +77,9 @@ defmodule Archethic.Contracts.Loader do
     node_key = Crypto.first_node_public_key()
 
     handle_contract_chain(tx, genesis_address, node_key, authorized_nodes)
-    handle_contract_call(tx, node_key, authorized_nodes, execute_contract?)
+    if execute_contract?, do: handle_contract_call(tx, node_key, authorized_nodes)
+
+    :ok
   end
 
   @doc """
@@ -131,9 +137,23 @@ defmodule Archethic.Contracts.Loader do
   """
   @spec stop_contract(binary()) :: :ok
   def stop_contract(genesis_address) when is_binary(genesis_address) do
-    Worker.stop(genesis_address)
+    case GenServer.whereis({:via, Registry, {ContractRegistry, genesis_address}}) do
+      nil ->
+        :ok
+
+      pid ->
+        Logger.info("Stop smart contract at #{Base.encode16(genesis_address)}")
+        DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+    end
 
     # TransactionChain.clear_pending_transactions(genesis_address)
+  end
+
+  defp new_contract(genesis_address, contract) do
+    DynamicSupervisor.start_child(
+      ContractSupervisor,
+      {Worker, contract: contract, genesis_address: genesis_address}
+    )
   end
 
   defp handle_contract_chain(
@@ -149,10 +169,10 @@ defmodule Archethic.Contracts.Loader do
        when code != "" do
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),
          {:ok, contract} <- Contract.from_transaction(tx),
-         true <- contract_contains_trigger?(contract) do
+         true <- Contract.contains_trigger?(contract) do
       if Worker.exists?(genesis_address),
         do: Worker.set_contract(genesis_address, contract),
-        else: Worker.new(genesis_address, contract)
+        else: new_contract(genesis_address, contract)
 
       Logger.info("Smart contract loaded",
         transaction_address: Base.encode16(address),
@@ -173,24 +193,22 @@ defmodule Archethic.Contracts.Loader do
            }
          },
          node_key,
-         authorized_nodes,
-         execute_contract?
+         authorized_nodes
        )
        when length(resolved_recipients) > 0 do
     resolved_recipients
     |> resolve_genesis_address(authorized_nodes, protocol_version)
     |> Enum.each(fn contract_genesis_address ->
-      if Election.chain_storage_node?(contract_genesis_address, node_key, authorized_nodes) do
-        with true <- execute_contract?,
-             {trigger_tx, recipient} <- get_next_call(contract_genesis_address),
-             :ok <- request_worker_lock(contract_genesis_address) do
-          Worker.execute(contract_genesis_address, trigger_tx, recipient)
-        end
+      with true <-
+             Election.chain_storage_node?(contract_genesis_address, node_key, authorized_nodes),
+           {trigger_tx, recipient} <- get_next_call(contract_genesis_address),
+           :ok <- request_worker_lock(contract_genesis_address) do
+        Worker.execute(contract_genesis_address, trigger_tx, recipient)
       end
     end)
   end
 
-  defp handle_contract_call(_, _, _, _), do: :ok
+  defp handle_contract_call(_, _, _), do: :ok
 
   defp resolve_genesis_address(recipients, authorized_nodes, protocol_version)
        when protocol_version <= 7 do
@@ -212,11 +230,4 @@ defmodule Archethic.Contracts.Loader do
   end
 
   defp resolve_genesis_address(recipients, _, _), do: recipients
-
-  defp contract_contains_trigger?(%Contract{triggers: triggers}) do
-    non_empty_triggers =
-      Enum.reject(triggers, fn {_, actions} -> actions == {:__block__, [], []} end)
-
-    length(non_empty_triggers) > 0
-  end
 end

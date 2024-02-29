@@ -144,4 +144,64 @@ defmodule Archethic.Contracts.ContractTest do
       assert Ownership.authorized_public_key?(new_ownership, storage_nonce_public_key)
     end
   end
+
+  describe "contains_trigger?/1" do
+    test "should return true if contract contains trigger" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("Didn't find something funny")
+        end
+      """
+
+      assert code
+             |> ContractFactory.create_valid_contract_tx()
+             |> Contract.from_transaction!()
+             |> Contract.contains_trigger?()
+
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("Didn't find something funny")
+        end
+
+        actions triggered_by: datetime, at: 1676332800 do
+          Contract.set_content("Incredibly usefull action")
+        end
+      """
+
+      assert code
+             |> ContractFactory.create_valid_contract_tx()
+             |> Contract.from_transaction!()
+             |> Contract.contains_trigger?()
+    end
+
+    test "should return false if contract does not contains trigger" do
+      code = """
+        @version 1
+        condition inherit: []
+      """
+
+      refute code
+             |> ContractFactory.create_valid_contract_tx()
+             |> Contract.from_transaction!()
+             |> Contract.contains_trigger?()
+    end
+
+    test "should return false if contract contains empty trigger" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+        end
+      """
+
+      refute code
+             |> ContractFactory.create_valid_contract_tx()
+             |> Contract.from_transaction!()
+             |> Contract.contains_trigger?()
+    end
+  end
 end

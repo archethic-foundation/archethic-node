@@ -117,7 +117,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       genesis = Transaction.previous_address(contract.transaction)
 
-      {:ok, pid} = Worker.new(genesis, contract)
+      {:ok, pid} = Worker.start_link(contract: contract, genesis_address: genesis)
       assert Process.alive?(pid)
       %{contract: ^contract} = :sys.get_state(pid)
 
@@ -147,7 +147,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       genesis = Transaction.previous_address(contract.transaction)
 
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       receive do
         {:transaction_sent, tx} ->
@@ -181,7 +181,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       receive do
         {:transaction_sent, tx} ->
@@ -217,7 +217,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       Worker.execute(genesis, %Transaction{address: "@Alice2"}, %Recipient{
         address: contract_address
@@ -251,7 +251,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
@@ -304,7 +304,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "Mr.X")
 
@@ -377,7 +377,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, pid} = Worker.new(genesis, contract)
+      {:ok, pid} = Worker.start_link(contract: contract, genesis_address: genesis)
       allow(MockDB, self(), pid)
 
       PubSub.notify_new_transaction(oracle_address, :oracle, DateTime.utc_now())
@@ -426,7 +426,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       ledger = %Ledger{
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
@@ -481,7 +481,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.new(genesis, contract)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       recipient = %Recipient{address: contract_address, action: "vote", args: ["Ms. Smith"]}
 
@@ -519,7 +519,7 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, worker_pid} = Worker.new(genesis, contract)
+      {:ok, worker_pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
       ledger = %Ledger{
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}

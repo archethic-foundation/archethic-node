@@ -103,10 +103,9 @@ defmodule Archethic.Mining.SmartContractValidation do
       )
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
-    case Contract.from_transaction(prev_tx) do
-      {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 -> {true, nil}
-      _ -> {false, nil}
-    end
+    if prev_tx |> Contract.from_transaction!() |> Contract.contains_trigger?(),
+      do: {false, nil},
+      else: {true, nil}
   end
 
   def valid_contract_execution?(_, _, _, _, _), do: {true, nil}
