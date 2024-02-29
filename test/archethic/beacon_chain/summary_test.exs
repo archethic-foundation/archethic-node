@@ -3,6 +3,7 @@ defmodule Archethic.BeaconChain.SummaryTest do
 
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.Summary
   alias Archethic.TransactionChain.TransactionSummary
 

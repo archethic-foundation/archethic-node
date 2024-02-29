@@ -752,9 +752,6 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
         |> DateTime.add(1, :hour)
         |> DateTime.to_unix()
 
-      # SummaryTimer every hours
-      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
-
       conn =
         post(conn, "/api", %{
           "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
@@ -774,7 +771,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
            conn: conn
          } do
       # SummaryTimer every hour
-      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 */1 * * * *")
 
       past_summary_time =
         DateTime.utc_now() |> SummaryTimer.previous_summary() |> SummaryTimer.previous_summary()
@@ -814,7 +811,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
     test "should take into account limit and offset when sending transaction_summaries", %{
       conn: conn
     } do
-      {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+      Application.put_env(:archethic, SummaryTimer, interval: "* * * * * * *")
 
       today = DateTime.utc_now()
 
@@ -897,7 +894,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
            conn: conn
          } do
       # SummaryTimer every hour
-      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 */1 * * * *")
 
       previous_summary_time = DateTime.utc_now() |> SummaryTimer.previous_summary()
       previous_summary_timestamp = DateTime.to_unix(previous_summary_time)
@@ -945,7 +942,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
            conn: conn
          } do
       # SummaryTimer every hour
-      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 */1 * * * *")
 
       next_summary_time = DateTime.utc_now() |> SummaryTimer.next_summary()
       next_summary_timestamp = DateTime.to_unix(next_summary_time)

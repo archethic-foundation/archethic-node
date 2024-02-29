@@ -2,7 +2,6 @@ defmodule Archethic.BeaconChain.ReplicationAttestationTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -34,8 +33,6 @@ defmodule Archethic.BeaconChain.ReplicationAttestationTest do
 
   describe "reached_threshold?/1" do
     setup do
-      # Summary timer each hour
-      start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
       # Create 10 nodes on last summary
       Enum.each(0..9, fn i ->
         P2P.add_and_connect_node(%Node{

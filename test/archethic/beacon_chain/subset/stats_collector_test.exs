@@ -4,7 +4,6 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.NetworkCoordinates
   alias Archethic.BeaconChain.Subset.StatsCollector
-  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
@@ -20,7 +19,6 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
 
   setup do
     {:ok, pid} = StatsCollector.start_link([])
-    {:ok, _} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

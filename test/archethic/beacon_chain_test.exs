@@ -35,8 +35,10 @@ defmodule Archethic.BeaconChainTest do
   import Mock
 
   setup do
-    start_supervised!({SlotTimer, interval: "0 0 * * * *"})
-    start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
+
+    Application.put_env(:archethic, SlotTimer, interval: "0 0 * * * *")
+    Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * * *")
+
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
     Enum.each(BeaconChain.list_subsets(), &Subset.start_link(subset: &1))
     :ok
@@ -611,7 +613,6 @@ defmodule Archethic.BeaconChainTest do
 
       File.mkdir_p!(Utils.mut_dir())
       SummaryCache.start_link()
-      SummaryTimer.start_link(interval: "0 0 0 * *")
 
       Enum.map(node1_slots, &SummaryCache.add_slot(<<0>>, &1, "node1"))
       Enum.map(node2_slots, &SummaryCache.add_slot(<<0>>, &1, "node2"))

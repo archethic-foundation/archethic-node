@@ -4,7 +4,7 @@ defmodule Archethic.SelfRepair.Scheduler do
   by downloading the missing transactions and node updates
   """
   use GenServer
-  @vsn 1
+  @vsn 2
 
   alias Archethic.BeaconChain
 
@@ -48,13 +48,11 @@ defmodule Archethic.SelfRepair.Scheduler do
     GenServer.call(pid, :start)
   end
 
-  def init(opts) do
-    interval = Keyword.get(opts, :interval)
-
-    {:ok, %{interval: interval}}
+  def init(_opts) do
+    {:ok, %{}}
   end
 
-  def handle_call(:start, _from, state = %{interval: interval}) do
+  def handle_call(:start, _from, state) do
     Logger.info("Self-Repair scheduler is started")
 
     case Map.get(state, :timer) do
@@ -65,7 +63,7 @@ defmodule Archethic.SelfRepair.Scheduler do
         Process.cancel_timer(timer)
     end
 
-    timer = schedule_sync(interval)
+    timer = schedule_sync()
 
     Logger.info(
       "Next Self-Repair Sync will be started in #{Utils.remaining_seconds_from_timer(timer)}"
@@ -76,10 +74,6 @@ defmodule Archethic.SelfRepair.Scheduler do
       |> Map.put(:timer, timer)
 
     {:reply, :ok, new_state}
-  end
-
-  def handle_call(:get_interval, _, state = %{interval: interval}) do
-    {:reply, interval, state}
   end
 
   def handle_info(
@@ -109,10 +103,10 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, state, :hibernate}
   end
 
-  def handle_info({ref, :ok}, state = %{interval: interval}) do
+  def handle_info({ref, :ok}, state) do
     # If the node is still unavailable after self repair, we send the postpone the
     # end of node sync message
-    timer = schedule_sync(interval)
+    timer = schedule_sync()
     Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
     new_state =
@@ -130,7 +124,7 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, _, _, reason}, state = %{interval: interval}) do
+  def handle_info({:DOWN, _ref, _, _, reason}, state) do
     Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
 
     if Archethic.up?() do
@@ -142,7 +136,7 @@ defmodule Archethic.SelfRepair.Scheduler do
 
     new_state =
       if new_state.retry_count > @max_retry_count do
-        timer = schedule_sync(interval)
+        timer = schedule_sync()
 
         new_state
         |> Map.delete(:retry_count)
@@ -159,18 +153,10 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, state}
   end
 
-  def handle_cast({:new_conf, conf}, state) do
-    case Keyword.get(conf, :interval) do
-      nil ->
-        {:noreply, state}
+  def code_change(1, state, _), do: {:ok, Map.delete(state, :interval)}
 
-      new_interval ->
-        {:noreply, Map.put(state, :interval, new_interval)}
-    end
-  end
-
-  defp schedule_sync(interval) do
-    Process.send_after(self(), :sync, Utils.time_offset(interval))
+  defp schedule_sync() do
+    Process.send_after(self(), :sync, Utils.time_offset(get_interval()))
   end
 
   defp last_sync_date_to_string(last_sync_date) do
@@ -179,18 +165,14 @@ defmodule Archethic.SelfRepair.Scheduler do
     |> DateTime.to_string()
   end
 
-  def config_change(nil), do: :ok
-
-  def config_change(new_conf) do
-    GenServer.cast(__MODULE__, {:new_conf, new_conf})
-  end
-
   @doc """
   Retrieve the self repair interval
   """
   @spec get_interval() :: binary()
   def get_interval do
-    GenServer.call(__MODULE__, :get_interval)
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.fetch!(:interval)
   end
 
   @doc """
@@ -202,8 +184,8 @@ defmodule Archethic.SelfRepair.Scheduler do
   Returns:
   - The next time the self-repair mechanism should run.
   """
-  @spec next_repair_time(DateTime.t()) :: DateTime.t()
-  def next_repair_time(ref_time \\ DateTime.utc_now()) do
-    get_interval() |> Utils.next_date(ref_time)
+  @spec next_repair_time(date_from :: DateTime.t(), cron_interval :: binary()) :: DateTime.t()
+  def next_repair_time(ref_time \\ DateTime.utc_now(), cron_interval \\ get_interval()) do
+    Utils.next_date(cron_interval, ref_time)
   end
 end
