@@ -4,7 +4,6 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.Contracts
 
@@ -22,9 +21,6 @@ defmodule Archethic.SelfRepair do
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.Utils
-
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
 
   alias __MODULE__.Notifier
   alias __MODULE__.NotifierSupervisor
@@ -120,37 +116,45 @@ defmodule Archethic.SelfRepair do
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
 
   @doc """
-  Return true if there is a self repair date missed since the last
-  summary synchronized
+  Determines whether there is a self repair date missed since the last synchronization date
+
+  ## Examples
+
+      iex> SelfRepair.missed_sync?(nil)
+      true
+
+      iex> SelfRepair.missed_sync?(~U[2024-02-01 20:00:00Z], "0 0 * * *", "5 * * * * * *", ~U[2024-02-01 20:05:00Z])
+      false
+
+      iex> SelfRepair.missed_sync?(~U[2024-02-01 20:00:00Z], "0 0 * * *", "5 * * * * * *", ~U[2024-02-01 22:00:00Z])
+      true
   """
-  @spec missed_sync?(DateTime.t() | nil) :: boolean()
-  def missed_sync?(nil), do: true
+  @spec missed_sync?(
+          last_sync_date :: DateTime.t() | nil,
+          summary_cron_interval :: binary(),
+          repair_cron_interval :: binary()
+        ) :: boolean()
+  def missed_sync?(
+        last_sync_date,
+        summary_cron_interval \\ BeaconChain.get_summary_interval(),
+        repair_cron_interval \\ Scheduler.get_interval(),
+        ref_date \\ DateTime.utc_now()
+      )
 
-  def missed_sync?(last_sync_date) do
-    next_summary_date =
-      :archethic
-      |> Application.get_env(SummaryTimer, [])
-      |> Keyword.fetch!(:interval)
-      |> Utils.next_date(last_sync_date)
+  def missed_sync?(nil, _, _, _), do: true
 
+  def missed_sync?(
+        last_sync_date,
+        summary_cron_interval,
+        repair_cron_interval,
+        ref_date
+      ) do
     next_repair_date =
-      :archethic
-      |> Application.get_env(Scheduler, [])
-      |> Keyword.fetch!(:interval)
-      |> Utils.next_date(next_summary_date)
+      last_sync_date
+      |> BeaconChain.next_summary_date(summary_cron_interval)
+      |> Scheduler.next_repair_time(repair_cron_interval)
 
-    DateTime.compare(DateTime.utc_now(), next_repair_date) != :lt
-  end
-
-  @doc """
-  Return the previous scheduler time from a given date
-  """
-  @spec get_previous_scheduler_repair_time(DateTime.t()) :: DateTime.t()
-  def get_previous_scheduler_repair_time(date_from = %DateTime{}) do
-    Scheduler.get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    DateTime.compare(ref_date, next_repair_date) != :lt
   end
 
   @doc """
@@ -183,12 +187,6 @@ defmodule Archethic.SelfRepair do
 
         :ok
     end
-  end
-
-  def config_change(changed_conf) do
-    changed_conf
-    |> Keyword.get(Scheduler)
-    |> Scheduler.config_change()
   end
 
   @doc """

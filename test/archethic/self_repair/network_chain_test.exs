@@ -4,7 +4,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
   import ArchethicCase
 
-  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.P2P
@@ -21,8 +20,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
   describe "synchronous_resync (non-node)" do
     setup do
-      start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
-
       OracleChain.MemTable.put_addr(random_address(), DateTime.utc_now())
 
       P2P.add_and_connect_node(%Node{
@@ -83,7 +80,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
   describe "synchronous_resync (node)" do
     test "should start a resync when remote /= local" do
-      start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
 
       node = %Node{
         ip: {127, 0, 0, 1},

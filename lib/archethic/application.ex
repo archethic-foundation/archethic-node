@@ -5,7 +5,6 @@ defmodule Archethic.Application do
 
   alias Archethic.Account.Supervisor, as: AccountSupervisor
 
-  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Supervisor, as: BeaconChainSupervisor
 
   alias Archethic.Bootstrap
@@ -36,7 +35,6 @@ defmodule Archethic.Application do
   alias Archethic.Reward
   alias Archethic.Reward.Supervisor, as: RewardSupervisor
 
-  alias Archethic.SelfRepair
   alias Archethic.SelfRepair.Supervisor, as: SelfRepairSupervisor
 
   alias Archethic.SharedSecrets
@@ -133,10 +131,8 @@ defmodule Archethic.Application do
 
     # Update the configuration of process which depends on configuration
     SharedSecrets.config_change(changed)
-    SelfRepair.config_change(changed)
     OracleChain.config_change(changed)
     Reward.config_change(changed)
-    BeaconChain.config_change(changed)
     :ok
   end
 end

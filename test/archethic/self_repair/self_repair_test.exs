@@ -2,8 +2,6 @@ defmodule Archethic.SelfRepairTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.BeaconChain.SummaryTimer
-
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -24,9 +22,9 @@ defmodule Archethic.SelfRepairTest do
   import Mox
   import Mock
 
-  setup do
-    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+  doctest SelfRepair
 
+  setup do
     :ok
   end
 
@@ -154,14 +152,5 @@ defmodule Archethic.SelfRepairTest do
       assert {:error, :transaction_already_exists} =
                SelfRepair.replicate_transaction(address, false)
     end
-  end
-
-  test "missed_sync?/1 should return false" do
-    refute DateTime.utc_now() |> SelfRepair.missed_sync?()
-  end
-
-  test "missed_sync?/1 should return true" do
-    # Scheduler each minutes
-    assert DateTime.utc_now() |> DateTime.add(-2, :minute) |> SelfRepair.missed_sync?()
   end
 end

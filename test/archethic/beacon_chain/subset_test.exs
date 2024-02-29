@@ -53,8 +53,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
   test "add_end_of_node_sync/2 should insert end of node synchronization in the beacon slot", %{
     subset: subset
   } do
-    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+    Application.put_env(:archethic, SlotTimer, interval: "0 0 * * *")
+
     pid = start_supervised!({Subset, subset: subset})
 
     end_of_sync = %EndOfNodeSync{
@@ -70,8 +71,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
-      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+      Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
       pid = start_supervised!({Subset, subset: subset})
 
       slot_time = ~U[2023-07-11 00:20:00Z]
@@ -91,8 +93,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
     test "new transaction summary's confirmation added to the slot",
          %{subset: subset} do
-      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+      Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
       pid = start_supervised!({Subset, subset: subset})
 
       slot_time = ~U[2023-07-11 00:20:00Z]
@@ -127,8 +130,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
     test "new transaction summary's should be refused if it is too old",
          %{subset: subset} do
-      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+      Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
       pid = start_supervised!({Subset, subset: subset})
 
       slot_time = ~U[2023-07-11 02:20:00Z]
@@ -158,8 +162,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
     test "new slot is created when receive :current_epoch_of_slot_timer message", %{
       subset: subset
     } do
-      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+      Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
       pid = start_supervised!({Subset, subset: subset})
 
       slot_time = ~U[2023-07-11 00:20:00Z]
@@ -193,8 +198,10 @@ defmodule Archethic.BeaconChain.SubsetTest do
     } do
       # This is needed to get network coordinates's task timeout
       start_supervised!({SelfRepairScheduler, interval: "*/10 * * * *"})
-      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "* */10 * * *"})
+
+      Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+      Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
       start_supervised!(SummaryCache)
       pid = start_supervised!({Subset, subset: subset})
 
@@ -291,8 +298,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
        %{
          subset: subset
        } do
-    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-    start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+    Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+    Application.put_env(:archethic, SlotTimer, interval: "0 */10 * * *")
+
     pid = start_supervised!({Subset, subset: subset})
 
     public_key1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -309,8 +317,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
   test "subscribed nodes are being getting subscribed & added to beacon pool via Beacon chain", %{
     subset: subset
   } do
-    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * *")
+    Application.put_env(:archethic, SlotTimer, interval: "0 0 * * *")
+
     pid = start_supervised!({Subset, subset: subset})
 
     subscribed_node = %Node{

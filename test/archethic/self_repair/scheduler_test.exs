@@ -1,9 +1,6 @@
 defmodule Archethic.SelfRepair.SchedulerTest do
   use ArchethicCase, async: false
 
-  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
-
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -20,9 +17,9 @@ defmodule Archethic.SelfRepair.SchedulerTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
-    start_supervised!({BeaconSlotTimer, interval: "0 0 * * * * *"})
     :ok
+
+    Application.put_env(:archethic, Archethic.BeaconChain.SummaryTimer, interval: "0 0 0 * * * *")
   end
 
   test "start_scheduler/1 should start the self repair timer" do
@@ -42,7 +39,9 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       {:ok, %NotFound{}}
     end)
 
-    {:ok, pid} = Scheduler.start_link([interval: "*/3 * * * * * *"], [])
+    Application.put_env(:archethic, Scheduler, interval: "*/3 * * * * * *")
+    {:ok, pid} = Scheduler.start_link([], [])
+
     assert :ok = Scheduler.start_scheduler(pid)
     %{timer: timer} = :sys.get_state(pid)
 
@@ -72,7 +71,9 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       {:ok, %SummaryAggregate{summary_time: DateTime.utc_now(), availability_adding_time: 1}}
     end)
 
-    {:ok, pid} = Scheduler.start_link([interval: "* * * * * * *"], [])
+    Application.put_env(:archethic, Scheduler, interval: "* * * * * * *")
+
+    {:ok, pid} = Scheduler.start_link([], [])
     assert :ok = Scheduler.start_scheduler(pid)
     %{timer: timer} = :sys.get_state(pid)
 
@@ -115,7 +116,9 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       :ok
     end)
 
-    {:ok, pid} = Scheduler.start_link([interval: "0 0 * * * * *"], [])
+    Application.put_env(:archethic, Scheduler, interval: "0 0 * * * * *")
+
+    {:ok, pid} = Scheduler.start_link([], [])
 
     send(pid, :sync)
 
