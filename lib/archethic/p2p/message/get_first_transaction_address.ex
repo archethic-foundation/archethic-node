@@ -34,7 +34,7 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddress do
     {%__MODULE__{address: address}, rest}
   end
 
-  def process(%__MODULE__{address: address}) do
+  def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_first_transaction_address(address) do
       {:error, :transaction_not_exists} ->
         %NotFound{}

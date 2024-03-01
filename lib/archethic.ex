@@ -349,11 +349,63 @@ defmodule Archethic do
   def get_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
       when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
              is_integer(limit) and limit >= 0 do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    case Archethic.fetch_genesis_address(address) do
+      {:ok, genesis_address} ->
+        genesis_inputs_task =
+          Task.async(fn ->
+            genesis_address |> get_unspent_outputs() |> Enum.map(&TransactionInput.from_utxo/1)
+          end)
 
-    address
-    |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now(), paging_offset, limit)
-    |> Enum.map(& &1.input)
+        if address == genesis_address do
+          fetch_genesis_inputs(genesis_address, genesis_inputs_task, paging_offset, limit)
+        else
+          fetch_transaction_inputs(address, genesis_inputs_task, paging_offset, limit)
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp fetch_genesis_inputs(genesis_address, genesis_inputs_task, paging_offset, limit) do
+    storage_nodes =
+      Election.chain_storage_nodes(genesis_address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_first_transaction_address(genesis_address, storage_nodes) do
+      {:ok, first_address} ->
+        genesis_inputs = Task.await(genesis_inputs_task)
+
+        storage_nodes =
+          Election.chain_storage_nodes(first_address, P2P.authorized_and_available_nodes())
+
+        first_address
+        |> TransactionChain.fetch_inputs(storage_nodes, paging_offset, limit)
+        |> Enum.map(& &1.input)
+        |> Enum.map(&TransactionInput.set_spent(&1, genesis_inputs))
+
+      _ ->
+        Task.await(genesis_inputs_task)
+    end
+  end
+
+  defp fetch_transaction_inputs(address, genesis_inputs_task, paging_offset, limit) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_next_chain_addresses(address, storage_nodes, limit: 1) do
+      {:ok, [{next_address, _} | _]} ->
+        genesis_inputs = Task.await(genesis_inputs_task)
+
+        storage_nodes =
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+        next_address
+        |> TransactionChain.fetch_inputs(storage_nodes, paging_offset, limit)
+        |> Enum.map(& &1.input)
+        |> Enum.map(&TransactionInput.set_spent(&1, genesis_inputs))
+
+      _ ->
+        Task.await(genesis_inputs_task)
+    end
   end
 
   @doc """

@@ -270,4 +270,43 @@ defmodule Archethic.TransactionChain.TransactionInput do
   def from_utxo(utxo = %UnspentOutput{}) do
     struct(__MODULE__, Map.from_struct(utxo))
   end
+
+  @doc """
+  Mark the input as spent if it is not a member of the genesis inputs
+
+  ## Examples
+
+      iex> TransactionInput.set_spent(
+      ...>   %TransactionInput{from: "@Alice2", type: :UCO, timestamp: ~U[2024-02-02 10:00:00Z]},
+      ...>   [%TransactionInput{from: "@Alice2", type: :UCO, timestamp: ~U[2024-02-02 10:00:00Z]}]
+      ...> )
+      %TransactionInput{
+        from: "@Alice2",
+        type: :UCO,
+        timestamp: ~U[2024-02-02 10:00:00Z],
+        spent?: false
+      }
+
+      iex> TransactionInput.set_spent(
+      ...>   %TransactionInput{from: "@Alice2", type: :UCO, timestamp: ~U[2024-02-02 10:00:00Z]},
+      ...>   [%TransactionInput{from: "@Bob2", type: :UCO, timestamp: ~U[2024-10-20 09:00:00Z]}]
+      ...> )
+      %TransactionInput{
+        from: "@Alice2",
+        type: :UCO,
+        timestamp: ~U[2024-02-02 10:00:00Z],
+        spent?: true
+      }
+
+  """
+  @spec set_spent(t(), list(t())) :: t()
+  def set_spent(input = %__MODULE__{}, genesis_inputs) do
+    spent? =
+      genesis_inputs
+      |> MapSet.new()
+      |> MapSet.member?(input)
+      |> Kernel.not()
+
+    %{input | spent?: spent?}
+  end
 end

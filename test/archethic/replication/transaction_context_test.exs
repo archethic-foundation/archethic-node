@@ -121,7 +121,7 @@ defmodule Archethic.Replication.TransactionContextTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: ~U[2024-01-01 00:00:00Z]
     })
 
     assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(tx)
