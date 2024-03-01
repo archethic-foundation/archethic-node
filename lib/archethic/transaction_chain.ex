@@ -60,7 +60,18 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.VersionedTransactionInput
   alias __MODULE__.DBLedger
 
+  alias Archethic.Utils
+
   require Logger
+
+  @type search_mode :: :hybrid | :remote
+
+  @type search_options :: [
+          timeout: non_neg_integer(),
+          acceptance_resolver: (any() -> boolean()),
+          consistency_level: pos_integer(),
+          search_mode: search_mode()
+        ]
 
   # ------------------------------------------------------------
   #   _     ___ ____ _____
@@ -258,7 +269,11 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch the last address remotely.
   """
-  @spec fetch_last_address(binary(), list(Node.t()), Keyword.t()) ::
+  @spec fetch_last_address(
+          address :: binary(),
+          storage_nodes :: list(Node.t()),
+          options :: [timestamp :: DateTime.t()] | search_options()
+        ) ::
           {:ok, binary()} | {:error, :network_issue | :acceptance_failed}
   def fetch_last_address(address, nodes, opts \\ []) when is_binary(address) and is_list(nodes) do
     timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
@@ -289,23 +304,33 @@ defmodule Archethic.TransactionChain do
   @doc """
   Request the chain addresses from paging address to last chain address
   """
-  @spec fetch_next_chain_addresses_remotely(Crypto.prepended_hash(), list(Node.t())) ::
-          {:ok, list(Crypto.prepended_hash())} | {:error, :network_issue}
-  def fetch_next_chain_addresses_remotely(address, nodes) do
-    conflict_resolver = fn results ->
-      Enum.sort_by(results, &length(&1.addresses), :desc) |> List.first()
-    end
+  @spec fetch_next_chain_addresses(
+          address :: Crypto.prepended_hash(),
+          storage_nodes :: list(Node.t()),
+          opts :: [limit: non_neg_integer()] | search_options()
+        ) ::
+          {:ok, list({address :: Crypto.prepended_hash(), timestamp :: DateTime.t()})}
+          | {:error, :network_issue}
+  def fetch_next_chain_addresses(address, nodes, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 0)
 
-    case P2P.quorum_read(
-           nodes,
-           %GetNextAddresses{address: address},
-           conflict_resolver
-         ) do
-      {:ok, %AddressList{addresses: addresses}} ->
-        {:ok, addresses}
+    with :hybrid <- Keyword.get(opts, :search_mode, :hybrid),
+         addresses when addresses != [] <- get_next_addresses(address, limit) do
+      {:ok, addresses}
+    else
+      _ ->
+        conflict_resolver = fn results ->
+          Enum.sort_by(results, &length(&1.addresses), :desc) |> List.first()
+        end
 
-      {:error, :network_issue} = e ->
-        e
+        case P2P.quorum_read(
+               nodes,
+               %GetNextAddresses{address: address, limit: limit},
+               conflict_resolver
+             ) do
+          {:ok, %AddressList{addresses: addresses}} -> {:ok, addresses}
+          {:error, :network_issue} = e -> e
+        end
     end
   end
 
@@ -321,7 +346,11 @@ defmodule Archethic.TransactionChain do
   - timeout: set the timeout for the remote request (default Message.max_timeout)
   - acceptance_resolver: set the function to accept the result of the quorum (default fn _ -> true end)
   """
-  @spec fetch_transaction(address :: Crypto.prepended_hash(), list(Node.t()), Keyword.t()) ::
+  @spec fetch_transaction(
+          address :: Crypto.prepended_hash(),
+          storage_nodes :: list(Node.t()),
+          search_options()
+        ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :invalid_transaction}
@@ -384,7 +413,11 @@ defmodule Archethic.TransactionChain do
   @doc """
   Stream a transaction chain from the paging state
   """
-  @spec fetch(Crypto.prepended_hash(), list(Node.t()), list()) ::
+  @spec fetch(
+          last_chain_address :: Crypto.prepended_hash(),
+          storage_nodes :: list(Node.t()),
+          pagination_options :: [paging_state: binary(), order: :asc | :desc]
+        ) ::
           Enumerable.t() | list(Transaction.t())
   def fetch(last_chain_address, nodes, opts \\ []) do
     paging_state = Keyword.get(opts, :paging_state, nil)
@@ -569,24 +602,23 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Stream the transaction inputs for a transaction address at a given time
+  Stream the transaction inputs for a transaction address
 
   If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
   @spec fetch_inputs(
           address :: Crypto.prepended_hash(),
-          list(Node.t()),
-          DateTime.t(),
+          storage_nodes :: list(Node.t()),
           offset :: non_neg_integer(),
           limit :: non_neg_integer()
         ) :: Enumerable.t() | list(VersionedTransactionInput.t())
-  def fetch_inputs(address, nodes, timestamp, offset \\ 0, limit \\ 0)
-  def fetch_inputs(_, [], _, _, _), do: []
+  def fetch_inputs(address, nodes, offset \\ 0, limit \\ 0)
+  def fetch_inputs(_, [], _, _), do: []
 
-  def fetch_inputs(address, nodes, timestamp = %DateTime{}, offset, limit) do
+  def fetch_inputs(address, nodes, offset, limit) do
     Stream.resource(
-      fn -> {limit, do_fetch_inputs(address, nodes, timestamp, offset, limit)} end,
+      fn -> {limit, do_fetch_inputs(address, nodes, offset, limit)} end,
       fn
         {previous_limit, {inputs, true, offset}} ->
           new_limit = previous_limit - length(inputs)
@@ -594,7 +626,7 @@ defmodule Archethic.TransactionChain do
           if new_limit <= 0 do
             {inputs, :eof}
           else
-            {inputs, {new_limit, do_fetch_inputs(address, nodes, timestamp, offset, limit)}}
+            {inputs, {new_limit, do_fetch_inputs(address, nodes, offset, limit)}}
           end
 
         {_, {inputs, false, _}} ->
@@ -607,9 +639,26 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp do_fetch_inputs(address, nodes, timestamp = %DateTime{}, offset, limit)
+  defp do_fetch_inputs(address, nodes, offset, limit)
        when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 and
               is_integer(limit) and limit >= 0 do
+    local_inputs = get_inputs(address)
+
+    case local_inputs do
+      [] ->
+        fetch_remote_inputs(address, nodes, offset, limit)
+
+      _ ->
+        {inputs, more?, offset} =
+          local_inputs
+          |> Enum.sort_by(& &1.input.timestamp, {:desc, DateTime})
+          |> Utils.limit_list(limit, offset)
+
+        {inputs, more?, offset}
+    end
+  end
+
+  defp fetch_remote_inputs(address, nodes, offset, limit) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)
@@ -622,11 +671,7 @@ defmodule Archethic.TransactionChain do
            conflict_resolver
          ) do
       {:ok, %TransactionInputList{inputs: versioned_inputs, more?: more?, offset: offset}} ->
-        filtered_inputs =
-          versioned_inputs
-          |> Enum.filter(&(DateTime.diff(&1.input.timestamp, timestamp) <= 0))
-
-        {filtered_inputs, more?, offset}
+        {versioned_inputs, more?, offset}
 
       {:error, :network_issue} ->
         {[], false, 0}
@@ -638,7 +683,7 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_unspent_outputs(
           address :: Crypto.prepended_hash(),
-          nodes :: list(Node.t())
+          storage_nodes :: list(Node.t())
         ) :: Enumerable.t() | list(VersionedUnspentOutput.t())
   def fetch_unspent_outputs(address, nodes)
   def fetch_unspent_outputs(_, []), do: []
@@ -694,7 +739,7 @@ defmodule Archethic.TransactionChain do
   The result is returned in the shape of `{:ok, length}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_size(Crypto.prepended_hash(), list(Node.t())) ::
+  @spec fetch_size(address :: Crypto.prepended_hash(), storage_nodes :: list(Node.t())) ::
           {:ok, non_neg_integer()} | {:error, :network_issue}
   def fetch_size(_, []), do: {:ok, 0}
 
@@ -745,10 +790,23 @@ defmodule Archethic.TransactionChain do
   @doc """
   Retrieve the First transaction address for a chain from P2P Quorom
   """
-  @spec fetch_first_transaction_address(address :: binary(), nodes :: list(Node.t())) ::
+  @spec fetch_first_transaction_address(
+          address :: binary(),
+          storage_nodes :: list(Node.t())
+        ) ::
           {:ok, binary()} | {:error, :network_issue} | {:error, :does_not_exist}
   def fetch_first_transaction_address(address, nodes)
       when is_binary(address) and is_list(nodes) do
+    case get_first_transaction_address(address) do
+      {:ok, {first_address, _}} ->
+        {:ok, first_address}
+
+      _ ->
+        do_fetch_first_transaction_address(address, nodes)
+    end
+  end
+
+  defp do_fetch_first_transaction_address(address, nodes) do
     conflict_resolver = fn results ->
       case results |> Enum.reject(&match?(%NotFound{}, &1)) do
         [] ->
@@ -794,8 +852,11 @@ defmodule Archethic.TransactionChain do
 
   **This function raises if it cannot fetch a genesis**
   """
-  @spec resolve_transaction_addresses!(Transaction.t()) ::
-          %{Crypto.prepended_hash() => Crypto.prepended_hash()}
+  @spec resolve_transaction_addresses!(transaction :: Transaction.t()) ::
+          %{
+            (recipient_address :: Crypto.prepended_hash()) =>
+              genesis_address :: Crypto.prepended_hash()
+          }
   def resolve_transaction_addresses!(
         tx = %Transaction{
           type: type,
@@ -908,7 +969,11 @@ defmodule Archethic.TransactionChain do
   @doc """
   Register a last address from a genesis address at a given date
   """
-  @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
+  @spec register_last_address(
+          genesis_address :: binary(),
+          next_address :: binary(),
+          timestamp :: DateTime.t()
+        ) :: :ok
   defdelegate register_last_address(genesis_address, next_address, timestamp),
     to: DB,
     as: :add_last_transaction_address
@@ -916,7 +981,8 @@ defmodule Archethic.TransactionChain do
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
+  @spec write_transaction(transaction :: Transaction.t(), storage_location :: DB.storage_type()) ::
+          :ok
   def write_transaction(
         tx = %Transaction{
           address: address,
@@ -936,7 +1002,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Write an invalid transaction
   """
-  @spec write_ko_transaction(Transaction.t(), list()) :: :ok
+  @spec write_ko_transaction(transaction :: Transaction.t(), errors :: list()) :: :ok
   defdelegate write_ko_transaction(tx, additional_errors \\ []),
     to: KOLedger,
     as: :add_transaction
@@ -944,7 +1010,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Determine if the transaction already be validated and is invalid
   """
-  @spec transaction_ko?(binary()) :: boolean()
+  @spec transaction_ko?(address :: binary()) :: boolean()
   defdelegate transaction_ko?(address), to: KOLedger, as: :has_transaction?
 
   @doc """
@@ -956,7 +1022,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Clear the transactions stored as pending
   """
-  @spec clear_pending_transactions(binary()) :: :ok
+  @spec clear_pending_transactions(address :: binary()) :: :ok
   defdelegate clear_pending_transactions(address), to: PendingLedger, as: :remove_address
 
   @doc """
@@ -974,7 +1040,10 @@ defmodule Archethic.TransactionChain do
   @doc """
   Determine if the transaction exists on the locally or in the network
   """
-  @spec transaction_exists_globally?(Crypto.prepended_hash(), list(Node.t())) :: boolean()
+  @spec transaction_exists_globally?(
+          address :: Crypto.prepended_hash(),
+          storage_nodes :: list(Node.t())
+        ) :: boolean()
   def transaction_exists_globally?(address, nodes) do
     if transaction_exists?(address) do
       true
@@ -1223,12 +1292,39 @@ defmodule Archethic.TransactionChain do
   @doc """
   Return the list inputs for a given transaction
   """
-  @spec get_inputs(binary()) :: Enumerable.t() | list(VersionedTransactionInput.t())
+  @spec get_inputs(address :: binary()) :: Enumerable.t() | list(VersionedTransactionInput.t())
   defdelegate get_inputs(adddress), to: DBLedger, as: :stream_inputs
 
   @doc """
   Write the validation's input for a given transaction
   """
-  @spec write_inputs(binary(), list(VersionedTransactionInput.t())) :: :ok
+  @spec write_inputs(address :: binary(), inputs :: list(VersionedTransactionInput.t())) :: :ok
   defdelegate write_inputs(address, inputs), to: DBLedger
+
+  @doc """
+  Return the list of addresses after the given address
+  """
+  @spec get_next_addresses(address :: binary(), limit :: non_neg_integer()) ::
+          list({address :: binary(), timestamp :: DateTime.t()})
+  def get_next_addresses(address, limit \\ 0) do
+    case get_transaction(address, validation_stamp: [:timestamp]) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+        addresses =
+          address
+          |> get_genesis_address()
+          |> list_chain_addresses()
+          |> Enum.filter(fn {_address, timestamp} ->
+            DateTime.compare(timestamp, address_timestamp) == :gt
+          end)
+
+        if limit > 0 do
+          Enum.take(addresses, limit)
+        else
+          addresses
+        end
+
+      _ ->
+        []
+    end
+  end
 end

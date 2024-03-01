@@ -20,6 +20,12 @@ defmodule ArchethicTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Message.ValidationError
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetNextAddresses
+  alias Archethic.P2P.Message.AddressList
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.PubSub
 
@@ -31,6 +37,10 @@ defmodule ArchethicTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.VersionedTransactionInput
 
   import ArchethicCase, only: [setup_before_send_tx: 0]
@@ -140,7 +150,6 @@ defmodule ArchethicTest do
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
       })
-
 
       now = DateTime.utc_now()
 
@@ -591,8 +600,6 @@ defmodule ArchethicTest do
 
   describe "get_transaction_inputs/1" do
     test "should request the storages nodes to fetch the inputs remotely" do
-      address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -611,12 +618,12 @@ defmodule ArchethicTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: ~U[2020-01-01 10:00:00Z]
       })
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransactionInputs{address: ^address1}, _ ->
+        _, %GetTransactionInputs{address: "@Alice2"}, _ ->
           {:ok,
            %TransactionInputList{
              inputs: [
@@ -626,16 +633,37 @@ defmodule ArchethicTest do
                    amount: 1_000_000_000,
                    spent?: false,
                    type: :UCO,
-                   timestamp: DateTime.utc_now()
+                   timestamp: ~U[2020-01-01 10:00:00Z]
                  },
                  protocol_version: 1
+               }
+             ]
+           }}
+
+        _, %GetGenesisAddress{address: "@Alice1"}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+
+        _, %GetNextAddresses{address: "@Alice1"}, _ ->
+          {:ok, %AddressList{addresses: [{"@Alice2", DateTime.utc_now()}]}}
+
+        _, %GetUnspentOutputs{address: "@Alice0"}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Bob3",
+                   type: :UCO,
+                   timestamp: ~U[2020-01-01 10:00:00Z],
+                   amount: 1_000_000_000
+                 }
                }
              ]
            }}
       end)
 
       assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
-               Archethic.get_transaction_inputs(address1)
+               Archethic.get_transaction_inputs("@Alice1")
     end
   end
 

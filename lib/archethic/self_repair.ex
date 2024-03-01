@@ -201,7 +201,9 @@ defmodule Archethic.SelfRepair do
     {last_local_address, _timestamp} = TransactionChain.get_last_address(address)
     storage_nodes = Election.storage_nodes(last_local_address, authorized_nodes)
 
-    case TransactionChain.fetch_next_chain_addresses_remotely(last_local_address, storage_nodes) do
+    case TransactionChain.fetch_next_chain_addresses(last_local_address, storage_nodes,
+           search_mode: :remote
+         ) do
       {:ok, []} ->
         :ok
 
