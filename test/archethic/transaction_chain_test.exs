@@ -699,7 +699,7 @@ defmodule Archethic.TransactionChainTest do
 
       assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
                "Alice1"
-               |> TransactionChain.fetch_inputs(nodes, now)
+               |> TransactionChain.fetch_inputs(nodes)
                |> Enum.map(& &1.input)
     end
 
@@ -779,7 +779,7 @@ defmodule Archethic.TransactionChainTest do
 
       assert [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}] =
                "Alice1"
-               |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now())
+               |> TransactionChain.fetch_inputs(nodes)
                |> Enum.map(& &1.input)
     end
   end
