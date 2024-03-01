@@ -20,52 +20,16 @@ defmodule Archethic.P2P.Message.GetTransactionInputs do
 
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionInputList.t()
   def process(%__MODULE__{address: address, offset: offset, limit: limit}, _) do
-    inputs = address |> TransactionChain.get_inputs() |> Enum.to_list()
-    inputs_length = Enum.count(inputs)
-
-    %{inputs: inputs, offset: offset, more?: more?} =
-      inputs
+    {inputs, more?, offset} =
+      address
+      |> TransactionChain.get_inputs()
       |> Enum.sort_by(& &1.input.timestamp, {:desc, DateTime})
-      |> Enum.with_index()
-      |> Enum.drop(offset)
-      |> Enum.reduce_while(
-        %{inputs: [], offset: 0, more?: false},
-        fn {versioned_input, index}, acc = %{inputs: inputs, offset: offset, more?: more?} ->
-          acc_size = Map.get(acc, :acc_size, 0)
-          acc_length = Map.get(acc, :acc_length, 0)
-
-          input_size =
-            versioned_input
-            |> VersionedTransactionInput.serialize()
-            |> byte_size
-
-          size_capacity? = acc_size + input_size < 3_000_000
-
-          should_take_more? =
-            if limit > 0 do
-              acc_length < limit and size_capacity?
-            else
-              size_capacity?
-            end
-
-          if should_take_more? do
-            new_acc =
-              acc
-              |> Map.update!(:inputs, &[versioned_input | &1])
-              |> Map.update(:acc_size, input_size, &(&1 + input_size))
-              |> Map.update(:acc_length, 1, &(&1 + 1))
-              |> Map.put(:offset, index + 1)
-              |> Map.put(:more?, index + 1 < inputs_length)
-
-            {:cont, new_acc}
-          else
-            {:halt, %{inputs: inputs, offset: offset, more?: more?}}
-          end
-        end
-      )
+      |> Utils.limit_list(limit, offset, 3_000_000, fn input ->
+        input |> VersionedTransactionInput.serialize() |> byte_size
+      end)
 
     %TransactionInputList{
-      inputs: Enum.reverse(inputs),
+      inputs: inputs,
       more?: more?,
       offset: offset
     }

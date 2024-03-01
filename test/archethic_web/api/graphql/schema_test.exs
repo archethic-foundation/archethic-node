@@ -17,7 +17,15 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
   alias P2P.{Node, Message}
   alias Message.{GetTransactionChainLength, TransactionChainLength, Balance, GenesisAddress}
-  alias Message.{GetBalance, GetLastTransactionAddress, GetTransaction, NotFound}
+
+  alias Message.{
+    GetBalance,
+    GetLastTransactionAddress,
+    GetTransaction,
+    NotFound,
+    GetFirstTransactionAddress,
+    FirstTransactionAddress
+  }
 
   alias Message.{
     GetTransactionChain,
@@ -46,7 +54,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
       geo_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now(),
+      authorization_date: ~U[2024-01-01 00:00:00Z],
       origin_public_key: <<0::0, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
@@ -617,6 +625,9 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
         _, %GetGenesisAddress{address: address}, _ ->
           {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+
+        _, %GetFirstTransactionAddress{}, _ ->
+          {:error, :does_not_exist}
       end)
 
       conn =
@@ -678,6 +689,9 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
         _, %GetGenesisAddress{address: address}, _ ->
           {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+
+        _, %GetFirstTransactionAddress{address: address}, _ ->
+          {:ok, %FirstTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
       conn =

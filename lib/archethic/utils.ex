@@ -1214,4 +1214,77 @@ defmodule Archethic.Utils do
   end
 
   def local_schema_resolver!(_), do: raise("Invalid URI for $ref")
+
+  @doc """
+  Limit a list based on limit and offset
+
+  It also support paging based on size capacity using a custom function to determine the size of each element
+
+  ## Examples
+
+      iex> Utils.limit_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 2)
+      {[1, 2], true, 2}
+
+      iex> Utils.limit_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 2, 2)
+      {[3, 4], true, 4}
+
+      iex> Utils.limit_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 2, 8)
+      {[9, 10], false, 10}
+
+      iex> Utils.limit_list(["abc", "de", "fg"], 2, 0, 4, fn i -> String.length(i) end)
+      {["abc"], true, 1}
+
+      iex> Utils.limit_list(["abc", "de", "fg"], 2, 0, 6, fn i -> String.length(i) end)
+      {["abc", "de"], true, 2}
+  """
+  @spec limit_list(
+          item_list :: list(any()),
+          limit :: non_neg_integer(),
+          offset :: non_neg_integer(),
+          page_capacity :: non_neg_integer(),
+          item_size_fn :: (any -> pos_integer())
+        ) :: {limited_items :: list(any()), more? :: boolean(), offset :: pos_integer()}
+  def limit_list(list, limit, offset \\ 0, page_capacity \\ 0, item_size_fn \\ fn _ -> 0 end) do
+    list_size = Enum.count(list)
+
+    %{items: items, more?: more?, offset: offset} =
+      list
+      |> Enum.drop(offset)
+      |> Enum.with_index(offset)
+      |> Enum.reduce_while(
+        %{items: [], offset: 0, more?: false},
+        fn {item, index}, acc ->
+          acc_size = Map.get(acc, :acc_size, 0)
+          acc_length = Map.get(acc, :acc_length, 0)
+
+          item_size = item_size_fn.(item)
+
+          size_capacity? =
+            if page_capacity > 0, do: acc_size + item_size < page_capacity, else: true
+
+          should_take_more? =
+            if limit > 0 do
+              acc_length < limit and size_capacity?
+            else
+              size_capacity?
+            end
+
+          if should_take_more? do
+            new_acc =
+              acc
+              |> Map.update!(:items, &[item | &1])
+              |> Map.update(:acc_size, item_size, &(&1 + item_size))
+              |> Map.update(:acc_length, 1, &(&1 + 1))
+              |> Map.put(:offset, index + 1)
+              |> Map.put(:more?, index + 1 < list_size)
+
+            {:cont, new_acc}
+          else
+            {:halt, acc}
+          end
+        end
+      )
+
+    {Enum.reverse(items), more?, offset}
+  end
 end

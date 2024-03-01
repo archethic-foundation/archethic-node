@@ -86,12 +86,9 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
         }
       ]
 
-      # this is implementation detail but the process function reverse the utxos
-      expected_utxos = Enum.reverse(utxos)
-
       with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
-                 unspent_outputs: ^expected_utxos,
+                 unspent_outputs: ^utxos,
                  offset: 3,
                  more?: false
                } =
@@ -136,8 +133,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
         }
       ]
 
-      # this is implementation detail but the process function reverse the utxos
-      expected_utxos = Enum.reverse(tl(utxos))
+      [_ | expected_utxos] = utxos
 
       with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
@@ -174,8 +170,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
           }
         end)
 
-      # this is implementation detail but the process function reverse the utxos
-      expected_utxos = Enum.reverse(Enum.slice(utxos, 0..(max_utxos - 1)))
+      expected_utxos = Enum.slice(utxos, 0..(max_utxos - 1))
 
       with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
