@@ -90,7 +90,7 @@ defmodule Archethic.Mining.SmartContractValidation do
         _next_tx = %Transaction{}
       )
       when code != "" do
-    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
+    # oEnum.any?(consumed_inputs, &similar?(input, &1.unspent_output))nly contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
     case Contract.from_transaction(prev_tx) do
       {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 -> {true, nil}
       _ -> {false, nil}
@@ -216,13 +216,8 @@ defmodule Archethic.Mining.SmartContractValidation do
        ) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    # We are strict on the results to achieve atomic commitment
     conflicts_resolver = fn results ->
-      if Enum.any?(results, &(&1.valid? == false)) do
-        %SmartContractCallValidation{valid?: false}
-      else
-        %SmartContractCallValidation{valid?: true}
-      end
+      Enum.reduce(results, &priorize/2)
     end
 
     case P2P.quorum_read(
@@ -235,8 +230,54 @@ defmodule Archethic.Mining.SmartContractValidation do
            conflicts_resolver,
            @timeout
          ) do
-      {:ok, %SmartContractCallValidation{valid?: valid?, fee: fee}} -> {valid?, fee}
+      {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} -> {true, fee}
       _ -> {false, 0}
     end
   end
+
+  @doc """
+  Priorize validation call
+
+  ## Examples
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :transaction_not_exists}}, %SmartContractCallValidation{status: :ok})
+      %SmartContractCallValidation{status: :ok}
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: :ok}, %SmartContractCallValidation{status: {:error, :transaction_not_exists}})
+      %SmartContractCallValidation{status: :ok}
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :invalid_execution}}, %SmartContractCallValidation{status: {:error, :transaction_not_exists}})
+      %SmartContractCallValidation{status: {:error, :invalid_execution}}
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :transaction_not_exists}}, %SmartContractCallValidation{status: {:error, :invalid_execution}})
+      %SmartContractCallValidation{status: {:error, :invalid_execution}}
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: :ok}, %SmartContractCallValidation{status: {:error, :invalid_execution}})
+      %SmartContractCallValidation{status: {:error, :invalid_execution}}
+
+      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :invalid_execution}}, %SmartContractCallValidation{status: :ok})
+      %SmartContractCallValidation{status: {:error, :invalid_execution}}
+  """
+  @spec priorize(SmartContractCallValidation.t(), SmartContractCallValidation.t()) ::
+          SmartContractCallValidation.t()
+  def priorize(a = %SmartContractCallValidation{status: :ok}, %SmartContractCallValidation{
+        status: {:error, :transaction_not_exists}
+      }),
+      do: a
+
+  def priorize(
+        %SmartContractCallValidation{status: {:error, :transaction_not_exists}},
+        b = _
+      ),
+      do: b
+
+  def priorize(a = %SmartContractCallValidation{status: {:error, :invalid_execution}}, _), do: a
+
+  def priorize(
+        %SmartContractCallValidation{status: :ok},
+        b = %SmartContractCallValidation{status: {:error, :invalid_execution}}
+      ),
+      do: b
+
+  def priorize(a, b) when a == b, do: a
 end

@@ -14,6 +14,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
   import Mox
 
+  doctest SmartContractValidation
+
   describe "validate_contract_calls/2" do
     test "should returns {true, fees} if all contracts calls are valid" do
       MockClient
@@ -21,10 +23,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
+            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true, fee: 654_321}}
+            {:ok, %SmartContractCallValidation{status: :ok, fee: 654_321}}
         end
       )
 
@@ -58,10 +60,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
+            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true, fee: 0}}
+            {:ok, %SmartContractCallValidation{status: :ok, fee: 0}}
         end
       )
 
@@ -101,12 +103,12 @@ defmodule Archethic.Mining.SmartContractValidationTest do
           %Node{port: 1234},
           %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
           _ ->
-            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
+            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
 
           %Node{port: 1235},
           %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
           _ ->
-            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
+            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
         end
       )
 
@@ -149,10 +151,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
+            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
+            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
         end
       )
 

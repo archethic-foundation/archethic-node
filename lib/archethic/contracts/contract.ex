@@ -40,10 +40,11 @@ defmodule Archethic.Contracts.Contract do
 
   @type trigger_key() ::
           :oracle
-          | {:transaction, nil, nil}
-          | {:transaction, String.t(), non_neg_integer()}
+          | trigger_recipient()
           | {:datetime, DateTime.t()}
           | {:interval, String.t()}
+
+  @type trigger_recipient :: {:transaction, nil | String.t(), nil | non_neg_integer()}
 
   @type condition_key() ::
           :oracle
@@ -163,7 +164,7 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Return the args names for this recipient or nil
   """
-  @spec get_trigger_for_recipient(Recipient.t()) :: nil | trigger_key()
+  @spec get_trigger_for_recipient(Recipient.t()) :: trigger_recipient()
   def get_trigger_for_recipient(%Recipient{action: nil, args: nil}), do: {:transaction, nil, nil}
 
   def get_trigger_for_recipient(%Recipient{action: action, args: args_values}),

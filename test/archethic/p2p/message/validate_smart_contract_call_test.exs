@@ -82,7 +82,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
-      assert %SmartContractCallValidation{valid?: true} =
+      assert %SmartContractCallValidation{status: :ok} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
@@ -108,7 +108,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
-      assert %SmartContractCallValidation{valid?: true} =
+      assert %SmartContractCallValidation{status: :ok} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1", action: "upgrade", args: []},
                  transaction: incoming_tx,
@@ -141,7 +141,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
         ContractFactory.create_valid_contract_tx(code, content: "hello")
         |> Fee.calculate(nil, 0.07, DateTime.utc_now(), nil, 0, current_protocol_version())
 
-      assert %SmartContractCallValidation{valid?: true, fee: expected_fee} ==
+      assert %SmartContractCallValidation{status: :ok, fee: expected_fee} ==
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
@@ -166,7 +166,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
-      assert %SmartContractCallValidation{valid?: false, fee: 0} =
+      assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
@@ -195,7 +195,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
 
-      assert %SmartContractCallValidation{valid?: false, fee: 0} =
+      assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
