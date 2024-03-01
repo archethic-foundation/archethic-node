@@ -248,7 +248,7 @@ defmodule Archethic.Contracts do
           Transaction.t(),
           nil | Recipient.t(),
           DateTime.t()
-        ) :: {:ok, logs :: list(String.t())} | {:error, :condition_rejected | Failure.t()}
+        ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
         contract = %Contract{version: version, conditions: conditions},

@@ -8,6 +8,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
   alias Archethic.Mining
@@ -78,18 +80,28 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
+         trigger = Contract.get_trigger_for_recipient(recipient),
          {:ok, _} <-
            Contracts.execute_condition(trigger, contract, transaction, recipient, datetime),
          {:ok, execution_result} <-
            Contracts.execute_trigger(trigger, contract, transaction, recipient, time_now: datetime) do
       %SmartContractCallValidation{
-        valid?: true,
+        status: :ok,
         fee: calculate_fee(execution_result, contract, datetime)
       }
     else
-      _ ->
-        %SmartContractCallValidation{valid?: false, fee: 0}
+      {:error, reason} when reason in [:transaction_not_exists, :invalid_transaction] ->
+        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
+
+      {:error, %Failure{}} ->
+        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
+
+      {:error, %ConditionRejected{}} ->
+        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
+
+      # When contract's code is invalid or missing
+      {:error, reason} when is_binary(reason) ->
+        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
     end
   end
 
