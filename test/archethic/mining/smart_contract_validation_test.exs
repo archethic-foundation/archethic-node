@@ -1,16 +1,24 @@
 defmodule Archethic.Mining.SmartContractValidationTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.P2P.Node
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Recipient
+
+  alias Archethic.TransactionFactory
 
   import Mox
 
@@ -592,6 +600,148 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  genesis,
                  next_tx,
                  []
+               )
+    end
+
+    test "should return true if transaction trigger is in inputs and recipient is the expected one" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("content")
+        end
+      """
+
+      prev_contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_genesis = Transaction.previous_address(prev_contract_tx)
+
+      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+
+      unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
+
+      v_unspent_ouputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
+      next_contract_tx =
+        ContractFactory.create_next_contract_tx(prev_contract_tx,
+          inputs: unspent_outputs,
+          content: "content"
+        )
+
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{address: ^trigger_address}, _ ->
+        {:ok, trigger_tx}
+      end)
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_address, recipient},
+        status: :tx_output,
+        timestamp: trigger_tx.validation_stamp.timestamp
+      }
+
+      assert {true, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_contract_tx,
+                 contract_genesis,
+                 next_contract_tx,
+                 v_unspent_ouputs
+               )
+    end
+
+    test "should return false if transaction trigger is not in inputs" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("content")
+        end
+      """
+
+      prev_contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_genesis = Transaction.previous_address(prev_contract_tx)
+
+      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+
+      next_contract_tx =
+        ContractFactory.create_next_contract_tx(prev_contract_tx, content: "content")
+
+      MockClient
+      |> expect(:send_message, 0, fn _, %GetTransaction{address: ^trigger_address}, _ ->
+        {:ok, trigger_tx}
+      end)
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_address, recipient},
+        status: :tx_output,
+        timestamp: trigger_tx.validation_stamp.timestamp
+      }
+
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_contract_tx,
+                 contract_genesis,
+                 next_contract_tx,
+                 []
+               )
+    end
+
+    test "should return false if transaction trigger is in inputs but recipient is not the expected one" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("content")
+        end
+      """
+
+      prev_contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_genesis = Transaction.previous_address(prev_contract_tx)
+
+      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+
+      unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
+
+      v_unspent_ouputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
+      next_contract_tx =
+        ContractFactory.create_next_contract_tx(prev_contract_tx,
+          inputs: unspent_outputs,
+          content: "content"
+        )
+
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{address: ^trigger_address}, _ ->
+        {:ok, trigger_tx}
+      end)
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_address, %Recipient{recipient | action: "otter"}},
+        status: :tx_output,
+        timestamp: trigger_tx.validation_stamp.timestamp
+      }
+
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_contract_tx,
+                 contract_genesis,
+                 next_contract_tx,
+                 v_unspent_ouputs
                )
     end
   end
