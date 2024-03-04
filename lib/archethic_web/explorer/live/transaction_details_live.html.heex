@@ -51,23 +51,12 @@
 
         <%= if inputs_count > 0 do %>
           <div class="my-4 is-size-4">Inputs (<%= inputs_count %>)</div>
-          <%= if @debug? do %>
-            <UnspentOutputList.display_all
-              inputs={@inputs}
-              utxos={@inputs}
-              socket={@socket}
-              uco_price_now={@uco_price_now}
-              token_properties={@token_properties}
-              display_status?={false}
-            />
-          <% else %>
-            <InputsList.display_all
-              inputs={@inputs}
-              socket={@socket}
-              uco_price_now={@uco_price_now}
-              token_properties={@token_properties}
-            />
-          <% end %>
+          <InputsList.display_all
+            inputs={@inputs}
+            socket={@socket}
+            uco_price_now={@uco_price_now}
+            token_properties={@token_properties}
+          />
         <% end %>
       <% assigns[:error] != nil and @error == :invalid_address -> %>
         <p>The given transaction address is invalid.</p>
@@ -489,34 +478,6 @@
               </ul>
             </div>
 
-            <%= if @debug? do %>
-              <%!----------------------------- CONSUMED INPUTS --------------------------------%>
-              <div class="columns">
-                <% utxos_count =
-                  Enum.count(@transaction.validation_stamp.ledger_operations.consumed_inputs) %>
-
-                <div class="column ae-left-heading is-2">
-                  <p>Consumed inputs (<%= utxos_count %>)</p>
-                </div>
-
-                <div class="column">
-                  <UnspentOutputList.display_all
-                    inputs={@inputs}
-                    utxos={
-                      VersionedUnspentOutput.unwrap_unspent_outputs(
-                        @transaction.validation_stamp.ledger_operations.consumed_inputs
-                      )
-                    }
-                    socket={@socket}
-                    uco_price_at_time={@uco_price_at_time}
-                    uco_price_now={@uco_price_now}
-                    token_properties={@token_properties}
-                    display_status?={false}
-                  />
-                </div>
-              </div>
-            <% end %>
-
             <%!----------------------------- OUTPUTS --------------------------------%>
             <div class="columns">
               <% utxos =
@@ -529,7 +490,6 @@
 
               <div class="column">
                 <UnspentOutputList.display_all
-                  inputs={@inputs}
                   utxos={utxos}
                   socket={@socket}
                   uco_price_at_time={@uco_price_at_time}
@@ -540,82 +500,56 @@
               </div>
             </div>
 
-            <%= if @debug? do %>
-              <%!----------------------------- GENESIS INPUTS --------------------------------%>
-              <div class="columns">
-                <div class="column ae-left-heading is-2">
-                  <p>Genesis inputs (<%= Enum.count(@inputs) %>)</p>
-                </div>
+            <%!----------------------------- INPUTS --------------------------------%>
+            <div class="columns">
+              <div class="column ae-left-heading is-2">
+                <p>Inputs (<%= Enum.count(@inputs) %>)</p>
+              </div>
 
-                <div class="column">
-                  <UnspentOutputList.display_all
+              <div class="column">
+                <%= if inputs_count == 0 do %>
+                  <div></div>
+                <% else %>
+                  <InputsList.display_all
                     inputs={@inputs}
-                    utxos={@inputs}
                     socket={@socket}
                     uco_price_at_time={@uco_price_at_time}
                     uco_price_now={@uco_price_now}
                     token_properties={@token_properties}
-                    display_status?={false}
                   />
-                </div>
+                <% end %>
               </div>
-            <% else %>
-              <%!----------------------------- INPUTS --------------------------------%>
-              <div class="columns">
-                <% filtered_inputs =
-                  filter_inputs(
-                    @inputs,
-                    @transaction.validation_stamp.ledger_operations.unspent_outputs
-                  ) %>
-                <div class="column ae-left-heading is-2">
-                  <p>Inputs (<%= Enum.count(filtered_inputs) %>)</p>
-                </div>
+            </div>
 
-                <div class="column">
-                  <%= if inputs_count == 0 do %>
-                    <div></div>
-                  <% else %>
-                    <InputsList.display_all
-                      inputs={filtered_inputs}
-                      socket={@socket}
-                      uco_price_at_time={@uco_price_at_time}
-                      uco_price_now={@uco_price_now}
-                      token_properties={@token_properties}
-                    />
-                  <% end %>
-                </div>
+            <%!----------------------------- CALLS --------------------------------%>
+            <div class="columns">
+              <% calls_count = Enum.count(@calls) %>
+
+              <div class="column ae-left-heading is-2">
+                <p>Contract inputs (<%= calls_count %>)</p>
               </div>
 
-              <%!----------------------------- CALLS --------------------------------%>
-              <div class="columns">
-                <% calls_count = Enum.count(@calls) %>
-
-                <div class="column ae-left-heading is-2">
-                  <p>Contract inputs (<%= calls_count %>)</p>
-                </div>
-
-                <div class="column">
-                  <%= if calls_count > 0 do %>
-                    <ul>
-                      <%= for call <- @calls do %>
-                        <li>
-                          <%= link(WebUtils.short_address(call.from),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(call.from)
-                              )
-                          ) %>
-                        </li>
-                      <% end %>
-                    </ul>
-                  <% else %>
-                    <div></div>
-                  <% end %>
-                </div>
+              <div class="column">
+                <%= if calls_count > 0 do %>
+                  <ul>
+                    <%= for call <- @calls do %>
+                      <li>
+                        <%= link(WebUtils.short_address(call.from),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.TransactionDetailsLive,
+                              Base.encode16(call.from)
+                            )
+                        ) %>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% else %>
+                  <div></div>
+                <% end %>
               </div>
-            <% end %>
+            </div>
 
             <%!----------------------------- CRYPTO --------------------------------%>
             <div class="columns" x-data="{show: false}">

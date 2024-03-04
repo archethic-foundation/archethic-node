@@ -13,8 +13,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.TransactionData
@@ -30,9 +28,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias ArchethicWeb.Explorer.Components.Amount
   import ArchethicWeb.Explorer.ExplorerView
 
-  def mount(params, _session, socket) do
+  def mount(_params, _session, socket) do
     uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
-    debug? = Map.has_key?(params, "debug")
 
     {:ok,
      assign(socket, %{
@@ -42,8 +39,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
        inputs: [],
        calls: [],
        uco_price_now: uco_price_now,
-       linked_movements: [],
-       debug?: debug?
+       linked_movements: []
      })}
   end
 
@@ -87,10 +83,12 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp handle_transaction(
-         socket = %{assigns: %{debug?: debug?}},
+         socket,
          tx = %Transaction{
            address: address,
-           validation_stamp: %ValidationStamp{timestamp: timestamp}
+           validation_stamp: %ValidationStamp{
+             timestamp: timestamp
+           }
          }
        ) do
     previous_address = Transaction.previous_address(tx)
@@ -98,10 +96,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     uco_price_at_time = OracleChain.get_uco_price(timestamp)
 
     async_assign_resolved_movements(tx)
-    async_assign_inputs_and_token_properties(tx, debug?)
+    async_assign_inputs_and_token_properties(tx)
 
     socket
-    |> assign(:transaction, tx)
+    |> assign(:transaction, consolidate_consumed_inputs(tx))
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)
@@ -110,6 +108,19 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:token_properties, %{})
     |> assign(:linked_movements, [])
   end
+
+  defp consolidate_consumed_inputs(
+         tx = %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{protocol_version: protocol_version}
+         }
+       )
+       when protocol_version < 7 do
+    inputs = Archethic.get_transaction_inputs(address)
+    put_in(tx, [:validation_stamp, :ledger_operations, :consumed_inputs], inputs)
+  end
+
+  defp consolidate_consumed_inputs(tx), do: tx
 
   defp async_assign_resolved_movements(%Transaction{
          address: address,
@@ -223,7 +234,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp async_assign_inputs_and_token_properties(
-         %Transaction{
+         tx = %Transaction{
            address: address,
            data: %TransactionData{
              ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
@@ -231,32 +242,29 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
            validation_stamp: %ValidationStamp{
              ledger_operations: %LedgerOperations{
                transaction_movements: transaction_movements,
-               unspent_outputs: unspent_outputs
+               unspent_outputs: unspent_outputs,
+               consumed_inputs: consumed_inputs
              }
            }
-         },
-         debug?
+         }
        ) do
     me = self()
 
     Task.Supervisor.async_nolink(
       TaskSupervisor,
       fn ->
-        inputs = get_transaction_inputs(address, debug?)
+        inputs =
+          tx
+          |> Transaction.previous_address()
+          |> Archethic.get_transaction_inputs()
+          |> Enum.map(fn input ->
+            # We flag as spent the inputs really used in the transaction
+            %{input | spent?: Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))}
+          end)
 
-        assigns =
-          if debug? do
-            [inputs: inputs]
-          else
-            ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-            contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+        send(me, {:async_assign, inputs: inputs})
 
-            [inputs: ledger_inputs, calls: contract_inputs]
-          end
-
-        send(me, {:async_assign, assigns})
-
-        get_token_addresses([], Keyword.get(assigns, :inputs))
+        get_token_addresses([], inputs)
         |> get_token_addresses(unspent_outputs)
         |> get_token_addresses(transaction_movements)
         |> get_token_addresses(token_transfers)
@@ -267,42 +275,26 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     )
   end
 
-  defp async_assign_inputs_and_token_properties(address, debug?) do
+  defp async_assign_inputs_and_token_properties(address) do
     me = self()
 
     Task.Supervisor.async_nolink(
       TaskSupervisor,
       fn ->
-        inputs = get_transaction_inputs(address, debug?)
+        # We force the UI to display as unspent, because no transaction were produced at this time
+        inputs =
+          address
+          |> Archethic.get_transaction_inputs()
+          |> Enum.map(fn input -> %{input | spent?: false} end)
 
-        assigns =
-          if debug? do
-            [inputs: inputs]
-          else
-            ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-            contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+        send(me, {:async_assign, inputs: inputs})
 
-            [inputs: ledger_inputs, calls: contract_inputs]
-          end
-
-        send(me, {:async_assign, assigns})
-
-        get_token_addresses([], Keyword.get(assigns, :inputs))
+        get_token_addresses([], inputs)
         |> Enum.uniq()
         |> async_assign_token_properties(me)
       end,
       timeout: 20_000
     )
-  end
-
-  defp get_transaction_inputs(address, _debug? = false),
-    do: Archethic.get_transaction_inputs(address)
-
-  defp get_transaction_inputs(address, _debug? = true) do
-    case Archethic.fetch_genesis_address(address) do
-      {:ok, genesis_address} -> Archethic.get_unspent_outputs(genesis_address)
-      _ -> []
-    end
   end
 
   defp async_assign_token_properties(token_addresses, pid) do
@@ -317,8 +309,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     )
   end
 
-  defp handle_not_existing_transaction(socket = %{assigns: %{debug?: debug?}}, address) do
-    async_assign_inputs_and_token_properties(address, debug?)
+  defp handle_not_existing_transaction(socket, address) do
+    async_assign_inputs_and_token_properties(address)
 
     socket
     |> assign(:address, address)
@@ -364,20 +356,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   def print_state(%UnspentOutput{encoded_payload: encoded_state}) do
     encoded_state |> State.deserialize() |> elem(0) |> Jason.encode!(pretty: true)
-  end
-
-  # loop through the inputs to detect if a UTXO is spent or not
-  def utxo_spent?(utxo, inputs) do
-    case Enum.find(inputs, &similar?(&1, utxo)) do
-      nil -> true
-      input -> input.spent?
-    end
-  end
-
-  def filter_inputs(inputs, utxos) do
-    Enum.reject(inputs, fn input ->
-      Enum.any?(utxos, &similar?(input, &1))
-    end)
   end
 
   defp similar?(
