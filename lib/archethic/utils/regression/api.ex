@@ -201,6 +201,8 @@ defmodule Archethic.Utils.Regression.Api do
 
     replication_attestation = Task.async(fn -> await_replication(tx.address) end)
 
+    Process.sleep(100)
+
     case WebClient.with_connection(
            endpoint.host,
            endpoint.port,
@@ -422,7 +424,7 @@ defmodule Archethic.Utils.Regression.Api do
     )
 
     receive do
-      %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
+      %{"transactionConfirmed" => %{"nbConfirmations" => _}} ->
         :ok
 
       %{"transactionError" => %{"reason" => reason}} ->
@@ -582,5 +584,28 @@ defmodule Archethic.Utils.Regression.Api do
           end)
       }
     }
+  end
+
+  def get_unspent_outputs(address, endpoint) do
+    query = ~s"""
+      query {
+        chainUnspentOutputs(address: "#{Base.encode16(address)}"){
+          amount
+          type
+          from
+          timestamp
+        }
+      }
+    """
+
+    case WebClient.with_connection(
+           endpoint.host,
+           endpoint.port,
+           &WebClient.query(&1, query),
+           endpoint.protocol
+         ) do
+      {:ok, %{"data" => %{"chainUnspentOutputs" => unspent_outputs}}} ->
+        unspent_outputs
+    end
   end
 end

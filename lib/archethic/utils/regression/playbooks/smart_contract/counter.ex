@@ -4,6 +4,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
   It starts with content=0 and the number will increment for each transaction received
   """
 
+  alias Archethic.Crypto
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.Regression.Playbook.SmartContract
@@ -12,15 +13,18 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
 
   def play(storage_nonce_pubkey, endpoint) do
     contract_seed = SmartContract.random_seed()
-    trigger_seed = SmartContract.random_seed()
 
-    Api.send_funds_to_seeds(
-      %{
-        contract_seed => 10,
-        trigger_seed => 10
-      },
-      endpoint
-    )
+    triggers_seeds = Enum.map(1..100, fn _ -> SmartContract.random_seed() end)
+
+    initial_funds =
+      Enum.reduce(triggers_seeds, %{contract_seed => 10}, fn seed, acc ->
+        Map.put(acc, seed, 10)
+      end)
+
+    Api.send_funds_to_seeds(initial_funds, endpoint)
+
+    genesis_address =
+      Crypto.derive_keypair(contract_seed, 0) |> elem(0) |> Crypto.derive_address()
 
     contract_address =
       SmartContract.deploy(
@@ -33,19 +37,44 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
         endpoint
       )
 
-    SmartContract.trigger(trigger_seed, contract_address, endpoint, wait: true)
-    SmartContract.trigger(trigger_seed, contract_address, endpoint, wait: true)
-    SmartContract.trigger(trigger_seed, contract_address, endpoint, wait: true)
-    SmartContract.trigger(trigger_seed, contract_address, endpoint, wait: true)
+    nb_transactions = 100
 
+    Enum.map(1..nb_transactions, fn i ->
+      Task.async(fn ->
+        SmartContract.trigger(Enum.at(triggers_seeds, i - 1), contract_address, endpoint,
+          await_timeout: 60_000
+        )
+      end)
+    end)
+    |> Task.await_many(:infinity)
+
+    await_no_more_calls(genesis_address, endpoint)
     last_tx = Api.get_last_transaction(contract_address, endpoint)
 
-    case last_tx["data"]["content"] do
-      "4" ->
+    case last_tx["data"]["content"] |> String.to_integer() do
+      ^nb_transactions ->
         Logger.info("Smart contract 'counter' content has been incremented successfully")
 
       content ->
         Logger.error("Smart contract 'counter' content is not as expected: #{content}")
+    end
+  end
+
+  defp get_unspent_outputs(contract_address, endpoint) do
+    contract_address
+    |> Api.get_unspent_outputs(endpoint)
+    |> Enum.filter(&(Map.get(&1, "type") == "call"))
+  end
+
+  defp await_no_more_calls(contract_address, endpoint) do
+    case get_unspent_outputs(contract_address, endpoint) do
+      [] ->
+        :ok
+
+      calls ->
+        Logger.debug("Remaining calls #{length(calls)}")
+        Process.sleep(100)
+        await_no_more_calls(contract_address, endpoint)
     end
   end
 
