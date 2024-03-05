@@ -347,4 +347,9 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
     TransactionChain.list_transactions_by_type(type, [])
     |> paginate_transactions(page)
   end
+
+  def get_genesis_unspent_outputs(address, paging_offset \\ 0, limit \\ 0) do
+    IO.inspect(limit, label: "Resolver limit")
+    {:ok, Archethic.get_unspent_outputs(address, paging_offset, limit)}
+  end
 end

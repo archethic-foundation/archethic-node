@@ -689,20 +689,30 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_unspent_outputs(
           address :: Crypto.prepended_hash(),
-          storage_nodes :: list(Node.t())
+          nodes :: list(Node.t()),
+          opts :: Keyword.t()
         ) :: Enumerable.t() | list(VersionedUnspentOutput.t())
-  def fetch_unspent_outputs(address, nodes)
-  def fetch_unspent_outputs(_, []), do: []
+  def fetch_unspent_outputs(address, nodes, opts \\ [])
+  def fetch_unspent_outputs(_, [], _), do: []
 
-  def fetch_unspent_outputs(address, nodes)
-      when is_binary(address) and is_list(nodes) do
+  def fetch_unspent_outputs(address, nodes, opts)
+      when is_binary(address) and is_list(nodes) and is_list(opts) do
+    offset = Keyword.get(opts, :paging_offset, 0)
+    limit = Keyword.get(opts, :limit, 0)
+
     Stream.resource(
-      fn -> do_fetch_unspent_outputs(address, nodes) end,
+      fn -> {limit, do_fetch_unspent_outputs(address, nodes, offset, limit)} end,
       fn
-        {utxos, true, offset} ->
-          {utxos, do_fetch_unspent_outputs(address, nodes, offset)}
+        {previous_limit, {utxos, true, offset}} ->
+          new_limit = previous_limit - length(utxos)
 
-        {utxos, false, _} ->
+          if new_limit <= 0 do
+            {utxos, :eof}
+          else
+            {utxos, {new_limit, do_fetch_unspent_outputs(address, nodes, offset, limit)}}
+          end
+
+        {_, {utxos, false, _}} ->
           {utxos, :eof}
 
         :eof ->
@@ -712,9 +722,9 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp do_fetch_unspent_outputs(address, nodes, offset \\ 0)
+  defp do_fetch_unspent_outputs(address, nodes, offset, limit)
 
-  defp do_fetch_unspent_outputs(address, nodes, offset) do
+  defp do_fetch_unspent_outputs(address, nodes, offset, limit) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
@@ -723,7 +733,7 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetUnspentOutputs{address: address, offset: offset},
+           %GetUnspentOutputs{address: address, offset: offset, limit: limit},
            conflict_resolver
          ) do
       {:ok,
