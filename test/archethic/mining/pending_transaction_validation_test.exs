@@ -177,7 +177,15 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         Transaction.new_with_keys(
           :transfer,
-          %TransactionData{},
+          %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %UCOLedger.Transfer{to: ArchethicCase.random_address(), amount: 100_000_000}
+                ]
+              }
+            }
+          },
           private_key,
           public_key,
           public_key
