@@ -43,7 +43,6 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_unspent_outputs
           | :invalid_recipients_execution
           | :invalid_contract_execution
-          | :invalid_validation_inputs
 
   @doc """
   Validate transaction with context
@@ -55,9 +54,7 @@ defmodule Archethic.Replication.TransactionValidator do
           previous_transaction :: Transaction.t() | nil,
           inputs :: list(VersionedUnspentOutput.t()),
           contract_context :: nil | Contract.Context.t()
-        ) ::
-          :ok | {:error, error()}
-
+        ) :: :ok | {:error, error()}
   def validate(tx = %Transaction{}, previous_transaction, inputs, contract_context) do
     with :ok <- valid_transaction(tx, previous_transaction, inputs, contract_context),
          :ok <- validate_inheritance(previous_transaction, tx) do
@@ -121,11 +118,11 @@ defmodule Archethic.Replication.TransactionValidator do
        when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
-         {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
          {:ok, encoded_state} <- validate_contract_execution(contract_context, prev_tx, tx),
+         :ok <- validate_inputs(tx, inputs, encoded_state, contract_context),
+         {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
          :ok <-
-           validate_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state),
-         :ok <- validate_inputs(tx, inputs, encoded_state, contract_context) do
+           validate_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state) do
       :ok
     else
       {:error, _} = e ->
@@ -370,41 +367,9 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp do_validate_inputs(
          tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
-           }
-         },
-         inputs,
-         encoded_state,
-         contract_context
-       ) do
-    # We remove the inputs consumed used for the token mint initial recipients
-    # To represent the inputs used in the transaction's validation
-    validation_inputs =
-      Enum.reject(
-        consumed_inputs,
-        &(&1.unspent_output.from == LedgerOperations.burning_address())
-      )
-
-    with :ok <- validate_consume_inputs(validation_inputs, inputs) do
-      validate_operations(tx, validation_inputs, encoded_state, contract_context)
-    end
-  end
-
-  defp validate_consume_inputs(consumed_inputs, inputs) do
-    if Enum.all?(consumed_inputs, &(&1 in inputs)) do
-      :ok
-    else
-      {:error, :invalid_consumed_inputs}
-    end
-  end
-
-  defp validate_operations(
-         tx = %Transaction{
            address: address,
-           type: type,
            validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{fee: fee, unspent_outputs: next_unspent_outputs},
+             ledger_operations: %LedgerOperations{fee: fee},
              timestamp: timestamp,
              protocol_version: protocol_version
            }
@@ -413,36 +378,72 @@ defmodule Archethic.Replication.TransactionValidator do
          encoded_state,
          contract_context
        ) do
-    case LedgerOperations.consume_inputs(
-           %LedgerOperations{fee: fee},
-           address,
-           timestamp,
-           inputs,
-           Transaction.get_movements(tx),
-           LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
-           encoded_state,
-           contract_context
-         ) do
-      {false, _} ->
-        {:error, :insufficient_funds}
+    {sufficient_funds?, ledger_operations} =
+      LedgerOperations.consume_inputs(
+        %LedgerOperations{fee: fee},
+        address,
+        timestamp,
+        inputs,
+        Transaction.get_movements(tx),
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
+        encoded_state,
+        contract_context
+      )
 
-      {true, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} ->
-        same? =
-          Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
-            Enum.any?(expected_unspent_outputs, &(&1.from == from and &1.amount >= amount))
-          end)
+    with :ok <- validate_sufficient_funds(sufficient_funds?),
+         :ok <- validate_consume_inputs(tx, ledger_operations) do
+      validate_unspent_outputs(tx, ledger_operations)
+    end
+  end
 
-        if same? do
-          :ok
-        else
-          Logger.error(
-            "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
+  defp validate_sufficient_funds(true), do: :ok
+  defp validate_sufficient_funds(false), do: {:error, :insufficient_funds}
 
-          {:error, :invalid_unspent_outputs}
-        end
+  defp validate_consume_inputs(
+         %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+           }
+         },
+         %LedgerOperations{consumed_inputs: expected_consumed_inputs}
+       ) do
+    if length(consumed_inputs) == length(expected_consumed_inputs) and
+         Enum.all?(consumed_inputs, &(&1 in expected_consumed_inputs)) do
+      :ok
+    else
+      Logger.error(
+        "Invalid consumed inputs - got: #{inspect(consumed_inputs)}, expected: #{inspect(expected_consumed_inputs)}",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+
+      {:error, :invalid_consumed_inputs}
+    end
+  end
+
+  defp validate_unspent_outputs(
+         %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
+           }
+         },
+         %LedgerOperations{unspent_outputs: expected_unspent_outputs}
+       ) do
+    if length(next_unspent_outputs) == length(expected_unspent_outputs) and
+         Enum.all?(next_unspent_outputs, &(&1 in expected_unspent_outputs)) do
+      :ok
+    else
+      Logger.error(
+        "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+
+      {:error, :invalid_unspent_outputs}
     end
   end
 end

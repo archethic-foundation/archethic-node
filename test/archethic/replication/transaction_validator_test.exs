@@ -226,9 +226,12 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
       assert {:error, :invalid_transaction_fee} =
-               TransactionFactory.create_transaction_with_invalid_fee()
-               |> TransactionValidator.validate(nil, unspent_outputs, nil)
+               TransactionFactory.create_transaction_with_invalid_fee(unspent_outputs)
+               |> TransactionValidator.validate(nil, v_unspent_outputs, nil)
     end
 
     test "should return {:error, :invalid_transaction_fee} when the fees are invalid using contract context" do
@@ -241,6 +244,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
       contract_context = %Contract.Context{
         trigger: {:transaction, random_secret(), %Recipient{}},
         status: :tx_output,
@@ -249,7 +255,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert {:error, :invalid_transaction_fee} =
                TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(nil, unspent_outputs, contract_context)
+               |> TransactionValidator.validate(nil, v_unspent_outputs, contract_context)
     end
 
     test "should return {:error, :invalid_recipients_execution} if recipient contract execution invalid" do
@@ -261,6 +267,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
           timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
         }
       ]
+
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
       recipient_address = random_address()
       recipient_genesis = random_address()
@@ -279,7 +288,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       end)
 
       assert {:error, :invalid_recipients_execution} =
-               TransactionValidator.validate(tx, nil, unspent_outputs, nil)
+               TransactionValidator.validate(tx, nil, v_unspent_outputs, nil)
     end
   end
 end
