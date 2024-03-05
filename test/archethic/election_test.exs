@@ -1,5 +1,6 @@
 defmodule Archethic.ElectionTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Election
   alias Archethic.Election.StorageConstraints
@@ -283,6 +284,26 @@ defmodule Archethic.ElectionTest do
                  min_geo_patch: fn -> 3 end,
                  min_geo_patch_average_availability: fn -> 0.8 end
                })
+    end
+  end
+
+  describe "storage_nodes_sorted_by_address" do
+    test "should return same node with different order" do
+      nodes =
+        Enum.map(1..50, fn i ->
+          %Node{
+            first_public_key: "Node#{i}",
+            last_public_key: "Node#{i}",
+            geo_patch: "AAA"
+          }
+        end)
+
+      genesis_address = random_address()
+      address1 = random_address()
+      address2 = random_address()
+
+      assert Election.storage_nodes_sorted_by_address(genesis_address, address1, nodes) !=
+               Election.storage_nodes_sorted_by_address(genesis_address, address2, nodes)
     end
   end
 

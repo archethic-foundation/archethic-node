@@ -411,8 +411,12 @@ defmodule Archethic do
   @doc """
   Request to fetch the unspent outputs for a transaction address from the closest nodes
   """
-  @spec get_unspent_outputs(address :: Crypto.prepended_hash()) :: list(UnspentOutput.t())
-  def get_unspent_outputs(address) do
+  @spec get_unspent_outputs(
+          address :: Crypto.prepended_hash(),
+          paging_offset :: non_neg_integer(),
+          limit :: non_neg_integer()
+        ) :: list(UnspentOutput.t())
+  def get_unspent_outputs(address, paging_offset \\ 0, limit \\ 0) do
     previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     nodes =
@@ -421,7 +425,7 @@ defmodule Archethic do
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     address
-    |> TransactionChain.fetch_unspent_outputs(nodes)
+    |> TransactionChain.fetch_unspent_outputs(nodes, paging_offset: paging_offset, limit: limit)
     |> VersionedUnspentOutput.unwrap_unspent_outputs()
   end
 

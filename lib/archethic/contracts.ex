@@ -14,6 +14,7 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
+  alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -234,8 +235,12 @@ defmodule Archethic.Contracts do
   @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
   """
-  @spec load_transaction(Transaction.t(), list()) :: :ok
-  defdelegate load_transaction(tx, opts), to: Loader
+  @spec load_transaction(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          opts :: Keyword.t()
+        ) :: :ok
+  defdelegate load_transaction(tx, genesis_address, opts), to: Loader
 
   @doc """
   Validate any kind of condition.

@@ -6,6 +6,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defstruct [:protocol_version, :unspent_output]
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           protocol_version: pos_integer(),
@@ -99,6 +100,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   Used for cheap comparaison
   """
   @spec hash(t()) :: binary()
-  def hash(%__MODULE__{protocol_version: protocol_version, unspent_output: utxo}),
-    do: utxo |> UnspentOutput.serialize(protocol_version) |> then(&:crypto.hash(:sha256, &1))
+  def hash(%__MODULE__{protocol_version: protocol_version, unspent_output: utxo}) do
+    utxo
+    |> UnspentOutput.serialize(protocol_version)
+    |> Utils.wrap_binary()
+    |> then(&:crypto.hash(:sha256, &1))
+  end
 end

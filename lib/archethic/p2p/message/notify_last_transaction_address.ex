@@ -7,7 +7,6 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
 
   alias Archethic.Crypto
   alias Archethic.Utils
-  alias Archethic.Contracts
   alias Archethic.SelfRepair
   alias Archethic.P2P
   alias Archethic.TransactionChain
@@ -34,9 +33,6 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
          true <- local_last_address != last_address do
       if local_last_address == previous_address do
         TransactionChain.register_last_address(genesis_address, last_address, timestamp)
-
-        # Stop potential previous smart contract
-        Contracts.stop_contract(local_last_address)
       else
         authorized_nodes = P2P.authorized_and_available_nodes()
         SelfRepair.update_last_address(local_last_address, authorized_nodes)

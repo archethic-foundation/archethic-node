@@ -46,6 +46,7 @@ defmodule ArchethicCase do
     |> stub(:get_transaction_chain, fn _, _, _ -> {[], false, nil} end)
     |> stub(:stream_chain, fn _, _ -> [] end)
     |> stub(:list_last_transaction_addresses, fn -> [] end)
+    |> stub(:list_genesis_addresses, fn -> [] end)
     |> stub(:add_last_transaction_address, fn _, _, _ -> :ok end)
     |> stub(:get_last_chain_address, fn addr -> {addr, DateTime.utc_now()} end)
     |> stub(:get_last_chain_address, fn addr, _ -> {addr, DateTime.utc_now()} end)
@@ -267,6 +268,10 @@ defmodule ArchethicCase do
 
   def random_public_key() do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+  end
+
+  def random_seed() do
+    :crypto.strong_rand_bytes(32)
   end
 
   def random_secret() do

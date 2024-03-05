@@ -71,6 +71,7 @@ defmodule Archethic.TransactionFactory do
     encoded_state = Keyword.get(opts, :state)
     prev_tx = Keyword.get(opts, :prev_tx)
     protocol_version = Keyword.get(opts, :protocol_version, current_protocol_version())
+    contract_context = Keyword.get(opts, :contract_context, nil)
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -104,7 +105,8 @@ defmodule Archethic.TransactionFactory do
         inputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
-        encoded_state
+        encoded_state,
+        contract_context
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)

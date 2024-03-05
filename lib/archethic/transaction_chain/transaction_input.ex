@@ -70,7 +70,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       case type do
         :state ->
           encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
-          <<0::8, encoded_payload_size::binary, encoded_payload::binary>>
+          <<0::8, encoded_payload_size::binary, encoded_payload::bitstring>>
 
         :call ->
           <<1::8>>
@@ -82,7 +82,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       end
 
     <<from::binary, DateTime.to_unix(timestamp, :millisecond)::64, spent_bit::1,
-      type_bin::binary>>
+      type_bin::bitstring>>
   end
 
   @doc """
@@ -143,7 +143,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
     case rest do
       <<0::8, rest::bitstring>> ->
         {payload_size, rest} = Utils.VarInt.get_value(rest)
-        <<encoded_payload::binary-size(payload_size), rest::bitstring>> = rest
+        <<encoded_payload::bitstring-size(payload_size), rest::bitstring>> = rest
 
         {
           %{input | type: :state, encoded_payload: encoded_payload},

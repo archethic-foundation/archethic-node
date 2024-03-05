@@ -66,7 +66,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
         ~U[2021-01-02 03:00:10Z]
       ]
   """
-  @spec previous_slots(date_from :: DateTime.t(), cron_interval :: binary()) :: list(DateTime.t())
+  @spec previous_slots(
+          date_from :: DateTime.t(),
+          date_to :: DateTime.t(),
+          cron_interval :: binary()
+        ) :: list(DateTime.t())
   def previous_slots(
         date_from = %DateTime{},
         date_to = %DateTime{} \\ DateTime.utc_now(),
@@ -190,9 +194,9 @@ defmodule Archethic.BeaconChain.SlotTimer do
     {:noreply, new_state, :hibernate}
   end
 
-  def code_change(1, state, _) do 
+  def code_change(1, state, _) do
     :ets.delete(:archethic_slot_timer)
-    {:ok, Map.delete(state, :interval) }
+    {:ok, Map.delete(state, :interval)}
   end
 
   defp schedule_new_slot(interval) do

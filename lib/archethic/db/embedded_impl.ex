@@ -219,6 +219,12 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Stream all genesis addresses
+  """
+  @spec list_genesis_addresses() :: Enumerable.t()
+  def list_genesis_addresses(), do: ChainIndex.list_genesis_addresses()
+
+  @doc """
   Count the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
