@@ -5,8 +5,6 @@ defmodule Archethic.SelfRepair do
   """
   alias Archethic.BeaconChain
 
-  alias Archethic.Contracts
-
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -215,9 +213,6 @@ defmodule Archethic.SelfRepair do
         |> Enum.each(fn {address, timestamp} ->
           TransactionChain.register_last_address(genesis_address, address, timestamp)
         end)
-
-        # Stop potential previous smart contract
-        Contracts.stop_contract(address)
 
       _ ->
         :ok

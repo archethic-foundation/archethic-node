@@ -194,8 +194,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   end
 
   defp fetch_balance(address, function) do
-    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
-         {:ok, balance} <- Archethic.get_balance(last_address) do
+    with {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
+         {:ok, balance} <- Archethic.get_balance(genesis_address) do
       balance
     else
       _ ->

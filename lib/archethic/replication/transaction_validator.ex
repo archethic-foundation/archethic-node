@@ -4,6 +4,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.Bootstrap
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
   alias Archethic.DB
   alias Archethic.Election
   alias Archethic.Mining
@@ -52,11 +53,19 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           tx :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
+          genesis_address :: Crypto.prepended_hash(),
           inputs :: list(VersionedUnspentOutput.t()),
           contract_context :: nil | Contract.Context.t()
         ) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs, contract_context) do
-    with :ok <- valid_transaction(tx, previous_transaction, inputs, contract_context),
+  def validate(
+        tx = %Transaction{},
+        previous_transaction,
+        genesis_address,
+        inputs,
+        contract_context
+      ) do
+    with :ok <-
+           valid_transaction(tx, previous_transaction, genesis_address, inputs, contract_context),
          :ok <- validate_inheritance(previous_transaction, tx) do
       validate_chain(tx, previous_transaction)
     end
@@ -114,11 +123,12 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp valid_transaction(tx, prev_tx, inputs, contract_context)
+  defp valid_transaction(tx, prev_tx, genesis_address, inputs, contract_context)
        when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
-         {:ok, encoded_state} <- validate_contract_execution(contract_context, prev_tx, tx),
+         {:ok, encoded_state} <-
+           validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs),
          :ok <- validate_inputs(tx, inputs, encoded_state, contract_context),
          {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
          :ok <-
@@ -160,8 +170,14 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp validate_contract_execution(contract_context, prev_tx, tx) do
-    case SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx) do
+  defp validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs) do
+    case SmartContractValidation.valid_contract_execution?(
+           contract_context,
+           prev_tx,
+           genesis_address,
+           tx,
+           inputs
+         ) do
       {true, encoded_state} -> {:ok, encoded_state}
       _ -> {:error, :invalid_contract_execution}
     end

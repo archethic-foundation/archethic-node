@@ -101,6 +101,17 @@ defmodule Archethic.Contracts.Contract do
   end
 
   @doc """
+  Return true if the contract contains at least one trigger
+  """
+  @spec contains_trigger?(contract :: t()) :: boolean()
+  def contains_trigger?(%__MODULE__{triggers: triggers}) do
+    non_empty_triggers =
+      Enum.reject(triggers, fn {_, %{ast: ast}} -> ast == {:__block__, [], []} end)
+
+    length(non_empty_triggers) > 0
+  end
+
+  @doc """
   Add a trigger to the contract
   """
   @spec add_trigger(t(), trigger_type(), any()) :: t()

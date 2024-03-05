@@ -25,7 +25,6 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           offset: non_neg_integer(),
-          limit: non_neg_integer(),
           limit: non_neg_integer()
         }
 
@@ -53,15 +52,16 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{address: tx_address, offset: offset}) do
-    <<tx_address::binary, VarInt.from_value(offset)::binary>>
+  def serialize(%__MODULE__{address: tx_address, offset: offset, limit: limit}) do
+    <<tx_address::binary, VarInt.from_value(offset)::binary, VarInt.from_value(limit)::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-
     {offset, rest} = VarInt.get_value(rest)
-    {%__MODULE__{address: address, offset: offset}, rest}
+    {limit, rest} = VarInt.get_value(rest)
+
+    {%__MODULE__{address: address, offset: offset, limit: limit}, rest}
   end
 end

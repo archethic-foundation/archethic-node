@@ -129,6 +129,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     throw({:error, node, "Invalid trigger"})
   end
 
+  defp parse_block(ast = {:__block__, [], []}, _), do: ast
+
   defp parse_block(ast, functions_keys) do
     acc = %{
       functions: functions_keys

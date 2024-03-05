@@ -213,22 +213,14 @@ defmodule Archethic.Election do
     |> refine_necessary_nodes(sorted_nodes, nb_validations)
   end
 
-  @doc """
-  Sort the validation nodes with the given sorting seed
-  """
-  @spec sort_validation_nodes(
-          node_list :: list(Node.t()),
-          transaction :: Transaction.t(),
-          sorting_seed :: binary()
-        ) :: list(Node.t())
-  def sort_validation_nodes(node_list, tx, sorting_seed) do
+  defp sort_validation_nodes(node_list, tx, sorting_seed) do
     tx_hash =
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    sort_validation_nodes_by_key_rotation(node_list, sorting_seed, tx_hash)
+    sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed, :last_public_key)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
@@ -243,6 +235,30 @@ defmodule Archethic.Election do
     else
       selected_nodes
     end
+  end
+
+  @doc """
+  Get the storage nodes for a given genesis address sorted using transaction address
+  """
+  @spec storage_nodes_sorted_by_address(
+          genesis_address :: Crypto.prepended_hash(),
+          sorting_address :: Crypto.prepended_hash(),
+          nodes :: list(Node.t()),
+          constraints :: StorageConstraints.t()
+        ) :: list(Node.t())
+  def storage_nodes_sorted_by_address(
+        genesis_address,
+        sorting_address,
+        nodes,
+        constraints \\ StorageConstraints.new()
+      )
+
+  def storage_nodes_sorted_by_address(_, _, [], _), do: []
+
+  def storage_nodes_sorted_by_address(genesis_address, sorting_address, nodes, constraints) do
+    genesis_address
+    |> storage_nodes(nodes, constraints)
+    |> sort_nodes_by_key_rotation(genesis_address, sorting_address, :first_public_key)
   end
 
   @doc """
@@ -286,7 +302,7 @@ defmodule Archethic.Election do
 
     storage_nodes =
       nodes
-      |> sort_storage_nodes_by_key_rotation(address, storage_nonce)
+      |> sort_nodes_by_key_rotation(address, storage_nonce, :first_public_key)
       |> Enum.reduce_while(
         %{
           nb_nodes: 0,
@@ -360,22 +376,11 @@ defmodule Archethic.Election do
   # Each node public key is rotated through a cryptographic operations involving
   # node public key, a nonce and a dynamic information such as transaction content or hash
   # This rotated key acts as sort mechanism to produce a fair node election
-
-  # It requires the daily nonce or the storage nonce to be loaded in the Crypto keystore
-  defp sort_validation_nodes_by_key_rotation(nodes, sorting_seed, hash) do
+  defp sort_nodes_by_key_rotation(nodes, hash, sorting_seed, key_to_use) do
     nodes
-    |> Stream.map(fn node = %Node{last_public_key: <<_::8, _::8, public_key::binary>>} ->
+    |> Stream.map(fn node ->
+      <<_::8, _::8, public_key::binary>> = Map.get(node, key_to_use)
       rotated_key = :crypto.hash(:sha256, [public_key, hash, sorting_seed])
-      {rotated_key, node}
-    end)
-    |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)
-    |> Enum.map(fn {_, n} -> n end)
-  end
-
-  defp sort_storage_nodes_by_key_rotation(nodes, hash, storage_nonce) do
-    nodes
-    |> Stream.map(fn node = %Node{first_public_key: <<_::8, _::8, public_key::binary>>} ->
-      rotated_key = :crypto.hash(:sha256, [public_key, hash, storage_nonce])
       {rotated_key, node}
     end)
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)
@@ -786,11 +791,19 @@ defmodule Archethic.Election do
           authorized_and_available_nodes :: list(Node.t()),
           previous_summary_time :: DateTime.t()
         ) :: list(Node.t())
+  def get_synchronized_nodes_before([], _previous_summary_time), do: []
+
   def get_synchronized_nodes_before(nodes_list, previous_summary_time) do
-    Enum.filter(
-      nodes_list,
-      &(DateTime.compare(&1.availability_update, previous_summary_time) == :lt and
-          DateTime.compare(&1.authorization_date, previous_summary_time) == :lt)
-    )
+    filtered_nodes =
+      Enum.filter(
+        nodes_list,
+        &(DateTime.compare(&1.availability_update, previous_summary_time) == :lt and
+            DateTime.compare(&1.authorization_date, previous_summary_time) == :lt)
+      )
+
+    case filtered_nodes do
+      [] -> nodes_list
+      nodes -> nodes
+    end
   end
 end

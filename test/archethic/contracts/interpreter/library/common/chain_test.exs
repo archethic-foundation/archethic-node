@@ -269,7 +269,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   describe "get_balance/1" do
     test "should return the balance of the last address of the target chain" do
       address = random_address()
-      last_address = random_address()
+      genesis_address = random_address()
 
       fungible_token_address = random_address()
       fungible_token_address_hex = Base.encode16(fungible_token_address)
@@ -286,10 +286,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       }
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
+        {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^last_address}, _ -> {:ok, balance} end)
+      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
+        {:ok, balance}
+      end)
 
       assert %{
                "uco" => 14.35,
@@ -324,15 +326,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   describe "get_uco_balance/1" do
     test "should return uco balance" do
       address = random_address()
-      last_address = random_address()
+      genesis_address = random_address()
 
       balance = %Balance{uco: Utils.to_bigint(14.35), token: %{}}
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
+        {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^last_address}, _ -> {:ok, balance} end)
+      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
+        {:ok, balance}
+      end)
 
       assert 14.35 == address |> Base.encode16() |> Chain.get_uco_balance()
     end
@@ -342,7 +346,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
     test "should return token balance" do
       address = random_address()
       address_hex = Base.encode16(address)
-      last_address = random_address()
+      genesis_address = random_address()
 
       fungible_token_address = random_address()
       fungible_token_address_hex = Base.encode16(fungible_token_address)
@@ -360,10 +364,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: ^address}, _ ->
-          {:ok, %LastTransactionAddress{address: last_address}}
+        _, %GetGenesisAddress{address: ^address}, _ ->
+          {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
 
-        _, %GetBalance{address: ^last_address}, _ ->
+        _, %GetBalance{address: ^genesis_address}, _ ->
           {:ok, balance}
       end)
 
@@ -380,7 +384,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   describe "get_tokens_balance/1" do
     test "should return token balance" do
       address = random_address()
-      last_address = random_address()
+      genesis_address = random_address()
 
       fungible_token_address = random_address()
       fungible_token_address_hex = Base.encode16(fungible_token_address)
@@ -397,10 +401,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       }
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
+        {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^last_address}, _ -> {:ok, balance} end)
+      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
+        {:ok, balance}
+      end)
 
       assert %{
                %{"token_address" => fungible_token_address_hex, "token_id" => 0} => 134.489,
@@ -414,7 +420,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
     test "should return token balance" do
       address = random_address()
       address_hex = Base.encode16(address)
-      last_address = random_address()
+      genesis_address = random_address()
 
       fungible_token_address = random_address()
       fungible_token_address_hex = Base.encode16(fungible_token_address)
@@ -432,10 +438,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: ^address}, _ ->
-          {:ok, %LastTransactionAddress{address: last_address}}
+        _, %GetGenesisAddress{address: ^address}, _ ->
+          {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
 
-        _, %GetBalance{address: ^last_address}, _ ->
+        _, %GetBalance{address: ^genesis_address}, _ ->
           {:ok, balance}
       end)
 

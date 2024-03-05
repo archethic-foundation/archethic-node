@@ -78,7 +78,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       | validation_stamp: ValidationStamp.generate_dummy(timestamp: datetime)
     }
 
-    with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
+    with {:ok, contract_tx} <- TransactionChain.get_last_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
          trigger = Contract.get_trigger_for_recipient(recipient),
          {:ok, _} <-

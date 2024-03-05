@@ -9,6 +9,8 @@ defmodule Archethic.ReplicationTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
@@ -114,16 +116,17 @@ defmodule Archethic.ReplicationTest do
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
-    unspent_outputs =
-      [
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 1_000_000_000,
-          type: :UCO,
-          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-        }
-      ]
-      |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
+    v_unspent_outputs =
+      VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
     now = ~U[2023-01-01 00:00:00Z]
 
@@ -147,17 +150,22 @@ defmodule Archethic.ReplicationTest do
       ContractFactory.create_next_contract_tx(prev_tx,
         content: "ok",
         state: encoded_state,
-        inputs: unspent_outputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
+        inputs: unspent_outputs
       )
+
+    genesis_address = Transaction.previous_address(prev_tx)
 
     MockClient
     |> stub(:send_message, fn
       _, %GetTransaction{address: ^previous_address}, _ ->
         {:ok, prev_tx}
+
+      _, %GetGenesisAddress{address: ^previous_address}, _ ->
+        {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
     end)
 
     with_mock(TransactionContext, [:passthrough],
-      fetch_transaction_unspent_outputs: fn _ -> unspent_outputs end
+      fetch_transaction_unspent_outputs: fn _ -> v_unspent_outputs end
     ) do
       assert :ok =
                Replication.validate_transaction(
@@ -167,7 +175,7 @@ defmodule Archethic.ReplicationTest do
                    trigger: {:datetime, now},
                    timestamp: now
                  },
-                 unspent_outputs
+                 v_unspent_outputs
                )
 
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
