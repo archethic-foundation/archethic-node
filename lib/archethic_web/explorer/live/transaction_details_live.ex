@@ -266,8 +266,12 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
           |> Transaction.previous_address()
           |> Archethic.get_transaction_inputs()
           |> Enum.map(fn input ->
-            # We flag as spent the inputs really used in the transaction
-            %{input | spent?: Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))}
+            # We flag as consumed the inputs really used in the transaction
+            Map.put(
+              input,
+              :consumed?,
+              Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))
+            )
           end)
 
         send(me, {:async_assign, inputs: inputs})
