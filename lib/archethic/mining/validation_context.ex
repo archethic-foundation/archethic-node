@@ -659,13 +659,20 @@ defmodule Archethic.Mining.ValidationContext do
           validation_time: validation_time,
           resolved_addresses: resolved_addresses,
           contract_context: contract_context,
-          unspent_outputs: unspent_outputs
+          unspent_outputs: unspent_outputs,
+          genesis_address: genesis_address
         }
       ) do
     protocol_version = Mining.protocol_version()
 
     {valid_contract_execution?, encoded_state} =
-      SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx)
+      SmartContractValidation.valid_contract_execution?(
+        contract_context,
+        prev_tx,
+        genesis_address,
+        tx,
+        unspent_outputs
+      )
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
@@ -1017,6 +1024,8 @@ defmodule Archethic.Mining.ValidationContext do
            previous_transaction: prev_tx,
            resolved_addresses: resolved_addresses,
            contract_context: contract_context,
+           genesis_address: genesis_address,
+           unspent_outputs: unspent_outputs,
            validation_stamp:
              stamp = %ValidationStamp{
                timestamp: validation_time,
@@ -1027,7 +1036,13 @@ defmodule Archethic.Mining.ValidationContext do
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
     {valid_contract_execution?, next_state} =
-      SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx)
+      SmartContractValidation.valid_contract_execution?(
+        contract_context,
+        prev_tx,
+        genesis_address,
+        tx,
+        unspent_outputs
+      )
 
     {valid_contract_recipients?, contract_recipients_fee} =
       validate_contract_recipients(tx, resolved_recipients, validation_time)

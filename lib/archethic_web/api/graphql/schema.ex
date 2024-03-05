@@ -220,6 +220,22 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
         {:ok, Resolver.get_version()}
       end)
     end
+
+    @desc """
+    Query the network to retrieve the unspent output of a chain
+    (address should be the genesis address of the chain)
+    """
+    field :chain_unspent_outputs, list_of(:unspent_output) do
+      arg(:address, non_null(:address))
+      arg(:paging_offset, :non_neg_integer)
+      arg(:limit, :pos_integer)
+
+      resolve(fn args = %{address: address}, _ ->
+        paging_offset = Map.get(args, :paging_offset, 0)
+        limit = Map.get(args, :limit, 0)
+        Resolver.get_genesis_unspent_outputs(address, paging_offset, limit)
+      end)
+    end
   end
 
   subscription do

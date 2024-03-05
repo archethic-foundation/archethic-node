@@ -7,13 +7,16 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TaskSupervisor
@@ -59,19 +62,26 @@ defmodule Archethic.Mining.SmartContractValidation do
   Execute the contract if it's relevant and return a boolean if given transaction is genuine.
   It also return the result because it's need to extract the state
   """
-  @spec valid_contract_execution?(Contract.Context.t(), Transaction.t(), Transaction.t()) ::
-          {boolean(), State.encoded() | nil}
+  @spec valid_contract_execution?(
+          contract_context :: Contract.Context.t(),
+          prev_tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          next_tx :: Transaction.t(),
+          inputs :: list(VersionedUnspentOutput.t())
+        ) :: {boolean(), State.encoded() | nil}
   def valid_contract_execution?(
         %Contract.Context{status: status, trigger: trigger, timestamp: timestamp},
-        prev_tx = %Transaction{address: previous_address},
-        next_tx
+        prev_tx,
+        genesis_address,
+        next_tx,
+        inputs
       ) do
     trigger_type = trigger_to_trigger_type(trigger)
     recipient = trigger_to_recipient(trigger)
     opts = trigger_to_execute_opts(trigger)
 
     with {:ok, maybe_trigger_tx} <-
-           validate_trigger(trigger, timestamp, previous_address),
+           validate_trigger(trigger, timestamp, genesis_address, inputs),
          {:ok, contract} <-
            Contract.from_transaction(prev_tx),
          {:ok, res} <-
@@ -87,17 +97,18 @@ defmodule Archethic.Mining.SmartContractValidation do
   def valid_contract_execution?(
         _contract_context = nil,
         prev_tx = %Transaction{data: %TransactionData{code: code}},
-        _next_tx = %Transaction{}
+        _genesis_address,
+        _next_tx = %Transaction{},
+        _
       )
       when code != "" do
-    # oEnum.any?(consumed_inputs, &similar?(input, &1.unspent_output))nly contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
-    case Contract.from_transaction(prev_tx) do
-      {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 -> {true, nil}
-      _ -> {false, nil}
-    end
+    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
+    if prev_tx |> Contract.from_transaction!() |> Contract.contains_trigger?(),
+      do: {false, nil},
+      else: {true, nil}
   end
 
-  def valid_contract_execution?(_, _, _), do: {true, nil}
+  def valid_contract_execution?(_, _, _, _, _), do: {true, nil}
 
   defp validate_result(
          %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},
@@ -114,7 +125,7 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   defp validate_result(_, _, _), do: :error
 
-  defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
+  defp validate_trigger({:datetime, datetime}, validation_datetime, _, _) do
     if within_drift_tolerance?(validation_datetime, datetime) do
       {:ok, nil}
     else
@@ -122,11 +133,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
-  defp validate_trigger(
-         {:interval, interval, interval_datetime},
-         validation_datetime,
-         _contract_address
-       ) do
+  defp validate_trigger({:interval, interval, interval_datetime}, validation_datetime, _, _) do
     matches_date? =
       interval
       |> CronParser.parse!(@extended_mode?)
@@ -139,40 +146,29 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
-  defp validate_trigger(
-         {:transaction, address, _recipient},
-         _validation_datetime,
-         contract_address
-       ) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+  defp validate_trigger({:transaction, address, recipient}, _, contract_genesis_address, inputs) do
+    storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
-      {:ok,
-       tx = %Transaction{
-         type: trigger_type,
-         address: trigger_address,
-         validation_stamp: %ValidationStamp{recipients: trigger_resolved_recipients}
-       }} ->
-        # check that trigger transaction did indeed call this contract
-        if contract_address in trigger_resolved_recipients do
-          {:ok, tx}
-        else
-          Logger.error("Contract was wrongly triggered by transaction",
-            transaction_address: Base.encode16(trigger_address),
-            transaction_type: trigger_type,
-            contract: Base.encode16(contract_address)
-          )
+    with true <-
+           Enum.any?(
+             inputs,
+             &(&1.unspent_output.type == :call and &1.unspent_output.from == address)
+           ),
+         {:ok, tx} <- TransactionChain.fetch_transaction(address, storage_nodes),
+         true <- Enum.member?(tx.data.recipients, recipient) do
+      {:ok, tx}
+    else
+      _ ->
+        Logger.error("Contract was wrongly triggered by transaction",
+          transaction_address: Base.encode16(address),
+          contract: Base.encode16(contract_genesis_address)
+        )
 
-          :invalid_triggers_execution
-        end
-
-      {:error, _} ->
-        # todo: it might too strict to say that it's invalid in some cases (timeout)
         :invalid_triggers_execution
     end
   end
 
-  defp validate_trigger({:oracle, address}, _validation_datetime, _contract_address) do
+  defp validate_trigger({:oracle, address}, _, _, _) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_transaction(address, storage_nodes) do

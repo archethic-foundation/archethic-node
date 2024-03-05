@@ -159,8 +159,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
   end
 
   defp get_token_transfers(previous_reward_address, next_reward_address) do
-    {:ok, last_address} = Archethic.get_last_transaction_address(previous_reward_address)
-    {:ok, %{token: tokens}} = Archethic.get_balance(last_address)
+    {:ok, genesis_address} = Archethic.fetch_genesis_address(previous_reward_address)
+    {:ok, %{token: tokens}} = Archethic.get_balance(genesis_address)
 
     tokens
     |> Enum.filter(fn {{address, _}, _} -> Reward.is_reward_token?(address) end)

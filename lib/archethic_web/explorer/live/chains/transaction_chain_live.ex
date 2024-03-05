@@ -50,7 +50,8 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
         }
       ) do
     with false <- length(transaction_chain) == size,
-         {:ok, next_transactions} <- paginate_chain(paging_address, paging_address) do
+         {:ok, next_transactions} <-
+           Archethic.get_pagined_transaction_chain(paging_address, paging_address, :desc) do
       {:noreply,
        assign(socket, %{
          page: page + 1,
@@ -66,10 +67,8 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
   defp get_paginated_transaction_chain(encoded_address) do
     with {:ok, addr} <- Base.decode16(encoded_address, case: :mixed),
          true <- Crypto.valid_address?(addr),
-         {:ok, chain_length} <- Archethic.get_transaction_chain_length(addr),
-         {:ok, transactions} <- paginate_chain(addr, nil),
-         {:ok, last_address} <- Archethic.get_last_transaction_address(addr),
-         {:ok, %{uco: uco_balance}} <- Archethic.get_balance(last_address),
+         {chain_length, transactions, genesis_address} <- get_chain_data(addr),
+         {:ok, %{uco: uco_balance}} <- Archethic.get_balance(genesis_address),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       paging_address = unless Enum.empty?(transactions), do: List.last(transactions).address
 
@@ -129,8 +128,17 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
     end
   end
 
-  # DESC pagination
-  defp paginate_chain(address, paging_address) do
-    Archethic.get_pagined_transaction_chain(address, paging_address, :desc)
+  defp get_chain_data(address) do
+    [
+      Task.async(fn -> Archethic.get_transaction_chain_length(address) end),
+      Task.async(fn -> Archethic.get_pagined_transaction_chain(address, nil, :desc) end),
+      Task.async(fn -> Archethic.fetch_genesis_address(address) end)
+    ]
+    |> Task.await_many(30_000)
+    |> then(fn res ->
+      if Enum.all?(res, &match?({:ok, _}, &1)),
+        do: res |> Enum.map(&elem(&1, 1)) |> List.to_tuple(),
+        else: {:error, :network_issue}
+    end)
   end
 end

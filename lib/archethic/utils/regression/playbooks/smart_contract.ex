@@ -103,7 +103,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
           content: Keyword.get(opts, :content, ""),
           recipients: [%Recipient{address: contract_address}]
         },
-        endpoint
+        endpoint,
+        opts
       )
 
     Logger.debug("TRIGGER: transaction sent at #{Base.encode16(trigger_address)}")
