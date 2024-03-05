@@ -17,7 +17,8 @@ defmodule Archethic.P2P.Message.ReplicationError do
           reason: reason()
         }
 
-  @type reason :: TransactionValidator.error() | :transaction_already_exists
+  @type reason ::
+          TransactionValidator.error() | :transaction_already_exists | :invalid_validation_inputs
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
@@ -73,6 +74,7 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp serialize_reason(:invalid_unspent_outputs), do: 14
   defp serialize_reason(:invalid_recipients_execution), do: 15
   defp serialize_reason(:invalid_contract_execution), do: 16
+  defp serialize_reason(:invalid_validation_inputs), do: 17
 
   @doc """
   DeSerialize a replication error message
@@ -126,4 +128,5 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp error(14), do: :invalid_unspent_outputs
   defp error(15), do: :invalid_recipients_execution
   defp error(16), do: :invalid_contract_execution
+  defp error(17), do: :invalid_validation_inputs
 end

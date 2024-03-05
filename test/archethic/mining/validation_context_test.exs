@@ -31,6 +31,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.TransactionFactory
+
   import Mock
 
   doctest ValidationContext
@@ -447,18 +449,22 @@ defmodule Archethic.Mining.ValidationContextTest do
     Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
-    %ValidationContext{
-      transaction: Transaction.new(:transfer, %TransactionData{}, "seed", 0),
-      previous_storage_nodes: previous_storage_nodes,
-      unspent_outputs: [
+    unspent_outputs =
+      [
         %UnspentOutput{
           from: "@Alice2",
           amount: 204_000_000,
           type: :UCO,
           timestamp: validation_time
         }
-        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
-      ],
+      ]
+      |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+    %ValidationContext{
+      transaction: TransactionFactory.create_non_valided_transaction(),
+      previous_storage_nodes: previous_storage_nodes,
+      unspent_outputs: unspent_outputs,
+      aggregated_utxos: unspent_outputs,
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
@@ -695,40 +701,35 @@ defmodule Archethic.Mining.ValidationContextTest do
   defp create_validation_stamp_with_invalid_consumed_inputs(%ValidationContext{
          transaction: tx,
          validation_time: timestamp,
-         unspent_outputs: _unspent_outputs
+         unspent_outputs: unspent_outputs
        }) do
     fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
-
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{
-        fee: fee,
-        transaction_movements: [
-          %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
-        ],
-        consumed_inputs: [
-          %VersionedUnspentOutput{
-            unspent_output: %UnspentOutput{
-              amount: 100_000_000,
-              from: random_address(),
-              type: :UCO,
-              timestamp: DateTime.add(timestamp, -1000)
-            },
-            protocol_version: 7
-          }
-        ],
-        unspent_outputs: [
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        timestamp,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> Map.put(
+        :consumed_inputs,
+        [
           %UnspentOutput{
-            amount: 100_000_000 - fee,
-            from: tx.address,
+            amount: 100_000_000,
+            from: random_address(),
             type: :UCO,
-            timestamp: timestamp
+            timestamp: DateTime.add(timestamp, -1000)
           }
         ]
-      }
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+      )
 
     %ValidationStamp{
       timestamp: timestamp,

@@ -149,6 +149,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         beacon_storage_nodes_view,
         io_storage_nodes_view
       )
+      |> ValidationContext.add_aggregated_utxos(unspent_outputs)
       |> validate()
 
     start_replication(validation_context)

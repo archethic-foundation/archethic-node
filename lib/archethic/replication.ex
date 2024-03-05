@@ -48,7 +48,10 @@ defmodule Archethic.Replication do
           contract_context :: nil | Contract.Context.t(),
           validation_inputs :: list(VersionedUnspentOutput.t())
         ) ::
-          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
+          :ok
+          | {:error, TransactionValidator.error()}
+          | {:error, :transaction_already_exists}
+          | {:error, :invalid_validation_inputs}
   def validate_transaction(
         tx = %Transaction{address: address, type: type},
         contract_context,
@@ -69,8 +72,11 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      with {:ok, previous_tx, inputs} <- fetch_context(tx, validation_inputs),
-           :ok <- TransactionValidator.validate(tx, previous_tx, inputs, contract_context) do
+      {previous_tx, inputs} = fetch_context(tx)
+
+      with :ok <- validate_validation_inputs(tx, validation_inputs, inputs),
+           :ok <-
+             TransactionValidator.validate(tx, previous_tx, validation_inputs, contract_context) do
         # Validate the transaction and check integrity from the previous transaction
 
         Logger.info("Replication validation finished",
@@ -281,7 +287,7 @@ defmodule Archethic.Replication do
     PubSub.notify_new_transaction(address, type, timestamp)
   end
 
-  defp fetch_context(tx = %Transaction{}, validation_inputs) do
+  defp fetch_context(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -299,19 +305,33 @@ defmodule Archethic.Replication do
 
     unspent_outputs = fetch_inputs(tx)
 
-    if Enum.all?(validation_inputs, &(&1 in unspent_outputs)) do
-      previous_transaction =
-        Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
+    previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
-      Logger.debug("Previous transaction #{inspect(previous_transaction)}",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
-      )
+    Logger.debug("Previous transaction #{inspect(previous_transaction)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-      {:ok, previous_transaction, unspent_outputs}
-    else
-      Task.shutdown(previous_transaction_task, :brutal_kill)
-      {:error, :invalid_validation_inputs}
+    {previous_transaction, unspent_outputs}
+  end
+
+  defp validate_validation_inputs(
+         %Transaction{address: address, type: type},
+         validation_inputs,
+         inputs
+       ) do
+    case Enum.reject(validation_inputs, &(&1 in inputs)) do
+      [] ->
+        :ok
+
+      inputs_not_found ->
+        Logger.error(
+          "Invalid validation inputs - inputs not found: #{inspect(inputs_not_found)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+        {:error, :invalid_validation_inputs}
     end
   end
 

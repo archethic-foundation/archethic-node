@@ -594,7 +594,11 @@ defmodule Archethic.Mining.ValidationContext do
       |> Enum.filter(&(elem(&1, 0) in utxos_hashes))
       |> Enum.map(&elem(&1, 1))
 
-    %__MODULE__{context | unspent_outputs: utxos_intersection}
+    %__MODULE__{
+      context
+      | unspent_outputs: utxos_intersection,
+        aggregated_utxos: utxos_intersection
+    }
   end
 
   defp aggregate_p2p_views(
@@ -1009,16 +1013,14 @@ defmodule Archethic.Mining.ValidationContext do
   defp validation_stamp_inconsistencies(
          context = %__MODULE__{
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+           aggregated_utxos: aggregated_utxos,
            previous_transaction: prev_tx,
            resolved_addresses: resolved_addresses,
            contract_context: contract_context,
            validation_stamp:
              stamp = %ValidationStamp{
                timestamp: validation_time,
-               ledger_operations: %LedgerOperations{
-                 fee: stamp_fee,
-                 consumed_inputs: consumed_inputs
-               }
+               ledger_operations: %LedgerOperations{fee: stamp_fee}
              }
          }
        ) do
@@ -1039,16 +1041,11 @@ defmodule Archethic.Mining.ValidationContext do
         next_state
       )
 
-    inputs =
-      Enum.reject(
-        consumed_inputs,
-        &(&1.unspent_output.from == LedgerOperations.burning_address())
-      )
-
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, stamp_fee, inputs, validation_time, next_state)
+      get_ledger_operations(context, stamp_fee, aggregated_utxos, validation_time, next_state)
 
     subsets_verifications = [
+      aggregated_utxos: fn -> valid_aggregated_utxo?(aggregated_utxos, context) end,
       timestamp: fn -> valid_timestamp(stamp, context) end,
       signature: fn -> valid_stamp_signature(stamp, context) end,
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
@@ -1057,7 +1054,7 @@ defmodule Archethic.Mining.ValidationContext do
       transaction_fee: fn -> valid_stamp_fee?(stamp, fee) end,
       transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
-      consumed_inputs: fn -> valid_consumed_inputs?(inputs, context) end,
+      consumed_inputs: fn -> valid_consumed_inputs?(stamp, ledger_operations) end,
       unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, ledger_operations) end,
       error: fn ->
         valid_stamp_error?(
@@ -1077,6 +1074,9 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.filter(&match?({_, false}, &1))
     |> Enum.map(&elem(&1, 0))
   end
+
+  defp valid_aggregated_utxo?(aggregated_utxos, %__MODULE__{unspent_outputs: unspent_outputs}),
+    do: Enum.all?(aggregated_utxos, &(&1 in unspent_outputs))
 
   defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
          validation_time: validation_time
@@ -1189,8 +1189,12 @@ defmodule Archethic.Mining.ValidationContext do
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
   end
 
-  defp valid_consumed_inputs?(inputs, %__MODULE__{unspent_outputs: unspent_outputs}) do
-    Enum.all?(inputs, &(&1 in unspent_outputs))
+  defp valid_consumed_inputs?(
+         %ValidationStamp{ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}},
+         %LedgerOperations{consumed_inputs: expected_consumed_inputs}
+       ) do
+    length(consumed_inputs) == length(expected_consumed_inputs) and
+      Enum.all?(consumed_inputs, &(&1 in expected_consumed_inputs))
   end
 
   defp valid_stamp_unspent_outputs?(
@@ -1201,7 +1205,8 @@ defmodule Archethic.Mining.ValidationContext do
          },
          %LedgerOperations{unspent_outputs: expected_unspent_outputs}
        ) do
-    expected_unspent_outputs == next_unspent_outputs
+    length(next_unspent_outputs) == length(expected_unspent_outputs) and
+      Enum.all?(next_unspent_outputs, &(&1 in expected_unspent_outputs))
   end
 
   defp valid_protocol_version?(%ValidationStamp{protocol_version: version}),
@@ -1397,10 +1402,5 @@ defmodule Archethic.Mining.ValidationContext do
   @spec add_aggregated_utxos(t(), list(VersionedUnspentOutput.t())) :: t()
   def add_aggregated_utxos(context = %__MODULE__{}, aggregated_utxos) do
     %__MODULE__{context | aggregated_utxos: aggregated_utxos}
-  end
-
-  @spec valid_aggregated_utxo?(t(), list(VersionedUnspentOutput.t())) :: boolean()
-  def valid_aggregated_utxo?(%__MODULE__{unspent_outputs: unspent_outputs}, aggregated_utxos) do
-    Enum.all?(aggregated_utxos, &(&1 in unspent_outputs))
   end
 end
