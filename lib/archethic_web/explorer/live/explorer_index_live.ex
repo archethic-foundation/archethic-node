@@ -5,10 +5,12 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive do
 
   alias Phoenix.View
 
-  alias Archethic.{DB, PubSub, BeaconChain}
+  alias Archethic.{Crypto, DB, PubSub, BeaconChain}
   alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.Explorer.ExplorerView
   alias ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent
+
+  require Logger
 
   def mount(_params, _session, socket) do
     tps = DB.get_latest_tps()
@@ -86,6 +88,29 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive do
   end
 
   def handle_event("search", %{"address" => address}, socket) do
-    {:noreply, redirect(socket, to: "/explorer/transaction/#{address}")}
+    with {:ok, addr} <- validate_address(address),
+         {:ok, ^addr} <- Archethic.fetch_genesis_address(addr) |> IO.inspect() do
+      {:noreply, redirect(socket, to: "/explorer/chain?address=#{address}")}
+    else
+      {:ok, _} ->
+        {:noreply, redirect(socket, to: "/explorer/transaction/#{address}")}
+
+      {:error, :invalid_address} ->
+        {:noreply, assign(socket, :error, "Invalid address")}
+
+      {:error, :network_issue} ->
+        Logger.error("Cannot fetch genesis address for #{address}")
+        {:noreply, assign(socket, :error, "Unexpected error, please try later")}
+    end
+  end
+
+  defp validate_address(address) do
+    with {:ok, address} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_address?(address) do
+      {:ok, address}
+    else
+      _ ->
+        {:error, :invalid_address}
+    end
   end
 end

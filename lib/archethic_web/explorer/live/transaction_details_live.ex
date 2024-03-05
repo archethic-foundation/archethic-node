@@ -235,7 +235,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   defp async_assign_inputs_and_token_properties(
          tx = %Transaction{
-           address: address,
            data: %TransactionData{
              ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
            },

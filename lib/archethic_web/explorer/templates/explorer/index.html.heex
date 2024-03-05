@@ -11,14 +11,17 @@
             name="address"
             class="input-field"
             maxlength="68"
-            placeholder="Enter transaction address"
+            placeholder="Enter transaction / chain address"
           />
         </div>
         <div class="level-item">
-          <button class="app-button shadow">Search transaction</button>
+          <button class="app-button shadow">Search</button>
         </div>
       </div>
     </div>
+    <%= if assigns[:error] do %>
+      <p class="has-text-danger"><%= assigns[:error] %></p>
+    <% end %>
   </form>
 
   <div class="my-4 is-size-4">Latest transactions</div>
