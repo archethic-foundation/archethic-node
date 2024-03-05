@@ -9,6 +9,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.PubSub
   alias Archethic.Reward
   alias Archethic.TaskSupervisor
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -87,16 +88,24 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          tx = %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
-             timestamp: timestamp
+             timestamp: timestamp,
+             proof_of_integrity: proof_of_integrity
            }
          }
        ) do
-    previous_address = Transaction.previous_address(tx)
-
     uco_price_at_time = OracleChain.get_uco_price(timestamp)
 
     async_assign_resolved_movements(tx)
     async_assign_inputs_and_token_properties(tx)
+
+    previous_address =
+      if TransactionChain.proof_of_integrity([tx]) == proof_of_integrity do
+        # If the proof of integrity is the same, it's the first transaction
+        # Hence no need to create a link to the previous transaction (being the genesis)
+        nil
+      else
+        Transaction.previous_address(tx)
+      end
 
     socket
     |> assign(:transaction, consolidate_consumed_inputs(tx))
@@ -274,28 +283,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     )
   end
 
-  defp async_assign_inputs_and_token_properties(address) do
-    me = self()
-
-    Task.Supervisor.async_nolink(
-      TaskSupervisor,
-      fn ->
-        # We force the UI to display as unspent, because no transaction were produced at this time
-        inputs =
-          address
-          |> Archethic.get_transaction_inputs()
-          |> Enum.map(fn input -> %{input | spent?: false} end)
-
-        send(me, {:async_assign, inputs: inputs})
-
-        get_token_addresses([], inputs)
-        |> Enum.uniq()
-        |> async_assign_token_properties(me)
-      end,
-      timeout: 20_000
-    )
-  end
-
   defp async_assign_token_properties(token_addresses, pid) do
     Task.Supervisor.async_nolink(
       TaskSupervisor,
@@ -309,8 +296,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp handle_not_existing_transaction(socket, address) do
-    async_assign_inputs_and_token_properties(address)
-
     socket
     |> assign(:address, address)
     |> assign(:inputs, [])
