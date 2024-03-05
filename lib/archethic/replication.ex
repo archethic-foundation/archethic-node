@@ -314,7 +314,7 @@ defmodule Archethic.Replication do
 
     genesis_address = Task.await(genesis_task)
 
-    inputs = fetch_unspent_outputs(tx, genesis_address)
+    unspent_outputs = fetch_unspent_outputs(tx, genesis_address)
     previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
@@ -589,7 +589,6 @@ defmodule Archethic.Replication do
           opts :: ingest_options()
         ) :: :ok
   def ingest_transaction(tx = %Transaction{}, genesis_address, opts \\ []) when is_list(opts) do
-    io_transaction? = Keyword.get(opts, :io_transaction?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
     download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())

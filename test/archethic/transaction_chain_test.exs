@@ -678,7 +678,7 @@ defmodule Archethic.TransactionChainTest do
 
       now = DateTime.utc_now()
 
-      v_utxo = %VersionedTransactionInput{
+      v_input = %VersionedTransactionInput{
         input: %TransactionInput{
           from: "Alice2",
           amount: 10,
@@ -691,10 +691,10 @@ defmodule Archethic.TransactionChainTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetTransactionInputs{address: _}, _ ->
-        {:ok, %TransactionInputList{inputs: [v_utxo]}}
+        {:ok, %TransactionInputList{inputs: [v_input]}}
       end)
 
-      assert [^v_utxo] = TransactionChain.fetch_inputs("Alice1", nodes, now) |> Enum.to_list()
+      assert [^v_input] = TransactionChain.fetch_inputs("Alice1", nodes) |> Enum.to_list()
     end
 
     test "should resolve the longest inputs when conflicts" do
@@ -757,8 +757,7 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert [^v_utxo1, ^v_utxo2] =
-               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
-               |> Enum.to_list()
+               TransactionChain.fetch_inputs("Alice1", nodes) |> Enum.to_list()
     end
   end
 

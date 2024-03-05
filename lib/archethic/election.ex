@@ -791,11 +791,19 @@ defmodule Archethic.Election do
           authorized_and_available_nodes :: list(Node.t()),
           previous_summary_time :: DateTime.t()
         ) :: list(Node.t())
+  def get_synchronized_nodes_before([], _previous_summary_time), do: []
+
   def get_synchronized_nodes_before(nodes_list, previous_summary_time) do
-    Enum.filter(
-      nodes_list,
-      &(DateTime.compare(&1.availability_update, previous_summary_time) == :lt and
-          DateTime.compare(&1.authorization_date, previous_summary_time) == :lt)
-    )
+    filtered_nodes =
+      Enum.filter(
+        nodes_list,
+        &(DateTime.compare(&1.availability_update, previous_summary_time) == :lt and
+            DateTime.compare(&1.authorization_date, previous_summary_time) == :lt)
+      )
+
+    case filtered_nodes do
+      [] -> nodes_list
+      nodes -> nodes
+    end
   end
 end

@@ -231,7 +231,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      tx = TransactionFactory.create_transaction_with_invalid_fee()
+      tx = TransactionFactory.create_transaction_with_invalid_fee(unspent_outputs)
       genesis = Transaction.previous_address(tx)
 
       v_unspent_outputs =
@@ -288,7 +288,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       prev_tx = ContractFactory.create_valid_contract_tx(code, seed: contract_seed)
 
       next_tx =
-        ContractFactory.create_next_contract_tx(prev_tx, content: "ok", inputs: unspent_outputs)
+        ContractFactory.create_next_contract_tx(prev_tx,
+          content: "ok",
+          inputs: unspent_outputs,
+          contract_context: contract_context
+        )
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{address: ^trigger_address}, _ ->

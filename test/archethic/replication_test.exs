@@ -150,7 +150,7 @@ defmodule Archethic.ReplicationTest do
       ContractFactory.create_next_contract_tx(prev_tx,
         content: "ok",
         state: encoded_state,
-        inputs: unspent_outputs |> VersionedUnspentOutput.unwrap_unspent_outputs()
+        inputs: unspent_outputs
       )
 
     genesis_address = Transaction.previous_address(prev_tx)
@@ -175,7 +175,7 @@ defmodule Archethic.ReplicationTest do
                    trigger: {:datetime, now},
                    timestamp: now
                  },
-                 unspent_outputs
+                 v_unspent_outputs
                )
 
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))

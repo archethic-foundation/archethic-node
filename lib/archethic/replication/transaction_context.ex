@@ -1,7 +1,6 @@
 defmodule Archethic.Replication.TransactionContext do
   @moduledoc false
 
-  alias Archethic.BeaconChain
   alias Archethic.Crypto
 
   alias Archethic.Election

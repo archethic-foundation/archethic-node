@@ -128,7 +128,7 @@ defmodule Archethic.Replication.TransactionValidator do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
          {:ok, encoded_state} <-
-           validate_contract_execution(contract_context, prev_tx, genesis_address, tx),
+           validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs),
          :ok <- validate_inputs(tx, inputs, encoded_state, contract_context),
          {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
          :ok <-
