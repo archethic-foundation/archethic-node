@@ -3,34 +3,59 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
   Displays the transaction chain (all transactions in the chain) of an address.
   User can type any address part of the chain. We will always fetch from the latest transaction DESC.
   There is an infinite scrolling. 10 transactions are loaded at a time.
-
-  ps: We do not actually use the `page` assign, we need it for the InfiniteScroll hook to work.
-      We use instead the address of the last transaction loaded for the pagination.
   """
 
   use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Crypto
   alias Archethic.OracleChain
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchethicWeb.Explorer.Components.TransactionsList
+  alias ArchethicWeb.Explorer.Components.UnspentOutputList
+  alias ArchethicWeb.Explorer.Components.Amount
+  alias ArchethicWeb.WebUtils
 
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(params, _session, socket) do
-    case params["address"] do
-      nil ->
-        {:ok,
-         assign(socket, %{
-           page: 1,
-           transaction_chain: [],
-           address: "",
-           chain_size: 0,
-           uco_balance: 0,
-           uco_price: [eur: 0.05, usd: 0.07]
-         })}
+    if connected?(socket) do
+      encoded_address = params["address"]
 
-      address ->
-        {:ok, assign(socket, get_paginated_transaction_chain(address))}
+      state =
+        case encoded_address do
+          nil ->
+            %{}
+
+          _ ->
+            with {:ok, address} <- decode_address(encoded_address),
+                 {chain_size, chain_txs, genesis_address} <- fetch_data(address),
+                 chain_utxos <- Archethic.get_unspent_outputs(genesis_address),
+                 balance <- get_balance(chain_utxos) do
+              # asynchronously fetch the token properties
+              Task.async(fn -> fetch_token_properties(chain_utxos) end)
+
+              %{
+                address: address,
+                genesis_address: genesis_address,
+                page: 1,
+                paging_address: unless(Enum.empty?(chain_txs), do: List.last(chain_txs).address),
+                chain_utxos: chain_utxos,
+                chain_txs: chain_txs,
+                chain_size: chain_size,
+                balance: balance,
+                uco_price_now: OracleChain.get_uco_price(DateTime.utc_now()),
+                token_properties: %{}
+              }
+            else
+              {:error, :invalid_address} -> %{error: "Invalid address"}
+              {:error, :network_issue} -> %{error: "Network issue"}
+            end
+        end
+
+      {:ok, assign(socket, state)}
+    else
+      # do not refetch data when socket connect
+      {:ok, socket}
     end
   end
 
@@ -42,20 +67,20 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
         _,
         socket = %{
           assigns: %{
-            transaction_chain: transaction_chain,
+            page: page,
             paging_address: paging_address,
-            chain_size: size,
-            page: page
+            chain_txs: chain_txs,
+            chain_size: size
           }
         }
       ) do
-    with false <- length(transaction_chain) == size,
+    with false <- length(chain_txs) == size,
          {:ok, next_transactions} <-
            Archethic.get_pagined_transaction_chain(paging_address, paging_address, :desc) do
       {:noreply,
        assign(socket, %{
          page: page + 1,
-         transaction_chain: transaction_chain ++ next_transactions,
+         chain_txs: chain_txs ++ next_transactions,
          paging_address: List.last(next_transactions).address
        })}
     else
@@ -64,71 +89,27 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
     end
   end
 
-  defp get_paginated_transaction_chain(encoded_address) do
+  # Task.async result
+  def handle_info({_ref, {:token_properties, token_properties}}, socket) do
+    {:noreply, assign(socket, :token_properties, token_properties)}
+  end
+
+  # Task.async down
+  def handle_info({:DOWN, _ref, :process, _pid, :normal}, socket) do
+    {:noreply, socket}
+  end
+
+  defp decode_address(encoded_address) do
     with {:ok, addr} <- Base.decode16(encoded_address, case: :mixed),
-         true <- Crypto.valid_address?(addr),
-         {chain_length, transactions, genesis_address} <- get_chain_data(addr),
-         {:ok, %{uco: uco_balance}} <- Archethic.get_balance(genesis_address),
-         uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
-      paging_address = unless Enum.empty?(transactions), do: List.last(transactions).address
-
-      %{
-        page: 1,
-        transaction_chain: transactions,
-        address: encoded_address,
-        paging_address: paging_address,
-        chain_size: chain_length,
-        uco_balance: uco_balance,
-        uco_price: uco_price
-      }
+         true <- Crypto.valid_address?(addr) do
+      {:ok, addr}
     else
-      :error ->
-        %{
-          page: 1,
-          transaction_chain: [],
-          address: encoded_address,
-          chain_size: 0,
-          uco_balance: 0,
-          error: "Invalid address",
-          uco_price: [eur: 0.05, usd: 0.07]
-        }
-
-      false ->
-        %{
-          page: 1,
-          transaction_chain: [],
-          address: encoded_address,
-          chain_size: 0,
-          uco_balance: 0,
-          error: "Invalid address",
-          uco_price: [eur: 0.05, usd: 0.07]
-        }
-
-      {:error, :transaction_not_exists} ->
-        # no error here, because there's a message for this case in the template
-        %{
-          page: 1,
-          transaction_chain: [],
-          address: encoded_address,
-          chain_size: 0,
-          uco_balance: 0,
-          uco_price: [eur: 0.05, usd: 0.07]
-        }
-
-      {:error, _} ->
-        %{
-          page: 1,
-          transaction_chain: [],
-          address: encoded_address,
-          chain_size: 0,
-          uco_balance: 0,
-          error: "Network issue",
-          uco_price: [eur: 0.05, usd: 0.07]
-        }
+      _ ->
+        {:error, :invalid_address}
     end
   end
 
-  defp get_chain_data(address) do
+  defp fetch_data(address) do
     [
       Task.async(fn -> Archethic.get_transaction_chain_length(address) end),
       Task.async(fn -> Archethic.get_pagined_transaction_chain(address, nil, :desc) end),
@@ -139,6 +120,28 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
       if Enum.all?(res, &match?({:ok, _}, &1)),
         do: res |> Enum.map(&elem(&1, 1)) |> List.to_tuple(),
         else: {:error, :network_issue}
+    end)
+  rescue
+    _ -> {:error, :network_issue}
+  end
+
+  defp fetch_token_properties(utxos) do
+    {:token_properties,
+     Enum.reduce(utxos, [], fn
+       %UnspentOutput{type: {:token, token_address, _token_id}}, acc -> [token_address | acc]
+       _, acc -> acc
+     end)
+     |> Enum.uniq()
+     |> WebUtils.get_token_properties()}
+  end
+
+  defp get_balance(utxos) do
+    Enum.reduce(utxos, %{}, fn
+      %UnspentOutput{type: type, amount: amount}, acc ->
+        Map.update(acc, type, amount, &(&1 + amount))
+
+      _, acc ->
+        acc
     end)
   end
 end
