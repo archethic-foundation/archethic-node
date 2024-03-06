@@ -48,6 +48,19 @@ defmodule Archethic.Contracts.InterpreterTest do
   end
 
   describe "parse code v1" do
+    test "should be able to throw in an action block" do
+      assert {:ok, %Contract{}} =
+               """
+               @version 1
+
+               condition triggered_by: transaction, as: []
+               actions triggered_by: transaction do
+                 throw "something bad happened"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
     test "should return an error if there are unexpected terms" do
       assert {:error, _} =
                """
@@ -464,6 +477,142 @@ defmodule Archethic.Contracts.InterpreterTest do
                  incoming_tx,
                  nil
                )
+    end
+
+    test "should be able to throw in an action block" do
+      code = """
+      @version 1
+
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        throw "something bad happened"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {
+               :error,
+               "something bad happened",
+               [],
+               []
+             } =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+
+    test "should be able to throw in a condition block" do
+      code = """
+      @version 1
+
+      condition triggered_by: transaction, as: [
+        content: throw "invalid content"
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      %Contract{
+        conditions: %{
+          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+        }
+      } = Contract.from_transaction!(contract_tx)
+
+      contract_constants = Constants.from_transaction(contract_tx)
+      incoming_constants = Constants.from_transaction(incoming_tx)
+
+      assert {
+               :error,
+               "content",
+               "invalid content",
+               []
+             } =
+               Interpreter.execute_condition(1, subjects, %{
+                 "transaction" => incoming_constants,
+                 "contract" => contract_constants
+               })
+    end
+
+    test "should be able to throw in a private function (from an action)" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        function_that_throws()
+      end
+
+      fun function_that_throws() do
+        throw "you shall not pass"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {
+               :error,
+               "you shall not pass",
+               [],
+               []
+             } =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+
+    test "should be able to throw in a private function (from a condition)" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: [
+        address: function_that_throws()
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+
+      fun function_that_throws() do
+        throw "you shall not pass"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      %Contract{
+        functions: functions,
+        conditions: %{
+          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+        }
+      } = Contract.from_transaction!(contract_tx)
+
+      contract_constants = Constants.from_transaction(contract_tx)
+      incoming_constants = Constants.from_transaction(incoming_tx)
+
+      assert {
+               :error,
+               "address",
+               "you shall not pass",
+               []
+             } =
+               Interpreter.execute_condition(1, subjects, %{
+                 :functions => functions,
+                 "transaction" => incoming_constants,
+                 "contract" => contract_constants
+               })
     end
 
     test "Should not be able to use out of scope variables" do
