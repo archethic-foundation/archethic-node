@@ -63,18 +63,19 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
 
           <div class="column is-narrow">
             <%= if input.consumed? do %>
-              <span class="tag is-danger mono" data-tooltip="consumed by this transaction">
-                Used&nbsp;&nbsp;
+              <span class="ae-label">
+                Spent
               </span>
             <% else %>
-              <span class="tag is-success mono" data-tooltip="not used by this transaction">
-                Unused&nbsp;&nbsp;
-              </span>
-            <% end %>
-            <%= if input.spent? do %>
-              <span class="tag is-danger mono" data-tooltip="globally spent in the chain">
-                Spent&nbsp;&nbsp;
-              </span>
+              <%= if input.spent? do %>
+                <span class="ae-label">
+                  Not used then, spent now.
+                </span>
+              <% else %>
+                <span class="ae-label">
+                  Still unspent
+                </span>
+              <% end %>
             <% end %>
           </div>
         </li>
