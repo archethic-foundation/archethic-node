@@ -38,7 +38,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
        previous_address: nil,
        transaction: nil,
        inputs: [],
-       calls: [],
        uco_price_now: uco_price_now,
        linked_movements: []
      })}
@@ -108,28 +107,14 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
       end
 
     socket
-    |> assign(:transaction, consolidate_consumed_inputs(tx))
+    |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)
     |> assign(:inputs, [])
-    |> assign(:calls, [])
     |> assign(:token_properties, %{})
     |> assign(:linked_movements, [])
   end
-
-  defp consolidate_consumed_inputs(
-         tx = %Transaction{
-           address: address,
-           validation_stamp: %ValidationStamp{protocol_version: protocol_version}
-         }
-       )
-       when protocol_version < 7 do
-    inputs = Archethic.get_transaction_inputs(address)
-    put_in(tx, [:validation_stamp, :ledger_operations, :consumed_inputs], inputs)
-  end
-
-  defp consolidate_consumed_inputs(tx), do: tx
 
   defp async_assign_resolved_movements(%Transaction{
          address: address,
@@ -248,6 +233,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
              ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
            },
            validation_stamp: %ValidationStamp{
+             protocol_version: protocol_version,
              ledger_operations: %LedgerOperations{
                transaction_movements: transaction_movements,
                unspent_outputs: unspent_outputs,
@@ -267,11 +253,12 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
           |> Archethic.get_transaction_inputs()
           |> Enum.map(fn input ->
             # We flag as consumed the inputs really used in the transaction
-            Map.put(
-              input,
-              :consumed?,
-              Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))
-            )
+            consumed? =
+              if protocol_version < 7,
+                do: true,
+                else: Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))
+
+            Map.put(input, :consumed?, consumed?)
           end)
 
         send(me, {:async_assign, inputs: inputs})
@@ -303,7 +290,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     socket
     |> assign(:address, address)
     |> assign(:inputs, [])
-    |> assign(:calls, [])
     |> assign(:error, :not_exists)
     |> assign(:token_properties, %{})
   end
