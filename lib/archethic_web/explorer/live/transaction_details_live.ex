@@ -251,14 +251,17 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
           tx
           |> Transaction.previous_address()
           |> Archethic.get_transaction_inputs()
-          |> Enum.map(fn input ->
-            # We flag as consumed the inputs really used in the transaction
-            consumed? =
-              if protocol_version < 7,
-                do: true,
-                else: Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))
+          # We flag as consumed the inputs really used in the transaction
+          |> Enum.map(fn
+            input when protocol_version < 7 ->
+              Map.put(input, :consumed?, true)
 
-            Map.put(input, :consumed?, consumed?)
+            input ->
+              Map.put(
+                input,
+                :consumed?,
+                Enum.any?(consumed_inputs, &similar?(input, &1.unspent_output))
+              )
           end)
 
         send(me, {:async_assign, inputs: inputs})

@@ -89,7 +89,7 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive do
 
   def handle_event("search", %{"address" => address}, socket) do
     with {:ok, addr} <- validate_address(address),
-         {:ok, ^addr} <- Archethic.fetch_genesis_address(addr) |> IO.inspect() do
+         {:ok, ^addr} <- Archethic.fetch_genesis_address(addr) do
       {:noreply, redirect(socket, to: "/explorer/chain?address=#{address}")}
     else
       {:ok, _} ->
