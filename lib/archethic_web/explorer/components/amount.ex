@@ -39,11 +39,13 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
       ) do
     token_properties = Map.get(token_properties, token_address, %{})
     decimals = Map.get(token_properties, :decimals, 8)
+    token_name_max_length = Map.get(assigns, :max_length, @max_symbol_len)
 
     assigns =
       assign(assigns, %{
         amount: from_bigint(amount, decimals),
-        token_name: get_token_name(token_properties, token_address, token_id)
+        token_name:
+          get_token_name(token_properties, token_address, token_id, token_name_max_length)
       })
 
     ~H"""
@@ -63,15 +65,15 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
     """
   end
 
-  defp get_token_name(token_properties, token_address, token_id) do
+  defp get_token_name(token_properties, token_address, token_id, token_name_max_length) do
     case Map.get(token_properties, :symbol) do
       nil ->
         short_address(token_address)
 
       symbol ->
         text =
-          if String.length(symbol) > @max_symbol_len do
-            String.slice(symbol, 0..(@max_symbol_len - 1)) <> "..."
+          if String.length(symbol) > token_name_max_length do
+            String.slice(symbol, 0..(token_name_max_length - 1)) <> "..."
           else
             symbol
           end

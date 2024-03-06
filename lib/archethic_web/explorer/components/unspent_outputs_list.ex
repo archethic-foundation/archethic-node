@@ -60,16 +60,6 @@ defmodule ArchethicWeb.Explorer.Components.UnspentOutputList do
                 <span class="ae-label">Smart contract state</span>
             <% end %>
           </div>
-
-          <%= if @display_status? do %>
-            <div class="column is-narrow">
-              <%= if ArchethicWeb.Explorer.TransactionDetailsLive.utxo_spent?(utxo, @inputs) do %>
-                <span class="tag is-danger mono">Spent&nbsp;&nbsp;</span>
-              <% else %>
-                <span class="tag is-success mono">Unspent</span>
-              <% end %>
-            </div>
-          <% end %>
         </li>
       <% end %>
     </ul>

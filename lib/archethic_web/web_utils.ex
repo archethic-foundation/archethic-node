@@ -2,6 +2,8 @@ defmodule ArchethicWeb.WebUtils do
   @moduledoc false
 
   use Phoenix.HTML
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   @display_limit 10
 
@@ -33,6 +35,38 @@ defmodule ArchethicWeb.WebUtils do
 
   def keep_remote_ip(conn) do
     %{"remote_ip" => conn.remote_ip}
+  end
+
+  @spec get_token_properties(list(binary())) :: %{binary() => map()}
+  def get_token_properties(token_addresses) do
+    Task.async_stream(token_addresses, fn token_address ->
+      case Archethic.search_transaction(token_address) do
+        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
+        when type in [:token, :mint_rewards] ->
+          {token_address, content}
+
+        _ ->
+          :error
+      end
+    end)
+    |> Enum.reduce(%{}, fn
+      {:ok, {token_address, content}}, acc ->
+        case Jason.decode(content) do
+          {:ok, map} ->
+            properties = %{
+              decimals: Map.get(map, "decimals", 8),
+              symbol: Map.get(map, "symbol", Map.get(map, "name"))
+            }
+
+            Map.put(acc, token_address, properties)
+
+          _ ->
+            acc
+        end
+
+      _, acc ->
+        acc
+    end)
   end
 
   def short_address(address) do

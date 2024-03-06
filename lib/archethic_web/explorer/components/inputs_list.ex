@@ -17,7 +17,8 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
 
     ~H"""
     <ul>
-      <%= for input <- @inputs do %>
+      <% sorted_inputs = Enum.sort_by(@inputs, & &1.consumed?, :desc) %>
+      <%= for input <- sorted_inputs do %>
         <li class="columns">
           <div class="column is-narrow">
             <span class="ae-label">From</span>
@@ -36,15 +37,16 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
           </div>
 
           <div class="column is-narrow">
-            <span class="ae-label">Amount</span>
             <%= case input.type do %>
               <% :UCO -> %>
+                <span class="ae-label">Amount</span>
                 <Amount.uco
                   amount={input.amount}
                   uco_price_at_time={@uco_price_at_time}
                   uco_price_now={@uco_price_now}
                 />
               <% {:token, token_address, token_id} -> %>
+                <span class="ae-label">Amount</span>
                 <Amount.token
                   amount={input.amount}
                   token_address={token_address}
@@ -52,14 +54,28 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
                   token_properties={@token_properties}
                   socket={@socket}
                 />
+              <% :call -> %>
+                <span class="ae-label">Smart contract call</span>
+              <% :state -> %>
+                <span class="ae-label">Smart contract state</span>
             <% end %>
           </div>
 
           <div class="column is-narrow">
-            <%= if input.spent? do %>
-              <span class="tag is-danger mono">Spent&nbsp;&nbsp;</span>
+            <%= if input.consumed? do %>
+              <span class="ae-label">
+                Spent
+              </span>
             <% else %>
-              <span class="tag is-success mono">Unspent</span>
+              <%= if input.spent? do %>
+                <span class="ae-label">
+                  Not used then, spent now.
+                </span>
+              <% else %>
+                <span class="ae-label">
+                  Still unspent
+                </span>
+              <% end %>
             <% end %>
           </div>
         </li>
