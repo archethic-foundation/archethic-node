@@ -271,7 +271,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           tokens_to_spend,
           uco_balance,
           tokens_balance,
-          encoded_state,
           contract_context
         )
 
@@ -288,7 +287,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         )
         |> add_uco_utxo(consumed_utxos, uco_to_spend, change_address, timestamp)
         |> Enum.filter(&(&1.amount > 0))
-        |> add_state_utxo(inputs, encoded_state, change_address, timestamp)
+        |> add_state_utxo(encoded_state, change_address, timestamp)
 
       {true,
        ops
@@ -341,7 +340,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          tokens_to_spend,
          uco_balance,
          tokens_balance,
-         encoded_state,
          contract_context
        ) do
     inputs
@@ -355,13 +353,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         key = {token_address, token_id}
         get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance)
 
-      {:state,
-       [
-         state_utxo = %VersionedUnspentOutput{
-           unspent_output: %UnspentOutput{encoded_payload: previous_state}
-         }
-       ]} ->
-        if encoded_state != nil && previous_state != encoded_state, do: [state_utxo], else: []
+      {:state, state_utxos} ->
+        state_utxos
 
       {:call, inputs} ->
         get_call_to_consume(inputs, contract_context)
@@ -431,26 +424,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp add_state_utxo(utxos, _inputs, nil, _change_address, _timestamp), do: utxos
+  defp add_state_utxo(utxos, nil, _change_address, _timestamp), do: utxos
 
-  defp add_state_utxo(utxos, inputs, encoded_state, change_address, timestamp) do
-    case Enum.find(inputs, &(&1.unspent_output.type == :state)) do
-      %VersionedUnspentOutput{
-        unspent_output: %UnspentOutput{encoded_payload: previous_encoded_state}
-      }
-      when encoded_state == previous_encoded_state ->
-        utxos
+  defp add_state_utxo(utxos, encoded_state, change_address, timestamp) do
+    new_utxo = %UnspentOutput{
+      type: :state,
+      encoded_payload: encoded_state,
+      timestamp: timestamp,
+      from: change_address
+    }
 
-      _ ->
-        new_utxo = %UnspentOutput{
-          type: :state,
-          encoded_payload: encoded_state,
-          timestamp: timestamp,
-          from: change_address
-        }
-
-        [new_utxo | utxos]
-    end
+    [new_utxo | utxos]
   end
 
   @doc """

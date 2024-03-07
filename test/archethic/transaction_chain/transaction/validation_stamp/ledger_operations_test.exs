@@ -1130,38 +1130,38 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                )
     end
 
-    test "should not consume state if it's the same" do
-      state = :crypto.strong_rand_bytes(32)
-
-      inputs =
-        [
-          %UnspentOutput{
-            type: :state,
-            from: random_address(),
-            encoded_payload: state,
-            timestamp: DateTime.utc_now()
-          }
-        ]
-        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
-
-      tx_validation_time = DateTime.utc_now()
-
-      assert {true,
-              %LedgerOperations{
-                consumed_inputs: [],
-                unspent_outputs: []
-              }} =
-               LedgerOperations.consume_inputs(
-                 %LedgerOperations{fee: 0},
-                 "@Alice2",
-                 tx_validation_time,
-                 inputs,
-                 [],
-                 [],
-                 state,
-                 nil
-               )
-    end
+    # test "should not consume state if it's the same" do
+    #   state = :crypto.strong_rand_bytes(32)
+    #
+    #   inputs =
+    #     [
+    #       %UnspentOutput{
+    #         type: :state,
+    #         from: random_address(),
+    #         encoded_payload: state,
+    #         timestamp: DateTime.utc_now()
+    #       }
+    #     ]
+    #     |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+    #
+    #   tx_validation_time = DateTime.utc_now()
+    #
+    #   assert {true,
+    #           %LedgerOperations{
+    #             consumed_inputs: [],
+    #             unspent_outputs: []
+    #           }} =
+    #            LedgerOperations.consume_inputs(
+    #              %LedgerOperations{fee: 0},
+    #              "@Alice2",
+    #              tx_validation_time,
+    #              inputs,
+    #              [],
+    #              [],
+    #              state,
+    #              nil
+    #            )
+    # end
 
     test "should not return any utxo if nothing is spent" do
       assert {true,
