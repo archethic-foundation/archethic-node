@@ -57,7 +57,9 @@ defmodule Archethic.BeaconChain do
   Get the next beacon summary time
   """
   @spec next_summary_date(DateTime.t(), cron_interval :: binary()) :: DateTime.t()
-  defdelegate next_summary_date(date, cron_interval \\ get_summary_interval()), to: SummaryTimer, as: :next_summary
+  defdelegate next_summary_date(date, cron_interval \\ get_summary_interval()),
+    to: SummaryTimer,
+    as: :next_summary
 
   @doc """
   Get the next beacon slot time from a given date

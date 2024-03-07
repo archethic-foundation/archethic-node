@@ -35,7 +35,6 @@ defmodule Archethic.BeaconChainTest do
   import Mock
 
   setup do
-
     Application.put_env(:archethic, SlotTimer, interval: "0 0 * * * *")
     Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * * *")
 

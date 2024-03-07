@@ -80,7 +80,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
   describe "synchronous_resync (node)" do
     test "should start a resync when remote /= local" do
-
       node = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,

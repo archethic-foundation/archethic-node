@@ -107,7 +107,7 @@ defmodule Archethic.Mining.TransactionContext do
     genesis_nodes =
       genesis_address
       |> Election.chain_storage_nodes(authorized_nodes)
-      |> Election.get_synchronized_nodes_before(previous_summary_time) 
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     Task.Supervisor.async(TaskSupervisor, fn ->
       genesis_address
