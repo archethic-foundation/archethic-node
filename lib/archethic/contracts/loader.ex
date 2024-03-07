@@ -122,7 +122,7 @@ defmodule Archethic.Contracts.Loader do
       %Transaction{
         data: %TransactionData{recipients: recipients},
         validation_stamp: %ValidationStamp{recipients: resolved_recipients}
-      } = tx
+      } = resolve_recipients(tx)
 
       index = Enum.find_index(resolved_recipients, &(&1 == genesis_address))
       recipient = Enum.at(recipients, index)
@@ -148,6 +148,19 @@ defmodule Archethic.Contracts.Loader do
 
     # TransactionChain.clear_pending_transactions(genesis_address)
   end
+
+  defp resolve_recipients(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{protocol_version: protocol_version}
+         }
+       )
+       when protocol_version <= 7 do
+    update_in(tx, [Access.key!(:validation_stamp), Access.key!(:recipients)], fn recipients ->
+      Enum.map(recipients, &TransactionChain.get_genesis_address/1)
+    end)
+  end
+
+  defp resolve_recipients(tx), do: tx
 
   defp new_contract(genesis_address, contract) do
     DynamicSupervisor.start_child(
