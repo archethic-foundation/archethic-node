@@ -137,7 +137,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
 
   defp get_balance(utxos) do
     Enum.reduce(utxos, %{}, fn
-      %UnspentOutput{type: type, amount: amount}, acc ->
+      %UnspentOutput{type: type, amount: amount}, acc when amount != nil ->
         Map.update(acc, type, amount, &(&1 + amount))
 
       _, acc ->
