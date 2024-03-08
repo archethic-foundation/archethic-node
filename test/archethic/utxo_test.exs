@@ -115,14 +115,9 @@ defmodule Archethic.UTXOTest do
                      type: :UCO
                    }
                  }
-               ] =
-                 destination_genesis_address
-                 |> MemoryLedger.stream_unspent_outputs()
-                 |> Enum.to_list()
+               ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
-        assert transaction_genesis_address
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.empty?()
+        assert [] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
         assert_receive {:append_utxo, ^destination_genesis_address,
                         %VersionedUnspentOutput{
@@ -208,14 +203,9 @@ defmodule Archethic.UTXOTest do
                      amount: 300_000_000
                    }
                  }
-               ] =
-                 transaction_genesis_address
-                 |> MemoryLedger.stream_unspent_outputs()
-                 |> Enum.to_list()
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        assert destination_genesis_address
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.empty?()
+        assert [] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
         assert_receive {:flush_outputs, ^transaction_genesis_address,
                         [
@@ -342,10 +332,7 @@ defmodule Archethic.UTXOTest do
                      amount: 100_000_000
                    }
                  }
-               ] =
-                 transaction_genesis_address
-                 |> MemoryLedger.stream_unspent_outputs()
-                 |> Enum.to_list()
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
         UTXO.load_transaction(tx2, transaction_genesis_address)
 
@@ -358,10 +345,7 @@ defmodule Archethic.UTXOTest do
                      timestamp: ~U[2023-09-12 05:00:00.000Z]
                    }
                  }
-               ] =
-                 transaction_genesis_address
-                 |> MemoryLedger.stream_unspent_outputs()
-                 |> Enum.to_list()
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
       end
     end
 
@@ -401,10 +385,7 @@ defmodule Archethic.UTXOTest do
                  %VersionedUnspentOutput{
                    unspent_output: %UnspentOutput{from: ^transaction_address, type: :call}
                  }
-               ] =
-                 destination_genesis_address
-                 |> MemoryLedger.stream_unspent_outputs()
-                 |> Enum.to_list()
+               ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
         assert_receive {:append_utxo, ^destination_genesis_address,
                         %VersionedUnspentOutput{
@@ -551,13 +532,12 @@ defmodule Archethic.UTXOTest do
         UTXO.load_transaction(tx, transaction_genesis)
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain1_utxo}] =
-                 destination1_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+                 destination1_genesis |> MemoryLedger.get_unspent_outputs()
 
-        assert [] =
-                 destination2_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+        assert [] = destination2_genesis |> MemoryLedger.get_unspent_outputs()
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain3_utxo}] =
-                 destination3_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+                 destination3_genesis |> MemoryLedger.get_unspent_outputs()
       end
     end
 
@@ -707,13 +687,12 @@ defmodule Archethic.UTXOTest do
         UTXO.load_transaction(tx, transaction_genesis)
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain1_utxo}] =
-                 destination1_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+                 destination1_genesis |> MemoryLedger.get_unspent_outputs()
 
-        assert [] =
-                 destination2_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+        assert [] = destination2_genesis |> MemoryLedger.get_unspent_outputs()
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain3_utxo}] =
-                 destination3_genesis |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+                 destination3_genesis |> MemoryLedger.get_unspent_outputs()
       end
     end
   end

@@ -46,7 +46,7 @@ defmodule Archethic.UTXO.LoaderTest do
 
       Loader.add_utxo(utxo, "@Alice0")
 
-      assert [^utxo] = "@Alice0" |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+      assert [^utxo] = MemoryLedger.get_unspent_outputs("@Alice0")
       assert_receive {:append, "@Alice0", ^utxo}
     end
   end
@@ -118,10 +118,7 @@ defmodule Archethic.UTXO.LoaderTest do
                %VersionedUnspentOutput{
                  unspent_output: %UnspentOutput{from: ^tx_address, amount: 90_000_000}
                }
-             ] =
-               genesis_address
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+             ] = MemoryLedger.get_unspent_outputs(genesis_address)
     end
 
     test "should consumed inputs and flush after memory threshold" do
@@ -148,7 +145,7 @@ defmodule Archethic.UTXO.LoaderTest do
 
       Enum.each(utxos, fn utxo -> Loader.add_utxo(utxo, genesis_address) end)
 
-      assert genesis_address |> MemoryLedger.stream_unspent_outputs() |> Enum.empty?()
+      assert [] = MemoryLedger.get_unspent_outputs(genesis_address)
       assert 5 = agent_pid |> Agent.get(& &1) |> length()
 
       me = self()
@@ -257,7 +254,7 @@ defmodule Archethic.UTXO.LoaderTest do
 
       Enum.each(utxos, fn utxo -> Loader.add_utxo(utxo, genesis_address) end)
 
-      assert genesis_address |> MemoryLedger.stream_unspent_outputs() |> Enum.empty?()
+      assert [] = MemoryLedger.get_unspent_outputs(genesis_address)
       assert 4 = agent_pid |> Agent.get(& &1) |> length()
 
       me = self()

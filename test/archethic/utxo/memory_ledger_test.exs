@@ -89,17 +89,11 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
 
       assert [
                %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^transaction_address}}
-             ] =
-               destination_genesis_address
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+             ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
       assert [
                %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^transaction_address}}
-             ] =
-               transaction_genesis_address
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+             ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
     end
   end
 
@@ -124,9 +118,7 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
       })
 
       assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO}}] =
-               "@Alice0"
-               |> MemoryLedger.stream_unspent_outputs()
-               |> Enum.to_list()
+               MemoryLedger.get_unspent_outputs("@Alice0")
     end
 
     test "should evict unspent outputs from memory if the size threshold is reached" do
@@ -145,10 +137,10 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
         expected_size = :erlang.external_size(utxo) * i
 
         if i < 4 do
-          assert i == "@Alice0" |> MemoryLedger.stream_unspent_outputs() |> Enum.count()
+          assert i == "@Alice0" |> MemoryLedger.get_unspent_outputs() |> Enum.count()
           assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats("@Alice0")
         else
-          assert "@Alice0" |> MemoryLedger.stream_unspent_outputs() |> Enum.empty?()
+          assert [] = MemoryLedger.get_unspent_outputs("@Alice0")
           assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats("@Alice0")
         end
       end
@@ -179,11 +171,11 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
 
       MemoryLedger.add_chain_utxo(address, utxo)
 
-      assert [^utxo] = address |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+      assert [^utxo] = MemoryLedger.get_unspent_outputs(address)
 
       MemoryLedger.remove_consumed_input(address, utxo)
 
-      assert address |> MemoryLedger.stream_unspent_outputs() |> Enum.empty?()
+      assert MemoryLedger.get_unspent_outputs(address)
     end
 
     test "should reduce the size of unspent outputs in memory" do
@@ -212,14 +204,14 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
       MemoryLedger.add_chain_utxo(address, utxo1)
       MemoryLedger.add_chain_utxo(address, utxo2)
 
-      mem_utxos = address |> MemoryLedger.stream_unspent_outputs() |> Enum.to_list()
+      mem_utxos = MemoryLedger.get_unspent_outputs(address)
 
       assert length(mem_utxos) == 2
       assert Enum.all?([utxo1, utxo2], &Enum.member?(mem_utxos, &1))
 
       expected_size =
         address
-        |> MemoryLedger.stream_unspent_outputs()
+        |> MemoryLedger.get_unspent_outputs()
         |> Enum.map(&:erlang.external_size/1)
         |> Enum.sum()
 
