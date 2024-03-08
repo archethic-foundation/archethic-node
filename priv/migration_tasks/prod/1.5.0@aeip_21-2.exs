@@ -20,7 +20,10 @@ defmodule Migration_1_5_0 do
     end)
     |> Task.async_stream(
       fn {address, filepaths} ->
-        next_address = fetch_next_address(address)
+        next_address =
+          address
+          |> Base.decode16!(case: :mixed)
+          |> fetch_next_address()
 
         inputs =
           filepaths
@@ -31,7 +34,7 @@ defmodule Migration_1_5_0 do
           end)
           |> Enum.sort_by(& &1.input.timestamp, {:asc, DateTime})
 
-        TransactionChain.write_inputs(Base.decode16!(next_address), inputs)
+        TransactionChain.write_inputs(next_address, inputs)
       end,
       timeout: :infinity
     )
@@ -47,6 +50,7 @@ defmodule Migration_1_5_0 do
       case TransactionChain.fetch_first_transaction_address(address, storage_nodes) do
         {:ok, first_address} ->
           first_address
+
         {:error, reason} ->
           raise "Migration_1_5_0 failed to fetch first transaction address for #{Base.encode16(address)} with #{reason}"
       end
@@ -65,6 +69,7 @@ defmodule Migration_1_5_0 do
     case TransactionChain.fetch_genesis_address(address, storage_nodes) do
       {:ok, genesis_address} ->
         genesis_address
+
       {:error, reason} ->
         raise "Migration_1_5_0 failed to fetch genesis address for #{Base.encode16(address)} with #{reason}"
     end
