@@ -300,13 +300,8 @@ defmodule Archethic.TransactionChain.TransactionInput do
 
   """
   @spec set_spent(t(), list(t())) :: t()
-  def set_spent(input = %__MODULE__{}, genesis_inputs) do
-    spent? =
-      genesis_inputs
-      |> MapSet.new()
-      |> MapSet.member?(input)
-      |> Kernel.not()
-
+  def set_spent(input = %__MODULE__{type: type, from: from}, genesis_inputs) do
+    spent? = not Enum.any?(genesis_inputs, &(&1.type == type and &1.from == from))
     %{input | spent?: spent?}
   end
 end
