@@ -63,13 +63,27 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   @spec process(t(), Crypto.key()) :: SmartContractCallValidation.t()
   def process(
-        %__MODULE__{
-          recipient: recipient = %Recipient{address: recipient_address},
-          transaction: transaction = %Transaction{},
-          inputs_before: datetime
+        msg = %__MODULE__{
+          recipient: %Recipient{address: recipient_address},
+          transaction: %Transaction{address: tx_address}
         },
         _
       ) do
+    # We use job cache to reduce the number of times the contract is executed by the same node
+    Archethic.Utils.JobCache.get!(
+      {:smart_contract_validation, recipient_address, tx_address},
+      function: fn -> validate_smart_contract_call(msg) end,
+      timeout: 3_000,
+      # We set the maximum timeout for a transaction to be processed before the kill the cache
+      ttl: 60_000
+    )
+  end
+
+  defp validate_smart_contract_call(%__MODULE__{
+         recipient: recipient = %Recipient{address: recipient_address},
+         transaction: transaction = %Transaction{},
+         inputs_before: datetime
+       }) do
     # During the validation of a call there is no validation_stamp yet.
     # We need one because the contract might want to access transaction.timestamp
     # which is bound to validation_stamp.timestamp

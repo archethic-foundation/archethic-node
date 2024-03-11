@@ -40,7 +40,7 @@ defmodule Archethic.Utils.JobCache do
 
   defmodule S do
     @moduledoc false
-    defstruct([:task, :result, :function, requests: []])
+    defstruct([:task, :result, :function, requests: [], ttl: 0])
   end
 
   @doc """
@@ -112,6 +112,7 @@ defmodule Archethic.Utils.JobCache do
     * `:function` - function
     * `:name` - if present, register the process with given name
     * `:name_key` - if present, register the process with given key to JobCacheRegistry
+    * `ttl` -- if present, the process will die in the given time
 
   ## Examples
 
@@ -175,11 +176,16 @@ defmodule Archethic.Utils.JobCache do
   def init(opts) do
     function = Keyword.fetch!(opts, :function)
     immediate = Keyword.get(opts, :immediate, false)
+    ttl = Keyword.get(opts, :ttl, 0)
+
+    if ttl > 0 do
+      Process.send_after(self(), :stop, ttl)
+    end
 
     if immediate do
-      {:ok, %S{function: function, task: Task.async(function)}}
+      {:ok, %S{function: function, task: Task.async(function), ttl: ttl}}
     else
-      {:ok, %S{function: function}}
+      {:ok, %S{function: function, ttl: ttl}}
     end
   end
 
@@ -228,6 +234,8 @@ defmodule Archethic.Utils.JobCache do
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
     {:noreply, state}
   end
+
+  def handle_info(:stop, state), do: {:stop, :normal, state}
 
   defp via_tuple(key) do
     {:via, Registry, {JobCacheRegistry, key}}

@@ -75,16 +75,24 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
           Contract.set_content "hello"
         end
         """
-        |> ContractFactory.create_valid_contract_tx()
+        |> ContractFactory.create_valid_contract_tx(
+          seed: "contract_without_named_action_with_valid_message"
+        )
 
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+      |> expect(:get_transaction, fn "@SC1_for_contract_without_named_action_with_valid_message",
+                                     _,
+                                     _ ->
+        {:ok, tx}
+      end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
       assert %SmartContractCallValidation{status: :ok} =
                %ValidateSmartContractCall{
-                 recipient: %Recipient{address: "@SC1"},
+                 recipient: %Recipient{
+                   address: "@SC1_for_contract_without_named_action_with_valid_message"
+                 },
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -101,16 +109,26 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
           Contract.set_code transaction.content
         end
         """
-        |> ContractFactory.create_valid_contract_tx()
+        |> ContractFactory.create_valid_contract_tx(
+          seed: "contract_with_named_action_and_valid_message"
+        )
 
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+      |> expect(:get_transaction, fn "@SC1_for_contract_with_named_action_and_valid_message",
+                                     _,
+                                     _ ->
+        {:ok, tx}
+      end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
       assert %SmartContractCallValidation{status: :ok} =
                %ValidateSmartContractCall{
-                 recipient: %Recipient{address: "@SC1", action: "upgrade", args: []},
+                 recipient: %Recipient{
+                   address: "@SC1_for_contract_with_named_action_and_valid_message",
+                   action: "upgrade",
+                   args: []
+                 },
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -130,20 +148,23 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       end
       """
 
-      tx = ContractFactory.create_valid_contract_tx(code)
+      tx = ContractFactory.create_valid_contract_tx(code, seed: "contract_with_test_for_fee")
 
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+      |> expect(:get_transaction, fn "@SC1_for_contract_with_test_for_fee", _, _ -> {:ok, tx} end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
       expected_fee =
-        ContractFactory.create_valid_contract_tx(code, content: "hello")
+        ContractFactory.create_valid_contract_tx(code,
+          content: "hello",
+          seed: "contract_with_test_for_fee"
+        )
         |> Fee.calculate(nil, 0.07, DateTime.utc_now(), nil, 0, current_protocol_version())
 
       assert %SmartContractCallValidation{status: :ok, fee: expected_fee} ==
                %ValidateSmartContractCall{
-                 recipient: %Recipient{address: "@SC1"},
+                 recipient: %Recipient{address: "@SC1_for_contract_with_test_for_fee"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -159,16 +180,18 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
           Contract.set_content 42
         end
         """
-        |> ContractFactory.create_valid_contract_tx()
+        |> ContractFactory.create_valid_contract_tx(seed: "contract_without_trigger_transaction")
 
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+      |> expect(:get_transaction, fn "@SC1_for_contract_without_trigger_transaction", _, _ ->
+        {:ok, tx}
+      end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
       assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
                %ValidateSmartContractCall{
-                 recipient: %Recipient{address: "@SC1"},
+                 recipient: %Recipient{address: "@SC1_for_contract_without_trigger_transaction"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -188,16 +211,18 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
           Contract.set_content "hello"
         end
         """
-        |> ContractFactory.create_valid_contract_tx()
+        |> ContractFactory.create_valid_contract_tx(seed: "contract_with_invalid_message")
 
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+      |> expect(:get_transaction, fn "@SC1_for_contract_with_invalid_message", _, _ ->
+        {:ok, tx}
+      end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
 
       assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
                %ValidateSmartContractCall{
-                 recipient: %Recipient{address: "@SC1"},
+                 recipient: %Recipient{address: "@SC1_for_contract_with_invalid_message"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
