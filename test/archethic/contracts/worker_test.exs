@@ -1,7 +1,6 @@
 defmodule Archethic.Contracts.WorkerTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.Loader
   alias Archethic.ContractRegistry
   alias Archethic.Crypto
   alias Archethic.P2P
@@ -40,8 +39,6 @@ defmodule Archethic.Contracts.WorkerTest do
 
   setup do
     load_send_tx_constraints()
-
-    Loader.start_link()
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -376,7 +373,7 @@ defmodule Archethic.Contracts.WorkerTest do
       UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
       MockDB
-      |> stub(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+      |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
 
       me = self()
 
@@ -717,7 +714,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       MockDB
       |> expect(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
-      |> stub(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
+      |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
       UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
@@ -726,6 +723,109 @@ defmodule Archethic.Contracts.WorkerTest do
       Process.sleep(100)
 
       assert Process.alive?(worker_pid)
+    end
+  end
+
+  describe "Invalidate call" do
+    test "should invalidate a call if it cannot be processed and process it after contract update" do
+      code1 = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        n = 10 / String.to_number(transaction.content)
+        Contract.set_content n
+      end
+      """
+
+      code2 = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        if transaction.content == "0" do
+          Contract.set_content("Invalid content")
+        else
+          n = 10 / String.to_number(transaction.content)
+          Contract.set_content n
+        end
+      end
+      """
+
+      seed1 = random_seed()
+      contract1_tx_address = Crypto.derive_keypair(seed1, 2) |> elem(0) |> Crypto.derive_address()
+
+      contract1 =
+        ContractFactory.create_valid_contract_tx(code1, seed: seed1)
+        |> Contract.from_transaction!()
+
+      contract2 =
+        ContractFactory.create_valid_contract_tx(code2, seed: random_seed())
+        |> Contract.from_transaction!()
+
+      genesis = Transaction.previous_address(contract1.transaction)
+      {:ok, _} = Worker.start_link(contract: contract1, genesis_address: genesis)
+
+      recipient = %Recipient{address: genesis}
+
+      invalid_trigger_tx =
+        %Transaction{address: invalid_trigger_tx_address} =
+        TransactionFactory.create_valid_transaction([],
+          content: "0",
+          recipients: [recipient],
+          seed: random_seed()
+        )
+
+      valid_trigger_tx =
+        %Transaction{address: valid_trigger_tx_address} =
+        TransactionFactory.create_valid_transaction([],
+          content: "2",
+          recipients: [recipient],
+          seed: random_seed()
+        )
+
+      MockDB
+      |> expect(:get_transaction, fn ^invalid_trigger_tx_address, _, _ ->
+        {:ok, invalid_trigger_tx}
+      end)
+      |> expect(:get_transaction, fn ^valid_trigger_tx_address, _, _ ->
+        {:ok, valid_trigger_tx}
+      end)
+      |> expect(:get_transaction, fn ^invalid_trigger_tx_address, _, _ ->
+        {:ok, invalid_trigger_tx}
+      end)
+
+      UTXO.load_transaction(invalid_trigger_tx, Transaction.previous_address(invalid_trigger_tx))
+
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
+          if tx.address == contract1_tx_address do
+            assert tx.data.content == "5"
+
+            # Remove call as it has been consumed
+            utxo =
+              genesis
+              |> UTXO.stream_unspent_outputs()
+              |> Enum.find(&(&1.unspent_output.from == valid_trigger_tx_address))
+
+            UTXO.MemoryLedger.remove_consumed_input(genesis, utxo)
+            send(me, :transaction_valid_sent)
+          else
+            assert tx.data.content == "Invalid content"
+            send(me, :transaction_invalid_sent)
+          end
+
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        refute_receive :transaction_sent
+        UTXO.load_transaction(valid_trigger_tx, Transaction.previous_address(valid_trigger_tx))
+        Worker.process_next_trigger(genesis)
+        assert_receive :transaction_valid_sent
+        Worker.set_contract(genesis, contract2)
+        assert_receive :transaction_invalid_sent
+      end
     end
   end
 end

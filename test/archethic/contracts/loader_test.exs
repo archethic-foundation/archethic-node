@@ -18,6 +18,8 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.SelfRepair.NetworkView
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.UTXO
@@ -188,6 +190,8 @@ defmodule Archethic.Contracts.LoaderTest do
     |> expect(:get_last_chain_address, fn ^genesis -> {contract_address, DateTime.utc_now()} end)
     |> expect(:get_transaction, fn ^contract_address, _, _ -> {:ok, tx} end)
 
+    stop_supervised!(Loader)
+
     assert {:ok, _} = Loader.start_link()
     [{pid, _}] = Registry.lookup(ContractRegistry, genesis)
 
@@ -198,5 +202,160 @@ defmodule Archethic.Contracts.LoaderTest do
 
     assert {_, %{contract: %Contract{transaction: ^tx}, genesis_address: ^genesis}} =
              :sys.get_state(pid)
+  end
+
+  describe "Invalidate call" do
+    setup do
+      contract_genesis = random_address()
+      recipient = %Recipient{address: contract_genesis}
+
+      trigger_tx1 =
+        %Transaction{address: trigger_tx1_address} =
+        TransactionFactory.create_valid_transaction([],
+          recipients: [recipient],
+          seed: random_seed()
+        )
+
+      trigger_tx2 =
+        %Transaction{address: trigger_tx2_address} =
+        TransactionFactory.create_valid_transaction([],
+          recipients: [recipient],
+          seed: random_seed()
+        )
+
+      # v_utxo2 =
+      #   %UnspentOutput{from: trigger_tx1_address, type: :call}
+      #   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+      #
+      # v_utxo1 =
+      #   %UnspentOutput{from: trigger_tx2_address, type: :call}
+      #   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
+      MockDB
+      |> stub(:get_transaction, fn
+        ^trigger_tx1_address, _, _ -> {:ok, trigger_tx1}
+        ^trigger_tx2_address, _, _ -> {:ok, trigger_tx2}
+      end)
+
+      %{
+        recipient: recipient,
+        trigger_tx1: trigger_tx1,
+        trigger_tx2: trigger_tx2,
+        contract_genesis: contract_genesis
+      }
+    end
+
+    test "should invalidate a call and exclude it from call list", %{
+      trigger_tx1: trigger_tx1,
+      trigger_tx2: trigger_tx2,
+      contract_genesis: contract_genesis
+    } do
+      contract_address = random_address()
+
+      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
+      assert {^trigger_tx1, _} = Loader.get_next_call(contract_genesis, contract_address)
+
+      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      assert {^trigger_tx1, _} = Loader.get_next_call(contract_genesis, contract_address)
+
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
+      assert {^trigger_tx2, _} = Loader.get_next_call(contract_genesis, contract_address)
+
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx2.address)
+      assert nil == Loader.get_next_call(contract_genesis, contract_address)
+    end
+
+    test "should return invalid inputs if all are invalidated from previous contract", %{
+      trigger_tx1: trigger_tx1,
+      trigger_tx2: trigger_tx2,
+      contract_genesis: contract_genesis
+    } do
+      previous_contract_address = random_address()
+
+      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
+      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+
+      Loader.invalidate_call(contract_genesis, previous_contract_address, trigger_tx1.address)
+      Loader.invalidate_call(contract_genesis, previous_contract_address, trigger_tx2.address)
+      assert nil == Loader.get_next_call(contract_genesis, previous_contract_address)
+
+      new_contract_address = random_address()
+      assert {^trigger_tx1, _} = Loader.get_next_call(contract_genesis, new_contract_address)
+
+      Loader.invalidate_call(contract_genesis, new_contract_address, trigger_tx1.address)
+      assert {^trigger_tx2, _} = Loader.get_next_call(contract_genesis, new_contract_address)
+
+      Loader.invalidate_call(contract_genesis, new_contract_address, trigger_tx2.address)
+      assert nil == Loader.get_next_call(contract_genesis, new_contract_address)
+    end
+
+    test "should remove invalid call from ets table when it is consumed", %{
+      recipient: recipient,
+      trigger_tx1: trigger_tx1,
+      trigger_tx2: trigger_tx2,
+      contract_genesis: contract_genesis
+    } do
+      contract_address = random_address()
+      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
+      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx2.address)
+      assert nil == Loader.get_next_call(contract_genesis, contract_address)
+      assert [_, _] = :ets.lookup(:archethic_invalid_call, contract_genesis)
+
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        Contract.set_content("In tartiflette we trust !")
+      end
+      """
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_tx1.address, recipient},
+        timestamp: DateTime.utc_now(),
+        status: :tx_output
+      }
+
+      utxos = [
+        %UnspentOutput{
+          from: random_address(),
+          type: :UCO,
+          amount: 100_000_000_000,
+          timestamp: DateTime.utc_now()
+        },
+        %UnspentOutput{from: trigger_tx1.address, type: :call, timestamp: DateTime.utc_now()}
+      ]
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(code,
+          contract_context: contract_context,
+          inputs: utxos
+        )
+
+      Loader.load_transaction(contract_tx, contract_genesis, execute_contract?: false)
+
+      assert [{contract_genesis, contract_address, trigger_tx2.address}] ==
+               :ets.lookup(:archethic_invalid_call, contract_genesis)
+    end
+
+    test "should remove all invalid calls when contract is stopped", %{
+      trigger_tx1: trigger_tx1,
+      trigger_tx2: trigger_tx2,
+      contract_genesis: contract_genesis
+    } do
+      contract_address = random_address()
+
+      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
+      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
+      Loader.invalidate_call(contract_genesis, contract_address, trigger_tx2.address)
+      assert [_, _] = :ets.lookup(:archethic_invalid_call, contract_genesis)
+
+      Loader.stop_contract(contract_genesis)
+
+      assert [] = :ets.lookup(:archethic_invalid_call, contract_genesis)
+    end
   end
 end
