@@ -15,6 +15,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.PubSub
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
 
@@ -107,12 +108,17 @@ defmodule Archethic.Contracts.Worker do
   end
 
   def handle_event(:cast, {:new_contract, contract}, :idle, data) do
-    new_data = Map.put(data, :contract, contract)
+    new_data = data |> Map.put(:contract, contract) |> Map.delete(:last_call_processed)
     {:keep_state, new_data}
   end
 
   def handle_event(:cast, {:new_contract, contract}, _state, data) do
-    new_data = data |> cancel_schedulers() |> Map.put(:contract, contract)
+    new_data =
+      data
+      |> cancel_schedulers()
+      |> Map.put(:contract, contract)
+      |> Map.delete(:last_call_processed)
+
     {:keep_state, new_data, {:next_event, :internal, :start_schedulers}}
   end
 
@@ -167,8 +173,26 @@ defmodule Archethic.Contracts.Worker do
     do: {:next_state, :idle, cancel_schedulers(data)}
 
   # Node responsiveness timeout
-  def handle_event(:info, {:EXIT, _pid, _}, _state, data),
-    do: {:keep_state, data, {:next_event, :internal, :process_next_trigger}}
+  def handle_event(
+        :info,
+        {:EXIT, _pid, _},
+        _state,
+        data = %{
+          contract: %Contract{transaction: %Transaction{address: contract_address}},
+          genesis_address: genesis_address
+        }
+      ) do
+    case Map.get(data, :last_call_processed) do
+      nil ->
+        :skip
+
+      last_call_processed ->
+        Loader.invalidate_call(genesis_address, contract_address, last_call_processed)
+    end
+
+    new_data = Map.delete(data, :last_call_processed)
+    {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+  end
 
   def code_change(old_version, state, data = %{contract: %Contract{transaction: contract_tx}}, _) do
     Logger.debug("CODE_CHANGE #{old_version} for Contracts.Worker #{inspect(self())}")
@@ -183,8 +207,12 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp get_next_trigger(%{genesis_address: genesis_address, self_triggers: []}) do
-    case Loader.get_next_call(genesis_address) do
+  defp get_next_trigger(%{
+         contract: %Contract{transaction: %Transaction{address: contract_address}},
+         genesis_address: genesis_address,
+         self_triggers: []
+       }) do
+    case Loader.get_next_call(genesis_address, contract_address) do
       {trigger_tx, recipient} -> {:transaction, trigger_tx, recipient}
       nil -> nil
     end
@@ -243,14 +271,26 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp handle_trigger(
-         {:transaction, trigger_tx, recipient},
-         data = %{genesis_address: genesis_address, contract: contract}
+         {:transaction,
+          trigger_tx = %Transaction{
+            address: from,
+            validation_stamp: %ValidationStamp{timestamp: timestamp}
+          }, recipient},
+         data = %{
+           genesis_address: genesis_address,
+           contract: contract = %Contract{transaction: %Transaction{address: contract_address}}
+         }
        ) do
     trigger = Contract.get_trigger_for_recipient(recipient)
 
-    case execute_contract(contract, trigger, trigger_tx, recipient, genesis_address) do
-      :ok -> {:ok, data}
-      _ -> {:error, data}
+    with {:ok, _logs} <-
+           Contracts.execute_condition(trigger, contract, trigger_tx, recipient, timestamp),
+         :ok <- execute_contract(contract, trigger, trigger_tx, recipient, genesis_address) do
+      {:ok, Map.put(data, :last_call_processed, from)}
+    else
+      _ ->
+        Loader.invalidate_call(genesis_address, contract_address, from)
+        {:error, data}
     end
   end
 

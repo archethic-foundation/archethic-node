@@ -17,6 +17,7 @@ defmodule Archethic.Contracts.Loader do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -31,11 +32,15 @@ defmodule Archethic.Contracts.Loader do
   use GenServer
   @vsn 1
 
+  @invalid_call_table :archethic_invalid_call
+
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts)
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def init(_opts) do
+    :ets.new(@invalid_call_table, [:bag, :named_table, :public, read_concurrency: true])
+
     node_key = Crypto.first_node_public_key()
     authorized_nodes = P2P.authorized_and_available_nodes()
 
@@ -88,15 +93,38 @@ defmodule Archethic.Contracts.Loader do
   end
 
   @doc """
+  Set a call as invalid since it failed to create a valid transaction
+  """
+  @spec invalidate_call(
+          contract_genesis :: Crypto.prepended_hash(),
+          contract_address :: Crypto.prepended_hash(),
+          call_address :: Crypto.prepended_hash()
+        ) :: any()
+  def invalidate_call(contract_genesis, contract_address, call_address) do
+    previous_invalid_call =
+      @invalid_call_table
+      |> :ets.lookup(contract_genesis)
+      |> Enum.find(fn {_, _, address} -> address == call_address end)
+
+    if previous_invalid_call != nil,
+      do: :ets.delete_object(@invalid_call_table, previous_invalid_call)
+
+    :ets.insert(@invalid_call_table, {contract_genesis, contract_address, call_address})
+  end
+
+  @doc """
   Returns the oldest call for a genesis contract address
   """
-  @spec get_next_call(genesis_address :: Crypto.prepended_hash()) ::
-          nil | {tx :: Transaction.t(), recipient :: Recipient.t()}
-  def get_next_call(genesis_address) do
+  @spec get_next_call(
+          genesis_address :: Crypto.prepended_hash(),
+          contract_address :: Crypto.prepended_hash()
+        ) :: nil | {tx :: Transaction.t(), recipient :: Recipient.t()}
+  def get_next_call(genesis_address, contract_address) do
     calls =
       genesis_address
       |> UTXO.stream_unspent_outputs()
-      |> Stream.filter(&(&1.unspent_output.type == :call))
+      |> Enum.filter(&(&1.unspent_output.type == :call))
+      |> handle_invalid_calls(genesis_address, contract_address)
       |> Enum.sort_by(& &1.unspent_output.timestamp, {:asc, DateTime})
 
     with %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from}} <- List.first(calls),
@@ -114,11 +142,45 @@ defmodule Archethic.Contracts.Loader do
     end
   end
 
+  defp handle_invalid_calls([], _, _), do: []
+
+  defp handle_invalid_calls(calls, genesis_address, current_contract_address) do
+    invalid_calls = :ets.lookup(@invalid_call_table, genesis_address)
+
+    case reject_invalid_calls(calls, invalid_calls) do
+      [] -> reject_current_invalid_calls(calls, invalid_calls, current_contract_address)
+      calls -> calls
+    end
+  end
+
+  defp reject_invalid_calls(calls, []), do: calls
+
+  defp reject_invalid_calls(calls, invalid_calls) do
+    Enum.reject(
+      calls,
+      &Enum.find_value(invalid_calls, false, fn {_, _, invalid_call_address} ->
+        &1.unspent_output.from == invalid_call_address
+      end)
+    )
+  end
+
+  defp reject_current_invalid_calls(calls, invalid_calls, current_contract_address) do
+    Enum.reject(
+      calls,
+      &Enum.find_value(invalid_calls, false, fn {_, contract_address, invalid_call_address} ->
+        &1.unspent_output.from == invalid_call_address and
+          contract_address == current_contract_address
+      end)
+    )
+  end
+
   @doc """
   Termine a contract execution
   """
   @spec stop_contract(binary()) :: :ok
   def stop_contract(genesis_address) when is_binary(genesis_address) do
+    :ets.delete(@invalid_call_table, genesis_address)
+
     case GenServer.whereis({:via, Registry, {ContractRegistry, genesis_address}}) do
       nil ->
         :ok
@@ -158,13 +220,18 @@ defmodule Archethic.Contracts.Loader do
          tx = %Transaction{
            address: address,
            type: type,
-           data: %TransactionData{code: code}
+           data: %TransactionData{code: code},
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+           }
          },
          genesis_address,
          node_key,
          authorized_nodes
        )
        when code != "" do
+    remove_invalid_input(genesis_address, consumed_inputs)
+
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),
          {:ok, contract} <- Contract.from_transaction(tx),
          true <- Contract.contains_trigger?(contract) do
@@ -182,6 +249,21 @@ defmodule Archethic.Contracts.Loader do
   end
 
   defp handle_contract_chain(_, genesis_address, _, _), do: stop_contract(genesis_address)
+
+  defp remove_invalid_input(genesis_address, consumed_inputs) do
+    consumed_calls_address =
+      consumed_inputs
+      |> Enum.filter(&(&1.unspent_output.type == :call))
+      |> Enum.map(& &1.unspent_output.from)
+
+    @invalid_call_table
+    |> :ets.lookup(genesis_address)
+    |> Enum.each(fn obj = {_, _, call_address} ->
+      if Enum.member?(consumed_calls_address, call_address) do
+        :ets.delete_object(@invalid_call_table, obj)
+      end
+    end)
+  end
 
   defp handle_contract_call(
          %Transaction{
