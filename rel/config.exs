@@ -49,7 +49,8 @@ environment Mix.env() do
   set(
     commands: [
       regression_test: "rel/commands/regression_test",
-      validate: "rel/commands/validate"
+      validate: "rel/commands/validate",
+      db: "rel/commands/db"
     ]
   )
 
