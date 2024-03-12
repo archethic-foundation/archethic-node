@@ -15,7 +15,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.PubSub
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
 
@@ -23,38 +22,27 @@ defmodule Archethic.Contracts.Worker do
 
   require Logger
 
-  use GenServer
-  @vsn 1
+  use GenStateMachine, callback_mode: :handle_event_function
+  @vsn 2
 
   def start_link(opts) do
     genesis_address = Keyword.fetch!(opts, :genesis_address)
-    GenServer.start_link(__MODULE__, opts, name: via_tuple(genesis_address))
+    GenStateMachine.start_link(__MODULE__, opts, name: via_tuple(genesis_address))
   end
 
   @doc """
-  Execute a transaction in the context of the contract with a given recipient.
-
-  If the condition are respected a new transaction will be initiated
+  Request the worker to process the next trigger
   """
-  @spec execute(binary(), Transaction.t(), Recipient.t()) ::
-          :ok | {:error, :no_transaction_trigger} | {:error, :condition_not_respected}
-  def execute(resolved_address, tx = %Transaction{}, recipient = %Recipient{}) do
-    GenServer.cast(via_tuple(resolved_address), {:execute, tx, recipient})
-  end
-
-  @doc """
-  Return true if a worker exists for the genesis address
-  """
-  @spec exists?(genesis_address :: Crypto.prepended_hash()) :: boolean()
-  def exists?(genesis_address),
-    do: genesis_address |> via_tuple() |> GenServer.whereis() != nil
+  @spec process_next_trigger(genesis_address :: Crypto.prepended_hash()) :: :ok
+  def process_next_trigger(genesis_address),
+    do: genesis_address |> via_tuple() |> GenStateMachine.cast(:process_next_trigger)
 
   @doc """
   Set a new contract version in the worker
   """
   @spec set_contract(genesis_address :: Crypto.prepended_hash(), contract :: Contract.t()) :: :ok
   def set_contract(genesis_address, contract) do
-    genesis_address |> via_tuple() |> GenServer.cast({:new_contract, contract})
+    genesis_address |> via_tuple() |> GenStateMachine.cast({:new_contract, contract})
   end
 
   def init(opts) do
@@ -66,16 +54,25 @@ defmodule Archethic.Contracts.Worker do
     contract = Keyword.fetch!(opts, :contract)
     genesis_address = Keyword.fetch!(opts, :genesis_address)
 
-    state = %{contract: contract, genesis_address: genesis_address}
+    data = %{contract: contract, genesis_address: genesis_address, self_triggers: []}
 
-    if Archethic.up?(), do: {:ok, state, {:continue, :start_schedulers}}, else: {:ok, state}
+    if Archethic.up?(),
+      do: {:ok, :waiting_trigger, data, {:next_event, :internal, :start_schedulers}},
+      else: {:ok, :idle, data}
   end
 
-  def handle_continue(:start_schedulers, state = %{contract: %Contract{triggers: triggers}}) do
+  def handle_event(:internal, :start_schedulers, :idle, _data), do: :keep_state_and_data
+
+  def handle_event(
+        :internal,
+        :start_schedulers,
+        _state,
+        data = %{contract: %Contract{triggers: triggers}}
+      ) do
     triggers_type = Map.keys(triggers)
 
-    new_state =
-      Enum.reduce(triggers_type, state, fn trigger_type, acc ->
+    new_data =
+      Enum.reduce(triggers_type, data, fn trigger_type, acc ->
         case schedule_trigger(trigger_type, triggers_type) do
           timer when is_reference(timer) ->
             Map.update(acc, :timers, %{trigger_type => timer}, &Map.put(&1, trigger_type, timer))
@@ -85,129 +82,176 @@ defmodule Archethic.Contracts.Worker do
         end
       end)
 
-    {:noreply, new_state, {:continue, :process_next_call}}
+    {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
   end
 
-  def handle_continue(
-        :process_next_call,
-        state = %{contract: contract, genesis_address: genesis_address}
-      ) do
-    # Take next call to process
-    with {trigger_tx, recipient} <- Loader.get_next_call(genesis_address),
-         :ok <- Loader.request_worker_lock(genesis_address) do
-      %Transaction{address: address, type: type} = trigger_tx
+  def handle_event(:internal, :process_next_trigger, :idle, _data), do: :keep_state_and_data
 
-      Logger.info(
-        "Execute transaction on contract #{Base.encode16(genesis_address)}",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+  def handle_event(:internal, :process_next_trigger, _state, data) do
+    # Take next trigger to process
+    case get_next_trigger(data) do
+      nil ->
+        {:next_state, :waiting_trigger, data}
 
-      trigger = Contract.get_trigger_for_recipient(recipient)
+      trigger ->
+        data = Map.update!(data, :self_triggers, fn t -> Enum.reject(t, &(&1 == trigger)) end)
 
-      execute_contract(contract, trigger, trigger_tx, recipient, genesis_address)
+        case handle_trigger(trigger, data) do
+          {:ok, new_data} ->
+            {:next_state, :working, new_data}
+
+          {:error, new_data} ->
+            {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+        end
     end
-
-    {:noreply, state}
   end
 
-  def handle_cast({:new_contract, contract}, state = %{genesis_address: genesis_address}) do
-    new_state = state |> cancel_schedulers() |> Map.put(:contract, contract)
+  def handle_event(:cast, {:new_contract, contract}, :idle, data) do
+    new_data = Map.put(data, :contract, contract)
+    {:keep_state, new_data}
+  end
 
-    Loader.unlock_worker(genesis_address)
-
-    if Archethic.up?(),
-      do: {:noreply, new_state, {:continue, :start_schedulers}},
-      else: {:noreply, new_state}
+  def handle_event(:cast, {:new_contract, contract}, _state, data) do
+    new_data = data |> cancel_schedulers() |> Map.put(:contract, contract)
+    {:keep_state, new_data, {:next_event, :internal, :start_schedulers}}
   end
 
   # TRIGGER: TRANSACTION
-  def handle_cast(
-        {:execute, trigger_tx = %Transaction{address: address, type: type},
-         recipient = %Recipient{}},
-        state = %{contract: contract, genesis_address: genesis_address}
-      ) do
-    Logger.info(
-      "Execute transaction on contract #{Base.encode16(genesis_address)}",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+  def handle_event(:cast, :process_next_trigger, :waiting_trigger, data),
+    do: {:keep_state, data, {:next_event, :internal, :process_next_trigger}}
 
-    trigger = Contract.get_trigger_for_recipient(recipient)
+  def handle_event(:cast, :process_next_trigger, _state, _data), do: :keep_state_and_data
 
-    execute_contract(contract, trigger, trigger_tx, recipient, genesis_address)
+  # TRIGGER: DATETIME or INTERVAL
+  def handle_event(:info, {:trigger, _}, :idle, _data), do: :keep_state_and_data
 
-    {:noreply, state}
+  def handle_event(:info, {:trigger, trigger_type}, :working, data) do
+    new_data = Map.update!(data, :self_triggers, &(&1 ++ [trigger_type]))
+    {:keep_state, new_data}
   end
 
-  # TRIGGER: DATETIME
-  def handle_info(
-        {:trigger, trigger_type = {:datetime, _}},
-        state = %{contract: contract, genesis_address: genesis_address}
-      ) do
-    execute_contract(contract, trigger_type, nil, nil, genesis_address)
+  def handle_event(:info, {:trigger, trigger_type}, :waiting_trigger, data) do
+    case handle_trigger(trigger_type, data) do
+      {:ok, new_data} ->
+        {:next_state, :working, new_data}
 
-    {:noreply, Map.update!(state, :timers, &Map.delete(&1, trigger_type))}
-  end
-
-  # TRIGGER: INTERVAL
-  def handle_info(
-        {:trigger, trigger_type = {:interval, interval}},
-        state = %{
-          contract: contract = %Contract{triggers: triggers},
-          genesis_address: genesis_address
-        }
-      ) do
-    execute_contract(contract, trigger_type, nil, nil, genesis_address)
-
-    interval_timer = schedule_trigger({:interval, interval}, Map.keys(triggers))
-    {:noreply, put_in(state, [:timers, :interval], interval_timer)}
+      {:error, new_data} ->
+        {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+    end
   end
 
   # TRIGGER: ORACLE
-  def handle_info(
-        {:new_transaction, tx_address, :oracle, _timestamp},
-        state = %{contract: contract, genesis_address: genesis_address}
-      ) do
-    trigger_datetime = DateTime.utc_now()
-    {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
+  def handle_event(:info, {:new_transaction, _, _, _}, :idle, _data), do: :keep_state_and_data
 
-    case Contracts.execute_condition(:oracle, contract, oracle_tx, nil, trigger_datetime) do
-      {:ok, _logs} ->
-        execute_contract(contract, :oracle, oracle_tx, nil, genesis_address)
+  def handle_event(:info, {:new_transaction, tx_address, :oracle, _}, :working, data) do
+    new_data = Map.update!(data, :self_triggers, &(&1 ++ [{:oracle, tx_address}]))
+    {:keep_state, new_data}
+  end
 
-      _ ->
-        :skip
+  def handle_event(:info, {:new_transaction, tx_address, :oracle, _}, :waiting_trigger, data) do
+    case handle_trigger({:oracle, tx_address}, data) do
+      {:ok, new_data} ->
+        {:next_state, :working, new_data}
+
+      {:error, new_data} ->
+        {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
     end
-
-    {:noreply, state}
   end
 
   # Node is up, starting schedulers
-  def handle_info(:node_up, state), do: {:noreply, state, {:continue, :start_schedulers}}
+  def handle_event(:info, :node_up, :idle, data),
+    do: {:next_state, :waiting_trigger, data, {:next_event, :internal, :start_schedulers}}
 
   # Node is down, stoping schedulers
-  def handle_info(:node_down, state), do: {:noreply, cancel_schedulers(state)}
+  def handle_event(:info, :node_down, _state, data),
+    do: {:next_state, :idle, cancel_schedulers(data)}
 
   # Node responsiveness timeout
-  def handle_info({:EXIT, _pid, _}, state = %{genesis_address: genesis_address}) do
-    Loader.unlock_worker(genesis_address)
-    {:noreply, state, {:continue, :process_next_call}}
-  end
+  def handle_event(:info, {:EXIT, _pid, _}, _state, data),
+    do: {:keep_state, data, {:next_event, :internal, :process_next_trigger}}
 
-  def code_change(old_version, state = %{contract: %Contract{transaction: contract_tx}}, _) do
+  def code_change(old_version, state, data = %{contract: %Contract{transaction: contract_tx}}, _) do
     Logger.debug("CODE_CHANGE #{old_version} for Contracts.Worker #{inspect(self())}")
     # because the worker maintain a parsed contract in memory
     # it's possible that the parsing changed with the new release
     # so we reparse the contract here
-    {:ok, %{state | contract: Contract.from_transaction!(contract_tx)}}
+    {:ok, state, %{data | contract: Contract.from_transaction!(contract_tx), self_triggers: []}}
   end
-
-  def terminate(_, %{genesis_address: genesis_address}), do: Loader.unlock_worker(genesis_address)
 
   # ----------------------------------------------
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
+  end
+
+  defp get_next_trigger(%{genesis_address: genesis_address, self_triggers: []}) do
+    case Loader.get_next_call(genesis_address) do
+      {trigger_tx, recipient} -> {:transaction, trigger_tx, recipient}
+      nil -> nil
+    end
+  end
+
+  defp get_next_trigger(%{self_triggers: self_triggers}), do: List.first(self_triggers)
+
+  defp handle_trigger(
+         trigger_type = {:datetime, _},
+         data = %{genesis_address: genesis_address, contract: contract}
+       ) do
+    case execute_contract(contract, trigger_type, nil, nil, genesis_address) do
+      :ok ->
+        new_data = data |> Map.update!(:timers, &Map.delete(&1, trigger_type))
+        {:ok, new_data}
+
+      _ ->
+        new_data = data |> Map.update!(:timers, &Map.delete(&1, trigger_type))
+        {:error, new_data}
+    end
+  end
+
+  defp handle_trigger(
+         trigger_type = {:interval, interval},
+         data = %{
+           genesis_address: genesis_address,
+           contract: contract = %Contract{triggers: triggers}
+         }
+       ) do
+    case execute_contract(contract, trigger_type, nil, nil, genesis_address) do
+      :ok ->
+        new_data = data |> Map.update!(:timers, &Map.delete(&1, trigger_type))
+        {:ok, new_data}
+
+      _ ->
+        interval_timer = schedule_trigger({:interval, interval}, Map.keys(triggers))
+        new_data = put_in(data, [:timers, trigger_type], interval_timer)
+        {:error, new_data}
+    end
+  end
+
+  defp handle_trigger(
+         {:oracle, tx_address},
+         data = %{genesis_address: genesis_address, contract: contract}
+       ) do
+    trigger_datetime = DateTime.utc_now()
+
+    with {:ok, oracle_tx} <- TransactionChain.get_transaction(tx_address),
+         {:ok, _logs} <-
+           Contracts.execute_condition(:oracle, contract, oracle_tx, nil, trigger_datetime),
+         :ok <- execute_contract(contract, :oracle, oracle_tx, nil, genesis_address) do
+      {:ok, data}
+    else
+      _ -> {:error, data}
+    end
+  end
+
+  defp handle_trigger(
+         {:transaction, trigger_tx, recipient},
+         data = %{genesis_address: genesis_address, contract: contract}
+       ) do
+    trigger = Contract.get_trigger_for_recipient(recipient)
+
+    case execute_contract(contract, trigger, trigger_tx, recipient, genesis_address) do
+      :ok -> {:ok, data}
+      _ -> {:error, data}
+    end
   end
 
   defp execute_contract(
@@ -228,15 +272,19 @@ defmodule Archethic.Contracts.Worker do
            get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
          :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
       Logger.debug("Contract execution success", meta)
+      :ok
     else
       {:ok, %ActionWithoutTransaction{}} ->
         Logger.debug("Contract execution success but there is no new transaction", meta)
+        :error
 
       {:error, %Failure{user_friendly_error: reason}} ->
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
+        :error
 
       _ ->
         Logger.debug("Contract execution failed", meta)
+        :error
     end
   end
 
