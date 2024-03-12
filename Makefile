@@ -17,7 +17,7 @@ endif
 
 clean:
 	rm -f priv/c_dist/*
-	mix archethic.clean_db
+	mix archethic.db --clean
 	mix clean
 
 docker-clean: clean

@@ -18,7 +18,7 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
     File.mkdir_p!(base_path())
   end
 
-  defp base_path(), do: Path.join([DB.filepath(), "utxo"])
+  def base_path(), do: Path.join([DB.filepath(), "utxo"])
 
   def file_path(genesis_address) do
     Path.join(base_path(), Base.encode16(genesis_address))

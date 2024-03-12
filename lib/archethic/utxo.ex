@@ -31,10 +31,16 @@ defmodule Archethic.UTXO do
           }
         }
 
+  @type load_opts :: [
+          resolved_addresses: %{(address :: binary()) => genesis :: binary()},
+          download_nodes: list(Node.t()),
+          skip_consume_inputs?: boolean()
+        ]
+
   @spec load_transaction(
           tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: Keyword.t()
+          genesis_address :: binary(),
+          opts :: load_opts()
         ) :: :ok
   def load_transaction(
         tx = %Transaction{validation_stamp: %ValidationStamp{protocol_version: protocol_version}},
@@ -44,6 +50,7 @@ defmodule Archethic.UTXO do
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
     download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
     authorized_nodes = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
+    skip_consume_inputs? = Keyword.get(opts, :skip_consume_inputs?, false)
 
     node_public_key = Crypto.first_node_public_key()
 
@@ -57,8 +64,9 @@ defmodule Archethic.UTXO do
     ingest_recipients(tx, node_public_key, authorized_nodes)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
-    if Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes),
-      do: Loader.consume_inputs(tx, genesis_address)
+    if not skip_consume_inputs? and
+         Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes),
+       do: Loader.consume_inputs(tx, genesis_address)
 
     Logger.info("Loaded into in memory UTXO tables",
       transaction_address: Base.encode16(tx.address),
