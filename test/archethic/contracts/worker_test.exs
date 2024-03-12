@@ -12,7 +12,6 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Worker
 
-  alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.StartMining
 
   alias Archethic.TransactionChain.Transaction
@@ -33,6 +32,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
   import ArchethicCase
   import Mox
+  import Mock
 
   def load_send_tx_constraints() do
     setup_before_send_tx()
@@ -54,15 +54,6 @@ defmodule Archethic.Contracts.WorkerTest do
       authorized?: true,
       authorization_date: DateTime.utc_now()
     })
-
-    me = self()
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %StartMining{transaction: tx}, _ ->
-        send(me, {:transaction_sent, tx})
-        {:ok, %Ok{}}
-    end)
 
     MockDB
     |> stub(:chain_size, fn _ -> 1 end)
@@ -124,7 +115,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, pid} = Worker.start_link(contract: contract, genesis_address: genesis)
       assert Process.alive?(pid)
-      assert %{contract: ^contract} = :sys.get_state(pid)
+      assert {_, %{contract: ^contract}} = :sys.get_state(pid)
 
       assert [{^pid, _}] = Registry.lookup(ContractRegistry, genesis)
     end
@@ -152,15 +143,18 @@ defmodule Archethic.Contracts.WorkerTest do
 
       genesis = Transaction.previous_address(contract.transaction)
 
-      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
+      me = self()
 
-      receive do
-        {:transaction_sent, tx} ->
+      with_mock(Archethic, [:passthrough],
+        send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.code == code
-      after
-        3_000 ->
-          raise "Timeout"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
+        assert_receive :transaction_sent, 3000
       end
     end
 
@@ -186,24 +180,22 @@ defmodule Archethic.Contracts.WorkerTest do
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      receive do
-        {:transaction_sent, tx} ->
+      me = self()
+
+      with_mock(Archethic, [:passthrough],
+        send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.code == code
-
-          receive do
-            {:transaction_sent, tx} ->
-              assert tx.address == expected_tx.address
-              assert tx.data.code == code
-          after
-            5000 ->
-              raise "Timeout"
-          end
-      after
-        5000 ->
-          raise "Timeout"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
+        assert_receive :transaction_sent, 2000
+        # Transaction has been replicated so we set new contract
+        Worker.set_contract(genesis, contract)
+        assert_receive :transaction_sent, 2000
       end
     end
 
@@ -364,11 +356,8 @@ defmodule Archethic.Contracts.WorkerTest do
     end
   end
 
-  describe "execute/2" do
-    test "should not execute when no transaction trigger has been defined", %{
-      seed: seed,
-      contract_address: contract_address
-    } do
+  describe "process_next_trigger/1" do
+    test "should not execute when no transaction trigger has been defined", %{seed: seed} do
       code = """
       @version 1
       condition transaction: []
@@ -380,16 +369,30 @@ defmodule Archethic.Contracts.WorkerTest do
       genesis = Transaction.previous_address(contract.transaction)
       {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      Worker.execute(genesis, %Transaction{address: "@Alice2"}, %Recipient{
-        address: contract_address
-      })
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
 
-      refute_receive {:transaction_sent, _}
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
+
+      MockDB
+      |> stub(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn _, _ ->
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        refute_receive :transaction_sent
+      end
     end
 
     test "should execute a transaction trigger code using an incoming transaction", %{
       seed: seed,
-      contract_address: contract_address,
       expected_tx: expected_tx,
       to: to
     } do
@@ -414,24 +417,33 @@ defmodule Archethic.Contracts.WorkerTest do
       genesis = Transaction.previous_address(contract.transaction)
       {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
 
-      Worker.execute(genesis, trigger_tx, %Recipient{address: contract_address})
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
-      receive do
-        {:transaction_sent, tx} ->
+      MockDB
+      |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == code
-      after
-        3_000 ->
-          raise "Timeout"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        assert_receive :transaction_sent
       end
     end
 
     test "should return a different code if set in the smart contract code", %{
       seed: seed,
-      contract_address: contract_address,
       expected_tx: expected_tx,
       to: to
     } do
@@ -467,12 +479,22 @@ defmodule Archethic.Contracts.WorkerTest do
       genesis = Transaction.previous_address(contract.transaction)
       {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([], content: "Mr.X")
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: genesis}],
+          content: "Mr.X"
+        )
 
-      Worker.execute(genesis, trigger_tx, %Recipient{address: contract_address})
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
-      receive do
-        {:transaction_sent, tx} ->
+      MockDB
+      |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == "
@@ -486,9 +508,12 @@ defmodule Archethic.Contracts.WorkerTest do
       set_type transfer
       add_uco_transfer to: \"#{address}\", amount: 9_200_000_000
     end"
-      after
-        3_000 ->
-          raise "Timeout"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        assert_receive :transaction_sent
       end
     end
 
@@ -516,39 +541,26 @@ defmodule Archethic.Contracts.WorkerTest do
           content: Jason.encode!(%{"uco" => %{"eur" => 0.21}})
         )
 
-      nss_last_address = "nss_last_address"
-      nss_genesis_address = "nss_genesis_address"
-
       MockDB
-      |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
-        {nss_last_address, DateTime.utc_now()}
-      end)
-      |> stub(:get_transaction, fn
-        ^oracle_address, [], :chain ->
-          {:ok, oracle_tx}
-
-        ^nss_last_address, [validation_stamp: [:timestamp]], :chain ->
-          {:ok,
-           %Transaction{
-             validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-           }}
-      end)
+      |> expect(:get_transaction, fn ^oracle_address, _, _ -> {:ok, oracle_tx} end)
 
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       genesis = Transaction.previous_address(contract.transaction)
-      {:ok, pid} = Worker.start_link(contract: contract, genesis_address: genesis)
-      allow(MockDB, self(), pid)
+      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      PubSub.notify_new_transaction(oracle_address, :oracle, DateTime.utc_now())
+      me = self()
 
-      receive do
-        {:transaction_sent, tx} ->
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
           assert %Transaction{data: %TransactionData{content: "price increased 0.21"}} = tx
-      after
-        3_000 ->
-          raise "Timeout"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        PubSub.notify_new_transaction(oracle_address, :oracle, DateTime.utc_now())
+        assert_receive :transaction_sent
       end
     end
 
@@ -593,42 +605,47 @@ defmodule Archethic.Contracts.WorkerTest do
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
       }
 
-      recipient = %Recipient{address: contract_address}
+      recipient = %Recipient{address: genesis}
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
-      Worker.execute(genesis, trigger_tx, recipient)
+      MockDB
+      |> expect(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
+      |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
-      receive do
-        {:transaction_sent,
-         %Transaction{
-           data: %TransactionData{
-             ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
-           }
-         }} ->
-          [
-            %TokenTransfer{
-              amount: amount,
-              to: to,
-              token_address: token_address,
-              token_id: token_id
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
+
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
+          %Transaction{
+            data: %TransactionData{
+              ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
             }
-          ] = token_transfers
+          } = tx
 
-          assert 1 == length(token_transfers)
-          assert 100_000_000 * 10_000 == amount
-          assert contract_address == token_address
-          assert 0 == token_id
-          assert trigger_tx_address == to
-      after
-        3_000 ->
-          raise "Timeout"
+          assert [
+                   %TokenTransfer{
+                     amount: 1_000_000_000_000,
+                     to: ^trigger_tx_address,
+                     token_address: ^contract_address,
+                     token_id: 0
+                   }
+                 ] = token_transfers
+
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        assert_receive :transaction_sent
       end
     end
 
-    test "named action", %{seed: seed, contract_address: contract_address} do
+    test "named action", %{seed: seed} do
       code = """
       @version 1
 
@@ -644,22 +661,28 @@ defmodule Archethic.Contracts.WorkerTest do
       genesis = Transaction.previous_address(contract.transaction)
       {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
 
-      recipient = %Recipient{address: contract_address, action: "vote", args: ["Ms. Smith"]}
+      recipient = %Recipient{address: genesis, action: "vote", args: ["Ms. Smith"]}
 
       trigger_tx =
+        %Transaction{address: trigger_tx_address} =
         TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
 
-      Worker.execute(genesis, trigger_tx, recipient)
+      MockDB
+      |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
-      receive do
-        {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
-          assert content == "Ms. Smith"
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
-        _ ->
-          assert false
-      after
-        3_000 ->
-          raise "Timeout"
+      me = self()
+
+      with_mock(Archethic,
+        send_new_transaction: fn tx, _ ->
+          assert tx.data.content == "Ms. Smith"
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        Worker.process_next_trigger(genesis)
+        assert_receive :transaction_sent
       end
     end
 
@@ -686,12 +709,19 @@ defmodule Archethic.Contracts.WorkerTest do
         uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
       }
 
-      recipient = %Recipient{address: contract_address}
+      recipient = %Recipient{address: genesis}
 
       trigger_tx =
+        %Transaction{address: trigger_tx_address} =
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
-      Worker.execute(genesis, trigger_tx, recipient)
+      MockDB
+      |> expect(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
+      |> stub(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
+
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
+
+      Worker.process_next_trigger(genesis)
 
       Process.sleep(100)
 

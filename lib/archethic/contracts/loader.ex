@@ -31,15 +31,11 @@ defmodule Archethic.Contracts.Loader do
   use GenServer
   @vsn 1
 
-  @worker_lock :archethic_worker_lock
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts)
   end
 
   def init(_opts) do
-    :ets.new(@worker_lock, [:set, :named_table, :public, read_concurrency: true])
-
     node_key = Crypto.first_node_public_key()
     authorized_nodes = P2P.authorized_and_available_nodes()
 
@@ -81,29 +77,6 @@ defmodule Archethic.Contracts.Loader do
 
     :ok
   end
-
-  @doc """
-  Request to lock a worker so any new call will trigger it.
-  To do so, an ets table acts as a mutex using `update_counter` function
-  """
-  @spec request_worker_lock(genesis_address :: Crypto.prepended_hash()) :: :ok | :already_locked
-  def request_worker_lock(genesis_address) do
-    # Increment counter by one, if counter > 1 it will returns 2, meaning worker is already locked
-    # If increment returns 1, worker was not locked and it is now
-    # {2, 1, 1, 2} => position 2, increment by 1, threshold 1, if threshold reach assign 2
-
-    case :ets.update_counter(@worker_lock, genesis_address, {2, 1, 1, 2}, {genesis_address, 0}) do
-      1 -> :ok
-      2 -> :already_locked
-    end
-  end
-
-  @doc """
-  Unlock a worker as it finished to process calls
-  """
-  @spec unlock_worker(genesis_address :: Crypto.prepended_hash()) :: integer()
-  def unlock_worker(genesis_address),
-    do: :ets.update_counter(@worker_lock, genesis_address, {2, -1, 2, 0}, {genesis_address, 0})
 
   @doc """
   Returns the oldest call for a genesis contract address
@@ -162,6 +135,9 @@ defmodule Archethic.Contracts.Loader do
 
   defp resolve_recipients(tx), do: tx
 
+  defp worker_exists?(genesis_address),
+    do: Registry.lookup(ContractRegistry, genesis_address) != []
+
   defp new_contract(genesis_address, contract) do
     DynamicSupervisor.start_child(
       ContractSupervisor,
@@ -183,7 +159,7 @@ defmodule Archethic.Contracts.Loader do
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),
          {:ok, contract} <- Contract.from_transaction(tx),
          true <- Contract.contains_trigger?(contract) do
-      if Worker.exists?(genesis_address),
+      if worker_exists?(genesis_address),
         do: Worker.set_contract(genesis_address, contract),
         else: new_contract(genesis_address, contract)
 
@@ -212,11 +188,8 @@ defmodule Archethic.Contracts.Loader do
     resolved_recipients
     |> resolve_genesis_address(authorized_nodes, protocol_version)
     |> Enum.each(fn contract_genesis_address ->
-      with true <-
-             Election.chain_storage_node?(contract_genesis_address, node_key, authorized_nodes),
-           {trigger_tx, recipient} <- get_next_call(contract_genesis_address),
-           :ok <- request_worker_lock(contract_genesis_address) do
-        Worker.execute(contract_genesis_address, trigger_tx, recipient)
+      if Election.chain_storage_node?(contract_genesis_address, node_key, authorized_nodes) do
+        Worker.process_next_trigger(contract_genesis_address)
       end
     end)
   end
