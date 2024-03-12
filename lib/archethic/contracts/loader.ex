@@ -46,17 +46,26 @@ defmodule Archethic.Contracts.Loader do
     # Network transactions does not contains trigger or recipient
     TransactionChain.list_genesis_addresses()
     |> Stream.filter(&Election.chain_storage_node?(&1, node_key, authorized_nodes))
-    |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
-    |> Stream.reject(fn
-      {_, {:ok, %Transaction{type: type, data: %TransactionData{code: code}}}} ->
-        Transaction.network_type?(type) or code == ""
+    |> Stream.chunk_every(100)
+    |> Task.async_stream(
+      fn genesis_addresses ->
+        genesis_addresses
+        |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
+        |> Stream.reject(fn
+          {_, {:ok, %Transaction{type: type, data: %TransactionData{code: code}}}} ->
+            Transaction.network_type?(type) or code == ""
 
-      {_, {:error, _}} ->
-        true
-    end)
-    |> Stream.each(fn {genesis, {:ok, tx}} ->
-      load_transaction(tx, genesis, execute_contract?: false)
-    end)
+          {_, {:error, _}} ->
+            true
+        end)
+        |> Stream.each(fn {genesis, {:ok, tx}} ->
+          load_transaction(tx, genesis, execute_contract?: false)
+        end)
+        |> Stream.run()
+      end,
+      timeout: :infinity,
+      max_concurrency: 16
+    )
     |> Stream.run()
 
     {:ok, []}
