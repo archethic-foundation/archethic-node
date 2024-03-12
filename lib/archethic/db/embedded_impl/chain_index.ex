@@ -480,35 +480,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @spec get_last_chain_address(address :: binary(), db_path :: String.t()) ::
           {binary(), DateTime.t()}
   def get_last_chain_address(address, db_path) do
-    # We try with a transaction on a chain, to identity the genesis address
-    case get_tx_entry(address, db_path) do
-      {:ok, %{genesis_address: genesis_address}} ->
-        # Search in the latest in memory index
-        case :ets.lookup(@archethic_db_last_index, genesis_address) do
-          [] ->
-            # If not present, the we search in the index file
-            unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
+    # We try if the request address is the genesis address to fetch the in memory index
+    case :ets.lookup(@archethic_db_last_index, address) do
+      [] ->
+        unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
-            search_last_address_until(genesis_address, unix_time, db_path) ||
-              {address, DateTime.from_unix!(0, :millisecond)}
+        address
+        |> get_genesis_address(db_path)
+        |> get_last_address_until(unix_time, address, db_path)
 
-          [{_, last_address, last_time}] ->
-            {last_address, DateTime.from_unix!(last_time, :millisecond)}
-        end
-
-      {:error, :not_exists} ->
-        # We try if the request address is the genesis address to fetch the in memory index
-        case :ets.lookup(@archethic_db_last_index, address) do
-          [] ->
-            # If not present, the we search in the index file
-            unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
-
-            search_last_address_until(address, unix_time, db_path) ||
-              {address, DateTime.from_unix!(0, :millisecond)}
-
-          [{_, last_address, last_time}] ->
-            {last_address, DateTime.from_unix!(last_time, :millisecond)}
-        end
+      [{_, last_address, last_time}] ->
+        {last_address, DateTime.from_unix!(last_time, :millisecond)}
     end
   end
 
@@ -519,18 +501,36 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
           {last_addresss :: binary(), last_time :: DateTime.t()}
   def get_last_chain_address(address, datetime = %DateTime{}, db_path) do
     unix_time = DateTime.to_unix(datetime, :millisecond)
+    # We try if the request address is the genesis address to fetch the in memory index
+    case :ets.lookup(@archethic_db_last_index, address) do
+      [] ->
+        # We try with a transaction on a chain, to identity the genesis address
 
-    # We get the genesis address of this given transaction address
-    case get_tx_entry(address, db_path) do
-      {:ok, %{genesis_address: genesis_address}} ->
-        search_last_address_until(genesis_address, unix_time, db_path) ||
-          {address, DateTime.from_unix!(0, :millisecond)}
+        address
+        |> get_genesis_address(db_path)
+        |> get_last_address_until(unix_time, address, db_path)
 
-      {:error, :not_exists} ->
-        # We try to search with given address as genesis address
-        # Then `address` acts the genesis address
+      [{_, _, last_time}] when last_time >= unix_time ->
         search_last_address_until(address, unix_time, db_path) ||
           {address, DateTime.from_unix!(0, :millisecond)}
+
+      [{_, last_address, last_time}] ->
+        {last_address, DateTime.from_unix!(last_time, :millisecond)}
+    end
+  end
+
+  defp get_last_address_until(genesis_address, unix_time, default_address, db_path) do
+    case :ets.lookup(@archethic_db_last_index, genesis_address) do
+      [] ->
+        search_last_address_until(genesis_address, unix_time, db_path) ||
+          {default_address, DateTime.from_unix!(0, :millisecond)}
+
+      [{_, _, last_time}] when last_time >= unix_time ->
+        search_last_address_until(genesis_address, unix_time, db_path) ||
+          {default_address, DateTime.from_unix!(0, :millisecond)}
+
+      [{_, last_address, last_time}] ->
+        {last_address, DateTime.from_unix!(last_time, :millisecond)}
     end
   end
 
