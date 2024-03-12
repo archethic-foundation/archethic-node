@@ -222,12 +222,13 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
 
-      UTXO.load_transaction(trigger_tx, trigger_genesis)
-
       me = self()
 
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, 0, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      UTXO.load_transaction(trigger_tx, trigger_genesis)
 
       MockClient
       |> stub(:send_message, fn _, %StartMining{}, _ ->
@@ -268,11 +269,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
 
-      UTXO.load_transaction(trigger_tx, trigger_genesis)
-
       me = self()
 
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> stub(:get_transaction, fn
         ^trigger_address, _, _ ->
           {:ok, trigger_tx}
@@ -281,19 +281,22 @@ defmodule Archethic.Contracts.WorkerTest do
           {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
       end)
 
-      MockClient
-      |> expect(:send_message, fn _, %StartMining{}, _ ->
-        send(me, :transaction_sent)
-        :ok
-      end)
+      UTXO.load_transaction(trigger_tx, trigger_genesis)
 
-      :persistent_term.put(:archethic_up, :up)
+      with_mock(Archethic, [:passthrough],
+        send_new_transaction: fn _, _ ->
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        :persistent_term.put(:archethic_up, :up)
 
-      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
+        {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
 
-      assert_receive :transaction_sent
+        assert_receive :transaction_sent
 
-      :persistent_term.erase(:archethic_up)
+        :persistent_term.erase(:archethic_up)
+      end
     end
 
     test "should execute next call when node becomes up" do
@@ -322,11 +325,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
 
-      UTXO.load_transaction(trigger_tx, trigger_genesis)
-
       me = self()
 
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> stub(:get_transaction, fn
         ^trigger_address, _, _ ->
           {:ok, trigger_tx}
@@ -335,21 +337,24 @@ defmodule Archethic.Contracts.WorkerTest do
           {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
       end)
 
-      MockClient
-      |> expect(:send_message, fn _, %StartMining{}, _ ->
-        send(me, :transaction_sent)
-        :ok
-      end)
+      UTXO.load_transaction(trigger_tx, trigger_genesis)
 
-      :persistent_term.erase(:archethic_up)
+      with_mock(Archethic, [:passthrough],
+        send_new_transaction: fn _, _ ->
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        :persistent_term.erase(:archethic_up)
 
-      {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
+        {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
 
-      refute_receive :transaction_sent
+        refute_receive :transaction_sent
 
-      PubSub.notify_node_status(:node_up)
+        PubSub.notify_node_status(:node_up)
 
-      assert_receive :transaction_sent
+        assert_receive :transaction_sent
+      end
     end
   end
 
@@ -370,10 +375,11 @@ defmodule Archethic.Contracts.WorkerTest do
         %Transaction{address: trigger_address} =
         TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
 
-      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
-
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
       me = self()
 
@@ -418,10 +424,11 @@ defmodule Archethic.Contracts.WorkerTest do
         %Transaction{address: trigger_address} =
         TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
 
-      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
-
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
       me = self()
 
@@ -483,10 +490,11 @@ defmodule Archethic.Contracts.WorkerTest do
           content: "Mr.X"
         )
 
-      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
-
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
+
+      UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
 
       me = self()
 
@@ -609,7 +617,7 @@ defmodule Archethic.Contracts.WorkerTest do
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
       MockDB
-      |> expect(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
       UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
@@ -665,6 +673,7 @@ defmodule Archethic.Contracts.WorkerTest do
         TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
 
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
       UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
@@ -713,7 +722,7 @@ defmodule Archethic.Contracts.WorkerTest do
         TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
 
       MockDB
-      |> expect(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^trigger_tx_address, _, _ -> {:ok, trigger_tx} end)
 
       UTXO.load_transaction(trigger_tx, Transaction.previous_address(trigger_tx))
@@ -783,6 +792,7 @@ defmodule Archethic.Contracts.WorkerTest do
         )
 
       MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
       |> expect(:get_transaction, fn ^invalid_trigger_tx_address, _, _ ->
         {:ok, invalid_trigger_tx}
       end)
