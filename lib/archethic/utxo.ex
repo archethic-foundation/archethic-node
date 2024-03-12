@@ -115,8 +115,11 @@ defmodule Archethic.UTXO do
        ) do
     recipients
     |> Enum.each(fn recipient ->
-      if Election.chain_storage_node?(recipient, node_public_key, authorized_nodes) do
-        %UnspentOutput{from: address, type: :call, timestamp: timestamp}
+      utxo = %UnspentOutput{from: address, type: :call, timestamp: timestamp}
+
+      with true <- Election.chain_storage_node?(recipient, node_public_key, authorized_nodes),
+           false <- utxo_consumed?(recipient, utxo) do
+        utxo
         |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
         |> Loader.add_utxo(recipient)
       end
