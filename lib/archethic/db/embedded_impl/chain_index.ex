@@ -474,25 +474,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
-  Try to find the genesis address for any given address
-
-  It performs a lookup in the last transaction address table to find the corresponding match
-  """
-  @spec find_genesis_address(binary()) :: {:ok, binary()} | {:error, :not_found}
-  def find_genesis_address(address) do
-    # :ets.fun2ms(fn {genesis_address, transaction_address, _} when transaction_address == address -> genesis_address end)
-    match_spec = [{{:"$1", :"$2", :_}, [{:==, :"$2", address}], [:"$1"]}]
-
-    case :ets.select(@archethic_db_last_index, match_spec) do
-      [genesis_address] ->
-        {:ok, genesis_address}
-
-      _ ->
-        {:error, :not_found}
-    end
-  end
-
-  @doc """
   Return the last address of the chain
   """
   @spec get_last_chain_address(address :: binary(), db_path :: String.t()) ::

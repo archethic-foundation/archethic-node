@@ -282,14 +282,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Try to find the genesis address for any given address
-  """
-  @spec find_genesis_address(binary()) :: {:ok, binary()} | {:error, :not_found}
-  def find_genesis_address(address) do
-    ChainIndex.find_genesis_address(address)
-  end
-
-  @doc """
   Return the first public key of given chain's public key
   """
   @spec get_first_public_key(public_key :: Crypto.key()) :: Crypto.key()
