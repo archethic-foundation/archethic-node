@@ -37,10 +37,16 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp fill_tables(db_path) do
-    Enum.each(0..255, fn subset ->
-      subset_summary_filename = index_summary_path(db_path, subset)
-      scan_summary_table(subset_summary_filename)
-    end)
+    Task.async_stream(
+      0..255,
+      fn subset ->
+        subset_summary_filename = index_summary_path(db_path, subset)
+        scan_summary_table(subset_summary_filename)
+      end,
+      timeout: :infinity,
+      max_concurrency: 16
+    )
+    |> Stream.run()
 
     fill_last_addresses(db_path)
     fill_type_stats(db_path)
@@ -85,29 +91,41 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp fill_last_addresses(db_path) do
-    Enum.each(list_genesis_addresses(), fn genesis_address ->
-      # Register last addresses of genesis address
-      {last_address, timestamp} = get_last_chain_address(genesis_address, db_path)
+    list_genesis_addresses()
+    |> Task.async_stream(
+      fn genesis_address ->
+        # Register last addresses of genesis address
+        {last_address, timestamp} = get_last_chain_address(genesis_address, db_path)
 
-      true =
-        :ets.insert(
-          @archethic_db_last_index,
-          {genesis_address, last_address, DateTime.to_unix(timestamp, :millisecond)}
-        )
-    end)
+        true =
+          :ets.insert(
+            @archethic_db_last_index,
+            {genesis_address, last_address, DateTime.to_unix(timestamp, :millisecond)}
+          )
+      end,
+      timeout: :infinity,
+      max_concurrency: 16
+    )
+    |> Stream.run()
   end
 
   defp fill_type_stats(db_path) do
-    Enum.each(Transaction.types(), fn type ->
-      case File.open(type_path(db_path, type), [:read, :binary]) do
-        {:ok, fd} ->
-          nb_txs = do_scan_types(fd)
-          :ets.insert(@archethic_db_type_stats, {type, nb_txs})
+    Transaction.types()
+    |> Task.async_stream(
+      fn type ->
+        case File.open(type_path(db_path, type), [:read, :binary]) do
+          {:ok, fd} ->
+            nb_txs = do_scan_types(fd)
+            :ets.insert(@archethic_db_type_stats, {type, nb_txs})
 
-        {:error, _} ->
-          :ets.insert(@archethic_db_type_stats, {type, 0})
-      end
-    end)
+          {:error, _} ->
+            :ets.insert(@archethic_db_type_stats, {type, 0})
+        end
+      end,
+      timeout: :infinity,
+      max_concurrency: 16
+    )
+    |> Stream.run()
   end
 
   defp do_scan_types(fd, acc \\ 0) do
