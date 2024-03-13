@@ -84,7 +84,6 @@ defmodule ArchethicCase do
     |> stub(:get_beacon_summary, fn _ -> {:error, :not_exists} end)
     |> stub(:get_last_chain_public_key, fn public_key, _ -> public_key end)
     |> stub(:get_last_chain_address_stored, fn addr -> addr end)
-    |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
     MockUTXOLedger
     |> stub(:list_genesis_addresses, fn -> [] end)
