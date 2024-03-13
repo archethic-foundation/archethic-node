@@ -74,7 +74,7 @@ defmodule Archethic.Utils.JobCache do
       iex> :persistent_term.get(:nil)
       :called
   """
-  @spec get!(GenServer.server(), Keyword.t()) :: any
+  @spec get!(GenServer.server() | any(), Keyword.t()) :: any
   def get!(pid, opts \\ [])
 
   def get!(pid, opts) when is_pid(pid) do
