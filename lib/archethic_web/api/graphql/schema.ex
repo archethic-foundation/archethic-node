@@ -227,11 +227,11 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
     """
     field :chain_unspent_outputs, list_of(:unspent_output) do
       arg(:address, non_null(:address))
-      arg(:paging_offset, :non_neg_integer)
+      arg(:paging_offset, :sha256_hash)
       arg(:limit, :pos_integer)
 
       resolve(fn args = %{address: address}, _ ->
-        paging_offset = Map.get(args, :paging_offset, 0)
+        paging_offset = Map.get(args, :paging_offset, nil)
         limit = Map.get(args, :limit, 0)
         Resolver.get_genesis_unspent_outputs(address, paging_offset, limit)
       end)

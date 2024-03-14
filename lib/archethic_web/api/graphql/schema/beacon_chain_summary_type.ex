@@ -50,7 +50,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.BeaconChainSummary do
     field(:movements_addresses, list_of(:address))
     field(:type, :string)
     field(:fee, :integer)
-    field(:validation_stamp_checksum, :hash)
+    field(:validation_stamp_checksum, :sha256_hash)
   end
 
   scalar :p2p_availabilities do

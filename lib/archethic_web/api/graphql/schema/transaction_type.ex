@@ -141,7 +141,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   object :validation_stamp do
     field(:timestamp, :timestamp)
     field(:proof_of_work, :public_key)
-    field(:proof_of_integrity, :hash)
+    field(:proof_of_integrity, :versioned_hash)
     field(:ledger_operations, :ledger_operations)
     field(:signature, :hex)
     field(:protocol_version, :integer)

@@ -55,6 +55,7 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp
 
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.VersionedTransactionInput
@@ -697,7 +698,7 @@ defmodule Archethic.TransactionChain do
 
   def fetch_unspent_outputs(address, nodes, opts)
       when is_binary(address) and is_list(nodes) and is_list(opts) do
-    offset = Keyword.get(opts, :paging_offset, 0)
+    offset = Keyword.get(opts, :paging_offset, nil)
     limit = Keyword.get(opts, :limit, 0)
 
     Stream.resource(
@@ -726,9 +727,32 @@ defmodule Archethic.TransactionChain do
 
   defp do_fetch_unspent_outputs(address, nodes, offset, limit) do
     conflict_resolver = fn results ->
-      results
-      |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
-      |> List.first()
+      %UnspentOutputList{last_chain_sync_date: highest_date} =
+        Enum.max_by(results, & &1.last_chain_sync_date, DateTime)
+
+      synced_results = Enum.filter(results, &(&1.last_chain_sync_date == highest_date))
+
+      merged_utxos =
+        synced_results
+        |> Enum.flat_map(& &1.unspent_outputs)
+        |> Enum.uniq()
+        |> Enum.sort_by(fn %VersionedUnspentOutput{
+                             unspent_output: %UnspentOutput{timestamp: timestamp}
+                           } ->
+          if is_nil(timestamp), do: DateTime.from_unix!(0), else: timestamp
+        end)
+
+      offset =
+        if Enum.empty?(merged_utxos),
+          do: nil,
+          else: merged_utxos |> List.last() |> VersionedUnspentOutput.hash()
+
+      %UnspentOutputList{
+        unspent_outputs: merged_utxos,
+        more?: Enum.any?(synced_results, & &1.more?),
+        last_chain_sync_date: highest_date,
+        offset: offset
+      }
     end
 
     case P2P.quorum_read(
