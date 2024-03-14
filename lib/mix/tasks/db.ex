@@ -49,18 +49,24 @@ defmodule Mix.Tasks.Archethic.Db do
         "_backup-#{DateTime.utc_now() |> DateTime.to_unix()}"
     )
 
-    File.rm_rf!(Archethic.UTXO.DBLedger.FileImpl.base_path())
+    # Avoid to index the entire DB, we just need to create the ets table
+    Archethic.DB.EmbeddedImpl.ChainIndex.setup_ets_table()
 
-    Archethic.DB.Supervisor.start_link()
-    Archethic.UTXO.Supervisor.start_link()
+    Archethic.DB.EmbeddedImpl.BootstrapInfo.start_link(path: Archethic.DB.filepath())
+    Archethic.DB.EmbeddedImpl.P2PView.start_link(path: Archethic.DB.filepath())
 
     Task.Supervisor.start_link(name: Archethic.TaskSupervisor)
     Registry.start_link(keys: :duplicate, name: Archethic.PubSubRegistry)
 
     Archethic.TransactionChain.Supervisor.start_link()
-    Archethic.Election.Supervisor.start_link([])
     Archethic.Crypto.Supervisor.start_link([])
+    Archethic.Election.Supervisor.start_link([])
     Archethic.P2P.Supervisor.start_link()
+    Archethic.UTXO.Supervisor.start_link()
+    Archethic.Reward.Supervisor.start_link()
+
+    File.rm_rf!(Archethic.UTXO.DBLedger.FileImpl.base_path())
+    Archethic.UTXO.DBLedger.FileImpl.setup_folder!()
 
     :ets.new(:sorted_transactions, [:named_table, :ordered_set, :public])
 
@@ -97,9 +103,12 @@ defmodule Mix.Tasks.Archethic.Db do
         |> Stream.run()
       end)
 
+    IO.puts("== Listing transactions to ingest ==")
     Task.await_many([t1, t2], :infinity)
 
     # Scan the ets table in order to rebuild the UTXO db
+    IO.puts("== Rebuilding of the UTXO == ")
+
     :ets.foldl(
       fn
         {{_, address}, {:chain, genesis_address}}, _acc ->
@@ -113,6 +122,8 @@ defmodule Mix.Tasks.Archethic.Db do
       nil,
       :sorted_transactions
     )
+
+    IO.puts("== Rebuilding finished ==")
   end
 
   defp list_chain_addresses(genesis_address) do
