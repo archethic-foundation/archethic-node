@@ -803,7 +803,7 @@ defmodule Archethic.TransactionChainTest do
       assert [^utxo] = TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
 
-    test "should resolve the longest utxos when conflicts" do
+    test "should resolve the last chain sync date and aggregate UTXO" do
       nodes = [
         %Node{
           first_public_key: "node1",
@@ -830,6 +830,7 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      old_timestamp = DateTime.add(timestamp, -1, :minute)
 
       user_address = random_address()
 
@@ -841,19 +842,23 @@ defmodule Archethic.TransactionChainTest do
         %UnspentOutput{from: random_address(), amount: 2, type: :UCO, timestamp: timestamp}
         |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
 
+      utxo3 =
+        %UnspentOutput{from: random_address(), amount: 32, type: :UCO, timestamp: timestamp}
+        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+
       MockClient
       |> stub(:send_message, fn
         %Node{port: 3000}, %GetUnspentOutputs{address: ^user_address}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: []}}
+          {:ok, %UnspentOutputList{unspent_outputs: [utxo1], last_chain_sync_date: old_timestamp}}
 
         %Node{port: 3001}, %GetUnspentOutputs{address: ^user_address}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: [utxo1]}}
+          {:ok, %UnspentOutputList{unspent_outputs: [utxo2], last_chain_sync_date: timestamp}}
 
         %Node{port: 3002}, %GetUnspentOutputs{address: ^user_address}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: [utxo1, utxo2]}}
+          {:ok, %UnspentOutputList{unspent_outputs: [utxo3], last_chain_sync_date: timestamp}}
       end)
 
-      assert [^utxo1, ^utxo2] =
+      assert [^utxo2, ^utxo3] =
                TransactionChain.fetch_unspent_outputs(user_address, nodes) |> Enum.to_list()
     end
   end

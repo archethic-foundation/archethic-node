@@ -47,8 +47,7 @@ defmodule Archethic.P2P.MessageTest do
     ShardRepair,
     TransactionChainLength,
     TransactionInputList,
-    TransactionList,
-    UnspentOutputList
+    TransactionList
   }
 
   alias Archethic.TransactionChain.{
@@ -543,29 +542,6 @@ defmodule Archethic.P2P.MessageTest do
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
-    end
-
-    test "UnspentOutputList message " do
-      msg = %UnspentOutputList{
-        unspent_outputs: [
-          %VersionedUnspentOutput{
-            unspent_output: %UnspentOutput{
-              from:
-                <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
-                  194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-              amount: 1_050_000_000,
-              type: :UCO,
-              timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-            },
-            protocol_version: 1
-          }
-        ]
-      }
-
-      assert msg
-             |> Message.encode()
-             |> Message.decode()
-             |> elem(0)
     end
 
     test "NodeList message" do

@@ -413,10 +413,10 @@ defmodule Archethic do
   """
   @spec get_unspent_outputs(
           address :: Crypto.prepended_hash(),
-          paging_offset :: non_neg_integer(),
+          paging_offset :: Crypto.sha256() | nil,
           limit :: non_neg_integer()
         ) :: list(UnspentOutput.t())
-  def get_unspent_outputs(address, paging_offset \\ 0, limit \\ 0) do
+  def get_unspent_outputs(address, paging_offset \\ nil, limit \\ 0) do
     previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     nodes =

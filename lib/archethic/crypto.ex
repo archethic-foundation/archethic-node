@@ -65,6 +65,8 @@ defmodule Archethic.Crypto do
   """
   @type prepended_hash :: <<_::16, _::_*8>>
 
+  @type sha256 :: <<_::32>>
+
   @typedoc """
   Binary representing a key prepend by two bytes:
   - to identify the elliptic curve for a key

@@ -2,19 +2,28 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
   @moduledoc """
   Represents a message with a list of unspent outputs
   """
-  defstruct unspent_outputs: [], more?: false, offset: 0
+  defstruct [:last_chain_sync_date, unspent_outputs: [], more?: false, offset: nil]
+
+  alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           unspent_outputs: list(VersionedUnspentOutput.t()),
           more?: boolean(),
-          offset: non_neg_integer()
+          offset: Crypto.sha256() | nil,
+          last_chain_sync_date: DateTime.t()
         }
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{unspent_outputs: unspent_outputs, more?: more?, offset: offset}) do
+  def serialize(%__MODULE__{
+        unspent_outputs: unspent_outputs,
+        more?: more?,
+        offset: offset,
+        last_chain_sync_date: last_chain_sync_date
+      }) do
     unspent_outputs_bin =
       unspent_outputs
       |> Stream.map(&VersionedUnspentOutput.serialize/1)
@@ -28,8 +37,10 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
 
     more_bit = if more?, do: 1, else: 0
 
+    offset_bin = if is_nil(offset), do: <<0::1>>, else: <<1::1, offset::binary>>
+
     <<encoded_unspent_outputs_length::binary, unspent_outputs_bin::bitstring, more_bit::1,
-      VarInt.from_value(offset)::binary>>
+      offset_bin::bitstring, DateTime.to_unix(last_chain_sync_date, :millisecond)::64>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
@@ -41,9 +52,18 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
 
     more? = more_bit == 1
 
-    {offset, rest} = VarInt.get_value(rest)
+    {offset, <<last_chain_sync_date::64, rest::bitstring>>} =
+      case rest do
+        <<0::1, rest::bitstring>> -> {nil, rest}
+        <<1::1, offset::binary-size(32), rest::bitstring>> -> {offset, rest}
+      end
 
-    {%__MODULE__{unspent_outputs: unspent_outputs, more?: more?, offset: offset}, rest}
+    {%__MODULE__{
+       unspent_outputs: unspent_outputs,
+       more?: more?,
+       offset: offset,
+       last_chain_sync_date: DateTime.from_unix!(last_chain_sync_date, :millisecond)
+     }, rest}
   end
 
   defp deserialize_versioned_unspent_output_list(rest, 0, _acc), do: {[], rest}
