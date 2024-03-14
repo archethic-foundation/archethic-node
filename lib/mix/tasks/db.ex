@@ -49,6 +49,10 @@ defmodule Mix.Tasks.Archethic.Db do
         "_backup-#{DateTime.utc_now() |> DateTime.to_unix()}"
     )
 
+    File.rm_rf!(Archethic.UTXO.DBLedger.FileImpl.base_path())
+
+    Application.ensure_started(:telemetry)
+
     # Avoid to index the entire DB, we just need to create the ets table
     Archethic.DB.EmbeddedImpl.ChainIndex.setup_ets_table()
 
@@ -64,9 +68,6 @@ defmodule Mix.Tasks.Archethic.Db do
     Archethic.P2P.Supervisor.start_link()
     Archethic.UTXO.Supervisor.start_link()
     Archethic.Reward.Supervisor.start_link()
-
-    File.rm_rf!(Archethic.UTXO.DBLedger.FileImpl.base_path())
-    Archethic.UTXO.DBLedger.FileImpl.setup_folder!()
 
     :ets.new(:sorted_transactions, [:named_table, :ordered_set, :public])
 
