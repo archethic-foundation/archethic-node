@@ -32,15 +32,6 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1, :day)
     })
 
-    on_exit(fn ->
-      # global process to reset
-      Registry.select(Archethic.Utils.JobCacheRegistry, [{{:_, :"$1", :_}, [], [:"$1"]}])
-      |> Enum.each(fn pid -> Process.exit(pid, :kill) end)
-
-      # sleep a little because the JobCacheRegistry is informed asynchronously
-      Process.sleep(50)
-    end)
-
     {:ok, %{pid: pid}}
   end
 

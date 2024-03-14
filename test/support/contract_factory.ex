@@ -55,7 +55,8 @@ defmodule Archethic.ContractFactory do
   end
 
   def create_valid_contract_tx(code, opts \\ []) do
-    seed = Keyword.get(opts, :seed, "seed")
+    opts = Keyword.update(opts, :seed, random_seed(), fn seed -> seed end)
+    seed = Keyword.fetch!(opts, :seed)
     ownerships = Keyword.get(opts, :ownerships, [])
 
     aes_key = :crypto.strong_rand_bytes(32)
@@ -87,13 +88,21 @@ defmodule Archethic.ContractFactory do
   end
 
   def create_next_contract_tx(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        prev_tx = %Transaction{
+          data: %TransactionData{
+            code: code,
+            ownerships: [%Ownership{secret: secret, authorized_keys: authorized_keys} | _]
+          }
+        },
         opts \\ []
       ) do
-    opts =
-      opts
-      |> Keyword.update(:index, 1, & &1)
-      |> Keyword.put(:prev_tx, prev_tx)
+    opts = opts |> Keyword.update(:index, 1, & &1) |> Keyword.put(:prev_tx, prev_tx)
+
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+    encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
+    {:ok, aes_key} = Crypto.ec_decrypt_with_storage_nonce(encrypted_key)
+    {:ok, seed} = Crypto.aes_decrypt(secret, aes_key)
+    opts = Keyword.put(opts, :seed, seed)
 
     create_valid_contract_tx(code, opts)
   end

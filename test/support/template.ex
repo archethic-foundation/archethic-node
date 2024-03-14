@@ -228,6 +228,13 @@ defmodule ArchethicCase do
     start_supervised!(TransactionSubscriber)
     start_supervised!(MemoryLedger)
     start_supervised!(Loader)
+
+    on_exit(:terminate_jobcache, fn ->
+      # global process to reset
+      Registry.select(Archethic.Utils.JobCacheRegistry, [{{:_, :"$1", :_}, [], [:"$1"]}])
+      |> Enum.each(fn pid -> Process.exit(pid, :kill) end)
+    end)
+
     :ok
   end
 

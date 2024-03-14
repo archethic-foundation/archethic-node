@@ -68,7 +68,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       end
       """
 
-      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: "seed")
+        |> Contract.from_transaction!()
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be signed !")
 
@@ -112,7 +114,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       end
       """
 
-      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: "seed")
+        |> Contract.from_transaction!()
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
 
@@ -138,7 +142,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       end
       """
 
-      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: "seed")
+        |> Contract.from_transaction!()
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
 
