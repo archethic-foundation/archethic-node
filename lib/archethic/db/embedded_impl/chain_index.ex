@@ -27,13 +27,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     db_path = Keyword.fetch!(opts, :path)
     Logger.info("Index database at #{db_path}")
 
-    :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
+    setup_ets_table()
 
     fill_tables(db_path)
 
     {:ok, %{db_path: db_path}}
+  end
+
+  def setup_ets_table do
+    :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
   end
 
   defp fill_tables(db_path) do
