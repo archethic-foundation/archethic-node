@@ -222,7 +222,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   Stream all genesis addresses
   """
   @spec list_genesis_addresses() :: Enumerable.t()
-  def list_genesis_addresses(), do: ChainIndex.list_genesis_addresses()
+  def list_genesis_addresses(), do: ChainIndex.list_genesis_addresses(filepath())
 
   @doc """
   Count the number of transactions for a given type
@@ -294,7 +294,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
-    ChainIndex.list_genesis_addresses()
+    filepath()
+    |> ChainIndex.list_genesis_addresses()
     |> Stream.flat_map(&ChainReader.stream_chain(&1, fields, filepath()))
   end
 
@@ -320,7 +321,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_last_transaction_addresses() :: Enumerable.t() | list(binary())
   def list_last_transaction_addresses do
-    ChainIndex.list_genesis_addresses()
+    filepath()
+    |> ChainIndex.list_genesis_addresses()
     |> Stream.map(&get_last_chain_address/1)
     |> Stream.map(fn {address, _time} -> address end)
   end
@@ -384,7 +386,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
   def list_first_addresses() do
-    ChainIndex.list_genesis_addresses()
+    filepath()
+    |> ChainIndex.list_genesis_addresses()
     |> Stream.map(fn gen_address ->
       gen_address
       |> list_chain_addresses()
