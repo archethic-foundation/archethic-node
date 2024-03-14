@@ -16,8 +16,10 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Loader
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.Utils
 
   require Logger
 
@@ -75,6 +77,14 @@ defmodule Archethic.Contracts do
     # TODO: rescue should be done in here as well
     # TODO: implement timeout
 
+    opts =
+      case Keyword.get(opts, :time_now) do
+        # you must use the :time_now opts during the validation workflow
+        # because there is no validation_stamp yet
+        nil -> Keyword.put(opts, :time_now, time_now(trigger_type, maybe_trigger_tx))
+        _ -> opts
+      end
+
     fn ->
       Interpreter.execute_trigger(
         trigger_type,
@@ -89,6 +99,26 @@ defmodule Archethic.Contracts do
       rescue_err: :trigger_failure
     )
     |> cast_trigger_result(state, contract_tx)
+  end
+
+  defp time_now({:transaction, _, _}, %Transaction{
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
+       }) do
+    timestamp
+  end
+
+  defp time_now(:oracle, %Transaction{
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
+       }) do
+    timestamp
+  end
+
+  defp time_now({:datetime, timestamp}, nil) do
+    timestamp
+  end
+
+  defp time_now({:interval, interval}, nil) do
+    Utils.get_current_time_for_interval(interval)
   end
 
   defp cast_trigger_result(res = {:ok, _, next_state, logs}, prev_state, contract_tx) do
