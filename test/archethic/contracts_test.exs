@@ -731,7 +731,7 @@ defmodule Archethic.ContractsTest do
           end
         )
 
-      assert {:error, %Failure{user_friendly_error: "Function timed-out"}} =
+      assert {:error, %Failure{user_friendly_error: "Function's execution timed-out"}} =
                Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
     end
 
