@@ -75,12 +75,18 @@ defmodule Archethic.Contracts do
     # TODO: rescue should be done in here as well
     # TODO: implement timeout
 
-    Interpreter.execute_trigger(
-      trigger_type,
-      contract,
-      maybe_trigger_tx,
-      maybe_recipient,
-      opts
+    fn ->
+      Interpreter.execute_trigger(
+        trigger_type,
+        contract,
+        maybe_trigger_tx,
+        maybe_recipient,
+        opts
+      )
+    end
+    |> async_interpreter_execute(
+      timeout_err_msg: "Trigger's execution timed-out",
+      rescue_err: :trigger_failure
     )
     |> cast_trigger_result(state, contract_tx)
   end
@@ -104,6 +110,8 @@ defmodule Archethic.Contracts do
       end
     end
   end
+
+  defp cast_trigger_result(err = {:error, %Failure{}}, _, _), do: err
 
   defp cast_trigger_result({:error, err}, _, _) do
     {:error, %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}}
@@ -181,41 +189,17 @@ defmodule Archethic.Contracts do
           :state => state
         }
 
-        task =
-          Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-            try do
-              # TODO: logs
-              logs = []
-              value = Interpreter.execute_function(function, constants, args_values)
-              {:ok, value, logs}
-            rescue
-              err ->
-                # error from the code (ex: 1 + "abc")
-                {:error, err, __STACKTRACE__}
-            end
-          end)
-
-        # 500ms to execute or raise
-        case Task.yield(task, 500) || Task.shutdown(task) do
-          nil ->
-            {:error,
-             %Failure{
-               user_friendly_error: "Function timed-out",
-               error: :function_timeout
-             }}
-
-          {:ok, {:error, err, stacktrace}} ->
-            {:error,
-             %Failure{
-               user_friendly_error: append_line_to_error(err, stacktrace),
-               error: :function_failure,
-               stacktrace: stacktrace,
-               logs: []
-             }}
-
-          {:ok, {:ok, value, logs}} ->
+        async_interpreter_execute(
+          fn ->
+            # TODO: logs
+            logs = []
+            value = Interpreter.execute_function(function, constants, args_values)
             {:ok, value, logs}
-        end
+          end,
+          timeout: 500,
+          timeout_err_msg: "Function's execution timed-out",
+          rescue_err: :function_failure
+        )
     end
   end
 
@@ -255,32 +239,53 @@ defmodule Archethic.Contracts do
         ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
-        contract = %Contract{version: version, conditions: conditions},
+        contract = %Contract{conditions: conditions},
         transaction = %Transaction{},
         maybe_recipient,
         datetime
       ) do
-    case Map.get(conditions, condition_key) do
-      nil ->
-        # only inherit condition are optional
-        if condition_key == :inherit do
-          {:ok, []}
-        else
-          {:error,
-           %Failure{
-             error: "Missing condition",
-             user_friendly_error: "Missing condition",
-             logs: [],
-             stacktrace: []
-           }}
-        end
+    conditions
+    |> Map.get(condition_key)
+    |> do_execute_condition(condition_key, contract, transaction, datetime, maybe_recipient)
+  rescue
+    err ->
+      stacktrace = __STACKTRACE__
 
-      %Conditions{args: args, subjects: subjects} ->
-        named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
+      {:error,
+       %Failure{
+         error: err,
+         user_friendly_error: append_line_to_error(err, stacktrace),
+         logs: [],
+         stacktrace: stacktrace
+       }}
+  end
 
-        condition_constants =
-          get_condition_constants(condition_key, contract, transaction, datetime)
+  defp do_execute_condition(nil, :inherit, _, _, _, _), do: {:ok, []}
 
+  defp do_execute_condition(nil, _, _, _, _, _) do
+    {:error,
+     %Failure{
+       error: "Missing condition",
+       user_friendly_error: "Missing condition",
+       logs: [],
+       stacktrace: []
+     }}
+  end
+
+  defp do_execute_condition(
+         %Conditions{args: args, subjects: subjects},
+         condition_key,
+         contract = %Contract{version: version},
+         transaction,
+         datetime,
+         maybe_recipient
+       ) do
+    named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
+
+    condition_constants = get_condition_constants(condition_key, contract, transaction, datetime)
+
+    async_interpreter_execute(
+      fn ->
         case Interpreter.execute_condition(
                version,
                subjects,
@@ -296,18 +301,10 @@ defmodule Archethic.Contracts do
                logs: logs
              }}
         end
-    end
-  rescue
-    err ->
-      stacktrace = __STACKTRACE__
-
-      {:error,
-       %Failure{
-         error: err,
-         user_friendly_error: append_line_to_error(err, stacktrace),
-         logs: [],
-         stacktrace: stacktrace
-       }}
+      end,
+      timeout_err_msg: "Condition's execution timed-out",
+      rescue_err: :condition_failure
+    )
   end
 
   @doc """
@@ -387,6 +384,44 @@ defmodule Archethic.Contracts do
 
       _ ->
         Exception.message(err)
+    end
+  end
+
+  defp async_interpreter_execute(fun, opts) do
+    timeout = Keyword.get(opts, :timeout, 5_000)
+    timeout_err_msg = Keyword.get(opts, :timeout_err_msg, "Contract's execution timeouts")
+    rescue_err = Keyword.get(opts, :rescue_err, :execution_failure)
+
+    task =
+      Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+        try do
+          fun.()
+        rescue
+          err ->
+            # error from the code (ex: 1 + "abc")
+            {:error, err, __STACKTRACE__}
+        end
+      end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task) do
+      nil ->
+        {:error,
+         %Failure{
+           user_friendly_error: timeout_err_msg,
+           error: :timeout
+         }}
+
+      {:ok, {:error, err, stacktrace}} ->
+        {:error,
+         %Failure{
+           user_friendly_error: append_line_to_error(err, stacktrace),
+           error: rescue_err,
+           stacktrace: stacktrace,
+           logs: []
+         }}
+
+      {:ok, result} ->
+        result
     end
   end
 end
