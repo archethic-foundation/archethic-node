@@ -68,7 +68,10 @@ defmodule Archethic.Contracts do
           | {:error, Failure.t()}
   def execute_trigger(
         trigger_type,
-        contract = %Contract{transaction: contract_tx, state: state},
+        contract = %Contract{
+          transaction: contract_tx = %Transaction{address: contract_address},
+          state: state
+        },
         maybe_trigger_tx,
         maybe_recipient,
         opts \\ []
@@ -85,6 +88,19 @@ defmodule Archethic.Contracts do
         _ -> opts
       end
 
+    key =
+      case maybe_trigger_tx do
+        nil ->
+          time = Keyword.fetch!(opts, :time_now)
+          {:execute_trigger, trigger_type, contract_address, nil, time}
+
+        %Transaction{
+          address: trigger_tx_address,
+          validation_stamp: %ValidationStamp{timestamp: time}
+        } ->
+          {:execute_trigger, trigger_type, contract_address, trigger_tx_address, time}
+      end
+
     fn ->
       Interpreter.execute_trigger(
         trigger_type,
@@ -94,7 +110,7 @@ defmodule Archethic.Contracts do
         opts
       )
     end
-    |> async_interpreter_execute(
+    |> cache_interpreter_execute(key,
       timeout_err_msg: "Trigger's execution timed-out",
       rescue_err: :trigger_failure
     )
@@ -219,17 +235,41 @@ defmodule Archethic.Contracts do
           :state => state
         }
 
-        async_interpreter_execute(
-          fn ->
-            # TODO: logs
-            logs = []
-            value = Interpreter.execute_function(function, constants, args_values)
+        task =
+          Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+            try do
+              # TODO: logs
+              logs = []
+              value = Interpreter.execute_function(function, constants, args_values)
+              {:ok, value, logs}
+            rescue
+              err ->
+                # error from the code (ex: 1 + "abc")
+                {:error, err, __STACKTRACE__}
+            end
+          end)
+
+        # 500ms to execute or raise
+        case Task.yield(task, 500) || Task.shutdown(task) do
+          nil ->
+            {:error,
+             %Failure{
+               user_friendly_error: "Function's execution timed-out",
+               error: :function_timeout
+             }}
+
+          {:ok, {:error, err, stacktrace}} ->
+            {:error,
+             %Failure{
+               user_friendly_error: append_line_to_error(err, stacktrace),
+               error: :function_failure,
+               stacktrace: stacktrace,
+               logs: []
+             }}
+
+          {:ok, {:ok, value, logs}} ->
             {:ok, value, logs}
-          end,
-          timeout: 500,
-          timeout_err_msg: "Function's execution timed-out",
-          rescue_err: :function_failure
-        )
+        end
     end
   end
 
@@ -305,8 +345,11 @@ defmodule Archethic.Contracts do
   defp do_execute_condition(
          %Conditions{args: args, subjects: subjects},
          condition_key,
-         contract = %Contract{version: version},
-         transaction,
+         contract = %Contract{
+           version: version,
+           transaction: %Transaction{address: contract_address}
+         },
+         transaction = %Transaction{address: tx_address},
          datetime,
          maybe_recipient
        ) do
@@ -314,24 +357,20 @@ defmodule Archethic.Contracts do
 
     condition_constants = get_condition_constants(condition_key, contract, transaction, datetime)
 
-    async_interpreter_execute(
+    key = {:execute_condition, condition_key, contract_address, tx_address, datetime}
+
+    cache_interpreter_execute(
       fn ->
         case Interpreter.execute_condition(
                version,
                subjects,
                Map.merge(named_action_constants, condition_constants)
              ) do
-          {:ok, logs} ->
-            {:ok, logs}
-
-          {:error, subject, logs} ->
-            {:error,
-             %ConditionRejected{
-               subject: subject,
-               logs: logs
-             }}
+          {:ok, logs} -> {:ok, logs}
+          {:error, subject, logs} -> {:error, %ConditionRejected{subject: subject, logs: logs}}
         end
       end,
+      key,
       timeout_err_msg: "Condition's execution timed-out",
       rescue_err: :condition_failure
     )
@@ -417,31 +456,23 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp async_interpreter_execute(fun, opts) do
+  defp cache_interpreter_execute(fun, key, opts) do
     timeout = Keyword.get(opts, :timeout, 5_000)
-    timeout_err_msg = Keyword.get(opts, :timeout_err_msg, "Contract's execution timeouts")
     rescue_err = Keyword.get(opts, :rescue_err, :execution_failure)
 
-    task =
-      Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-        try do
-          fun.()
-        rescue
-          err ->
-            # error from the code (ex: 1 + "abc")
-            {:error, err, __STACKTRACE__}
-        end
-      end)
+    func = fn ->
+      try do
+        fun.()
+      rescue
+        err ->
+          # error from the code (ex: 1 + "abc")
+          {:error, err, __STACKTRACE__}
+      end
+    end
 
-    case Task.yield(task, timeout) || Task.shutdown(task) do
-      nil ->
-        {:error,
-         %Failure{
-           user_friendly_error: timeout_err_msg,
-           error: :timeout
-         }}
-
-      {:ok, {:error, err, stacktrace}} ->
+    # We set the maximum timeout for a transaction to be processed before the kill the cache
+    case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
+      {:error, err, stacktrace} ->
         {:error,
          %Failure{
            user_friendly_error: append_line_to_error(err, stacktrace),
@@ -450,8 +481,12 @@ defmodule Archethic.Contracts do
            logs: []
          }}
 
-      {:ok, result} ->
+      result ->
         result
     end
+  rescue
+    _ ->
+      timeout_err_msg = Keyword.get(opts, :timeout_err_msg, "Contract's execution timeouts")
+      {:error, %Failure{user_friendly_error: timeout_err_msg, error: :timeout}}
   end
 end
