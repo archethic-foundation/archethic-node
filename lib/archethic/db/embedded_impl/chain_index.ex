@@ -95,7 +95,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp fill_last_addresses(db_path) do
-    list_genesis_addresses()
+    db_path
+    |> list_genesis_addresses()
     |> Task.async_stream(
       fn genesis_address ->
         # Register last addresses of genesis address
@@ -694,7 +695,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec list_all_addresses(String.t()) :: Enumerable.t() | list(binary())
   def list_all_addresses(db_path) do
-    list_genesis_addresses()
+    db_path
+    |> list_genesis_addresses()
     |> Stream.map(&scan_chain(&1, db_path))
     |> Stream.flat_map(& &1)
   end
@@ -702,13 +704,32 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Stream all the genesis keys from the ETS file stats table
   """
-  @spec list_genesis_addresses() :: Enumerable.t()
-  def list_genesis_addresses do
-    Stream.resource(
-      fn -> [] end,
-      &stream_genesis_addresses/1,
-      fn _ -> :ok end
-    )
+  @spec list_genesis_addresses(String.t()) :: Enumerable.t()
+  def list_genesis_addresses(db_path) do
+    info = :ets.info(@archethic_db_chain_stats)
+
+    # If the ets table is empty we list from the disk instead
+    if Keyword.fetch!(info, :size) == 0 do
+      db_path
+      |> ChainWriter.base_chain_path()
+      |> File.ls!()
+      |> Enum.reject(fn file ->
+        case Base.decode16(file) do
+          {:ok, _} ->
+            String.contains?(file, "-")
+
+          _ ->
+            true
+        end
+      end)
+      |> Enum.map(&Base.decode16!/1)
+    else
+      Stream.resource(
+        fn -> [] end,
+        &stream_genesis_addresses/1,
+        fn _ -> :ok end
+      )
+    end
   end
 
   defp stream_genesis_addresses(acc = []) do
