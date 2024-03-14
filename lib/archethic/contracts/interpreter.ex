@@ -15,9 +15,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.Utils
 
   @type version() :: integer()
   @type execute_opts :: [time_now: DateTime.t()]
@@ -151,14 +149,7 @@ defmodule Archethic.Contracts.Interpreter do
         {:error, "Trigger not found on the contract"}
 
       %{args: args, ast: trigger_code} ->
-        timestamp_now =
-          case Keyword.get(opts, :time_now) do
-            # you must use the :time_now opts during the validation workflow
-            # because there is no validation_stamp yet
-            nil -> time_now(trigger_key, maybe_trigger_tx)
-            time_now -> time_now
-          end
-          |> DateTime.to_unix()
+        timestamp_now = Keyword.get(opts, :time_now, DateTime.utc_now()) |> DateTime.to_unix()
 
         named_action_constants = get_named_action_constants(args, maybe_recipient)
 
@@ -426,26 +417,6 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_ast(ast, _, _), do: {:error, ast, "unexpected term"}
-
-  defp time_now({:transaction, _, _}, %Transaction{
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
-    timestamp
-  end
-
-  defp time_now(:oracle, %Transaction{
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
-    timestamp
-  end
-
-  defp time_now({:datetime, timestamp}, nil) do
-    timestamp
-  end
-
-  defp time_now({:interval, interval}, nil) do
-    Utils.get_current_time_for_interval(interval)
-  end
 
   defp parse_functions_keys(blocks, function_keys \\ FunctionKeys.new())
 
