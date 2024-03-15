@@ -69,6 +69,8 @@ defmodule Mix.Tasks.Archethic.Db do
     Archethic.UTXO.Supervisor.start_link()
     Archethic.Reward.Supervisor.start_link()
 
+    Archethic.P2P.list_nodes() |> Archethic.P2P.connect_nodes()
+
     :ets.new(:sorted_transactions, [:named_table, :ordered_set, :public])
 
     # Get the addresses from the transaction chains
