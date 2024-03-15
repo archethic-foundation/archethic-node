@@ -3,6 +3,8 @@ defmodule Archethic.Replication.TransactionContext do
 
   alias Archethic.Crypto
 
+  alias Archethic.BeaconChain
+
   alias Archethic.Election
 
   alias Archethic.TransactionChain
@@ -73,9 +75,13 @@ defmodule Archethic.Replication.TransactionContext do
   @spec fetch_transaction_unspent_outputs(genesis_address :: Crypto.prepended_hash()) ::
           list(VersionedUnspentOutput.t())
   def fetch_transaction_unspent_outputs(genesis_address) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-    storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
-    TransactionChain.fetch_unspent_outputs(genesis_address, storage_nodes) |> Enum.to_list()
+    genesis_nodes =
+      genesis_address
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
+
+    TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes) |> Enum.to_list()
   end
 end

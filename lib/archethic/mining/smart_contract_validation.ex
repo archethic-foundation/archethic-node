@@ -8,6 +8,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
+  alias Archethic.BeaconChain
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
@@ -206,18 +207,23 @@ defmodule Archethic.Mining.SmartContractValidation do
   end
 
   defp request_contract_validation(
-         recipient = %Recipient{address: address},
+         recipient = %Recipient{address: genesis_address},
          transaction = %Transaction{},
          validation_time
        ) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    genesis_nodes =
+      genesis_address
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     conflicts_resolver = fn results ->
       Enum.reduce(results, &priorize/2)
     end
 
     case P2P.quorum_read(
-           storage_nodes,
+           genesis_nodes,
            %ValidateSmartContractCall{
              recipient: recipient,
              transaction: transaction,
