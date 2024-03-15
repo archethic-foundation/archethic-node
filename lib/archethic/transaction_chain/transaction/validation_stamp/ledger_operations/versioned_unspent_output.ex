@@ -100,6 +100,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   Used for cheap comparaison
   """
   @spec hash(t()) :: binary()
+  def hash(
+        utxo = %__MODULE__{
+          protocol_version: protocol_version,
+          unspent_output: %UnspentOutput{type: :call}
+        }
+      )
+      when protocol_version < 7,
+      # Before AEIP-21 call where not serialized in unspent output so the serialization / deserialization
+      # does not work with protocol version < 7
+      do: hash(%__MODULE__{utxo | protocol_version: 7})
+
   def hash(%__MODULE__{protocol_version: protocol_version, unspent_output: utxo}) do
     utxo
     |> UnspentOutput.serialize(protocol_version)
