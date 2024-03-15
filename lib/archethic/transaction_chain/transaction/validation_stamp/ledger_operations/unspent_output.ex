@@ -328,4 +328,59 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       timestamp: timestamp
     }
   end
+
+  @doc """
+  Compare two UnspentOutput
+  This function is usefull when using Enum.sort(utxos, {:asc, UnspentOutput})
+  """
+  @spec compare(utxo1 :: t(), utxo2 :: t()) :: :lt | :gt | :eq
+  def compare(utxo1, utxo2) when utxo1 == utxo2, do: :eq
+
+  def compare(
+        %__MODULE__{
+          timestamp: timestamp1,
+          from: from1,
+          type: type1,
+          encoded_payload: encoded_payload1
+        },
+        %__MODULE__{
+          timestamp: timestamp2,
+          from: from2,
+          type: type2,
+          encoded_payload: encoded_payload2
+        }
+      ) do
+    with :eq <- compare_time(timestamp1, timestamp2),
+         :eq <- compare_from(from1, from2),
+         :eq <- compare_type(type1, type2) do
+      compare_encoded_payload(encoded_payload1, encoded_payload2)
+    end
+  end
+
+  # It's possible to have nil timestamp for utxo type state with protocol_version < 7
+  defp compare_time(nil, nil), do: :eq
+  defp compare_time(nil, _), do: :lt
+  defp compare_time(_, nil), do: :gt
+  defp compare_time(time1, time2), do: DateTime.compare(time1, time2)
+
+  defp compare_from(from1, from2) when from1 == from2, do: :eq
+  defp compare_from(from1, from2) when from1 < from2, do: :lt
+  defp compare_from(_, _), do: :gt
+
+  # state => call => UCO => token (address => id)
+  defp compare_type(type1, type2) when type1 == type2, do: :eq
+  defp compare_type(:state, _), do: :lt
+  defp compare_type(_, :state), do: :gt
+  defp compare_type(:call, _), do: :lt
+  defp compare_type(_, :call), do: :gt
+  defp compare_type(:UCO, _), do: :lt
+  defp compare_type(_, :UCO), do: :gt
+  defp compare_type({:token, addr1, _}, {:token, addr2, _}) when addr1 < addr2, do: :lt
+  defp compare_type({:token, addr1, _}, {:token, addr2, _}) when addr1 > addr2, do: :gt
+  defp compare_type({:token, _, id1}, {:token, _, id2}) when id1 < id2, do: :lt
+  defp compare_type(_, _), do: :gt
+
+  defp compare_encoded_payload(p1, p2) when p1 < p2, do: :lt
+  defp compare_encoded_payload(p1, p2) when p1 > p2, do: :gt
+  defp compare_encoded_payload(_, _), do: :eq
 end

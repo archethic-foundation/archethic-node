@@ -125,7 +125,7 @@ defmodule Archethic.Contracts.Loader do
       |> UTXO.stream_unspent_outputs()
       |> Enum.filter(&(&1.unspent_output.type == :call))
       |> handle_invalid_calls(genesis_address, contract_address)
-      |> Enum.sort_by(& &1.unspent_output.timestamp, {:asc, DateTime})
+      |> Enum.sort({:asc, VersionedUnspentOutput})
 
     with %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from}} <- List.first(calls),
          {:ok, tx} <- TransactionChain.get_transaction(from, [], :io) do

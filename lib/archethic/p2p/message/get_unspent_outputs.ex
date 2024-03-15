@@ -9,7 +9,6 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -34,11 +33,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
     sorted_utxos =
       genesis_address
       |> UTXO.stream_unspent_outputs()
-      |> Enum.sort_by(fn %VersionedUnspentOutput{
-                           unspent_output: %UnspentOutput{timestamp: timestamp}
-                         } ->
-        if is_nil(timestamp), do: DateTime.from_unix!(0), else: timestamp
-      end)
+      |> Enum.sort({:desc, VersionedUnspentOutput})
 
     case get_numerical_offset(sorted_utxos, offset) do
       nil ->
