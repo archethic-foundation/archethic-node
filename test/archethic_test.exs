@@ -565,36 +565,25 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, 1, fn
-        _, %GetBalance{}, _ ->
-          {:ok,
-           %Balance{
-             uco: 1_000_000_000,
-             token: %{
-               {"ETH", 1} => 1
-             }
-           }}
+      |> expect(:send_message, 1, fn _, %GetBalance{}, _ ->
+        {:ok,
+         %Balance{
+           uco: 1_000_000_000,
+           token: %{{"ETH", 1} => 1},
+           last_chain_sync_date: DateTime.utc_now()
+         }}
       end)
-      |> expect(:send_message, 1, fn
-        _, %GetBalance{}, _ ->
-          {:ok,
-           %Balance{
-             uco: 2_000_000_000,
-             token: %{
-               {"BTC", 2} => 1,
-               {"ETH", 1} => 2
-             }
-           }}
+      |> expect(:send_message, 1, fn _, %GetBalance{}, _ ->
+        {:ok,
+         %Balance{
+           uco: 2_000_000_000,
+           token: %{{"BTC", 2} => 1, {"ETH", 1} => 2},
+           last_chain_sync_date: DateTime.utc_now()
+         }}
       end)
 
-      assert {:ok,
-              %{
-                uco: 2_000_000_000,
-                token: %{
-                  {"ETH", 1} => 2,
-                  {"BTC", 2} => 1
-                }
-              }} = Archethic.get_balance("@Alice2")
+      assert {:ok, %{uco: 2_000_000_000, token: %{{"ETH", 1} => 2, {"BTC", 2} => 1}}} =
+               Archethic.get_balance("@Alice2")
     end
   end
 

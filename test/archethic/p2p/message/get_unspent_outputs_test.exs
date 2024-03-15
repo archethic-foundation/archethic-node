@@ -95,35 +95,37 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
       address = random_address()
       now = DateTime.utc_now()
 
-      utxos = [
-        %VersionedUnspentOutput{
-          protocol_version: current_protocol_version(),
-          unspent_output: %UnspentOutput{
-            amount: 1,
-            from: random_address(),
-            type: :UCO,
-            timestamp: now
+      utxos =
+        [
+          %VersionedUnspentOutput{
+            protocol_version: current_protocol_version(),
+            unspent_output: %UnspentOutput{
+              amount: 1,
+              from: random_address(),
+              type: :UCO,
+              timestamp: now
+            }
+          },
+          %VersionedUnspentOutput{
+            protocol_version: current_protocol_version(),
+            unspent_output: %UnspentOutput{
+              amount: 2,
+              from: random_address(),
+              type: :UCO,
+              timestamp: now
+            }
+          },
+          %VersionedUnspentOutput{
+            protocol_version: current_protocol_version(),
+            unspent_output: %UnspentOutput{
+              amount: 3,
+              from: random_address(),
+              type: :UCO,
+              timestamp: now
+            }
           }
-        },
-        %VersionedUnspentOutput{
-          protocol_version: current_protocol_version(),
-          unspent_output: %UnspentOutput{
-            amount: 2,
-            from: random_address(),
-            type: :UCO,
-            timestamp: now
-          }
-        },
-        %VersionedUnspentOutput{
-          protocol_version: current_protocol_version(),
-          unspent_output: %UnspentOutput{
-            amount: 3,
-            from: random_address(),
-            type: :UCO,
-            timestamp: now
-          }
-        }
-      ]
+        ]
+        |> Enum.sort({:desc, VersionedUnspentOutput})
 
       expected_offset = utxos |> List.last() |> VersionedUnspentOutput.hash()
 
@@ -174,7 +176,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
         }
       ]
 
-      [first_utxo | expected_utxos] = utxos
+      [first_utxo | expected_utxos] = Enum.sort(utxos, {:desc, VersionedUnspentOutput})
 
       request_offset = VersionedUnspentOutput.hash(first_utxo)
       expected_offset = expected_utxos |> List.last() |> VersionedUnspentOutput.hash()
@@ -214,9 +216,10 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
           }
         end)
 
-      expected_utxos = Enum.slice(utxos, 0..(max_utxos - 1))
+      expected_utxos =
+        utxos |> Enum.sort({:desc, VersionedUnspentOutput}) |> Enum.slice(0..(max_utxos - 1))
 
-      expected_offset = utxos |> Enum.at(max_utxos - 1) |> VersionedUnspentOutput.hash()
+      expected_offset = expected_utxos |> List.last() |> VersionedUnspentOutput.hash()
 
       with_mock(UTXO, stream_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{

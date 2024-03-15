@@ -587,18 +587,17 @@ defmodule Archethic.P2P.MessageTest do
     test "Balance message" do
       token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       token_id = 0
+      now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
       assert %Balance{
                uco: 1_050_000_000,
-               token: %{
-                 {token_address, token_id} => 1_000_000_000
-               }
+               token: %{{token_address, token_id} => 1_000_000_000},
+               last_chain_sync_date: now
              } ==
                %Balance{
                  uco: 1_050_000_000,
-                 token: %{
-                   {token_address, token_id} => 1_000_000_000
-                 }
+                 token: %{{token_address, token_id} => 1_000_000_000},
+                 last_chain_sync_date: now
                }
                |> Message.encode()
                |> Message.decode()

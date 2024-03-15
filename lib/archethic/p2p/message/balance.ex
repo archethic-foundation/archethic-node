@@ -2,17 +2,22 @@ defmodule Archethic.P2P.Message.Balance do
   @moduledoc """
   Represents a message with the balance of a transaction
   """
-  defstruct uco: 0, token: %{}
+  defstruct [:last_chain_sync_date, uco: 0, token: %{}]
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           uco: non_neg_integer(),
-          token: %{{binary(), non_neg_integer()} => non_neg_integer()}
+          token: %{{binary(), non_neg_integer()} => non_neg_integer()},
+          last_chain_sync_date: DateTime.t()
         }
 
-  def serialize(%__MODULE__{uco: uco_balance, token: token_balances}) do
+  def serialize(%__MODULE__{
+        uco: uco_balance,
+        token: token_balances,
+        last_chain_sync_date: last_chain_sync_date
+      }) do
     token_balances_binary =
       token_balances
       |> Enum.reduce([], fn {{token_address, token_id}, amount}, acc ->
@@ -23,17 +28,21 @@ defmodule Archethic.P2P.Message.Balance do
 
     encoded_token_balances_length = map_size(token_balances) |> VarInt.from_value()
 
-    <<uco_balance::64, encoded_token_balances_length::binary, token_balances_binary::binary>>
+    <<uco_balance::64, encoded_token_balances_length::binary, token_balances_binary::binary,
+      DateTime.to_unix(last_chain_sync_date, :millisecond)::64>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<uco_balance::64, rest::bitstring>>) do
     {nb_token_balances, rest} = rest |> VarInt.get_value()
-    {token_balances, rest} = deserialize_token_balances(rest, nb_token_balances, %{})
+
+    {token_balances, <<last_chain_sync_date::64, rest::bitstring>>} =
+      deserialize_token_balances(rest, nb_token_balances, %{})
 
     {%__MODULE__{
        uco: uco_balance,
-       token: token_balances
+       token: token_balances,
+       last_chain_sync_date: DateTime.from_unix!(last_chain_sync_date, :millisecond)
      }, rest}
   end
 

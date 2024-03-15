@@ -858,7 +858,9 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %UnspentOutputList{unspent_outputs: [utxo3], last_chain_sync_date: timestamp}}
       end)
 
-      assert [^utxo2, ^utxo3] =
+      expected_utxos = [utxo2, utxo3] |> Enum.sort({:desc, VersionedUnspentOutput})
+
+      assert ^expected_utxos =
                TransactionChain.fetch_unspent_outputs(user_address, nodes) |> Enum.to_list()
     end
   end
