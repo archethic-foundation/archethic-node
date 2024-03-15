@@ -55,7 +55,6 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp
 
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
-  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.VersionedTransactionInput
@@ -736,11 +735,7 @@ defmodule Archethic.TransactionChain do
         synced_results
         |> Enum.flat_map(& &1.unspent_outputs)
         |> Enum.uniq()
-        |> Enum.sort_by(fn %VersionedUnspentOutput{
-                             unspent_output: %UnspentOutput{timestamp: timestamp}
-                           } ->
-          if is_nil(timestamp), do: DateTime.from_unix!(0), else: timestamp
-        end)
+        |> Enum.sort({:desc, VersionedUnspentOutput})
 
       offset =
         if Enum.empty?(merged_utxos),

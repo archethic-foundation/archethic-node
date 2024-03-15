@@ -106,4 +106,18 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     |> Utils.wrap_binary()
     |> then(&:crypto.hash(:sha256, &1))
   end
+
+  @doc """
+  Compare two VersionedUnspentOutput
+  This function is usefull when using Enum.sort(utxos, {:asc, VersionedUnspentOutput})
+  """
+  @spec compare(versioned_utxo1 :: t(), versioned_utxo2 :: t()) :: :lt | :gt | :eq
+  def compare(%__MODULE__{protocol_version: v1}, %__MODULE__{protocol_version: v2}) when v1 < v2,
+    do: :lt
+
+  def compare(%__MODULE__{protocol_version: v1}, %__MODULE__{protocol_version: v2}) when v1 > v2,
+    do: :gt
+
+  def compare(%__MODULE__{unspent_output: utxo1}, %__MODULE__{unspent_output: utxo2}),
+    do: UnspentOutput.compare(utxo1, utxo2)
 end

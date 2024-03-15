@@ -241,14 +241,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     # Since AEIP-19 we can consume from minted tokens
     # Sort inputs, to have consistent results across all nodes
     consolidated_inputs =
-      Enum.sort_by(
-        tokens_to_mint ++ inputs,
-        fn %VersionedUnspentOutput{
-             unspent_output: %UnspentOutput{timestamp: timestamp, from: from}
-           } ->
-          if is_nil(timestamp), do: {0, from}, else: {DateTime.to_unix(timestamp), from}
-        end
-      )
+      Enum.sort(tokens_to_mint ++ inputs, {:asc, VersionedUnspentOutput})
       |> Enum.map(fn
         utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^change_address}} ->
           # As the minted tokens are used internally during transaction's validation
