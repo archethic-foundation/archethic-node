@@ -230,14 +230,14 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       Process.sleep(100)
 
       signature =
-        %Balance{}
+        %Balance{last_chain_sync_date: DateTime.utc_now()}
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{},
+          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -289,14 +289,14 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       Process.sleep(10)
 
       signature =
-        %Balance{}
+        %Balance{last_chain_sync_date: DateTime.utc_now()}
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{},
+          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -357,14 +357,14 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       Process.sleep(10)
 
       signature =
-        %Balance{}
+        %Balance{last_chain_sync_date: DateTime.utc_now()}
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{},
+          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -456,14 +456,14 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert start != nil
 
       signature =
-        %Balance{}
+        %Balance{last_chain_sync_date: DateTime.utc_now()}
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{},
+          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature

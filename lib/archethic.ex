@@ -326,8 +326,12 @@ defmodule Archethic do
   end
 
   defp balance_conflict_resolver(balances) do
+    %Balance{last_chain_sync_date: highest_date} =
+      Enum.max_by(balances, & &1.last_chain_sync_date, DateTime)
+
     {max_uco, max_token} =
       balances
+      |> Enum.filter(&(&1.last_chain_sync_date == highest_date))
       |> Enum.reduce({0, %{}}, fn
         %Balance{uco: uco, token: token}, {uco_acc, token_acc} ->
           token_merger = fn _k, v1, v2 -> max(v1, v2) end

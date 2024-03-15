@@ -6,22 +6,20 @@ defmodule Archethic.P2P.Message.GetBalance do
   defstruct [:address]
 
   alias Archethic.Crypto
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.TransactionChain
   alias Archethic.Utils
   alias Archethic.UTXO
-  alias Archethic.P2P.Message.Balance
 
-  @type t :: %__MODULE__{
-          address: Crypto.versioned_hash()
-        }
+  @type t :: %__MODULE__{address: Crypto.versioned_hash()}
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Balance.t()
   def process(%__MODULE__{address: address}, _) do
     %{uco: uco, token: token} = UTXO.get_balance(address)
 
-    %Balance{
-      uco: uco,
-      token: token
-    }
+    {_, last_chain_sync_date} = TransactionChain.get_last_address(address)
+
+    %Balance{uco: uco, token: token, last_chain_sync_date: last_chain_sync_date}
   end
 
   @spec serialize(t()) :: bitstring()
