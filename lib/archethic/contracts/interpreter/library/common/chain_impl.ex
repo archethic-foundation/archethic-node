@@ -194,12 +194,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   end
 
   defp fetch_balance(address, function) do
-    with {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
-         {:ok, balance} <- Archethic.get_balance(genesis_address) do
-      balance
-    else
-      _ ->
-        raise Library.Error, message: "Network issue in #{function}"
+    case Archethic.fetch_genesis_address(address) do
+      {:ok, genesis_address} -> Archethic.get_balance(genesis_address)
+      _ -> raise Library.Error, message: "Network issue in #{function}"
     end
   end
 end

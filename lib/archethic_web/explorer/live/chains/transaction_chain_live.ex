@@ -9,6 +9,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
 
   alias Archethic.Crypto
   alias Archethic.OracleChain
+  alias Archethic.UTXO
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchethicWeb.Explorer.Components.TransactionsList
   alias ArchethicWeb.Explorer.Components.UnspentOutputList
@@ -136,12 +137,11 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
   end
 
   defp get_balance(utxos) do
-    Enum.reduce(utxos, %{}, fn
-      %UnspentOutput{type: type, amount: amount}, acc when amount != nil ->
-        Map.update(acc, type, amount, &(&1 + amount))
+    %{uco: uco, token: tokens} = UTXO.get_balance(utxos)
 
-      _, acc ->
-        acc
+    Enum.reduce(tokens, %{:UCO => uco}, fn
+      {{token_address, token_id}, amount}, acc ->
+        Map.put(acc, {:token, token_address, token_id}, amount)
     end)
   end
 end

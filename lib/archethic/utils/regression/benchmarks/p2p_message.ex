@@ -10,11 +10,11 @@ defmodule Archethic.Utils.Regression.Benchmark.P2PMessage do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.Message.Balance
-  alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.TransactionChain.Transaction
 
@@ -53,9 +53,9 @@ defmodule Archethic.Utils.Regression.Benchmark.P2PMessage do
              address: get_genesis_address()
            })
        end,
-       "GetBalance" => fn _ ->
-         %Balance{} =
-           __MODULE__.Connection.send_message(conn_pid, %GetBalance{
+       "GetUnspentOutputs" => fn _ ->
+         %UnspentOutputList{} =
+           __MODULE__.Connection.send_message(conn_pid, %GetUnspentOutputs{
              address: get_genesis_address()
            })
        end

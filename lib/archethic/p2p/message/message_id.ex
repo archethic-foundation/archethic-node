@@ -19,7 +19,6 @@ defmodule Archethic.P2P.MessageId do
     AcknowledgeStorage,
     NotifyEndOfNodeSync,
     GetLastTransaction,
-    GetBalance,
     GetTransactionInputs,
     GetTransactionChainLength,
     GetFirstPublicKey,
@@ -52,7 +51,6 @@ defmodule Archethic.P2P.MessageId do
     TransactionChainLength,
     BootstrappingNodes,
     EncryptedStorageNonce,
-    Balance,
     NodeList,
     UnspentOutputList,
     TransactionList,
@@ -101,7 +99,7 @@ defmodule Archethic.P2P.MessageId do
     AcknowledgeStorage => 13,
     NotifyEndOfNodeSync => 14,
     GetLastTransaction => 15,
-    GetBalance => 16,
+    # Message number 16 is available
     GetTransactionInputs => 17,
     GetTransactionChainLength => 18,
     RequestChainLock => 19,
@@ -152,7 +150,7 @@ defmodule Archethic.P2P.MessageId do
     TransactionChainLength => 245,
     BootstrappingNodes => 246,
     EncryptedStorageNonce => 247,
-    Balance => 248,
+    # Message number 248 is available
     NodeList => 249,
     UnspentOutputList => 250,
     TransactionList => 251,

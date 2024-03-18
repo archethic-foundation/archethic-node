@@ -358,7 +358,13 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     genesis_pools = Application.get_env(:archethic, NetworkInit)[:genesis_pools]
 
     assert Enum.all?(genesis_pools, fn %{address: address, amount: amount} ->
-             match?(%{uco: ^amount}, UTXO.get_balance(address))
+             balance =
+               address
+               |> UTXO.stream_unspent_outputs()
+               |> Enum.map(& &1.unspent_output)
+               |> UTXO.get_balance()
+
+             match?(%{uco: ^amount}, balance)
            end)
   end
 
@@ -408,7 +414,11 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     network_pool_genesis = Crypto.network_pool_public_key(0) |> Crypto.derive_address()
 
-    assert %{token: %{^key => 3_444_185_300_000_000}} = UTXO.get_balance(network_pool_genesis)
+    assert %{token: %{^key => 3_444_185_300_000_000}} =
+             network_pool_genesis
+             |> UTXO.stream_unspent_outputs()
+             |> Enum.map(& &1.unspent_output)
+             |> UTXO.get_balance()
   end
 
   test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do

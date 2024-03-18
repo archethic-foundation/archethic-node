@@ -14,21 +14,25 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.FirstTransactionAddress
-  alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetFirstPublicKey
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.TransactionFactory
@@ -276,21 +280,44 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
-      balance = %Balance{
-        uco: Utils.to_bigint(14.35),
-        token: %{
-          {fungible_token_address, 0} => Utils.to_bigint(134.489),
-          {non_fungible_token_address, 2} => Utils.to_bigint(1),
-          {non_fungible_token_address, 6} => Utils.to_bigint(1)
-        }
-      }
-
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
         {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
-        {:ok, balance}
+      |> expect(:send_message, fn _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
+        {:ok,
+         %UnspentOutputList{
+           unspent_outputs: [
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: :UCO,
+                 amount: Utils.to_bigint(14.35)
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, fungible_token_address, 0},
+                 amount: Utils.to_bigint(134.489)
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, non_fungible_token_address, 2},
+                 amount: Utils.to_bigint(1)
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, non_fungible_token_address, 6},
+                 amount: Utils.to_bigint(1)
+               }
+             }
+           ]
+         }}
       end)
 
       assert %{
@@ -328,14 +355,23 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       address = random_address()
       genesis_address = random_address()
 
-      balance = %Balance{uco: Utils.to_bigint(14.35), token: %{}}
-
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
         {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
-        {:ok, balance}
+      |> expect(:send_message, fn _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
+        {:ok,
+         %UnspentOutputList{
+           unspent_outputs: [
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 type: :UCO,
+                 from: random_address(),
+                 amount: Utils.to_bigint(14.35)
+               }
+             }
+           ]
+         }}
       end)
 
       assert 14.35 == address |> Base.encode16() |> Chain.get_uco_balance()
@@ -353,22 +389,45 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
-      balance = %Balance{
-        uco: Utils.to_bigint(14.35),
-        token: %{
-          {fungible_token_address, 0} => Utils.to_bigint(134.489),
-          {non_fungible_token_address, 2} => Utils.to_bigint(1),
-          {non_fungible_token_address, 6} => Utils.to_bigint(1)
-        }
-      }
-
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{address: ^address}, _ ->
           {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
 
-        _, %GetBalance{address: ^genesis_address}, _ ->
-          {:ok, balance}
+        _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: :UCO,
+                   from: random_address(),
+                   amount: Utils.to_bigint(14.35)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, fungible_token_address, 0},
+                   from: random_address(),
+                   amount: Utils.to_bigint(134.489)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 2},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 6},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               }
+             ]
+           }}
       end)
 
       assert 134.489 == Chain.get_token_balance(address_hex, fungible_token_address_hex)
@@ -391,21 +450,45 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
-      balance = %Balance{
-        uco: Utils.to_bigint(14.35),
-        token: %{
-          {fungible_token_address, 0} => Utils.to_bigint(134.489),
-          {non_fungible_token_address, 2} => Utils.to_bigint(1),
-          {non_fungible_token_address, 6} => Utils.to_bigint(1)
-        }
-      }
-
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
         {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
-      |> expect(:send_message, fn _, %GetBalance{address: ^genesis_address}, _ ->
-        {:ok, balance}
+      |> expect(:send_message, fn
+        _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: :UCO,
+                   from: random_address(),
+                   amount: Utils.to_bigint(14.35)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, fungible_token_address, 0},
+                   from: random_address(),
+                   amount: Utils.to_bigint(134.489)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 2},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 6},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               }
+             ]
+           }}
       end)
 
       assert %{
@@ -427,22 +510,45 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
-      balance = %Balance{
-        uco: Utils.to_bigint(14.35),
-        token: %{
-          {fungible_token_address, 0} => Utils.to_bigint(134.489),
-          {non_fungible_token_address, 2} => Utils.to_bigint(1),
-          {non_fungible_token_address, 6} => Utils.to_bigint(1)
-        }
-      }
-
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{address: ^address}, _ ->
           {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
 
-        _, %GetBalance{address: ^genesis_address}, _ ->
-          {:ok, balance}
+        _, %GetUnspentOutputs{address: ^genesis_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: :UCO,
+                   from: random_address(),
+                   amount: Utils.to_bigint(14.35)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, fungible_token_address, 0},
+                   from: random_address(),
+                   amount: Utils.to_bigint(134.489)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 2},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, non_fungible_token_address, 6},
+                   from: random_address(),
+                   amount: Utils.to_bigint(1)
+                 }
+               }
+             ]
+           }}
       end)
 
       token_key1 = %{"token_address" => fungible_token_address_hex, "token_id" => 0}

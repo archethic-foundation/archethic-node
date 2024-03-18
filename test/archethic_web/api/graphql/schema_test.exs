@@ -16,10 +16,9 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
   }
 
   alias P2P.{Node, Message}
-  alias Message.{GetTransactionChainLength, TransactionChainLength, Balance, GenesisAddress}
+  alias Message.{GetTransactionChainLength, TransactionChainLength, GenesisAddress}
 
   alias Message.{
-    GetBalance,
     GetLastTransactionAddress,
     GetTransaction,
     NotFound,
@@ -478,8 +477,19 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBalance{}, _ ->
-          {:ok, %Balance{uco: 218_000_000}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: ArchethicCase.random_address(),
+                   type: :UCO,
+                   amount: 218_000_000
+                 }
+               }
+             ]
+           }}
 
         _, %GetGenesisAddress{address: address}, _ ->
           {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
@@ -498,14 +508,32 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBalance{}, _ ->
+        _, %GetUnspentOutputs{}, _ ->
           {:ok,
-           %Balance{
-             token: %{
-               {"@Token1", 0} => 200_000_000,
-               {"@Token2", 0} => 500_000_000,
-               {"@Token3", 0} => 1_000_000_000
-             }
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, "@Token1", 0},
+                   amount: 200_000_000,
+                   from: ArchethicCase.random_address()
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, "@Token2", 0},
+                   amount: 500_000_000,
+                   from: ArchethicCase.random_address()
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   type: {:token, "@Token3", 0},
+                   amount: 1_000_000_000,
+                   from: ArchethicCase.random_address()
+                 }
+               }
+             ]
            }}
 
         _, %GetGenesisAddress{address: address}, _ ->

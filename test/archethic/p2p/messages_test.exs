@@ -13,14 +13,12 @@ defmodule Archethic.P2P.MessageTest do
 
   alias Archethic.P2P.Message.{
     AcknowledgeStorage,
-    Balance,
     BootstrappingNodes,
     CrossValidate,
     CrossValidationDone,
     EncryptedStorageNonce,
     Error,
     FirstPublicKey,
-    GetBalance,
     GetBootstrappingNodes,
     GetFirstPublicKey,
     GetLastTransaction,
@@ -426,20 +424,6 @@ defmodule Archethic.P2P.MessageTest do
                |> elem(0)
     end
 
-    test "GetBalance message" do
-      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
-
-      assert %GetBalance{
-               address: address
-             } ==
-               %GetBalance{
-                 address: address
-               }
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
     test "GetTransactionInputs message" do
       address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
@@ -579,26 +563,6 @@ defmodule Archethic.P2P.MessageTest do
 
       assert msg ==
                msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "Balance message" do
-      token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      token_id = 0
-      now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-      assert %Balance{
-               uco: 1_050_000_000,
-               token: %{{token_address, token_id} => 1_000_000_000},
-               last_chain_sync_date: now
-             } ==
-               %Balance{
-                 uco: 1_050_000_000,
-                 token: %{{token_address, token_id} => 1_000_000_000},
-                 last_chain_sync_date: now
-               }
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
@@ -919,7 +883,9 @@ defmodule Archethic.P2P.MessageTest do
   end
 
   test "get_timeout should return timeout according to message type" do
-    assert 3_000 == Message.get_timeout(%GetBalance{address: "123"})
+    assert 3_000 ==
+             Message.get_timeout(%GetStorageNonce{public_key: ArchethicCase.random_public_key()})
+
     assert 25_165 == Message.get_timeout(%GetTransaction{address: "123"})
   end
 end
