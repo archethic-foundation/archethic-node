@@ -17,6 +17,9 @@ defmodule Archethic.Contracts do
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Utils
@@ -62,6 +65,7 @@ defmodule Archethic.Contracts do
           contract :: Contract.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
+          inputs :: list(UnspentOutput.t()),
           opts :: Keyword.t()
         ) ::
           {:ok, ActionWithTransaction.t() | ActionWithoutTransaction.t()}
@@ -74,6 +78,7 @@ defmodule Archethic.Contracts do
         },
         maybe_trigger_tx,
         maybe_recipient,
+        inputs,
         opts \\ []
       ) do
     # TODO: trigger_tx & recipient should be transformed into recipient here
@@ -107,6 +112,7 @@ defmodule Archethic.Contracts do
         contract,
         maybe_trigger_tx,
         maybe_recipient,
+        inputs,
         opts
       )
     end
@@ -301,22 +307,31 @@ defmodule Archethic.Contracts do
   The transaction and datetime depends on the condition.
   """
   @spec execute_condition(
-          Contract.condition_type(),
-          Contract.t(),
-          Transaction.t(),
-          nil | Recipient.t(),
-          DateTime.t()
+          condition_type :: Contract.condition_type(),
+          contract :: Contract.t(),
+          incoming_transaction :: Transaction.t(),
+          maybe_recipient :: nil | Recipient.t(),
+          validation_time :: DateTime.t(),
+          inputs :: list(UnspentOutput.t())
         ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
         contract = %Contract{conditions: conditions},
         transaction = %Transaction{},
         maybe_recipient,
-        datetime
+        datetime,
+        inputs
       ) do
     conditions
     |> Map.get(condition_key)
-    |> do_execute_condition(condition_key, contract, transaction, datetime, maybe_recipient)
+    |> do_execute_condition(
+      condition_key,
+      contract,
+      transaction,
+      datetime,
+      maybe_recipient,
+      inputs
+    )
   rescue
     err ->
       stacktrace = __STACKTRACE__
@@ -330,9 +345,9 @@ defmodule Archethic.Contracts do
        }}
   end
 
-  defp do_execute_condition(nil, :inherit, _, _, _, _), do: {:ok, []}
+  defp do_execute_condition(nil, :inherit, _, _, _, _, _), do: {:ok, []}
 
-  defp do_execute_condition(nil, _, _, _, _, _) do
+  defp do_execute_condition(nil, _, _, _, _, _, _) do
     {:error,
      %Failure{
        error: "Missing condition",
@@ -351,11 +366,13 @@ defmodule Archethic.Contracts do
          },
          transaction = %Transaction{address: tx_address},
          datetime,
-         maybe_recipient
+         maybe_recipient,
+         inputs
        ) do
     named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
 
-    condition_constants = get_condition_constants(condition_key, contract, transaction, datetime)
+    condition_constants =
+      get_condition_constants(condition_key, contract, transaction, datetime, inputs)
 
     key = {:execute_condition, condition_key, contract_address, tx_address, datetime}
 
@@ -396,12 +413,40 @@ defmodule Archethic.Contracts do
            version: contract_version,
            state: state
          },
-         transaction,
-         datetime
+         transaction = %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{
+               consumed_inputs: consumed_inputs,
+               unspent_outputs: unspent_outputs
+             }
+           }
+         },
+         datetime,
+         inputs
        ) do
+    new_inputs =
+      inputs
+      |> Enum.reject(fn input ->
+        Enum.any?(
+          consumed_inputs,
+          &(&1.unspent_output.type == input.type and &1.unspent_output.from == input.from)
+        )
+      end)
+      |> Enum.concat(unspent_outputs)
+
+    next_constants =
+      transaction
+      |> Constants.from_transaction(contract_version)
+      |> Constants.set_balance(new_inputs)
+
+    previous_contract_constants =
+      contract_tx
+      |> Constants.from_transaction(contract_version)
+      |> Constants.set_balance(inputs)
+
     %{
-      "previous" => Constants.from_contract_transaction(contract_tx, contract_version),
-      "next" => Constants.from_contract_transaction(transaction, contract_version),
+      "previous" => previous_contract_constants,
+      "next" => next_constants,
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
       :encrypted_seed => Contract.get_encrypted_seed(contract),
@@ -418,7 +463,8 @@ defmodule Archethic.Contracts do
            state: state
          },
          transaction,
-         datetime
+         datetime,
+         inputs
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction, contract_version),

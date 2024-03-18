@@ -59,6 +59,37 @@ defmodule Archethic.Mining.SmartContractValidation do
     end)
   end
 
+  defp request_contract_validation(
+         recipient = %Recipient{address: genesis_address},
+         transaction = %Transaction{},
+         validation_time
+       ) do
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    genesis_nodes =
+      genesis_address
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
+
+    conflicts_resolver = fn results ->
+      Enum.reduce(results, &priorize/2)
+    end
+
+    case P2P.quorum_read(
+           genesis_nodes,
+           %ValidateSmartContractCall{
+             recipient: recipient,
+             transaction: transaction,
+             timestamp: validation_time
+           },
+           conflicts_resolver,
+           @timeout
+         ) do
+      {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} -> {true, fee}
+      _ -> {false, 0}
+    end
+  end
+
   @doc """
   Execute the contract if it's relevant and return a boolean if given transaction is genuine.
   It also return the result because it's need to extract the state
@@ -67,26 +98,32 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract_context :: Contract.Context.t(),
           prev_tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
-          next_tx :: Transaction.t(),
-          inputs :: list(VersionedUnspentOutput.t())
+          next_tx :: Transaction.t()
         ) :: {boolean(), State.encoded() | nil}
   def valid_contract_execution?(
-        %Contract.Context{status: status, trigger: trigger, timestamp: timestamp},
+        %Contract.Context{status: status, trigger: trigger, timestamp: timestamp, inputs: inputs},
         prev_tx,
         genesis_address,
-        next_tx,
-        inputs
+        next_tx
       ) do
     trigger_type = trigger_to_trigger_type(trigger)
     recipient = trigger_to_recipient(trigger)
     opts = trigger_to_execute_opts(trigger)
+    inputs = VersionedUnspentOutput.unwrap_unspent_outputs(inputs)
 
     with {:ok, maybe_trigger_tx} <-
            validate_trigger(trigger, timestamp, genesis_address, inputs),
          {:ok, contract} <-
            Contract.from_transaction(prev_tx),
          {:ok, res} <-
-           Contracts.execute_trigger(trigger_type, contract, maybe_trigger_tx, recipient, opts),
+           Contracts.execute_trigger(
+             trigger_type,
+             contract,
+             maybe_trigger_tx,
+             recipient,
+             inputs,
+             opts
+           ),
          {:ok, encoded_state} <-
            validate_result(res, next_tx, status) do
       {true, encoded_state}
@@ -99,8 +136,7 @@ defmodule Archethic.Mining.SmartContractValidation do
         _contract_context = nil,
         prev_tx = %Transaction{data: %TransactionData{code: code}},
         _genesis_address,
-        _next_tx = %Transaction{},
-        _
+        _next_tx = %Transaction{}
       )
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
@@ -109,7 +145,7 @@ defmodule Archethic.Mining.SmartContractValidation do
       else: {true, nil}
   end
 
-  def valid_contract_execution?(_, _, _, _, _), do: {true, nil}
+  def valid_contract_execution?(_, _, _, _), do: {true, nil}
 
   defp validate_result(
          %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},
@@ -153,7 +189,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     with true <-
            Enum.any?(
              inputs,
-             &(&1.unspent_output.type == :call and &1.unspent_output.from == address)
+             &(&1.type == :call and &1.from == address)
            ),
          {:ok, tx} <- TransactionChain.fetch_transaction(address, storage_nodes),
          true <- Enum.member?(tx.data.recipients, recipient) do
@@ -204,37 +240,6 @@ defmodule Archethic.Mining.SmartContractValidation do
   defp within_drift_tolerance?(validation_datetime, datetime) do
     DateTime.diff(validation_datetime, datetime) >= 0 and
       DateTime.diff(validation_datetime, datetime) < 10
-  end
-
-  defp request_contract_validation(
-         recipient = %Recipient{address: genesis_address},
-         transaction = %Transaction{},
-         validation_time
-       ) do
-    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
-
-    genesis_nodes =
-      genesis_address
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-      |> Election.get_synchronized_nodes_before(previous_summary_time)
-
-    conflicts_resolver = fn results ->
-      Enum.reduce(results, &priorize/2)
-    end
-
-    case P2P.quorum_read(
-           genesis_nodes,
-           %ValidateSmartContractCall{
-             recipient: recipient,
-             transaction: transaction,
-             inputs_before: validation_time
-           },
-           conflicts_resolver,
-           @timeout
-         ) do
-      {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} -> {true, fee}
-      _ -> {false, 0}
-    end
   end
 
   @doc """

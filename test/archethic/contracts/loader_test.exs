@@ -13,6 +13,8 @@ defmodule Archethic.Contracts.LoaderTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
   alias Archethic.SelfRepair.NetworkView
@@ -152,10 +154,18 @@ defmodule Archethic.Contracts.LoaderTest do
       |> expect(:get_transaction, fn ^trigger_address, _, _ -> {:ok, trigger_tx} end)
 
       MockClient
-      |> expect(:send_message, fn _, %StartMining{}, _ ->
-        send(me, :transaction_sent)
-        :ok
-      end)
+      |> expect(
+        :send_message,
+        2,
+        fn
+          _, %StartMining{}, _ ->
+            send(me, :transaction_sent)
+            :ok
+
+          _, %GetUnspentOutputs{}, _ ->
+            {:ok, %UnspentOutputList{}}
+        end
+      )
 
       Loader.load_transaction(trigger_tx, trigger_genesis, execute_contract?: true)
 

@@ -238,8 +238,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  nil,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -264,8 +263,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  nil,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -296,8 +294,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -327,8 +324,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -364,8 +360,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -396,8 +391,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -428,8 +422,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -460,8 +453,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -492,8 +484,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -528,8 +519,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -564,8 +554,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -600,8 +589,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_tx,
                  genesis,
-                 next_tx,
-                 []
+                 next_tx
                )
     end
 
@@ -642,7 +630,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       contract_context = %Contract.Context{
         trigger: {:transaction, trigger_address, recipient},
         status: :tx_output,
-        timestamp: trigger_tx.validation_stamp.timestamp
+        timestamp: trigger_tx.validation_stamp.timestamp,
+        inputs: v_unspent_ouputs
       }
 
       assert {true, nil} =
@@ -650,8 +639,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,
-                 next_contract_tx,
-                 v_unspent_ouputs
+                 next_contract_tx
                )
     end
 
@@ -692,8 +680,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,
-                 next_contract_tx,
-                 []
+                 next_contract_tx
                )
     end
 
@@ -734,7 +721,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       contract_context = %Contract.Context{
         trigger: {:transaction, trigger_address, %Recipient{recipient | action: "otter"}},
         status: :tx_output,
-        timestamp: trigger_tx.validation_stamp.timestamp
+        timestamp: trigger_tx.validation_stamp.timestamp,
+        inputs: v_unspent_ouputs
       }
 
       assert {false, nil} =
@@ -742,8 +730,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,
-                 next_contract_tx,
-                 v_unspent_ouputs
+                 next_contract_tx
                )
     end
   end

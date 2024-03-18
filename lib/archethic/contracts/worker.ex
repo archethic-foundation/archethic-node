@@ -16,6 +16,9 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
 
@@ -224,7 +227,9 @@ defmodule Archethic.Contracts.Worker do
          trigger_type = {:datetime, _},
          data = %{genesis_address: genesis_address, contract: contract}
        ) do
-    case execute_contract(contract, trigger_type, nil, nil, genesis_address) do
+    unspent_outputs = fetch_unspent_outputs(genesis_address)
+
+    case execute_contract(contract, trigger_type, nil, nil, genesis_address, unspent_outputs) do
       :ok ->
         new_data = data |> Map.update!(:timers, &Map.delete(&1, trigger_type))
         {:ok, new_data}
@@ -242,7 +247,9 @@ defmodule Archethic.Contracts.Worker do
            contract: contract = %Contract{triggers: triggers}
          }
        ) do
-    case execute_contract(contract, trigger_type, nil, nil, genesis_address) do
+    unspent_outputs = fetch_unspent_outputs(genesis_address)
+
+    case execute_contract(contract, trigger_type, nil, nil, genesis_address, unspent_outputs) do
       :ok ->
         new_data = data |> Map.update!(:timers, &Map.delete(&1, trigger_type))
         {:ok, new_data}
@@ -260,10 +267,20 @@ defmodule Archethic.Contracts.Worker do
        ) do
     trigger_datetime = DateTime.utc_now()
 
+    unspent_outputs = fetch_unspent_outputs(genesis_address)
+
     with {:ok, oracle_tx} <- TransactionChain.get_transaction(tx_address),
          {:ok, _logs} <-
-           Contracts.execute_condition(:oracle, contract, oracle_tx, nil, trigger_datetime),
-         :ok <- execute_contract(contract, :oracle, oracle_tx, nil, genesis_address) do
+           Contracts.execute_condition(
+             :oracle,
+             contract,
+             oracle_tx,
+             nil,
+             trigger_datetime,
+             VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
+           ),
+         :ok <-
+           execute_contract(contract, :oracle, oracle_tx, nil, genesis_address, unspent_outputs) do
       {:ok, data}
     else
       _ -> {:error, data}
@@ -282,10 +299,26 @@ defmodule Archethic.Contracts.Worker do
          }
        ) do
     trigger = Contract.get_trigger_for_recipient(recipient)
+    unspent_outputs = fetch_unspent_outputs(genesis_address)
 
     with {:ok, _logs} <-
-           Contracts.execute_condition(trigger, contract, trigger_tx, recipient, timestamp),
-         :ok <- execute_contract(contract, trigger, trigger_tx, recipient, genesis_address) do
+           Contracts.execute_condition(
+             trigger,
+             contract,
+             trigger_tx,
+             recipient,
+             timestamp,
+             VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
+           ),
+         :ok <-
+           execute_contract(
+             contract,
+             trigger,
+             trigger_tx,
+             recipient,
+             genesis_address,
+             unspent_outputs
+           ) do
       {:ok, Map.put(data, :last_call_processed, from)}
     else
       _ ->
@@ -299,17 +332,24 @@ defmodule Archethic.Contracts.Worker do
          trigger,
          maybe_trigger_tx,
          maybe_recipient,
-         contract_genesis_address
+         contract_genesis_address,
+         unspent_outputs
        ) do
     meta = log_metadata(contract_address, maybe_trigger_tx)
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
     with {:ok, %ActionWithTransaction{next_tx: next_tx}} <-
-           Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
+           Contracts.execute_trigger(
+             trigger,
+             contract,
+             maybe_trigger_tx,
+             maybe_recipient,
+             VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
+           ),
          index = TransactionChain.get_size(contract_address),
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
          contract_context <-
-           get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
+           get_contract_context(trigger, maybe_trigger_tx, maybe_recipient, unspent_outputs),
          :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
       Logger.debug("Contract execution success", meta)
       :ok
@@ -328,38 +368,47 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp get_contract_context(:oracle, %Transaction{address: address}, _) do
+  defp get_contract_context(:oracle, %Transaction{address: address}, _, unspent_outputs) do
     %Contract.Context{
       status: :tx_output,
       trigger: {:oracle, address},
-      timestamp: DateTime.utc_now()
+      timestamp: DateTime.utc_now(),
+      inputs: unspent_outputs
     }
   end
 
-  defp get_contract_context({:interval, interval}, _, _) do
+  defp get_contract_context({:interval, interval}, _, _, unspent_outputs) do
     interval_datetime = Utils.get_current_time_for_interval(interval)
 
     %Contract.Context{
       status: :tx_output,
       trigger: {:interval, interval, interval_datetime},
-      timestamp: DateTime.utc_now()
+      timestamp: DateTime.utc_now(),
+      inputs: unspent_outputs
     }
   end
 
-  defp get_contract_context(trigger = {:datetime, _}, _, _) do
+  defp get_contract_context(trigger = {:datetime, _}, _, _, unspent_outputs) do
     %Contract.Context{
       status: :tx_output,
       trigger: trigger,
-      timestamp: DateTime.utc_now()
+      timestamp: DateTime.utc_now(),
+      inputs: unspent_outputs
     }
   end
 
-  defp get_contract_context({:transaction, _, _}, %Transaction{address: address}, recipient) do
+  defp get_contract_context(
+         {:transaction, _, _},
+         %Transaction{address: address},
+         recipient,
+         unspent_outputs
+       ) do
     # In a next issue, we'll have different status such as :no_output and :failure
     %Contract.Context{
       status: :tx_output,
       trigger: {:transaction, address, recipient},
-      timestamp: DateTime.utc_now()
+      timestamp: DateTime.utc_now(),
+      inputs: unspent_outputs
     }
   end
 
@@ -452,5 +501,18 @@ defmodule Archethic.Contracts.Worker do
       transaction_type: type,
       contract: Base.encode16(contract_address)
     ]
+  end
+
+  defp fetch_unspent_outputs(address) do
+    previous_summary_time = Archethic.BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    nodes =
+      address
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
+
+    address
+    |> TransactionChain.fetch_unspent_outputs(nodes)
+    |> Enum.to_list()
   end
 end

@@ -44,6 +44,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_unspent_outputs
           | :invalid_recipients_execution
           | :invalid_contract_execution
+          | :invalid_contract_context_inputs
 
   @doc """
   Validate transaction with context
@@ -66,7 +67,7 @@ defmodule Archethic.Replication.TransactionValidator do
       ) do
     with :ok <-
            valid_transaction(tx, previous_transaction, genesis_address, inputs, contract_context),
-         :ok <- validate_inheritance(previous_transaction, tx) do
+         :ok <- validate_inheritance(previous_transaction, tx, contract_context, inputs) do
       validate_chain(tx, previous_transaction)
     end
   end
@@ -74,15 +75,31 @@ defmodule Archethic.Replication.TransactionValidator do
   # it is fine to assume validation_stamp is valid because this step is done after validate_validation_stamp
   defp validate_inheritance(
          prev_tx = %Transaction{data: %TransactionData{code: code}},
-         next_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}
+         next_tx = %Transaction{
+           validation_stamp: %ValidationStamp{
+             timestamp: validation_time
+           }
+         },
+         contract_context,
+         validation_inputs
        )
        when code != "" do
+    contract_inputs =
+      case contract_context do
+        nil ->
+          validation_inputs
+
+        %Contract.Context{inputs: inputs} ->
+          inputs
+      end
+
     case Contracts.execute_condition(
            :inherit,
            Contract.from_transaction!(prev_tx),
            next_tx,
            nil,
-           validation_time
+           validation_time,
+           VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs)
          ) do
       {:ok, _logs} ->
         :ok
@@ -96,7 +113,7 @@ defmodule Archethic.Replication.TransactionValidator do
   # handle case:
   # - no prev tx
   # - prev tx has no inherit condition
-  defp validate_inheritance(_prev_tx, _next_tx), do: :ok
+  defp validate_inheritance(_prev_tx, _next_tx, _contract_context, _inputs), do: :ok
 
   defp validate_chain(tx, prev_tx) do
     if TransactionChain.valid?([tx, prev_tx]) do
@@ -171,15 +188,18 @@ defmodule Archethic.Replication.TransactionValidator do
   end
 
   defp validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs) do
-    case SmartContractValidation.valid_contract_execution?(
-           contract_context,
-           prev_tx,
-           genesis_address,
-           tx,
-           inputs
-         ) do
-      {true, encoded_state} -> {:ok, encoded_state}
-      _ -> {:error, :invalid_contract_execution}
+    if Contract.Context.valid_inputs?(contract_context, inputs) do
+      case SmartContractValidation.valid_contract_execution?(
+             contract_context,
+             prev_tx,
+             genesis_address,
+             tx
+           ) do
+        {true, encoded_state} -> {:ok, encoded_state}
+        _ -> {:error, :invalid_contract_execution}
+      end
+    else
+      {:error, :invalid_contract_context_inputs}
     end
   end
 

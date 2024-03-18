@@ -173,7 +173,8 @@ defmodule Archethic.ReplicationTest do
                  %Contract.Context{
                    status: :tx_output,
                    trigger: {:datetime, now},
-                   timestamp: now
+                   timestamp: now,
+                   inputs: v_unspent_outputs
                  },
                  v_unspent_outputs
                )

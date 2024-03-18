@@ -75,6 +75,7 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp serialize_reason(:invalid_recipients_execution), do: 15
   defp serialize_reason(:invalid_contract_execution), do: 16
   defp serialize_reason(:invalid_validation_inputs), do: 17
+  defp serialize_reason(:invalid_contract_context_inputs), do: 18
 
   @doc """
   DeSerialize a replication error message
@@ -129,4 +130,5 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp error(15), do: :invalid_recipients_execution
   defp error(16), do: :invalid_contract_execution
   defp error(17), do: :invalid_validation_inputs
+  defp error(18), do: :invalid_contract_context_inputs
 end
