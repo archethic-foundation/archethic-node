@@ -272,19 +272,30 @@ defmodule Archethic.UTXO do
 
   @doc """
   Returns the balance for an address using the unspent outputs
+
+  ## Examples
+
+      iex> [
+      ...>   %UnspentOutput{ from: "@Alice10", type: :UCO, amount: 100_000_000},
+      ...>   %UnspentOutput{ from: "@Bob5", type: {:token, "MyToken", 0}, amount: 300_000_000},
+      ...>   %UnspentOutput{ from: "@Charlie5", type: :call},
+      ...>   %UnspentOutput{ from: "@Tom5", type: :state},
+      ...> ]
+      ...> |> UTXO.get_balance()
+      %{
+         uco: 100_000_000,
+         token: %{
+           {"MyToken", 0} => 300_000_000
+         }
+      }
   """
-  @spec get_balance(binary()) :: balance()
-  def get_balance(address) do
-    address
-    |> stream_unspent_outputs()
-    |> Enum.reduce(%{uco: 0, token: %{}}, fn
-      %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO, amount: amount}}, acc ->
+  @spec get_balance(Enumerable.t() | list(UnspentOutput.t())) :: balance()
+  def get_balance(unspent_outputs) do
+    Enum.reduce(unspent_outputs, %{uco: 0, token: %{}}, fn
+      %UnspentOutput{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %VersionedUnspentOutput{
-        unspent_output: %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}
-      },
-      acc ->
+      %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}, acc ->
         update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
 
       _, acc ->

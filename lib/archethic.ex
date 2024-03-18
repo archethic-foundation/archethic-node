@@ -13,9 +13,7 @@ defmodule Archethic do
   alias Archethic.P2P.Message
 
   alias Archethic.P2P.Message.{
-    Balance,
     Error,
-    GetBalance,
     NewTransaction,
     Ok,
     StartMining,
@@ -311,38 +309,11 @@ defmodule Archethic do
   @doc """
   Retrieve the balance from an address from the closest nodes
   """
-  @spec get_balance(binary) :: {:ok, UTXO.balance()} | {:error, :network_issue}
+  @spec get_balance(binary) :: UTXO.balance()
   def get_balance(address) when is_binary(address) do
     address
-    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-    |> get_balance(address)
-  end
-
-  defp get_balance(nodes, address) do
-    case P2P.quorum_read(nodes, %GetBalance{address: address}, &balance_conflict_resolver/1) do
-      {:ok, %Balance{uco: uco, token: token}} -> {:ok, %{uco: uco, token: token}}
-      error -> error
-    end
-  end
-
-  defp balance_conflict_resolver(balances) do
-    %Balance{last_chain_sync_date: highest_date} =
-      Enum.max_by(balances, & &1.last_chain_sync_date, DateTime)
-
-    {max_uco, max_token} =
-      balances
-      |> Enum.filter(&(&1.last_chain_sync_date == highest_date))
-      |> Enum.reduce({0, %{}}, fn
-        %Balance{uco: uco, token: token}, {uco_acc, token_acc} ->
-          token_merger = fn _k, v1, v2 -> max(v1, v2) end
-
-          maximum_token = Map.merge(token, token_acc, token_merger)
-          maximum_uco = max(uco, uco_acc)
-
-          {maximum_uco, maximum_token}
-      end)
-
-    %{uco: max_uco, token: max_token}
+    |> get_unspent_outputs()
+    |> UTXO.get_balance()
   end
 
   @doc """

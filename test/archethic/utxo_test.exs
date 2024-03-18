@@ -34,6 +34,8 @@ defmodule Archethic.UTXOTest do
   import Mox
   import Mock
 
+  doctest UTXO
+
   setup do
     start_supervised!(RewardTokens)
 

@@ -6,9 +6,11 @@ defmodule Archethic.P2P.Client.ConnectionTest do
   alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Client.ConnectionSupervisor
   alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.Balance
-  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.MessageEnvelop
+
+  alias Archethic.TransactionFactory
+  alias Archethic.TransactionChain.Transaction
 
   alias Archethic.Utils
 
@@ -57,8 +59,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         )
 
       spawn(fn ->
-        Connection.send_message(Crypto.first_node_public_key(), %GetBalance{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        Connection.send_message(Crypto.first_node_public_key(), %GetTransaction{
+          address: ArchethicCase.random_address()
         })
       end)
 
@@ -97,7 +99,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :closed} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+                 %GetTransaction{address: ArchethicCase.random_address()}
                )
     end
 
@@ -141,7 +143,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :closed} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  200
                )
 
@@ -199,7 +201,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :timeout} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  10
                )
 
@@ -218,10 +220,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       me = self()
 
       spawn(fn ->
-        {:ok, %Balance{}} =
+        {:ok, %Transaction{}} =
           Connection.send_message(
             Crypto.first_node_public_key(),
-            %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+            %GetTransaction{address: ArchethicCase.random_address()}
           )
 
         send(me, :done)
@@ -229,15 +231,17 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(100)
 
+      tx = TransactionFactory.create_valid_transaction([], type: :node, seed: "node1")
+
       signature =
-        %Balance{last_chain_sync_date: DateTime.utc_now()}
+        tx
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
+          message: tx,
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -279,24 +283,26 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         )
 
       spawn(fn ->
-        {:ok, %Balance{}} =
+        {:ok, %Transaction{}} =
           Connection.send_message(
             Crypto.first_node_public_key(),
-            %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+            %GetTransaction{address: ArchethicCase.random_address()}
           )
       end)
 
       Process.sleep(10)
 
+      tx = TransactionFactory.create_valid_transaction([], type: :node, seed: "node1")
+
       signature =
-        %Balance{last_chain_sync_date: DateTime.utc_now()}
+        tx
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
+          message: tx,
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -308,7 +314,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :closed} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+                 %GetTransaction{address: ArchethicCase.random_address()}
                )
     end
 
@@ -347,24 +353,26 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         )
 
       spawn(fn ->
-        {:ok, %Balance{}} =
+        {:ok, %Transaction{}} =
           Connection.send_message(
             Crypto.first_node_public_key(),
-            %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+            %GetTransaction{address: ArchethicCase.random_address()}
           )
       end)
 
       Process.sleep(10)
 
+      tx = TransactionFactory.create_valid_transaction([], type: :node, seed: "node1")
+
       signature =
-        %Balance{last_chain_sync_date: DateTime.utc_now()}
+        tx
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
+          message: tx,
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -376,13 +384,13 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :closed} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+                 %GetTransaction{address: ArchethicCase.random_address()}
                )
 
       assert {:error, :closed} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+                 %GetTransaction{address: ArchethicCase.random_address()}
                )
     end
   end
@@ -415,7 +423,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :timeout} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  1000
                )
 
@@ -432,7 +440,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :timeout} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  1000
                )
 
@@ -455,15 +463,17 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
       assert start != nil
 
+      tx = TransactionFactory.create_valid_transaction([], type: :node, seed: "node1")
+
       signature =
-        %Balance{last_chain_sync_date: DateTime.utc_now()}
+        tx
         |> Message.encode()
         |> Utils.wrap_binary()
         |> Crypto.sign_with_first_node_key()
 
       msg_envelop =
         %MessageEnvelop{
-          message: %Balance{last_chain_sync_date: DateTime.utc_now()},
+          message: tx,
           message_id: 0,
           sender_public_key: Crypto.first_node_public_key(),
           signature: signature
@@ -491,7 +501,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :timeout} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  1000
                )
 
@@ -533,7 +543,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {:error, :timeout} =
                Connection.send_message(
                  node_key,
-                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 %GetTransaction{address: ArchethicCase.random_address()},
                  10
                )
 

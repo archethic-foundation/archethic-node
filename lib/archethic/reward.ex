@@ -138,6 +138,8 @@ defmodule Archethic.Reward do
 
     network_pool_balance =
       SharedSecrets.get_network_pool_address()
+      |> UTXO.stream_unspent_outputs()
+      |> Stream.map(& &1.unspent_output)
       |> UTXO.get_balance()
       |> Map.get(:token)
       |> Map.to_list()

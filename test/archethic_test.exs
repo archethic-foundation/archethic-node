@@ -5,8 +5,6 @@ defmodule ArchethicTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.Balance
-  alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.Ok
@@ -565,24 +563,64 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, 1, fn _, %GetBalance{}, _ ->
+      |> expect(:send_message, 1, fn _, %GetUnspentOutputs{}, _ ->
         {:ok,
-         %Balance{
-           uco: 1_000_000_000,
-           token: %{{"ETH", 1} => 1},
+         %UnspentOutputList{
+           unspent_outputs: [
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: :UCO,
+                 amount: 1_000_000_000,
+                 timestamp: DateTime.utc_now()
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, "ETH", 1},
+                 amount: 1,
+                 timestamp: DateTime.utc_now()
+               }
+             }
+           ],
            last_chain_sync_date: DateTime.utc_now()
          }}
       end)
-      |> expect(:send_message, 1, fn _, %GetBalance{}, _ ->
+      |> expect(:send_message, 1, fn _, %GetUnspentOutputs{}, _ ->
         {:ok,
-         %Balance{
-           uco: 2_000_000_000,
-           token: %{{"BTC", 2} => 1, {"ETH", 1} => 2},
+         %UnspentOutputList{
+           unspent_outputs: [
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: :UCO,
+                 amount: 2_000_000_000,
+                 timestamp: DateTime.utc_now()
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, "ETH", 1},
+                 amount: 2,
+                 timestamp: DateTime.utc_now()
+               }
+             },
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: ArchethicCase.random_address(),
+                 type: {:token, "BTC", 2},
+                 amount: 1,
+                 timestamp: DateTime.utc_now()
+               }
+             }
+           ],
            last_chain_sync_date: DateTime.utc_now()
          }}
       end)
 
-      assert {:ok, %{uco: 2_000_000_000, token: %{{"ETH", 1} => 2, {"BTC", 2} => 1}}} =
+      assert %{uco: 2_000_000_000, token: %{{"ETH", 1} => 2, {"BTC", 2} => 1}} =
                Archethic.get_balance("@Alice2")
     end
   end

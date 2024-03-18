@@ -16,7 +16,6 @@ defmodule Archethic.P2P.Message do
 
   alias __MODULE__.{
     AddressList,
-    Balance,
     BeaconSummaryList,
     BeaconUpdate,
     BootstrappingNodes,
@@ -27,7 +26,6 @@ defmodule Archethic.P2P.Message do
     FirstPublicKey,
     GenesisAddress,
     GetGenesisAddress,
-    GetBalance,
     GetBeaconSummaries,
     GetBeaconSummary,
     GetBeaconSummariesAggregate,
@@ -102,7 +100,6 @@ defmodule Archethic.P2P.Message do
           | CrossValidationDone.t()
           | ReplicateTransaction.t()
           | GetLastTransaction.t()
-          | GetBalance.t()
           | GetTransactionInputs.t()
           | GetTransactionChainLength.t()
           | GetFirstTransactionAddress.t()
@@ -143,7 +140,6 @@ defmodule Archethic.P2P.Message do
           | Transaction.t()
           | NodeList.t()
           | UnspentOutputList.t()
-          | Balance.t()
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
           | TransactionSummaryMessage.t()
