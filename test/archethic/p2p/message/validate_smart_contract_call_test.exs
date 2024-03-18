@@ -23,7 +23,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       msg = %ValidateSmartContractCall{
         recipient: %Recipient{address: random_address()},
         transaction: Archethic.TransactionFactory.create_valid_transaction(),
-        inputs_before: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
 
       assert {^msg, <<>>} =
@@ -36,7 +36,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       msg = %ValidateSmartContractCall{
         recipient: %Recipient{address: random_address(), action: "do_it", args: []},
         transaction: Archethic.TransactionFactory.create_valid_transaction(),
-        inputs_before: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
 
       assert {^msg, <<>>} =
@@ -94,7 +94,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                    address: "@SC1_for_contract_without_named_action_with_valid_message"
                  },
                  transaction: incoming_tx,
-                 inputs_before: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
@@ -130,7 +130,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                    args: []
                  },
                  transaction: incoming_tx,
-                 inputs_before: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
@@ -166,7 +166,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_with_test_for_fee"},
                  transaction: incoming_tx,
-                 inputs_before: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
@@ -193,7 +193,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_without_trigger_transaction"},
                  transaction: incoming_tx,
-                 inputs_before: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
@@ -224,7 +224,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_with_invalid_message"},
                  transaction: incoming_tx,
-                 inputs_before: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
