@@ -96,7 +96,8 @@ defmodule Archethic.Contracts.ContractTest do
           {:datetime, DateTime.from_unix!(trigger_time)},
           contract,
           nil,
-          nil
+          nil,
+          []
         )
 
       assert {:ok,
@@ -132,7 +133,8 @@ defmodule Archethic.Contracts.ContractTest do
                  {:datetime, DateTime.from_unix!(trigger_time)},
                  contract,
                  nil,
-                 nil
+                 nil,
+                 []
                )
 
       assert %Transaction{data: %TransactionData{ownerships: []}} = next_tx

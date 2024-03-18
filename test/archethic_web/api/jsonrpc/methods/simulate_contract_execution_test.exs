@@ -10,6 +10,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -61,19 +65,19 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       contract_tx =
         %Transaction{address: last_contract_address} =
         """
+        @version 1
+
         condition inherit: [
-          type: transfer,
           content: true,
           uco_transfers: true
         ]
 
-        condition transaction: [
+        condition triggered_by: transaction, as: [
           content: "test content"
         ]
 
         actions triggered_by: transaction do
-          set_type transfer
-          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+          Contract.add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
         end
         """
         |> ContractFactory.create_valid_contract_tx()
@@ -88,6 +92,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
           {:ok, %LastTransactionAddress{address: last_contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -123,6 +133,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
           {:ok, %LastTransactionAddress{address: last_contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -158,6 +174,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
           {:ok, %LastTransactionAddress{address: last_contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -195,6 +217,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
           {:ok, %LastTransactionAddress{address: last_contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -234,6 +262,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
           {:ok, %LastTransactionAddress{address: last_contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -274,6 +308,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{}, _ ->
           {:ok, %LastTransactionAddress{address: contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -315,6 +355,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{}, _ ->
           {:ok, %LastTransactionAddress{address: contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -346,6 +392,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{}, _ ->
           {:ok, %LastTransactionAddress{address: contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -389,6 +441,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{}, _ ->
           {:ok, %LastTransactionAddress{address: contract_address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =
@@ -451,6 +509,12 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetGenesisAddress{address: addr}, _ ->
+          {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{}}
       end)
 
       trigger_tx =

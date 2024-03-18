@@ -79,12 +79,23 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
        ) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
          {:ok, contract} <- validate_and_parse_contract_tx(contract_tx),
+         {:ok, genesis_address} <- Archethic.fetch_genesis_address(contract_tx.address),
+         inputs = Archethic.get_unspent_outputs(genesis_address),
          trigger <- Contract.get_trigger_for_recipient(recipient),
-         :ok <- validate_contract_condition(trigger, contract, trigger_tx, recipient, timestamp),
-         {:ok, next_tx} <- validate_and_execute_trigger(trigger, contract, trigger_tx, recipient),
+         :ok <-
+           validate_contract_condition(
+             trigger,
+             contract,
+             trigger_tx,
+             recipient,
+             timestamp,
+             inputs
+           ),
+         {:ok, next_tx} <-
+           validate_and_execute_trigger(trigger, contract, trigger_tx, recipient, inputs),
          # Here the index to sign transaction is not accurate has we are in simulation
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, 0) do
-      validate_contract_condition(:inherit, contract, next_tx, nil, timestamp)
+      validate_contract_condition(:inherit, contract, next_tx, nil, timestamp, inputs)
     end
   end
 
@@ -98,8 +109,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
     end
   end
 
-  def validate_and_execute_trigger(trigger, contract, trigger_tx, recipient) do
-    case Contracts.execute_trigger(trigger, contract, trigger_tx, recipient) do
+  def validate_and_execute_trigger(trigger, contract, trigger_tx, recipient, inputs) do
+    case Contracts.execute_trigger(trigger, contract, trigger_tx, recipient, inputs) do
       {:ok, %ActionWithTransaction{next_tx: next_tx}} ->
         {:ok, next_tx}
 
@@ -155,8 +166,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
 
   defp format_reason(_), do: {:internal_error, "Unknown error"}
 
-  defp validate_contract_condition(condition_type, contract, tx, recipient, timestamp) do
-    case Contracts.execute_condition(condition_type, contract, tx, recipient, timestamp) do
+  defp validate_contract_condition(condition_type, contract, tx, recipient, timestamp, inputs) do
+    case Contracts.execute_condition(condition_type, contract, tx, recipient, timestamp, inputs) do
       {:ok, _logs} ->
         :ok
 

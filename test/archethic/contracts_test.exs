@@ -59,7 +59,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -86,7 +87,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -128,7 +130,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -150,7 +153,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
   end
@@ -176,7 +180,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -202,7 +207,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -239,7 +245,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -265,7 +272,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -291,7 +299,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -321,7 +330,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
 
       code = """
@@ -349,7 +359,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -379,7 +390,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
   end
@@ -405,7 +417,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  oracle_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -431,7 +444,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  oracle_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -457,7 +471,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  oracle_tx,
                  nil,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
   end
@@ -486,7 +501,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  recipient,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -519,7 +535,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  recipient,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
 
@@ -552,7 +569,8 @@ defmodule Archethic.ContractsTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  recipient,
-                 DateTime.utc_now()
+                 DateTime.utc_now(),
+                 []
                )
     end
   end
@@ -580,7 +598,8 @@ defmodule Archethic.ContractsTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -607,7 +626,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -627,7 +647,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
 
       code = ~S"""
@@ -646,7 +667,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -667,7 +689,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -692,7 +715,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
 
       assert {:ok, %ActionWithoutTransaction{}} =
@@ -700,7 +724,8 @@ defmodule Archethic.ContractsTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx_with_state),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
   end

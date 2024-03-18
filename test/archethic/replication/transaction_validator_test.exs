@@ -216,7 +216,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                  %Contract.Context{
                    status: :tx_output,
                    timestamp: now,
-                   trigger: {:datetime, now}
+                   trigger: {:datetime, now},
+                   inputs: versioned_inputs
                  }
                )
     end
@@ -274,7 +275,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       contract_context = %Contract.Context{
         trigger: {:transaction, trigger_address, recipient},
         status: :tx_output,
-        timestamp: DateTime.utc_now()
+        timestamp: DateTime.utc_now(),
+        inputs: v_unspent_outputs
       }
 
       code = """
@@ -342,6 +344,75 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert {:error, :invalid_recipients_execution} =
                TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
+    end
+
+    test "should return {:error, :invalid_contract_context_inputs} when the inputs are invalid using contract context" do
+      contract_seed = "seed"
+
+      contract_genesis =
+        contract_seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
+
+      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        },
+        %UnspentOutput{
+          from: trigger_address,
+          amount: nil,
+          type: :call,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_address, recipient},
+        status: :tx_output,
+        timestamp: DateTime.utc_now(),
+        inputs: []
+      }
+
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("ok")
+        end
+      """
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code, seed: contract_seed)
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx,
+          content: "ok",
+          inputs: unspent_outputs,
+          contract_context: contract_context
+        )
+
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{address: ^trigger_address}, _ ->
+        {:ok, trigger_tx}
+      end)
+
+      assert {:error, :invalid_contract_context_inputs} =
+               TransactionValidator.validate(
+                 next_tx,
+                 prev_tx,
+                 contract_genesis,
+                 v_unspent_outputs,
+                 contract_context
+               )
     end
   end
 end

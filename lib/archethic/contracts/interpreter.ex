@@ -16,6 +16,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   @type version() :: integer()
   @type execute_opts :: [time_now: DateTime.t()]
@@ -125,6 +126,7 @@ defmodule Archethic.Contracts.Interpreter do
           contract :: Contract.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
+          inputs :: list(UnspentOutput.t()),
           opts :: execute_opts()
         ) ::
           {:ok, nil | Transaction.t(), State.t(), logs :: list(String.t())}
@@ -142,6 +144,7 @@ defmodule Archethic.Contracts.Interpreter do
         },
         maybe_trigger_tx,
         maybe_recipient,
+        inputs,
         opts \\ []
       ) do
     case Map.get(triggers, trigger_key) do

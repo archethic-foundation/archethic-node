@@ -241,7 +241,8 @@ defmodule ArchethicWeb.API.REST.TransactionController do
              {:transaction, nil, nil},
              contract,
              trigger_tx,
-             nil
+             nil,
+             []
            ) do
         {:ok, %ActionWithTransaction{}} ->
           :ok

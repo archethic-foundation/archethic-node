@@ -38,6 +38,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                  Contract.from_transaction!(contract_tx),
                  nil,
                  nil,
+                 [],
                  time_now: datetime
                )
 
@@ -79,7 +80,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 datetime
+                 datetime,
+                 []
                )
     end
 
@@ -117,7 +119,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  nil,
-                 datetime
+                 datetime,
+                 []
                )
     end
 
@@ -152,7 +155,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 datetime
+                 datetime,
+                 []
                )
     end
 
@@ -183,7 +187,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                  Contract.from_transaction!(contract_tx),
                  next_tx,
                  nil,
-                 datetime
+                 datetime,
+                 []
                )
     end
   end

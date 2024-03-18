@@ -6,6 +6,12 @@ defmodule Archethic.Contracts.Contract.ContextTest do
   alias Archethic.Contracts.Contract.Context
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
+  doctest Context
+
   describe "serialization" do
     test "trigger=datetime" do
       now = DateTime.utc_now()

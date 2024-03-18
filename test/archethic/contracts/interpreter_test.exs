@@ -339,7 +339,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, "function", []},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -361,7 +362,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
 
       code = """
@@ -392,7 +394,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -426,7 +429,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -462,7 +466,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -489,7 +494,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
 
       code = """
@@ -519,7 +525,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -550,7 +557,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -588,7 +596,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -624,7 +633,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -664,7 +674,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -700,7 +711,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -736,7 +748,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -760,7 +773,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -784,7 +798,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
 
       code = """
@@ -803,7 +818,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -822,7 +838,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -841,7 +858,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -863,7 +881,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  :oracle,
                  Contract.from_transaction!(contract_tx),
                  oracle_tx,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -893,7 +912,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
-                 List.first(trigger_tx.data.recipients)
+                 List.first(trigger_tx.data.recipients),
+                 []
                )
     end
 
@@ -928,6 +948,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil,
+                 [],
                  time_now: now
                )
 
@@ -957,7 +978,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
-                 List.first(trigger_tx.data.recipients)
+                 List.first(trigger_tx.data.recipients),
+                 []
                )
     end
 
@@ -984,7 +1006,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
-                 List.first(trigger_tx.data.recipients)
+                 List.first(trigger_tx.data.recipients),
+                 []
                )
     end
 
@@ -1005,7 +1028,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -1063,7 +1087,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -1089,7 +1114,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
 
@@ -1115,7 +1141,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil
+                 nil,
+                 []
                )
     end
   end
