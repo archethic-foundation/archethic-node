@@ -3,8 +3,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   Represents a message to validate a smart contract call
   """
 
-  @enforce_keys [:recipient, :transaction, :inputs_before]
-  defstruct [:recipient, :transaction, :inputs_before]
+  @enforce_keys [:recipient, :transaction, :timestamp]
+  defstruct [:recipient, :transaction, :timestamp]
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
@@ -23,7 +23,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @type t :: %__MODULE__{
           recipient: Recipient.t(),
           transaction: Transaction.t(),
-          inputs_before: DateTime.t()
+          timestamp: DateTime.t()
         }
 
   @doc """
@@ -33,13 +33,13 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   def serialize(%__MODULE__{
         recipient: recipient,
         transaction: tx = %Transaction{},
-        inputs_before: time = %DateTime{}
+        timestamp: timestamp
       }) do
     tx_version = Transaction.version()
     recipient_bin = Recipient.serialize(recipient, tx_version)
 
     <<recipient_bin::bitstring, Transaction.serialize(tx)::bitstring,
-      DateTime.to_unix(time, :millisecond)::64>>
+      DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   @doc """
@@ -55,7 +55,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       %__MODULE__{
         recipient: recipient,
         transaction: tx,
-        inputs_before: DateTime.from_unix!(timestamp, :millisecond)
+        timestamp: DateTime.from_unix!(timestamp, :millisecond)
       },
       rest
     }
@@ -66,14 +66,14 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         msg = %__MODULE__{
           recipient: %Recipient{address: recipient_address},
           transaction: %Transaction{address: tx_address},
-          inputs_before: datetime
+          timestamp: timestamp
         },
         _
       ) do
     # We use job cache to reduce the number of times the contract is executed by the same node
     Archethic.Utils.JobCache.get!(
       {:smart_contract_validation, recipient_address, tx_address,
-       DateTime.to_unix(datetime, :millisecond)},
+       DateTime.to_unix(timestamp, :millisecond)},
       function: fn -> validate_smart_contract_call(msg) end,
       timeout: 3_000,
       # We set the maximum timeout for a transaction to be processed before the kill the cache
@@ -84,7 +84,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   defp validate_smart_contract_call(%__MODULE__{
          recipient: recipient = %Recipient{address: recipient_address},
          transaction: transaction = %Transaction{},
-         inputs_before: datetime
+         timestamp: datetime
        }) do
     # During the validation of a call there is no validation_stamp yet.
     # We need one because the contract might want to access transaction.timestamp
@@ -94,13 +94,24 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       | validation_stamp: ValidationStamp.generate_dummy(timestamp: datetime)
     }
 
+    unspent_outputs = Archethic.get_unspent_outputs(recipient_address)
+
     with {:ok, contract_tx} <- TransactionChain.get_last_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
          trigger = Contract.get_trigger_for_recipient(recipient),
          {:ok, _} <-
-           Contracts.execute_condition(trigger, contract, transaction, recipient, datetime),
+           Contracts.execute_condition(
+             trigger,
+             contract,
+             transaction,
+             recipient,
+             datetime,
+             unspent_outputs
+           ),
          {:ok, execution_result} <-
-           Contracts.execute_trigger(trigger, contract, transaction, recipient, time_now: datetime) do
+           Contracts.execute_trigger(trigger, contract, transaction, recipient, unspent_outputs,
+             time_now: datetime
+           ) do
       %SmartContractCallValidation{
         status: :ok,
         fee: calculate_fee(execution_result, contract, datetime)

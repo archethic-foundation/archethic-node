@@ -17,6 +17,9 @@ defmodule Archethic.Contracts.Constants do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.UTXO
 
   alias Archethic.Utils
 
@@ -175,5 +178,23 @@ defmodule Archethic.Contracts.Constants do
 
   defp convert_token_transfer_amount_to_bigint(token_transfer) do
     Map.update!(token_transfer, "amount", &Utils.from_bigint/1)
+  end
+
+  @doc """
+  Add balance constant based on the list of inputs
+  """
+  @spec set_balance(map(), list(UnspentOutput.t())) :: map()
+  def set_balance(constants = %{}, inputs) do
+    %{uco: uco_amount, token: tokens} = UTXO.get_balance(inputs)
+
+    tokens =
+      Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
+        key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
+        Map.put(acc, key, Utils.from_bigint(amount))
+      end)
+
+    balance_constants = %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
+
+    Map.put(constants, "balance", balance_constants)
   end
 end

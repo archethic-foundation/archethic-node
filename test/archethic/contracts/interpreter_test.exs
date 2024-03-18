@@ -10,6 +10,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionFactory
@@ -1144,6 +1145,66 @@ defmodule Archethic.Contracts.InterpreterTest do
                  nil,
                  []
                )
+    end
+
+    test "should be able to call contract.balance using the inputs" do
+      eth_hex = Base.encode16("ETH")
+      btc_hex = Base.encode16("BTC")
+
+      code = ~S"""
+      @version 1
+
+      actions triggered_by: datetime, at: 0 do
+        balance = contract.balance
+
+        tokens_map = Map.new()
+        for token_key in Map.keys(balance.tokens) do
+          token_balance = Map.get(balance.tokens, token_key)
+          token_address = Map.get(token_key, "token_address")
+          token_id = Map.get(token_key, "token_id")
+
+          tokens_map = Map.set(tokens_map, "#{token_address}##{token_id}", token_balance)
+        end
+
+        map_balance = [
+          uco: balance.uco,
+          tokens: tokens_map
+        ]
+
+        Contract.set_content(Json.to_string(map_balance))
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      {:ok, %Transaction{data: %TransactionData{content: content}}, _state, _logs} =
+        Interpreter.execute_trigger(
+          {:datetime, DateTime.from_unix!(0)},
+          Contract.from_transaction!(contract_tx),
+          nil,
+          nil,
+          [
+            %UnspentOutput{from: ArchethicCase.random_address(), type: :UCO, amount: 100_000_000},
+            %UnspentOutput{
+              from: ArchethicCase.random_address(),
+              type: {:token, "ETH", 0},
+              amount: 500
+            },
+            %UnspentOutput{
+              from: ArchethicCase.random_address(),
+              type: {:token, "BTC", 0},
+              amount: 100
+            }
+          ]
+        )
+
+      assert Jason.encode!(%{
+               uco: 1.0,
+               tokens: %{
+                 "#{eth_hex}#0" => 5.0e-6,
+                 "#{btc_hex}#0" => 1.0e-6
+               }
+             }) == content
     end
   end
 

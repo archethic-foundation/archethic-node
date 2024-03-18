@@ -466,9 +466,14 @@ defmodule Archethic.Contracts do
          datetime,
          inputs
        ) do
+    contract_constants =
+      contract_tx
+      |> Constants.from_transaction(contract_version)
+      |> Constants.set_balance(inputs)
+
     %{
       "transaction" => Constants.from_transaction(transaction, contract_version),
-      "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
+      "contract" => contract_constants,
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
       :encrypted_seed => Contract.get_encrypted_seed(contract),
