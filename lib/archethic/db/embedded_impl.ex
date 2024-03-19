@@ -274,11 +274,23 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Return the first address of given chain's address
+  Return the genesis address of given chain's address
+
+  If no genesis address is found, the given address is returned by default
   """
-  @spec get_genesis_address(address :: binary()) :: binary()
+  @spec get_genesis_address(address :: Crypto.prepended_hash()) ::
+          genesis_address :: Crypto.prepended_hash()
   def get_genesis_address(address) when is_binary(address) do
     ChainIndex.get_genesis_address(address, filepath())
+  end
+
+  @doc """
+  Return the genesis address of given chain's address
+  """
+  @spec find_genesis_address(address :: Crypto.prepended_hash()) ::
+          {:ok, genesis_address :: Crypto.prepended_hash()} | {:error, :not_found}
+  def find_genesis_address(address) when is_binary(address) do
+    ChainIndex.find_genesis_address(address, filepath())
   end
 
   @doc """
