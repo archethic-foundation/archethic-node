@@ -10,6 +10,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionChain.Transaction
 
@@ -90,6 +92,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         {:ok, %LastTransactionAddress{address: contract_address}}
       end)
       |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -119,6 +124,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         {:ok, %LastTransactionAddress{address: contract_address}}
       end)
       |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -182,6 +190,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -219,6 +230,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -327,6 +341,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -361,6 +378,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -395,6 +415,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,
@@ -428,6 +451,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
 
       params = %{
         contract: contract_address_hex,

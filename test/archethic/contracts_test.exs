@@ -757,7 +757,7 @@ defmodule Archethic.ContractsTest do
         )
 
       assert {:error, %Failure{user_friendly_error: "Function's execution timed-out"}} =
-               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
+               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [], [])
     end
 
     test "should be able to read the state" do
@@ -787,7 +787,46 @@ defmodule Archethic.ContractsTest do
                Contracts.execute_function(
                  contract,
                  "meaning_of_life",
+                 [],
                  []
+               )
+    end
+
+    test "should be able to call contract.balance from the inputs" do
+      code = ~S"""
+      @version 1
+      export fun balance() do
+        contract.balance.uco
+      end
+      """
+
+      # some ucos are necessary for ContractFactory.create_valid_contract_tx
+      uco_utxo = %UnspentOutput{
+        amount: 200_000_000,
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+
+      encoded_state = State.serialize(%{"key" => 42})
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(code, inputs: [uco_utxo], state: encoded_state)
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      assert {:ok, 5.0, _} =
+               Contracts.execute_function(
+                 contract,
+                 "balance",
+                 [],
+                 [
+                   %UnspentOutput{
+                     from: ArchethicCase.random_address(),
+                     type: :UCO,
+                     amount: 500_000_000
+                   }
+                 ]
                )
     end
   end
