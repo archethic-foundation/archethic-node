@@ -90,19 +90,19 @@ defmodule Mix.Tasks.Archethic.Db do
     # Get the addresses from the IO transactions
     t2 =
       Task.async(fn ->
-        Archethic.DB.list_io_transactions([:address, validation_stamp: [:timestamp]])
-        |> Stream.each(fn %Archethic.TransactionChain.Transaction{
-                            address: address,
-                            validation_stamp:
-                              %Archethic.TransactionChain.Transaction.ValidationStamp{
-                                timestamp: timestamp
-                              }
-                          } ->
-          :ets.insert(
-            :sorted_transactions,
-            {{DateTime.to_unix(timestamp, :millisecond), address}, :io}
-          )
-        end)
+        Archethic.DB.list_io_transactions([])
+        |> Stream.each(
+          fn tx = %Archethic.TransactionChain.Transaction{
+               validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
+                 timestamp: timestamp
+               }
+             } ->
+            :ets.insert(
+              :sorted_transactions,
+              {{DateTime.to_unix(timestamp, :millisecond), tx}, :io}
+            )
+          end
+        )
         |> Stream.run()
       end)
 
@@ -112,14 +112,16 @@ defmodule Mix.Tasks.Archethic.Db do
     # Scan the ets table in order to rebuild the UTXO db
     IO.puts("== Rebuilding of the UTXO == ")
 
+    authorized_nodes = Archethic.P2P.authorized_and_available_nodes()
+
     :ets.foldl(
       fn
         {{_, address}, {:chain, genesis_address}}, _acc ->
-          {:ok, tx} = Archethic.DB.get_transaction(address, [], :chain)
+          nodes = Archethic.Election.chain_storage_nodes(address, authorized_nodes)
+          {:ok, tx} = Archethic.TransactionChain.fetch_transaction(address, nodes)
           Archethic.UTXO.load_transaction(tx, genesis_address)
 
-        {{_, address}, :io}, _acc ->
-          {:ok, tx} = Archethic.DB.get_transaction(address, [], :io)
+        {{_, tx}, :io}, _acc ->
           Archethic.UTXO.load_transaction(tx, <<>>, skip_consume_inputs?: true)
       end,
       nil,
