@@ -50,12 +50,11 @@ defmodule Archethic.Contracts.Interpreter.Legacy.LibraryTest do
 
       MockDB
       |> stub(:get_transaction, fn _, _, _ -> {:ok, tx} end)
-      |> stub(:get_genesis_address, fn _ -> genesis_address end)
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
 
       {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
 
-      assert token_id ==
-               Library.get_token_id(tx.address)
+      assert token_id == Library.get_token_id(tx.address)
     end
   end
 

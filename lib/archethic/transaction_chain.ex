@@ -813,8 +813,8 @@ defmodule Archethic.TransactionChain do
   @spec fetch_genesis_address(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
   def fetch_genesis_address(address, nodes) when is_binary(address) do
-    case get_genesis_address(address) do
-      ^address ->
+    case find_genesis_address(address) do
+      {:error, :not_found} ->
         conflict_resolver = fn results ->
           Enum.min_by(results, & &1.timestamp, DateTime)
         end
@@ -827,8 +827,8 @@ defmodule Archethic.TransactionChain do
             {:error, :network_issue}
         end
 
-      genesis_address ->
-        {:ok, genesis_address}
+      res ->
+        res
     end
   end
 

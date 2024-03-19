@@ -644,10 +644,10 @@ defmodule Archethic.UTXOTest do
         |> set_ledger_operations_and_version([chain3_utxo])
 
       MockDB
-      |> expect(:get_genesis_address, 3, fn
-        ^destination1_address -> destination1_genesis
-        ^destination2_address -> destination2_genesis
-        ^destination3_address -> destination3_genesis
+      |> expect(:find_genesis_address, 3, fn
+        ^destination1_address -> {:ok, destination1_genesis}
+        ^destination2_address -> {:ok, destination2_genesis}
+        ^destination3_address -> {:ok, destination3_genesis}
       end)
       |> expect(:get_last_chain_address, 3, fn
         # Destination 1 does not have transaction after utxo timestamp so it will be ingested

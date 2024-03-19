@@ -51,7 +51,7 @@ defmodule Archethic.TransactionChainTest do
       address2 = random_address()
       genesis2 = random_address()
 
-      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+      MockDB |> expect(:find_genesis_address, fn ^address2 -> {:ok, genesis2} end)
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -106,7 +106,7 @@ defmodule Archethic.TransactionChainTest do
       address2 = random_address()
       genesis2 = random_address()
 
-      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+      MockDB |> expect(:find_genesis_address, fn ^address2 -> {:ok, genesis2} end)
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -122,7 +122,7 @@ defmodule Archethic.TransactionChainTest do
       address2 = random_address()
       genesis2 = random_address()
 
-      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+      MockDB |> expect(:find_genesis_address, fn ^address2 -> {:ok, genesis2} end)
 
       tx =
         TransactionFactory.create_valid_transaction([],
@@ -468,6 +468,54 @@ defmodule Archethic.TransactionChainTest do
                    tx1.type == tx.type
                  end
                )
+    end
+  end
+
+  describe "fetch_genesis_address" do
+    setup do
+      node = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      }
+
+      P2P.add_and_connect_node(node)
+
+      %{nodes: [node]}
+    end
+
+    test "should get genesis address from db if it exists", %{nodes: nodes} do
+      address = random_address()
+      genesis = random_address()
+
+      MockDB
+      |> expect(:find_genesis_address, fn ^address -> {:ok, genesis} end)
+
+      MockClient
+      |> expect(:send_message, 0, fn _, _, _ -> :should_not_enter_here end)
+
+      assert {:ok, genesis} == TransactionChain.fetch_genesis_address(address, nodes)
+    end
+
+    test "should request genesis address if not found in db", %{nodes: nodes} do
+      address = random_address()
+      genesis = random_address()
+
+      MockDB
+      |> expect(:find_genesis_address, fn ^address -> {:error, :not_found} end)
+
+      MockClient
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
+        {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
+      end)
+
+      assert {:ok, genesis} == TransactionChain.fetch_genesis_address(address, nodes)
     end
   end
 

@@ -62,7 +62,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TokenTest do
         )
 
       MockDB
-      |> expect(:get_genesis_address, fn ^token_address -> genesis_address end)
+      |> expect(:find_genesis_address, fn ^token_address -> {:ok, genesis_address} end)
       |> stub(:get_transaction, fn ^token_address, _, _ -> {:ok, tx} end)
 
       {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
