@@ -18,6 +18,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias __MODULE__.Counter
   alias __MODULE__.Legacy
   alias __MODULE__.UcoAth
+  alias __MODULE__.DeterministicBalance
 
   require Logger
 
@@ -38,6 +39,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     WSClient.start_link(host: host, port: port)
     storage_nonce_pubkey = Api.get_storage_nonce_public_key(endpoint)
 
+    Logger.info("============== CONTRACT: DETERMINISTIC BALANCE =============")
+    DeterministicBalance.play(storage_nonce_pubkey, endpoint)
     Logger.info("============== CONTRACT: COUNTER ==============")
     Counter.play(storage_nonce_pubkey, endpoint)
     Logger.info("============== CONTRACT: LEGACY ==============")
@@ -95,13 +98,25 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
 
     last_contract_address = Base.decode16!(last_contract_address_hex)
 
+    uco_transfers =
+      opts
+      |> Keyword.get(:uco_transfers, [])
+      |> Enum.map(fn %{to: to, amount: amount} ->
+        %TransactionData.UCOLedger.Transfer{to: to, amount: amount}
+      end)
+
     {:ok, trigger_address} =
       Api.send_transaction_with_await_replication(
         trigger_seed,
         :transfer,
         %TransactionData{
           content: Keyword.get(opts, :content, ""),
-          recipients: [%Recipient{address: contract_address}]
+          recipients: [%Recipient{address: contract_address}],
+          ledger: %TransactionData.Ledger{
+            uco: %TransactionData.UCOLedger{
+              transfers: uco_transfers
+            }
+          }
         },
         endpoint,
         opts
