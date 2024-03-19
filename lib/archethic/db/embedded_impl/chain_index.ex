@@ -574,11 +574,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
-  Return the first address of a chain
+  Return the genesis address of a chain
 
-  If not address is found, the given address is returned
+  If no genesis address is found, the given address is returned by default
   """
-  @spec get_genesis_address(binary(), String.t()) :: binary()
+  @spec get_genesis_address(address :: Crypto.prepended_hash(), db_path :: String.t()) ::
+          genesis_address :: Crypto.prepended_hash()
   def get_genesis_address(address, db_path) do
     with [] <- :ets.lookup(@archethic_db_last_index, address),
          {:error, :not_exists} <- get_tx_entry(address, db_path) do
@@ -595,6 +596,30 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     else
       [_] -> address
       {:ok, %{genesis_address: genesis_address}} -> genesis_address
+    end
+  end
+
+  @doc """
+  Return the genesis address of a chain
+  """
+  @spec find_genesis_address(address :: Crypto.prepended_hash(), db_path :: String.t()) ::
+          {:ok, genesis_address :: Crypto.prepended_hash()} | {:error, :not_found}
+  def find_genesis_address(address, db_path) do
+    with [] <- :ets.lookup(@archethic_db_last_index, address),
+         {:error, :not_exists} <- get_tx_entry(address, db_path) do
+      # If the transaction is not found (the transaction is not storred)
+      # We may be aware if the genesis if the node storred a least one tranaction of this chain
+
+      # :ets.fun2ms(fn {genesis, last_address, _} when last_address == address -> genesis end)
+      match_pattern = [{{:"$1", :"$2", :_}, [{:==, :"$2", address}], [:"$1"]}]
+
+      case :ets.select(@archethic_db_last_index, match_pattern, 1) do
+        :"$end_of_table" -> {:error, :not_found}
+        {[genesis_address], _} -> {:ok, genesis_address}
+      end
+    else
+      [_] -> {:ok, address}
+      {:ok, %{genesis_address: genesis_address}} -> {:ok, genesis_address}
     end
   end
 

@@ -53,6 +53,7 @@ defmodule ArchethicCase do
     |> stub(:get_last_chain_address, fn addr, _ -> {addr, DateTime.utc_now()} end)
     |> stub(:get_first_public_key, fn pub -> pub end)
     |> stub(:get_genesis_address, fn addr -> addr end)
+    |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
     |> stub(:chain_size, fn _ -> 0 end)
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
     |> stub(:list_chain_addresses, fn _ -> [] end)

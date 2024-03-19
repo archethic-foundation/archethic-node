@@ -63,7 +63,10 @@ defmodule Archethic.DB do
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   @callback get_last_chain_public_key(binary()) :: Crypto.key()
   @callback get_last_chain_public_key(binary(), DateTime.t()) :: Crypto.key()
-  @callback get_genesis_address(binary()) :: binary()
+  @callback get_genesis_address(address :: Crypto.prepended_hash()) ::
+              genesis_address :: Crypto.prepended_hash()
+  @callback find_genesis_address(address :: Crypto.prepended_hash()) ::
+              {:ok, genesis_address :: Crypto.prepended_hash()} | {:error, :not_found}
   @callback get_first_public_key(Crypto.key()) :: binary()
   @callback register_stats(DateTime.t(), float(), non_neg_integer(), non_neg_integer()) :: :ok
   @callback get_latest_tps() :: float()

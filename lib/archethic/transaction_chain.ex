@@ -208,9 +208,19 @@ defmodule Archethic.TransactionChain do
 
   @doc """
   Get the genesis address from a given chain address
+
+  If no genesis address is found, the given address is returned by default
   """
-  @spec get_genesis_address(binary()) :: binary()
+  @spec get_genesis_address(address :: Crypto.prepended_hash()) ::
+          genesis_address :: Crypto.prepended_hash()
   defdelegate get_genesis_address(address), to: DB
+
+  @doc """
+  Get the genesis address from a given chain address
+  """
+  @spec find_genesis_address(address :: Crypto.prepended_hash()) ::
+          {:ok, genesis_address :: Crypto.prepended_hash()} | {:error, :not_found}
+  defdelegate find_genesis_address(address), to: DB
 
   @doc """
   Retrieve the last transaction address for a chain stored locally
