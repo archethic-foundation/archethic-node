@@ -9,6 +9,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
 
@@ -92,31 +93,26 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   @spec trigger(String.t(), binary(), Api.t(), Keyword.t()) :: binary()
   def trigger(trigger_seed, contract_address, endpoint, opts \\ []) do
     Logger.debug("TRIGGER: Sending trigger transaction")
+    wait? = Keyword.get(opts, :wait, false)
 
-    %{"address" => last_contract_address_hex} =
-      Api.get_last_transaction(contract_address, endpoint)
-
-    last_contract_address = Base.decode16!(last_contract_address_hex)
-
-    uco_transfers =
-      opts
-      |> Keyword.get(:uco_transfers, [])
-      |> Enum.map(fn %{to: to, amount: amount} ->
-        %TransactionData.UCOLedger.Transfer{to: to, amount: amount}
-      end)
+    last_contract_address =
+      if wait? do
+        contract_address
+        |> Api.get_last_transaction(endpoint)
+        |> Map.get("address")
+        |> Base.encode16()
+      else
+        nil
+      end
 
     {:ok, trigger_address} =
       Api.send_transaction_with_await_replication(
         trigger_seed,
-        :transfer,
+        Keyword.get(opts, :type, :transfer),
         %TransactionData{
           content: Keyword.get(opts, :content, ""),
-          recipients: [%Recipient{address: contract_address}],
-          ledger: %TransactionData.Ledger{
-            uco: %TransactionData.UCOLedger{
-              transfers: uco_transfers
-            }
-          }
+          ledger: Keyword.get(opts, :ledger, %Ledger{}),
+          recipients: Keyword.get(opts, :recipients, [%Recipient{address: contract_address}])
         },
         endpoint,
         opts
