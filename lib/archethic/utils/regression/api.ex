@@ -159,12 +159,12 @@ defmodule Archethic.Utils.Regression.Api do
   Send transaction and wait for validation
   """
   @spec send_transaction_with_await_replication(
-          String.t(),
-          atom(),
-          TransactionData.t(),
-          t(),
-          Keyword.t()
-        ) :: {:ok, String.t()} | {:error, term()}
+          seed :: String.t(),
+          type :: atom(),
+          data :: TransactionData.t(),
+          endpoint :: t(),
+          opts :: Keyword.t()
+        ) :: {:ok, tx_address :: String.t()} | {:error, reason :: term()}
   def send_transaction_with_await_replication(
         transaction_seed,
         tx_type,
@@ -554,8 +554,8 @@ defmodule Archethic.Utils.Regression.Api do
                 %{
                   "to" => Base.encode16(to),
                   "amount" => amount,
-                  "token" => token_address,
-                  "token_id" => token_id
+                  "tokenAddress" => Base.encode16(token_address),
+                  "tokenId" => token_id
                 }
               end)
           }
@@ -564,7 +564,7 @@ defmodule Archethic.Utils.Regression.Api do
         "content" => Base.encode16(content),
         "recipients" =>
           Enum.map(recipients, fn %Recipient{address: address, action: action, args: args} ->
-            %{"address" => Base.encode16(address), "action" => action, "arg" => args}
+            %{"address" => Base.encode16(address), "action" => action, "args" => args}
           end),
         "ownerships" =>
           Enum.map(ownerships, fn %Ownership{
@@ -594,6 +594,9 @@ defmodule Archethic.Utils.Regression.Api do
           type
           from
           timestamp
+          state
+          tokenAddress
+          tokenId
         }
       }
     """
