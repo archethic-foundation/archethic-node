@@ -97,13 +97,14 @@ defmodule Archethic.Contracts do
       case maybe_trigger_tx do
         nil ->
           time = Keyword.fetch!(opts, :time_now)
-          {:execute_trigger, trigger_type, contract_address, nil, time}
+          {:execute_trigger, trigger_type, contract_address, nil, time, inputs_digest(inputs)}
 
         %Transaction{
           address: trigger_tx_address,
           validation_stamp: %ValidationStamp{timestamp: time}
         } ->
-          {:execute_trigger, trigger_type, contract_address, trigger_tx_address, time}
+          {:execute_trigger, trigger_type, contract_address, trigger_tx_address, time,
+           inputs_digest(inputs)}
       end
 
     fn ->
@@ -374,7 +375,9 @@ defmodule Archethic.Contracts do
     condition_constants =
       get_condition_constants(condition_key, contract, transaction, datetime, inputs)
 
-    key = {:execute_condition, condition_key, contract_address, tx_address, datetime}
+    key =
+      {:execute_condition, condition_key, contract_address, tx_address, datetime,
+       inputs_digest(inputs)}
 
     cache_interpreter_execute(
       fn ->
@@ -539,5 +542,16 @@ defmodule Archethic.Contracts do
     _ ->
       timeout_err_msg = Keyword.get(opts, :timeout_err_msg, "Contract's execution timeouts")
       {:error, %Failure{user_friendly_error: timeout_err_msg, error: :timeout}}
+  end
+
+  defp inputs_digest(inputs) do
+    inputs
+    |> Enum.map(fn %UnspentOutput{from: from, type: type} ->
+      <<from::binary, UnspentOutput.type_to_str(type)::binary>>
+    end)
+    |> :erlang.list_to_binary()
+    |> then(fn binary ->
+      :crypto.hash(:sha256, binary)
+    end)
   end
 end
