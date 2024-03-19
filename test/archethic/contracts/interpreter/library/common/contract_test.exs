@@ -15,6 +15,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -704,6 +706,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end)
       |> expect(:send_message, fn _, %GetTransaction{}, _ ->
         {:ok, contract_tx}
+      end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
       assert 3 == contract_tx.address |> Base.encode16() |> Contract.call_function("add", [1, 2])

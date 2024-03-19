@@ -39,14 +39,16 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
           | {:error, reason :: atom(), message :: binary()}
           | {:error, reason :: atom(), message :: binary(), data :: any()}
   def execute(%{
-        contract: contract_adress,
+        contract: contract_address,
         function: function_name,
         args: args,
         resolve_last: resolve?
       }) do
-    with {:ok, contract_tx} <- get_transaction(contract_adress, resolve?),
+    with {:ok, contract_tx} <- get_transaction(contract_address, resolve?),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:ok, value, _logs} <- Contracts.execute_function(contract, function_name, args) do
+         {:ok, inputs} <- get_inputs(contract_address, resolve?),
+         {:ok, value, _logs} <-
+           Contracts.execute_function(contract, function_name, args, inputs) do
       {:ok, value}
     else
       {:error, reason} ->
@@ -59,6 +61,20 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
 
   defp get_transaction(contract_address, _resolve? = false),
     do: Archethic.search_transaction(contract_address)
+
+  defp get_inputs(contract_address, _resolve? = true) do
+    case Archethic.fetch_genesis_address(contract_address) do
+      {:ok, genesis_address} ->
+        {:ok, Archethic.get_unspent_outputs(genesis_address)}
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp get_inputs(contract_address, _resolve? = false) do
+    {:ok, Archethic.get_transaction_inputs(contract_address)}
+  end
 
   # Error must be static (jsonrpc spec), the dynamic part is in the 4th tuple position
   defp format_reason(%Failure{error: error, user_friendly_error: reason}),

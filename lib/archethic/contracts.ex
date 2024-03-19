@@ -206,7 +206,8 @@ defmodule Archethic.Contracts do
   @spec execute_function(
           contract :: Contract.t(),
           function_name :: String.t(),
-          args_values :: list()
+          args_values :: list(),
+          inputs :: list(UnspentOutput.t())
         ) ::
           {:ok, value :: any(), logs :: list(String.t())}
           | {:error, Failure.t()}
@@ -217,7 +218,8 @@ defmodule Archethic.Contracts do
           state: state
         },
         function_name,
-        args_values
+        args_values,
+        inputs
       ) do
     case get_function_from_contract(contract, function_name, args_values) do
       {:error, :function_does_not_exist} ->
@@ -235,8 +237,13 @@ defmodule Archethic.Contracts do
          }}
 
       {:ok, function} ->
+        contract_constants =
+          contract_tx
+          |> Constants.from_transaction(contract_version)
+          |> Constants.set_balance(inputs)
+
         constants = %{
-          "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
+          "contract" => contract_constants,
           :time_now => DateTime.utc_now() |> DateTime.to_unix(),
           :encrypted_seed => Contract.get_encrypted_seed(contract),
           :state => state

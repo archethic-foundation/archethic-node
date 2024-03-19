@@ -28,8 +28,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
         )
 
     with {:ok, tx} <- Archethic.get_last_transaction(address),
+         {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
          {:ok, contract} <- Contracts.from_transaction(tx),
-         {:ok, value, _logs} <- Contracts.execute_function(contract, function, args) do
+         unspent_outputs = Archethic.get_unspent_outputs(genesis_address),
+         {:ok, value, _logs} <-
+           Contracts.execute_function(contract, function, args, unspent_outputs) do
       value
     else
       {:error, reason} -> raise Library.Error, message: error_to_message(reason)
