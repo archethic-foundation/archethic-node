@@ -276,7 +276,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         trigger: {:transaction, trigger_address, recipient},
         status: :tx_output,
         timestamp: DateTime.utc_now(),
-        inputs: v_unspent_outputs
+        inputs: Contract.Context.filter_inputs(v_unspent_outputs)
       }
 
       code = """

@@ -513,6 +513,7 @@ defmodule Archethic.Contracts.Worker do
 
     address
     |> TransactionChain.fetch_unspent_outputs(nodes)
+    |> Contract.Context.filter_inputs()
     |> Enum.to_list()
   end
 end

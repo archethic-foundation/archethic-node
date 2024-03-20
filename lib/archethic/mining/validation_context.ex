@@ -669,7 +669,8 @@ defmodule Archethic.Mining.ValidationContext do
         contract_context,
         prev_tx,
         genesis_address,
-        tx
+        tx,
+        unspent_outputs
       )
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
@@ -687,7 +688,7 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, fee, unspent_outputs, validation_time, encoded_state)
+      get_ledger_operations(context, fee, validation_time, encoded_state)
 
     validation_stamp =
       %ValidationStamp{
@@ -756,10 +757,10 @@ defmodule Archethic.Mining.ValidationContext do
          %__MODULE__{
            transaction: tx = %Transaction{address: address, type: tx_type},
            resolved_addresses: resolved_addresses,
-           contract_context: contract_context
+           contract_context: contract_context,
+           aggregated_utxos: unspent_outputs
          },
          fee,
-         inputs,
          validation_time,
          encoded_state
        ) do
@@ -771,7 +772,7 @@ defmodule Archethic.Mining.ValidationContext do
         %LedgerOperations{fee: fee},
         address,
         validation_time |> DateTime.truncate(:millisecond),
-        inputs,
+        unspent_outputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, validation_time, protocol_version),
         encoded_state,
@@ -1067,7 +1068,8 @@ defmodule Archethic.Mining.ValidationContext do
         contract_context,
         prev_tx,
         genesis_address,
-        tx
+        tx,
+        aggregated_utxos
       )
 
     {valid_contract_recipients?, contract_recipients_fee} =
@@ -1083,7 +1085,7 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, stamp_fee, aggregated_utxos, validation_time, next_state)
+      get_ledger_operations(context, stamp_fee, validation_time, next_state)
 
     subsets_verifications = [
       aggregated_utxos: fn -> valid_aggregated_utxo?(aggregated_utxos, context) end,

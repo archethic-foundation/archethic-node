@@ -193,7 +193,8 @@ defmodule Archethic.Replication.TransactionValidator do
              contract_context,
              prev_tx,
              genesis_address,
-             tx
+             tx,
+             inputs
            ) do
         {true, encoded_state} -> {:ok, encoded_state}
         _ -> {:error, :invalid_contract_execution}

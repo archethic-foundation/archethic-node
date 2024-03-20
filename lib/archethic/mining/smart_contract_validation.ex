@@ -98,21 +98,32 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract_context :: Contract.Context.t(),
           prev_tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
-          next_tx :: Transaction.t()
+          next_tx :: Transaction.t(),
+          chain_unspent_outputs :: list(VersionedUnspentOutput.t())
         ) :: {boolean(), State.encoded() | nil}
   def valid_contract_execution?(
-        %Contract.Context{status: status, trigger: trigger, timestamp: timestamp, inputs: inputs},
+        %Contract.Context{
+          status: status,
+          trigger: trigger,
+          timestamp: timestamp,
+          inputs: contract_inputs
+        },
         prev_tx,
         genesis_address,
-        next_tx
+        next_tx,
+        chain_unspent_outputs
       ) do
     trigger_type = trigger_to_trigger_type(trigger)
     recipient = trigger_to_recipient(trigger)
     opts = trigger_to_execute_opts(trigger)
-    inputs = VersionedUnspentOutput.unwrap_unspent_outputs(inputs)
 
     with {:ok, maybe_trigger_tx} <-
-           validate_trigger(trigger, timestamp, genesis_address, inputs),
+           validate_trigger(
+             trigger,
+             timestamp,
+             genesis_address,
+             VersionedUnspentOutput.unwrap_unspent_outputs(chain_unspent_outputs)
+           ),
          {:ok, contract} <-
            Contract.from_transaction(prev_tx),
          {:ok, res} <-
@@ -121,7 +132,7 @@ defmodule Archethic.Mining.SmartContractValidation do
              contract,
              maybe_trigger_tx,
              recipient,
-             inputs,
+             VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs),
              opts
            ),
          {:ok, encoded_state} <-
@@ -136,7 +147,8 @@ defmodule Archethic.Mining.SmartContractValidation do
         _contract_context = nil,
         prev_tx = %Transaction{data: %TransactionData{code: code}},
         _genesis_address,
-        _next_tx = %Transaction{}
+        _next_tx = %Transaction{},
+        _chain_unspent_outputs
       )
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
@@ -145,7 +157,7 @@ defmodule Archethic.Mining.SmartContractValidation do
       else: {true, nil}
   end
 
-  def valid_contract_execution?(_, _, _, _), do: {true, nil}
+  def valid_contract_execution?(_, _, _, _, _), do: {true, nil}
 
   defp validate_result(
          %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},

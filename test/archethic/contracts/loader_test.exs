@@ -22,6 +22,8 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.UTXO
@@ -321,12 +323,6 @@ defmodule Archethic.Contracts.LoaderTest do
       end
       """
 
-      contract_context = %Contract.Context{
-        trigger: {:transaction, trigger_tx1.address, recipient},
-        timestamp: DateTime.utc_now(),
-        status: :tx_output
-      }
-
       utxos = [
         %UnspentOutput{
           from: random_address(),
@@ -336,6 +332,18 @@ defmodule Archethic.Contracts.LoaderTest do
         },
         %UnspentOutput{from: trigger_tx1.address, type: :call, timestamp: DateTime.utc_now()}
       ]
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, trigger_tx1.address, recipient},
+        timestamp: DateTime.utc_now(),
+        status: :tx_output,
+        inputs: [
+          %VersionedUnspentOutput{
+            unspent_output: List.first(utxos),
+            protocol_version: current_protocol_version()
+          }
+        ]
+      }
 
       contract_tx =
         ContractFactory.create_valid_contract_tx(code,

@@ -14,7 +14,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
   def play(storage_nonce_pubkey, endpoint) do
     contract_seed = SmartContract.random_seed()
 
-    nb_transactions = 1
+    nb_transactions = 100
     triggers_seeds = Enum.map(1..nb_transactions, fn _ -> SmartContract.random_seed() end)
 
     initial_funds =
@@ -43,21 +43,27 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
     Enum.map(1..nb_transactions, fn i ->
       Task.async(fn ->
         SmartContract.trigger(Enum.at(triggers_seeds, i - 1), contract_address, endpoint,
-          await_timeout: 60_000
-          # uco_transfers: [%{to: contract_address, amount: Archethic.Utils.to_bigint(10)}]
+          await_timeout: 60_000,
+          uco_transfers: [%{to: contract_address, amount: Archethic.Utils.to_bigint(10)}]
         )
       end)
     end)
     |> Task.await_many(:infinity)
 
     await_no_more_calls(genesis_address, endpoint)
-    balance = Api.get_uco_balance(contract_address, endpoint) |> Archethic.Utils.from_bigint()
 
-    if balance < 505 - 5 * nb_transactions do
-      Logger.info("Smart contract 'deterministic balance' has been decremented successfully")
+    %{"data" => %{"content" => logged_balance}} =
+      Api.get_last_transaction(contract_address, endpoint)
+
+    logged_balance = logged_balance |> String.to_float() |> Float.ceil()
+
+    expected_balance = 505.0 - 5 + (nb_transactions - 1) * (10 - 5)
+
+    if logged_balance == expected_balance do
+      Logger.info("Smart contract 'deterministic balance' has been updated successfully")
     else
       Logger.error(
-        "Smart contract 'deterministic balance' has not been decremented successfully: #{balance}"
+        "Smart contract 'deterministic balance' has not been updated successfully: #{logged_balance} - expected #{expected_balance}"
       )
     end
   end
@@ -76,7 +82,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
       calls ->
         Logger.debug("Remaining calls #{length(calls)}")
         Process.sleep(100)
-        # await_no_more_calls(contract_address, endpoint)
+        await_no_more_calls(contract_address, endpoint)
     end
   end
 
@@ -88,19 +94,30 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
 
     condition inherit: [
       content: (
-        previous_balance = String.to_number(previous.content)
-
-        diff = previous_balance - next.balance.uco
-        diff > 5.0 && diff < 6.0
-      
+        log(previous.balance.uco)
+        log(next.balance.uco)
+        diff = ceil(previous.balance.uco) - ceil(next.balance.uco)
+        abs(diff) == 5.0
       ),
       uco_transfers: ["00000000000000000000000000000000000000000000000000000000000000000000": 5]
     ]
 
+    fun ceil(number) do
+      number + (1 - Math.rem(number, 1))
+    end
+
+    fun abs(number) do
+      if number >= 0 do
+        number
+      else
+        number * -1
+      end
+    end
+
     condition transaction: []
     actions triggered_by: transaction do
       Contract.add_uco_transfer to: 0x00000000000000000000000000000000000000000000000000000000000000000000, amount: 5
-      Contract.set_content(String.from_number(contract.balance.uco))
+      Contract.set_content(String.from_number(contract.balance.uco - 5.0))
     end
     """
   end

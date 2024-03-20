@@ -232,16 +232,25 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ops = %__MODULE__{fee: fee},
         change_address,
         timestamp = %DateTime{},
-        inputs \\ [],
+        chain_inputs \\ [],
         movements \\ [],
         tokens_to_mint \\ [],
         encoded_state \\ nil,
         contract_context \\ nil
       ) do
+    ledger_inputs =
+      case contract_context do
+        nil ->
+          chain_inputs
+
+        context = %ContractContext{} ->
+          ContractContext.ledger_inputs(context, chain_inputs)
+      end
+
     # Since AEIP-19 we can consume from minted tokens
     # Sort inputs, to have consistent results across all nodes
     consolidated_inputs =
-      Enum.sort(tokens_to_mint ++ inputs, {:asc, VersionedUnspentOutput})
+      Enum.sort(tokens_to_mint ++ ledger_inputs, {:asc, VersionedUnspentOutput})
       |> Enum.map(fn
         utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^change_address}} ->
           # As the minted tokens are used internally during transaction's validation
@@ -254,6 +263,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end)
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
+
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
 
     if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
@@ -373,10 +383,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp get_token_to_consume(_, _, _, _), do: []
 
   defp get_call_to_consume(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
-    case Enum.find(inputs, &(&1.unspent_output.from == address)) do
+    inputs
+    |> Enum.find(&(&1.unspent_output.from == address))
+    |> then(fn
       nil -> []
       contract_call_input -> [contract_call_input]
-    end
+    end)
   end
 
   defp get_call_to_consume(_, _), do: []
