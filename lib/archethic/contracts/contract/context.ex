@@ -14,6 +14,8 @@ defmodule Archethic.Contracts.Contract.Context do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   @enforce_keys [:status, :trigger, :timestamp]
@@ -237,4 +239,80 @@ defmodule Archethic.Contracts.Contract.Context do
   def valid_inputs?(%__MODULE__{inputs: []}, _unspent_outputs = [_ | _]), do: false
   def valid_inputs?(%__MODULE__{inputs: [_ | _]}, _unspent_outputs = []), do: false
   def valid_inputs?(nil, _unspent_outputs), do: true
+
+  @doc """
+  Filter the contract's input to reject inputs related to the calls
+
+  ## Examples
+
+      iex> [
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :state}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}}
+      ...> ]
+      ...> |> Context.filter_inputs()
+      [
+         %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000 }}
+      ]
+  """
+  @spec filter_inputs(list(VersionedUnspentOutput.t())) :: list(VersionedUnspentOutput.t())
+  def filter_inputs(inputs) do
+    calls =
+      Enum.reduce(inputs, MapSet.new(), fn
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{type: :call, from: from}
+        },
+        acc ->
+          MapSet.put(acc, from)
+
+        _, acc ->
+          acc
+      end)
+
+    Enum.reject(inputs, &MapSet.member?(calls, &1.unspent_output.from))
+  end
+
+  @doc """
+  Returns the list of ledger inputs used in validation including the UTXOs sent by the trigger
+
+  ## Examples
+
+      iex> utxos = [
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Alice5", type: :call}},
+      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Alice5", type: :call}},
+      ...> ]
+      iex> %Context{
+      ...>   inputs: Context.filter_inputs(utxos),
+      ...>   trigger: {:transaction, "@Bob3", nil},
+      ...>   status: :ok,
+      ...>   timestamp: DateTime.utc_now()
+      ...> }
+      ...> |> Context.ledger_inputs(utxos)
+      [
+        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
+        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}}
+      ]
+  """
+  @spec ledger_inputs(t(), list(VersionedUnspentOutput.t())) :: list(VersionedUnspentOutput.t())
+  def ledger_inputs(
+        %__MODULE__{trigger: {:transaction, address, _}, inputs: inputs},
+        chain_inputs
+      ) do
+    Enum.reduce(chain_inputs, inputs, fn input, acc ->
+      if input.unspent_output.from == address do
+        [input | acc]
+      else
+        acc
+      end
+    end)
+  end
+
+  def ledger_inputs(%__MODULE__{inputs: inputs}, _inputs), do: inputs
 end

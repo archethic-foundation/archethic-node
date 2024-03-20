@@ -204,7 +204,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
     test "should get inconsistency when the user has not enough funds" do
       validation_context =
-        %ValidationContext{create_context() | unspent_outputs: []}
+        %ValidationContext{create_context() | aggregated_utxos: []}
         |> ValidationContext.create_validation_stamp()
 
       assert validation_context.validation_stamp.error == :insufficient_funds
