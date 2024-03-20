@@ -13,6 +13,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Legacy do
   require Logger
 
   def play(storage_nonce_pubkey, endpoint) do
+    Logger.info("============== CONTRACT: LEGACY ==============")
     trigger_seed = SmartContract.random_seed()
     contract_seed = SmartContract.random_seed()
     recipient_address = SmartContract.random_address()
@@ -52,10 +53,14 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Legacy do
       Logger.info(
         "Smart contract 'legacy' received #{Utils.from_bigint(balance)} UCOs after #{ticks_count} ticks"
       )
+
+      :ok
     else
       Logger.error(
         "Smart contract 'legacy' received #{Utils.from_bigint(balance)} UCOs after #{ticks_count} ticks"
       )
+
+      :error
     end
   end
 
