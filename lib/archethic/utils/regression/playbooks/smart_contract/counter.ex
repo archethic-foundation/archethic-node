@@ -12,6 +12,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
   require Logger
 
   def play(storage_nonce_pubkey, endpoint) do
+    Logger.info("============== CONTRACT: COUNTER ==============")
     contract_seed = SmartContract.random_seed()
 
     triggers_seeds = Enum.map(1..100, fn _ -> SmartContract.random_seed() end)
@@ -48,33 +49,17 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
     end)
     |> Task.await_many(:infinity)
 
-    await_no_more_calls(genesis_address, endpoint)
+    SmartContract.await_no_more_calls(genesis_address, endpoint)
     last_tx = Api.get_last_transaction(contract_address, endpoint)
 
     case last_tx["data"]["content"] |> String.to_integer() do
       ^nb_transactions ->
         Logger.info("Smart contract 'counter' content has been incremented successfully")
+        :ok
 
       content ->
         Logger.error("Smart contract 'counter' content is not as expected: #{content}")
-    end
-  end
-
-  defp get_unspent_outputs(contract_address, endpoint) do
-    contract_address
-    |> Api.get_unspent_outputs(endpoint)
-    |> Enum.filter(&(Map.get(&1, "type") == "call"))
-  end
-
-  defp await_no_more_calls(contract_address, endpoint) do
-    case get_unspent_outputs(contract_address, endpoint) do
-      [] ->
-        :ok
-
-      calls ->
-        Logger.debug("Remaining calls #{length(calls)}")
-        Process.sleep(100)
-        await_no_more_calls(contract_address, endpoint)
+        :error
     end
   end
 

@@ -12,6 +12,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.UcoAth do
   require Logger
 
   def play(storage_nonce_pubkey, endpoint) do
+    Logger.info("============== CONTRACT: UCO ATH ==============")
     contract_seed = SmartContract.random_seed()
 
     Api.send_funds_to_seeds(
@@ -40,8 +41,10 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.UcoAth do
 
     if value > -1 do
       Logger.info("Smart contract 'uco ath' content has been updated successfully")
+      :ok
     else
       Logger.error("Smart contract 'uco ath' content is not as expected: #{value}")
+      :error
     end
   end
 

@@ -20,6 +20,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias __MODULE__.Legacy
   alias __MODULE__.UcoAth
   alias __MODULE__.DeterministicBalance
+  alias __MODULE__.Dex
 
   require Logger
 
@@ -40,14 +41,18 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     WSClient.start_link(host: host, port: port)
     storage_nonce_pubkey = Api.get_storage_nonce_public_key(endpoint)
 
-    Logger.info("============== CONTRACT: DETERMINISTIC BALANCE =============")
-    DeterministicBalance.play(storage_nonce_pubkey, endpoint)
-    Logger.info("============== CONTRACT: COUNTER ==============")
-    Counter.play(storage_nonce_pubkey, endpoint)
-    Logger.info("============== CONTRACT: LEGACY ==============")
-    Legacy.play(storage_nonce_pubkey, endpoint)
-    Logger.info("============== CONTRACT: UCO ATH ==============")
-    UcoAth.play(storage_nonce_pubkey, endpoint)
+    res = [
+      {"DeterministicBalance", DeterministicBalance.play(storage_nonce_pubkey, endpoint)},
+      {"Counter", Counter.play(storage_nonce_pubkey, endpoint)},
+      {"Legacy", Legacy.play(storage_nonce_pubkey, endpoint)},
+      {"Dex", Dex.play(storage_nonce_pubkey, endpoint)},
+      {"UcoAth", UcoAth.play(storage_nonce_pubkey, endpoint)}
+    ]
+
+    Enum.each(res, fn
+      {name, :error} -> Logger.error("#{name} failed")
+      _ -> :ok
+    end)
   end
 
   @doc """
@@ -156,6 +161,23 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
       _ ->
         Logger.error("TRIGGER: TIMEOUT: contract did not produce a new transaction in time")
         :error
+    end
+  end
+
+  def await_no_more_calls(contract_address, endpoint) do
+    call_utxos =
+      contract_address
+      |> Api.get_unspent_outputs(endpoint)
+      |> Enum.filter(&(Map.get(&1, "type") == "call"))
+
+    case call_utxos do
+      [] ->
+        :ok
+
+      calls ->
+        Logger.debug("Remaining calls #{length(calls)}")
+        Process.sleep(200)
+        await_no_more_calls(contract_address, endpoint)
     end
   end
 end

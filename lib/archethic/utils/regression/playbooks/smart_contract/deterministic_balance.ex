@@ -6,12 +6,16 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.Regression.Playbook.SmartContract
 
   require Logger
 
   def play(storage_nonce_pubkey, endpoint) do
+    Logger.info("============== CONTRACT: DETERMINISTIC BALANCE =============")
     contract_seed = SmartContract.random_seed()
 
     nb_transactions = 100
@@ -40,17 +44,26 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
         endpoint
       )
 
-    Enum.map(1..nb_transactions, fn i ->
-      Task.async(fn ->
-        SmartContract.trigger(Enum.at(triggers_seeds, i - 1), contract_address, endpoint,
-          await_timeout: 60_000,
-          uco_transfers: [%{to: contract_address, amount: Archethic.Utils.to_bigint(10)}]
-        )
-      end)
-    end)
-    |> Task.await_many(:infinity)
+    ledger = %Ledger{
+      uco: %UCOLedger{
+        transfers: [%UCOTransfer{to: contract_address, amount: Archethic.Utils.to_bigint(10)}]
+      }
+    }
 
-    await_no_more_calls(genesis_address, endpoint)
+    Task.async_stream(
+      triggers_seeds,
+      fn seed ->
+        SmartContract.trigger(seed, contract_address, endpoint,
+          await_timeout: 60_000,
+          ledger: ledger
+        )
+      end,
+      max_concurrency: length(triggers_seeds),
+      timeout: :infinity
+    )
+    |> Stream.run()
+
+    SmartContract.await_no_more_calls(genesis_address, endpoint)
 
     %{"data" => %{"content" => logged_balance}} =
       Api.get_last_transaction(contract_address, endpoint)
@@ -61,28 +74,13 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
 
     if logged_balance == expected_balance do
       Logger.info("Smart contract 'deterministic balance' has been updated successfully")
+      :ok
     else
       Logger.error(
         "Smart contract 'deterministic balance' has not been updated successfully: #{logged_balance} - expected #{expected_balance}"
       )
-    end
-  end
 
-  defp get_unspent_outputs(contract_address, endpoint) do
-    contract_address
-    |> Api.get_unspent_outputs(endpoint)
-    |> Enum.filter(&(Map.get(&1, "type") == "call"))
-  end
-
-  defp await_no_more_calls(contract_address, endpoint) do
-    case get_unspent_outputs(contract_address, endpoint) do
-      [] ->
-        :ok
-
-      calls ->
-        Logger.debug("Remaining calls #{length(calls)}")
-        Process.sleep(100)
-        await_no_more_calls(contract_address, endpoint)
+      :error
     end
   end
 
