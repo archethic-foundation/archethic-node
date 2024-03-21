@@ -60,8 +60,9 @@ defmodule Archethic.UTXO do
         else: tx
 
     # Ingest all the movements and recipients to fill up the UTXO list
-    ingest_movements(tx, node_public_key, authorized_nodes)
-    ingest_recipients(tx, node_public_key, authorized_nodes)
+    tx
+    |> get_unspent_outputs_to_ingest(node_public_key, authorized_nodes)
+    |> Enum.each(fn {to, utxos} -> Loader.add_utxos(utxos, to) end)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
     if not skip_consume_inputs? and
@@ -74,54 +75,44 @@ defmodule Archethic.UTXO do
     )
   end
 
-  defp ingest_movements(
+  defp get_unspent_outputs_to_ingest(
          %Transaction{
            address: address,
            type: tx_type,
            validation_stamp: %ValidationStamp{
              protocol_version: protocol_version,
              timestamp: timestamp,
-             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
+             recipients: recipients
            }
          },
          node_public_key,
          authorized_nodes
        ) do
-    transaction_movements
-    |> consolidate_movements(protocol_version, tx_type)
-    |> Enum.each(fn %TransactionMovement{to: to, amount: amount, type: type} ->
-      utxo = %UnspentOutput{from: address, amount: amount, timestamp: timestamp, type: type}
+    utxos_by_genesis =
+      transaction_movements
+      |> consolidate_movements(protocol_version, tx_type)
+      |> Enum.reduce(%{}, fn %TransactionMovement{to: to, amount: amount, type: type}, acc ->
+        utxo = %UnspentOutput{from: address, amount: amount, timestamp: timestamp, type: type}
 
-      with true <- Election.chain_storage_node?(to, node_public_key, authorized_nodes),
-           false <- utxo_consumed?(to, utxo) do
-        utxo
-        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
-        |> Loader.add_utxo(to)
-      end
-    end)
-  end
+        with true <- Election.chain_storage_node?(to, node_public_key, authorized_nodes),
+             false <- utxo_consumed?(to, utxo) do
+          versioned_utxo = VersionedUnspentOutput.wrap_unspent_output(utxo, protocol_version)
+          Map.update(acc, to, [versioned_utxo], &[versioned_utxo | &1])
+        else
+          _ -> acc
+        end
+      end)
 
-  defp ingest_recipients(
-         %Transaction{
-           address: address,
-           validation_stamp: %ValidationStamp{
-             recipients: recipients,
-             timestamp: timestamp,
-             protocol_version: protocol_version
-           }
-         },
-         node_public_key,
-         authorized_nodes
-       ) do
-    recipients
-    |> Enum.each(fn recipient ->
+    Enum.reduce(recipients, utxos_by_genesis, fn recipient, acc ->
       utxo = %UnspentOutput{from: address, type: :call, timestamp: timestamp}
 
       with true <- Election.chain_storage_node?(recipient, node_public_key, authorized_nodes),
            false <- utxo_consumed?(recipient, utxo) do
-        utxo
-        |> VersionedUnspentOutput.wrap_unspent_output(protocol_version)
-        |> Loader.add_utxo(recipient)
+        versioned_utxo = VersionedUnspentOutput.wrap_unspent_output(utxo, protocol_version)
+        Map.update(acc, recipient, [versioned_utxo], &[versioned_utxo | &1])
+      else
+        _ -> acc
       end
     end)
   end

@@ -90,6 +90,7 @@ defmodule ArchethicCase do
     MockUTXOLedger
     |> stub(:list_genesis_addresses, fn -> [] end)
     |> stub(:append, fn _, _ -> :ok end)
+    |> stub(:append_list, fn _, _ -> :ok end)
     |> stub(:flush, fn _, _ -> :ok end)
     |> stub(:stream, fn _ -> [] end)
 
