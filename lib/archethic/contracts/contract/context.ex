@@ -231,8 +231,10 @@ defmodule Archethic.Contracts.Contract.Context do
   """
   @spec valid_inputs?(t() | nil, list(VersionedUnspentOutput.t())) :: boolean()
   def valid_inputs?(%__MODULE__{inputs: inputs = [_ | _]}, unspent_outputs = [_ | _]) do
+    filtered_unspent_outputs = filter_inputs(unspent_outputs)
+
     Enum.all?(inputs, fn input ->
-      Enum.any?(unspent_outputs, &(&1 == input))
+      Enum.any?(filtered_unspent_outputs, &(&1 == input))
     end)
   end
 
