@@ -31,6 +31,16 @@ defmodule Archethic.UTXO.Loader do
   end
 
   @doc """
+  Ingest a list of UTXO at once
+  """
+  @spec add_utxos(list(VersionedUnspentOutput.t()), binary()) :: :ok
+  def add_utxos(utxos, genesis_address) do
+    genesis_address
+    |> via_tuple()
+    |> GenServer.call({:add_utxos, utxos, genesis_address})
+  end
+
+  @doc """
   Ingest the transaction to consumed inputs and allocate the new unspent outputs
   """
   @spec consume_inputs(Transaction.t(), binary()) :: :ok
@@ -55,6 +65,12 @@ defmodule Archethic.UTXO.Loader do
       ) do
     DBLedger.append(genesis_address, utxo)
     MemoryLedger.add_chain_utxo(genesis_address, utxo)
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:add_utxos, utxos, genesis_address}, _, state) do
+    DBLedger.append_list(genesis_address, utxos)
+    Enum.each(utxos, &MemoryLedger.add_chain_utxo(genesis_address, &1))
     {:reply, :ok, state}
   end
 

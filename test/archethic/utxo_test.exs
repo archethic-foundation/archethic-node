@@ -97,7 +97,7 @@ defmodule Archethic.UTXOTest do
       me = self()
 
       MockUTXOLedger
-      |> stub(:append, fn genesis_address, utxo ->
+      |> stub(:append_list, fn genesis_address, [utxo] ->
         send(me, {:append_utxo, genesis_address, utxo})
       end)
 
@@ -371,7 +371,7 @@ defmodule Archethic.UTXOTest do
       me = self()
 
       MockUTXOLedger
-      |> stub(:append, fn genesis_address, utxo ->
+      |> stub(:append_list, fn genesis_address, [utxo] ->
         send(me, {:append_utxo, genesis_address, utxo})
       end)
 
@@ -419,7 +419,11 @@ defmodule Archethic.UTXOTest do
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination1_genesis, amount: 500_000, type: token_type},
+              %TransactionMovement{
+                to: destination1_genesis,
+                amount: 500_000,
+                type: token_type
+              },
               %TransactionMovement{to: destination2_genesis, amount: 300_000, type: token_type},
               %TransactionMovement{to: destination3_genesis, amount: 200_000, type: token_type}
             ],

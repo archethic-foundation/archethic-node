@@ -41,6 +41,26 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
   end
 
   @doc """
+  Add list of unspent outputs for a genesis address
+  """
+  @spec append_list(binary(), list(VersionedUnspentOutput.t())) :: :ok
+  def append_list(genesis_address, unspent_outputs) do
+    bin =
+      unspent_outputs
+      |> Enum.map(fn utxo ->
+        bin =
+          utxo
+          |> VersionedUnspentOutput.serialize()
+          |> Utils.wrap_binary()
+
+        <<byte_size(bin)::32, bin::binary>>
+      end)
+      |> :erlang.list_to_binary()
+
+    File.write!(file_path(genesis_address), bin, [:append, :binary])
+  end
+
+  @doc """
   Flush to disk the unspent outputs for a genesis address
   """
   @spec flush(binary(), list(VersionedUnspentOutput.t())) :: :ok
