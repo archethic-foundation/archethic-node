@@ -77,6 +77,7 @@ release :archethic_node do
     appup_transforms: [
       {Archethic.Release.TransformPurge, []},
       {Archethic.Release.RestartTelemetry, []},
+      {Archethic.Release.ParseContractCode, []},
       {Archethic.Release.CallMigrateScript, []}
     ]
   )
