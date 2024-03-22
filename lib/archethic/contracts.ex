@@ -553,12 +553,14 @@ defmodule Archethic.Contracts do
 
   defp inputs_digest(inputs) do
     inputs
-    |> Enum.map(fn %UnspentOutput{from: from, type: type} ->
-      <<from::binary, UnspentOutput.type_to_str(type)::binary>>
+    |> Enum.map(fn
+      %UnspentOutput{from: nil, type: type} ->
+        <<UnspentOutput.type_to_str(type)::binary>>
+
+      %UnspentOutput{from: from, type: type} ->
+        <<from::binary, UnspentOutput.type_to_str(type)::binary>>
     end)
     |> :erlang.list_to_binary()
-    |> then(fn binary ->
-      :crypto.hash(:sha256, binary)
-    end)
+    |> then(fn binary -> :crypto.hash(:sha256, binary) end)
   end
 end
