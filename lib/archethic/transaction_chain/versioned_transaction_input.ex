@@ -13,6 +13,17 @@ defmodule Archethic.TransactionChain.VersionedTransactionInput do
         }
 
   @spec serialize(t()) :: bitstring()
+  def serialize(
+        input = %__MODULE__{
+          protocol_version: protocol_version,
+          input: %TransactionInput{type: :state}
+        }
+      )
+      when protocol_version < 7,
+      # Before AEIP-21 call where not serialized in unspent output so the serialization / deserialization
+      # does not work with protocol version < 7
+      do: serialize(%__MODULE__{input | protocol_version: 7})
+
   def serialize(%__MODULE__{
         protocol_version: protocol_version,
         input: input = %TransactionInput{}
