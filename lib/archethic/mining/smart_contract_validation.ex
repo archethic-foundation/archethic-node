@@ -51,7 +51,8 @@ defmodule Archethic.Mining.SmartContractValidation do
       &request_contract_validation(&1, transaction, validation_time),
       timeout: @timeout + 500,
       ordered: false,
-      on_timeout: :kill_task
+      on_timeout: :kill_task,
+      max_concurrency: length(recipients)
     )
     |> Enum.reduce_while({true, 0}, fn
       {:ok, {_valid? = true, fee}}, {true, total_fee} -> {:cont, {true, total_fee + fee}}
