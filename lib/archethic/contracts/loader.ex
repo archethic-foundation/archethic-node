@@ -142,6 +142,21 @@ defmodule Archethic.Contracts.Loader do
     end
   end
 
+  @doc """
+  Function used during hot reload !
+  It request contracts to reparse their contract code since some modification
+  in contract interpreter could update the parsed code
+  """
+  @spec reparse_workers_contract() :: :ok
+  def reparse_workers_contract() do
+    ContractSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn
+      {_, pid, _, _} when is_pid(pid) -> GenStateMachine.cast(pid, :reparse_contract)
+      _ -> :ignore
+    end)
+  end
+
   defp handle_invalid_calls([], _, _), do: []
 
   defp handle_invalid_calls(calls, genesis_address, current_contract_address) do

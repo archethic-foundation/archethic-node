@@ -131,6 +131,15 @@ defmodule Archethic.Contracts.Worker do
 
   def handle_event(:cast, :process_next_trigger, _state, _data), do: :keep_state_and_data
 
+  def handle_event(
+        :cast,
+        :reparse_contract,
+        _,
+        data = %{contract: %Contract{transaction: contract_tx}}
+      ) do
+    {:keep_state, %{data | contract: Contract.from_transaction!(contract_tx)}}
+  end
+
   # TRIGGER: DATETIME or INTERVAL
   def handle_event(:info, {:trigger, _}, :idle, _data), do: :keep_state_and_data
 
@@ -197,13 +206,7 @@ defmodule Archethic.Contracts.Worker do
     {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
   end
 
-  def code_change(old_version, state, data = %{contract: %Contract{transaction: contract_tx}}, _) do
-    Logger.debug("CODE_CHANGE #{old_version} for Contracts.Worker #{inspect(self())}")
-    # because the worker maintain a parsed contract in memory
-    # it's possible that the parsing changed with the new release
-    # so we reparse the contract here
-    {:ok, state, %{data | contract: Contract.from_transaction!(contract_tx), self_triggers: []}}
-  end
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 
   # ----------------------------------------------
   defp via_tuple(address) do
