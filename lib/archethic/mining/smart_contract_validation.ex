@@ -40,6 +40,8 @@ defmodule Archethic.Mining.SmartContractValidation do
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
         ) :: {true, fee :: non_neg_integer()} | {false, 0}
+  def validate_contract_calls([], _, _), do: {true, 0}
+
   def validate_contract_calls(
         recipients,
         transaction = %Transaction{},
@@ -54,8 +56,9 @@ defmodule Archethic.Mining.SmartContractValidation do
       on_timeout: :kill_task,
       max_concurrency: length(recipients)
     )
-    |> Enum.reduce_while({true, 0}, fn
-      {:ok, {_valid? = true, fee}}, {true, total_fee} -> {:cont, {true, total_fee + fee}}
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.reduce_while({false, 0}, fn
+      {:ok, {_valid? = true, fee}}, {_, total_fee} -> {:cont, {true, total_fee + fee}}
       _, _ -> {:halt, {false, 0}}
     end)
   end
