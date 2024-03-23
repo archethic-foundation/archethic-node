@@ -36,7 +36,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
   # ----------------------------------------
   describe "request/4 common behavior" do
     test "should raise if domain does not exist" do
-      assert_raise Library.Error, fn -> HttpImpl.request("https://localhost.local", "GET") end
+      assert_raise Library.Error, fn -> HttpImpl.request("https://non-existing.domain", "GET") end
     end
 
     test "should return a 404 if page does not exist" do
@@ -107,6 +107,36 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
     end
   end
 
+  describe "request/5" do
+    test "should return a status -4001 for timeout" do
+      assert %{"status" => -4001} =
+               HttpImpl.request("https://127.0.0.1:8081/very-slow", "GET", %{}, nil, false)
+    end
+
+    test "should return a status -4004 for non https" do
+      assert %{"status" => -4004} =
+               HttpImpl.request("http://127.0.0.1:8081/", "GET", %{}, nil, false)
+    end
+
+    test "should return a status -4002 for too large" do
+      assert %{"status" => -4002} =
+               HttpImpl.request("https://127.0.0.1:8081/data?kbytes=300", "GET", %{}, nil, false)
+    end
+
+    test "should return a status -4005 if it's already called once" do
+      assert %{"status" => 200} =
+               HttpImpl.request("https://127.0.0.1:8081", "GET", %{}, nil, false)
+
+      assert %{"status" => -4005} =
+               HttpImpl.request("https://127.0.0.1:8081", "GET", %{}, nil, false)
+    end
+
+    test "should return a -4000 if the domain is inexistant" do
+      assert %{"status" => -4000} =
+               HttpImpl.request("https://non-existing.domain", "GET", %{}, nil, false)
+    end
+  end
+
   describe "request_many/1" do
     test "should return an empty list if it receives an empty list" do
       assert [] = HttpImpl.request_many([])
@@ -147,7 +177,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
       assert_raise Library.Error, fn ->
         HttpImpl.request_many([
           %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
-          %{"url" => "https://localhost.local", "method" => "GET"}
+          %{"url" => "https://non-existing.domain", "method" => "GET"}
         ])
       end
 
@@ -188,6 +218,101 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
       assert_raise Library.Error, fn ->
         HttpImpl.request_many([%{"url" => "https://127.0.0.1:8081", "method" => "GET"}])
       end
+    end
+  end
+
+  describe "request_many/2" do
+    test "should return a status -4001 for timeout" do
+      assert [
+               %{"status" => 200},
+               %{"status" => -4001}
+             ] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081/very-slow", "method" => "GET"}
+                 ],
+                 false
+               )
+    end
+
+    test "should return a status -4004 for non https" do
+      assert [
+               %{"status" => 200},
+               %{"status" => -4004}
+             ] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "http://127.0.0.1", "method" => "GET"}
+                 ],
+                 false
+               )
+    end
+
+    test "should return a status -4003 for too many urls" do
+      assert [
+               %{"status" => 200},
+               %{"status" => 200},
+               %{"status" => 200},
+               %{"status" => 200},
+               %{"status" => 200},
+               %{"status" => -4003}
+             ] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"}
+                 ],
+                 false
+               )
+    end
+
+    test "should return a status -4002 for too large" do
+      assert [
+               %{"status" => -4002},
+               %{"status" => -4002}
+             ] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081/data?kbytes=200", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081/data?kbytes=200", "method" => "GET"}
+                 ],
+                 false
+               )
+    end
+
+    test "should return a status -4005 if it's already called once" do
+      assert [%{"status" => 200}] =
+               HttpImpl.request_many(
+                 [%{"url" => "https://127.0.0.1:8081", "method" => "GET"}],
+                 false
+               )
+
+      assert [%{"status" => -4005}, %{"status" => -4005}, %{"status" => -4005}] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"}
+                 ],
+                 false
+               )
+    end
+
+    test "should return a -4000 if the domain is inexistant" do
+      assert [%{"status" => 200}, %{"status" => -4000}] =
+               HttpImpl.request_many(
+                 [
+                   %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
+                   %{"url" => "https://non-existing.domain", "method" => "GET"}
+                 ],
+                 false
+               )
     end
   end
 end
