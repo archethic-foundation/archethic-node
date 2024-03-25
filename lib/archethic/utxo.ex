@@ -34,7 +34,8 @@ defmodule Archethic.UTXO do
   @type load_opts :: [
           resolved_addresses: %{(address :: binary()) => genesis :: binary()},
           download_nodes: list(Node.t()),
-          skip_consume_inputs?: boolean()
+          skip_consume_inputs?: boolean(),
+          skip_verify_consumed?: boolean()
         ]
 
   @spec load_transaction(
@@ -51,6 +52,7 @@ defmodule Archethic.UTXO do
     download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
     authorized_nodes = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
     skip_consume_inputs? = Keyword.get(opts, :skip_consume_inputs?, false)
+    skip_verify_consumed? = Keyword.get(opts, :skip_verify_consumed?, false)
 
     node_public_key = Crypto.first_node_public_key()
 
@@ -61,7 +63,7 @@ defmodule Archethic.UTXO do
 
     # Ingest all the movements and recipients to fill up the UTXO list
     tx
-    |> get_unspent_outputs_to_ingest(node_public_key, authorized_nodes)
+    |> get_unspent_outputs_to_ingest(node_public_key, authorized_nodes, skip_verify_consumed?)
     |> Enum.each(fn {to, utxos} -> Loader.add_utxos(utxos, to) end)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
@@ -83,6 +85,7 @@ defmodule Archethic.UTXO do
            }
          },
          _,
+         _,
          _
        ),
        do: %{}
@@ -99,7 +102,8 @@ defmodule Archethic.UTXO do
            }
          },
          node_public_key,
-         authorized_nodes
+         authorized_nodes,
+         skip_verify_consumed?
        ) do
     utxos_by_genesis =
       transaction_movements
@@ -108,7 +112,7 @@ defmodule Archethic.UTXO do
         utxo = %UnspentOutput{from: address, amount: amount, timestamp: timestamp, type: type}
 
         with true <- Election.chain_storage_node?(to, node_public_key, authorized_nodes),
-             false <- utxo_consumed?(to, utxo) do
+             false <- not skip_verify_consumed? and utxo_consumed?(to, utxo) do
           versioned_utxo = VersionedUnspentOutput.wrap_unspent_output(utxo, protocol_version)
           Map.update(acc, to, [versioned_utxo], &[versioned_utxo | &1])
         else
@@ -120,7 +124,7 @@ defmodule Archethic.UTXO do
       utxo = %UnspentOutput{from: address, type: :call, timestamp: timestamp}
 
       with true <- Election.chain_storage_node?(recipient, node_public_key, authorized_nodes),
-           false <- utxo_consumed?(recipient, utxo) do
+           false <- not skip_verify_consumed? and utxo_consumed?(recipient, utxo) do
         versioned_utxo = VersionedUnspentOutput.wrap_unspent_output(utxo, protocol_version)
         Map.update(acc, recipient, [versioned_utxo], &[versioned_utxo | &1])
       else
