@@ -118,7 +118,7 @@ defmodule Archethic.UTXO.Loader do
     DBLedger.flush(genesis_address, new_unspent_outputs)
 
     # We remove the consumed inputs from the memory ledger
-    Enum.each(consumed_inputs, &MemoryLedger.remove_consumed_input(genesis_address, &1))
+    MemoryLedger.remove_consumed_inputs(genesis_address, consumed_inputs)
 
     # We try to re-insert the new unspent outputs into memory
     Enum.each(transaction_unspent_outputs, &MemoryLedger.add_chain_utxo(genesis_address, &1))

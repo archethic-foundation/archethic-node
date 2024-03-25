@@ -91,32 +91,28 @@ defmodule Archethic.UTXO.MemoryLedger do
   @doc """
   Remove of the consumed input from the memory ledger for the given genesis
   """
-  @spec remove_consumed_input(
+  @spec remove_consumed_inputs(
           genesis_address :: Crypto.prepended_hash(),
-          utxo :: VersionedUnspentOutput.t()
-        ) ::
-          :ok
-  def remove_consumed_input(
-        genesis_address,
-        utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from, type: type}}
-      ) do
-    if from != nil do
-      Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
-    else
-      Logger.debug(
-        "Consuming #{UnspentOutput.type_to_str(type)} - for #{Base.encode16(genesis_address)}"
-      )
-    end
-
-    match = [{{genesis_address, utxo}, [], [:"$_"]}]
-
-    Enum.each(:ets.select(@table_name, match), fn elem = {_, utxo} ->
+          utxos :: list(VersionedUnspentOutput.t())
+        ) :: :ok
+  def remove_consumed_inputs(genesis_address, utxos) do
+    :ets.lookup(@table_name, genesis_address)
+    |> Enum.filter(fn {_, utxo} -> Enum.member?(utxos, utxo) end)
+    |> Enum.each(fn elem = {_, utxo} ->
       size = :erlang.external_size(utxo)
       :ets.delete_object(@table_name, elem)
       :ets.update_counter(@table_stats_name, genesis_address, {2, -size})
-    end)
 
-    :ok
+      %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from, type: type}} = utxo
+
+      if from != nil do
+        Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
+      else
+        Logger.debug(
+          "Consuming #{UnspentOutput.type_to_str(type)} - for #{Base.encode16(genesis_address)}"
+        )
+      end
+    end)
   end
 
   @doc """
