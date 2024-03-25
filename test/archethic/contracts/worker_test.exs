@@ -818,7 +818,7 @@ defmodule Archethic.Contracts.WorkerTest do
               |> UTXO.stream_unspent_outputs()
               |> Enum.find(&(&1.unspent_output.from == valid_trigger_tx_address))
 
-            UTXO.MemoryLedger.remove_consumed_input(genesis, utxo)
+            UTXO.MemoryLedger.remove_consumed_inputs(genesis, [utxo])
             send(me, :transaction_valid_sent)
           else
             assert tx.data.content == "Invalid content"

@@ -116,6 +116,15 @@ defmodule Archethic.UTXO.MemoryLedger do
   end
 
   @doc """
+  Returns true if the threshold limit is reached for a genesis address
+  """
+  @spec threshold_reached?(genesis_address :: Crypto.prepended_hash()) :: boolean()
+  def threshold_reached?(genesis_address) do
+    %{size: size} = get_genesis_stats(genesis_address)
+    size >= @threshold
+  end
+
+  @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
   @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
@@ -128,11 +137,8 @@ defmodule Archethic.UTXO.MemoryLedger do
   @spec get_genesis_stats(binary()) :: %{size: non_neg_integer()}
   def get_genesis_stats(genesis_address) do
     case :ets.lookup(@table_stats_name, genesis_address) do
-      [] ->
-        %{size: 0}
-
-      [{_, size}] ->
-        %{size: size}
+      [] -> %{size: 0}
+      [{_, size}] -> %{size: size}
     end
   end
 

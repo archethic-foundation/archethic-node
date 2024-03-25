@@ -137,9 +137,11 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
         expected_size = :erlang.external_size(utxo) * i
 
         if i < 4 do
+          refute MemoryLedger.threshold_reached?("@Alice0")
           assert i == "@Alice0" |> MemoryLedger.get_unspent_outputs() |> Enum.count()
           assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats("@Alice0")
         else
+          assert MemoryLedger.threshold_reached?("@Alice0")
           assert [] = MemoryLedger.get_unspent_outputs("@Alice0")
           assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats("@Alice0")
         end
@@ -173,7 +175,7 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
 
       assert [^utxo] = MemoryLedger.get_unspent_outputs(address)
 
-      MemoryLedger.remove_consumed_input(address, utxo)
+      MemoryLedger.remove_consumed_inputs(address, [utxo])
 
       assert MemoryLedger.get_unspent_outputs(address)
     end
@@ -217,7 +219,7 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
 
       assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats(address)
 
-      MemoryLedger.remove_consumed_input(address, utxo2)
+      MemoryLedger.remove_consumed_inputs(address, [utxo2])
 
       expected_size = div(expected_size, 2)
 

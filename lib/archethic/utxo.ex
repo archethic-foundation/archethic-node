@@ -266,13 +266,9 @@ defmodule Archethic.UTXO do
   """
   @spec stream_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
   def stream_unspent_outputs(address) do
-    case MemoryLedger.get_unspent_outputs(address) do
-      [] ->
-        DBLedger.stream(address)
-
-      memory_utxos ->
-        memory_utxos
-    end
+    if MemoryLedger.threshold_reached?(address),
+      do: DBLedger.stream(address),
+      else: MemoryLedger.get_unspent_outputs(address)
   end
 
   @doc """
