@@ -119,7 +119,7 @@ defmodule Mix.Tasks.Archethic.Db do
         {{_, address}, {:chain, genesis_address}}, _acc ->
           nodes = Archethic.Election.chain_storage_nodes(address, authorized_nodes)
           {:ok, tx} = Archethic.TransactionChain.fetch_transaction(address, nodes)
-          Archethic.UTXO.load_transaction(tx, genesis_address)
+          Archethic.UTXO.load_transaction(tx, genesis_address, skip_verify_consumed?: true)
 
         {{_, tx}, :io}, _acc ->
           Archethic.UTXO.load_transaction(tx, <<>>, skip_consume_inputs?: true)
