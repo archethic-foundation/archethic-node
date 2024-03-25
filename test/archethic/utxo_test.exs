@@ -724,25 +724,29 @@ defmodule Archethic.UTXOTest do
     end
 
     test "should be able to return unspent outputs from disk if not in memory" do
-      MockUTXOLedger
-      |> stub(:stream, fn "@Alice0" ->
-        [
-          %VersionedUnspentOutput{
+      utxos =
+        Enum.map(1..5, fn i ->
+          utxo = %VersionedUnspentOutput{
             unspent_output: %UnspentOutput{
-              from: "@Bob0",
+              from: "@Bob#{i}",
               type: :UCO,
               amount: 100_000_000,
               timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
             },
             protocol_version: current_protocol_version()
           }
-        ]
-      end)
 
-      assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
-               "@Alice0"
-               |> UTXO.stream_unspent_outputs()
-               |> Enum.to_list()
+          MemoryLedger.add_chain_utxo("@Alice0", utxo)
+
+          utxo
+        end)
+
+      MockUTXOLedger
+      |> expect(:stream, fn "@Alice0" -> utxos end)
+
+      assert MemoryLedger.threshold_reached?("@Alice0")
+
+      assert ^utxos = "@Alice0" |> UTXO.stream_unspent_outputs() |> Enum.to_list()
     end
   end
 
