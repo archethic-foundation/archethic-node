@@ -4,6 +4,8 @@ defmodule Archethic.UTXO.Loader do
   use GenServer
   @vsn 1
 
+  alias Archethic.Crypto
+
   alias Archethic.UTXO
   alias Archethic.UTXO.DBLedger
   alias Archethic.UTXO.LoaderSupervisor
@@ -43,7 +45,17 @@ defmodule Archethic.UTXO.Loader do
   @doc """
   Ingest the transaction to consumed inputs and allocate the new unspent outputs
   """
-  @spec consume_inputs(Transaction.t(), binary()) :: :ok
+  @spec consume_inputs(tx :: Transaction.t(), genesis_address :: Crypto.prepended_hash()) :: :ok
+  def consume_inputs(
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: %LedgerOperations{consumed_inputs: [], unspent_outputs: []}
+          }
+        },
+        _
+      ),
+      do: :ok
+
   def consume_inputs(tx = %Transaction{}, genesis_address) do
     genesis_address
     |> via_tuple()
