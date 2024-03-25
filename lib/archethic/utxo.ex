@@ -170,7 +170,7 @@ defmodule Archethic.UTXO do
           end
         end,
         on_timeout: :kill_task,
-        max_concurrency: length(movements) + length(recipients)
+        max_concurrency: 16
       )
       |> Enum.map(fn {:ok, addresses} -> addresses end)
       |> Map.new()
