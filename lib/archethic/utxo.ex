@@ -77,6 +77,18 @@ defmodule Archethic.UTXO do
 
   defp get_unspent_outputs_to_ingest(
          %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{transaction_movements: []},
+             recipients: []
+           }
+         },
+         _,
+         _
+       ),
+       do: %{}
+
+  defp get_unspent_outputs_to_ingest(
+         %Transaction{
            address: address,
            type: tx_type,
            validation_stamp: %ValidationStamp{
@@ -116,6 +128,8 @@ defmodule Archethic.UTXO do
       end
     end)
   end
+
+  defp consolidate_movements([], _, _), do: []
 
   defp consolidate_movements(transaction_movements, protocol_version, tx_type)
        when protocol_version < 5 do
