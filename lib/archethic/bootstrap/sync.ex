@@ -185,13 +185,20 @@ defmodule Archethic.Bootstrap.Sync do
        }} ->
         :ok = P2P.new_bootstrapping_seeds(new_seeds)
 
-        # Replace values to match P2P view on network bootstrap
-        %Node{
-          first_enrolled_node
-          | last_update_date: ~U[2019-07-14 00:00:00Z],
-            availability_update: ~U[2008-10-31 00:00:00Z]
-        }
-        |> P2P.add_and_connect_node()
+        case P2P.get_first_enrolled_node() do
+          nil ->
+            # Replace values to match P2P view on network bootstrap
+            %Node{
+              first_enrolled_node
+              | last_update_date: ~U[2019-07-14 00:00:00Z],
+                availability_update: ~U[2008-10-31 00:00:00Z]
+            }
+            |> P2P.add_and_connect_node()
+
+          node ->
+            # If we already have the node in memory, we keep the values as it
+            P2P.connect_nodes([node])
+        end
 
         Logger.info("First enrolled node added into P2P MemTable")
 
