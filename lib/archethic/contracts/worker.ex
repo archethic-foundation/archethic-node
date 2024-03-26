@@ -29,6 +29,10 @@ defmodule Archethic.Contracts.Worker do
   use GenStateMachine, callback_mode: :handle_event_function
   @vsn 2
 
+  @schedule_trigger {:next_event, :internal, :start_schedulers}
+  @process_trigger {:next_event, :internal, :process_next_trigger}
+  @schedule_and_process_trigger [@schedule_trigger, @process_trigger]
+
   def start_link(opts) do
     genesis_address = Keyword.fetch!(opts, :genesis_address)
     GenStateMachine.start_link(__MODULE__, opts, name: via_tuple(genesis_address))
@@ -44,9 +48,15 @@ defmodule Archethic.Contracts.Worker do
   @doc """
   Set a new contract version in the worker
   """
-  @spec set_contract(genesis_address :: Crypto.prepended_hash(), contract :: Contract.t()) :: :ok
-  def set_contract(genesis_address, contract) do
-    genesis_address |> via_tuple() |> GenStateMachine.cast({:new_contract, contract})
+  @spec set_contract(
+          genesis_address :: Crypto.prepended_hash(),
+          contract :: Contract.t(),
+          execute_contract? :: boolean()
+        ) :: :ok
+  def set_contract(genesis_address, contract, execute_contract?) do
+    genesis_address
+    |> via_tuple()
+    |> GenStateMachine.cast({:new_contract, contract, execute_contract?})
   end
 
   def init(opts) do
@@ -61,7 +71,7 @@ defmodule Archethic.Contracts.Worker do
     data = %{contract: contract, genesis_address: genesis_address, self_triggers: []}
 
     if Archethic.up?(),
-      do: {:ok, :waiting_trigger, data, {:next_event, :internal, :start_schedulers}},
+      do: {:ok, :waiting_trigger, data, @schedule_and_process_trigger},
       else: {:ok, :idle, data}
   end
 
@@ -86,7 +96,7 @@ defmodule Archethic.Contracts.Worker do
         end
       end)
 
-    {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+    {:next_state, :waiting_trigger, new_data}
   end
 
   def handle_event(:internal, :process_next_trigger, :idle, _data), do: :keep_state_and_data
@@ -101,33 +111,32 @@ defmodule Archethic.Contracts.Worker do
         data = Map.update!(data, :self_triggers, fn t -> Enum.reject(t, &(&1 == trigger)) end)
 
         case handle_trigger(trigger, data) do
-          {:ok, new_data} ->
-            {:next_state, :working, new_data}
-
-          {:error, new_data} ->
-            {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+          {:ok, new_data} -> {:next_state, :working, new_data}
+          {:error, new_data} -> {:keep_state, new_data, @process_trigger}
         end
     end
   end
 
-  def handle_event(:cast, {:new_contract, contract}, :idle, data) do
+  def handle_event(:cast, {:new_contract, contract, _}, :idle, data) do
     new_data = data |> Map.put(:contract, contract) |> Map.delete(:last_call_processed)
     {:keep_state, new_data}
   end
 
-  def handle_event(:cast, {:new_contract, contract}, _state, data) do
+  def handle_event(:cast, {:new_contract, contract, execute_contract?}, _state, data) do
     new_data =
       data
       |> cancel_schedulers()
       |> Map.put(:contract, contract)
       |> Map.delete(:last_call_processed)
 
-    {:keep_state, new_data, {:next_event, :internal, :start_schedulers}}
+    next_events = if execute_contract?, do: @schedule_and_process_trigger, else: @schedule_trigger
+
+    {:keep_state, new_data, next_events}
   end
 
   # TRIGGER: TRANSACTION
   def handle_event(:cast, :process_next_trigger, :waiting_trigger, data),
-    do: {:keep_state, data, {:next_event, :internal, :process_next_trigger}}
+    do: {:keep_state, data, @process_trigger}
 
   def handle_event(:cast, :process_next_trigger, _state, _data), do: :keep_state_and_data
 
@@ -150,11 +159,8 @@ defmodule Archethic.Contracts.Worker do
 
   def handle_event(:info, {:trigger, trigger_type}, :waiting_trigger, data) do
     case handle_trigger(trigger_type, data) do
-      {:ok, new_data} ->
-        {:next_state, :working, new_data}
-
-      {:error, new_data} ->
-        {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+      {:ok, new_data} -> {:next_state, :working, new_data}
+      {:error, new_data} -> {:keep_state, new_data, @process_trigger}
     end
   end
 
@@ -172,13 +178,13 @@ defmodule Archethic.Contracts.Worker do
         {:next_state, :working, new_data}
 
       {:error, new_data} ->
-        {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+        {:keep_state, new_data, @process_trigger}
     end
   end
 
   # Node is up, starting schedulers
   def handle_event(:info, :node_up, :idle, data),
-    do: {:next_state, :waiting_trigger, data, {:next_event, :internal, :start_schedulers}}
+    do: {:next_state, :waiting_trigger, data, @schedule_and_process_trigger}
 
   # Node is down, stoping schedulers
   def handle_event(:info, :node_down, _state, data),
@@ -203,7 +209,7 @@ defmodule Archethic.Contracts.Worker do
     end
 
     new_data = Map.delete(data, :last_call_processed)
-    {:keep_state, new_data, {:next_event, :internal, :process_next_trigger}}
+    {:keep_state, new_data, @process_trigger}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}

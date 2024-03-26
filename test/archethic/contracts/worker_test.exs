@@ -191,7 +191,7 @@ defmodule Archethic.Contracts.WorkerTest do
         {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: genesis)
         assert_receive :transaction_sent, 2000
         # Transaction has been replicated so we set new contract
-        Worker.set_contract(genesis, contract)
+        Worker.set_contract(genesis, contract, true)
         assert_receive :transaction_sent, 2000
       end
     end
@@ -292,6 +292,70 @@ defmodule Archethic.Contracts.WorkerTest do
         :persistent_term.put(:archethic_up, :up)
 
         {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
+
+        assert_receive :transaction_sent
+
+        :persistent_term.erase(:archethic_up)
+      end
+    end
+
+    test "should not execute contract if transaction is loaded from self repair" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, on: test(), as: []
+        actions triggered_by: transaction, on: test() do
+          Contract.set_content("You should not see this")
+        end
+      """
+
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: random_seed())
+        |> Contract.from_transaction!()
+
+      contract_genesis = Transaction.previous_address(contract.transaction)
+
+      trigger_tx =
+        %Transaction{address: trigger_address} =
+        TransactionFactory.create_valid_transaction([],
+          seed: random_seed(),
+          recipients: [
+            %Recipient{address: contract_genesis, action: "test", args: []}
+          ]
+        )
+
+      trigger_genesis = Transaction.previous_address(trigger_tx)
+
+      me = self()
+
+      MockDB
+      |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
+      |> stub(:get_transaction, fn
+        ^trigger_address, _, _ ->
+          {:ok, trigger_tx}
+
+        "nss_last_address", _, _ ->
+          {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
+      end)
+
+      with_mock(Archethic, [:passthrough],
+        send_new_transaction: fn _, _ ->
+          send(me, :transaction_sent)
+          :ok
+        end
+      ) do
+        :persistent_term.put(:archethic_up, :up)
+
+        {:ok, _pid} = Worker.start_link(contract: contract, genesis_address: contract_genesis)
+
+        UTXO.load_transaction(trigger_tx, trigger_genesis)
+
+        refute_receive :transaction_sent
+
+        Worker.set_contract(contract_genesis, contract, false)
+
+        refute_receive :transaction_sent
+
+        Worker.set_contract(contract_genesis, contract, true)
 
         assert_receive :transaction_sent
 
@@ -833,7 +897,7 @@ defmodule Archethic.Contracts.WorkerTest do
         UTXO.load_transaction(valid_trigger_tx, Transaction.previous_address(valid_trigger_tx))
         Worker.process_next_trigger(genesis)
         assert_receive :transaction_valid_sent
-        Worker.set_contract(genesis, contract2)
+        Worker.set_contract(genesis, contract2, true)
         assert_receive :transaction_invalid_sent
       end
     end
