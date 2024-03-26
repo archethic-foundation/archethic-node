@@ -64,13 +64,14 @@ defmodule Archethic.Contracts.Worker do
     Process.flag(:trap_exit, true)
 
     PubSub.register_to_node_status()
+    PubSub.register_to_node_update()
 
     contract = Keyword.fetch!(opts, :contract)
     genesis_address = Keyword.fetch!(opts, :genesis_address)
 
     data = %{contract: contract, genesis_address: genesis_address, self_triggers: []}
 
-    if Archethic.up?(),
+    if Archethic.up?() and P2P.authorized_and_available_node?(),
       do: {:ok, :waiting_trigger, data, @schedule_and_process_trigger},
       else: {:ok, :idle, data}
   end
@@ -183,12 +184,27 @@ defmodule Archethic.Contracts.Worker do
   end
 
   # Node is up, starting schedulers
-  def handle_event(:info, :node_up, :idle, data),
-    do: {:next_state, :waiting_trigger, data, @schedule_and_process_trigger}
+  def handle_event(:info, :node_up, :idle, data) do
+    if P2P.authorized_and_available_node?(),
+      do: {:next_state, :waiting_trigger, data, @schedule_and_process_trigger},
+      else: :keep_state_and_data
+  end
 
   # Node is down, stoping schedulers
   def handle_event(:info, :node_down, _state, data),
     do: {:next_state, :idle, cancel_schedulers(data)}
+
+  def handle_event(:info, {:node_update, _}, :idle, data) do
+    if P2P.authorized_and_available_node?() and Archethic.up?(),
+      do: {:next_state, :waiting_trigger, data, @schedule_and_process_trigger},
+      else: :keep_state_and_data
+  end
+
+  def handle_event(:info, {:node_update, _}, _, data) do
+    if P2P.authorized_and_available_node?() and Archethic.up?(),
+      do: :keep_state_and_data,
+      else: {:next_state, :idle, cancel_schedulers(data)}
+  end
 
   # Node responsiveness timeout
   def handle_event(
