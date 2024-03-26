@@ -86,7 +86,7 @@ defmodule Archethic.Contracts.Loader do
     authorized_nodes = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
     node_key = Crypto.first_node_public_key()
 
-    handle_contract_chain(tx, genesis_address, node_key, authorized_nodes)
+    handle_contract_chain(tx, genesis_address, node_key, authorized_nodes, execute_contract?)
     if execute_contract?, do: handle_contract_call(tx, node_key, authorized_nodes)
 
     :ok
@@ -242,7 +242,8 @@ defmodule Archethic.Contracts.Loader do
          },
          genesis_address,
          node_key,
-         authorized_nodes
+         authorized_nodes,
+         execute_contract?
        )
        when code != "" do
     remove_invalid_input(genesis_address, consumed_inputs)
@@ -251,7 +252,7 @@ defmodule Archethic.Contracts.Loader do
          {:ok, contract} <- Contract.from_transaction(tx),
          true <- Contract.contains_trigger?(contract) do
       if worker_exists?(genesis_address),
-        do: Worker.set_contract(genesis_address, contract),
+        do: Worker.set_contract(genesis_address, contract, execute_contract?),
         else: new_contract(genesis_address, contract)
 
       Logger.info("Smart contract loaded",
@@ -263,7 +264,7 @@ defmodule Archethic.Contracts.Loader do
     end
   end
 
-  defp handle_contract_chain(_, genesis_address, _, _), do: stop_contract(genesis_address)
+  defp handle_contract_chain(_, genesis_address, _, _, _), do: stop_contract(genesis_address)
 
   defp remove_invalid_input(genesis_address, consumed_inputs) do
     consumed_calls_address =
