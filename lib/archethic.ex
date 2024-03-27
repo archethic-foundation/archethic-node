@@ -121,7 +121,8 @@ defmodule Archethic do
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
       network_chains_view_hash: NetworkView.get_chains_hash(),
       p2p_view_hash: NetworkView.get_p2p_hash(),
-      contract_context: contract_context
+      contract_context: contract_context,
+      ref_timestamp: DateTime.utc_now()
     }
 
     Task.Supervisor.async_stream_nolink(
