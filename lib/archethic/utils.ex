@@ -60,7 +60,10 @@ defmodule Archethic.Utils do
   ## Examples
 
       # Time offset for the next 2 seconds
-      iex> Utils.time_offset("*/2 * * * * *", ref_time: ~U[2020-09-24 20:13:12.10Z], time_unit: :millisecond)
+      iex> Utils.time_offset("*/2 * * * * *",
+      ...>   ref_time: ~U[2020-09-24 20:13:12.10Z],
+      ...>   time_unit: :millisecond
+      ...> )
       1900
 
       # Time offset for the next minute
@@ -167,7 +170,10 @@ defmodule Archethic.Utils do
       iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z])
       ~U[2021-02-08 16:52:37Z]
 
-      iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z], second?: true, microsecond?: true)
+      iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z],
+      ...>   second?: true,
+      ...>   microsecond?: true
+      ...> )
       ~U[2021-02-08 16:52:00Z]
 
       iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z], second?: true)
@@ -211,45 +217,48 @@ defmodule Archethic.Utils do
       # }
 
       iex> %{
-      ...>  "address" => <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85,
-      ...>    181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51,
-      ...>    236, 70, 70>>,
-      ...>  "type" => "transfer",
-      ...>  "validation_stamp.ledger_operations.unspent_outputs" => [
+      ...>   "address" =>
+      ...>     <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251,
+      ...>       55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
+      ...>   "type" => "transfer",
+      ...>   "validation_stamp.ledger_operations.unspent_outputs" => [
       ...>     %{
       ...>       "amount" => 9.989999771118164,
-      ...>       "from" => <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90,
-      ...>         85, 181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4,
-      ...>         51, 236, 70, 70>>,
+      ...>       "from" =>
+      ...>         <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228,
+      ...>           251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
       ...>       "token_address" => nil,
       ...>       "type" => "UCO"
       ...>     }
-      ...>  ],
-      ...>  "validation_stamp.signature" => <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172,
-      ...>    88, 55, 168, 10, 33, 112, 140, 182, 231, 143, 105, 61, 245, 34, 34, 171,
-      ...>    221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2, 33, 0, 141, 28, 71,
-      ...>    218, 224, 201>>
+      ...>   ],
+      ...>   "validation_stamp.signature" =>
+      ...>     <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172, 88, 55, 168, 10, 33, 112, 140, 182, 231,
+      ...>       143, 105, 61, 245, 34, 34, 171, 221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237,
+      ...>       2, 33, 0, 141, 28, 71, 218, 224, 201>>
       ...> }
       ...> |> Utils.atomize_keys(nest_dot?: true)
       %{
-        address: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251,
-                    55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
+        address:
+          <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251, 55,
+            191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
         type: "transfer",
         validation_stamp: %{
           ledger_operations: %{
-            unspent_outputs: [%{
-              amount: 9.989999771118164,
-              from: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90,
-                85, 181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4,
-                51, 236, 70, 70>>,
-              type: "UCO",
-              token_address: nil
-            }]
+            unspent_outputs: [
+              %{
+                amount: 9.989999771118164,
+                from:
+                  <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228,
+                    251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
+                type: "UCO",
+                token_address: nil
+              }
+            ]
           },
-          signature: <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172,
-            88, 55, 168, 10, 33, 112, 140, 182, 231, 143, 105, 61, 245, 34, 34, 171,
-            221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2, 33, 0, 141, 28, 71,
-            218, 224, 201>>
+          signature:
+            <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172, 88, 55, 168, 10, 33, 112, 140, 182, 231,
+              143, 105, 61, 245, 34, 34, 171, 221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2,
+              33, 0, 141, 28, 71, 218, 224, 201>>
         }
       }
 
@@ -330,7 +339,7 @@ defmodule Archethic.Utils do
 
   ## Examples
 
-      iex> %{ a: "hello", b: "hola", c: %{d: "hi"}} |> Utils.stringify_keys()
+      iex> %{a: "hello", b: "hola", c: %{d: "hi"}} |> Utils.stringify_keys()
       %{
         "a" => "hello",
         "b" => "hola",
@@ -369,10 +378,16 @@ defmodule Archethic.Utils do
 
   ## Examples
 
-      iex> Utils.key_in_node_list?([%Node{first_public_key: "key1", last_public_key: "key2"}], "key1")
+      iex> Utils.key_in_node_list?(
+      ...>   [%Node{first_public_key: "key1", last_public_key: "key2"}],
+      ...>   "key1"
+      ...> )
       true
 
-      iex> Utils.key_in_node_list?([%Node{first_public_key: "key1", last_public_key: "key2"}], "key2")
+      iex> Utils.key_in_node_list?(
+      ...>   [%Node{first_public_key: "key1", last_public_key: "key2"}],
+      ...>   "key2"
+      ...> )
       true
   """
   @spec key_in_node_list?(list(Node.t()), Crypto.key()) :: boolean()
@@ -395,7 +410,7 @@ defmodule Archethic.Utils do
       [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "hello"]
 
       iex> Utils.wrap_binary([[<<1::1, 1::1, 1::1>>, "abc"], "hello"])
-      [ [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
+      [[<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
   """
   @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
   def wrap_binary(bits) when is_binary(bits), do: bits
@@ -769,7 +784,7 @@ defmodule Archethic.Utils do
   ## Examples
 
       iex> [%{k: 5}, %{m: 5}, %{v: 3}]
-      ...> |>Utils.merge_list_of_maps()
+      ...> |> Utils.merge_list_of_maps()
       %{k: 5, m: 5, v: 3}
 
   """
@@ -790,13 +805,13 @@ defmodule Archethic.Utils do
       nil
       iex> Utils.median([3])
       3
-      iex> Utils.median([2,2,1])
+      iex> Utils.median([2, 2, 1])
       2
-      iex> Utils.median([1,2,2,2,2], sorted: true)
+      iex> Utils.median([1, 2, 2, 2, 2], sorted: true)
       2
-      iex> Utils.median([3,1,2,4])
+      iex> Utils.median([3, 1, 2, 4])
       2.5
-      iex> Utils.median([1,2,3,4], sorted: true)
+      iex> Utils.median([1, 2, 3, 4], sorted: true)
       2.5
   """
   @spec median([number], Keyword.t()) :: number | nil
@@ -874,19 +889,34 @@ defmodule Archethic.Utils do
 
   ## Examples
 
-      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00Z])
+      iex> Utils.previous_date(
+      ...>   %Crontab.CronExpression{second: [{:/, :*, 10}], extended: true},
+      ...>   ~U[2022-10-01 01:00:00Z]
+      ...> )
       ~U[2022-10-01 00:59:50Z]
 
-      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00.100Z])
+      iex> Utils.previous_date(
+      ...>   %Crontab.CronExpression{second: [{:/, :*, 10}], extended: true},
+      ...>   ~U[2022-10-01 01:00:00.100Z]
+      ...> )
       ~U[2022-10-01 01:00:00Z]
 
-      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10Z])
+      iex> Utils.previous_date(
+      ...>   %Crontab.CronExpression{second: [{:/, :*, 10}], extended: true},
+      ...>   ~U[2022-10-01 01:00:10Z]
+      ...> )
       ~U[2022-10-01 01:00:00Z]
 
-      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10.100Z])
+      iex> Utils.previous_date(
+      ...>   %Crontab.CronExpression{second: [{:/, :*, 10}], extended: true},
+      ...>   ~U[2022-10-01 01:00:10.100Z]
+      ...> )
       ~U[2022-10-01 01:00:10Z]
 
-      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 30}], extended: true}, ~U[2022-10-26 07:38:30.569648Z])
+      iex> Utils.previous_date(
+      ...>   %Crontab.CronExpression{second: [{:/, :*, 30}], extended: true},
+      ...>   ~U[2022-10-26 07:38:30.569648Z]
+      ...> )
       ~U[2022-10-26 07:38:30Z]
   """
   @spec previous_date(Crontab.CronExpression.t(), DateTime.t()) :: DateTime.t()
@@ -986,16 +1016,28 @@ defmodule Archethic.Utils do
 
   ## Examples
 
-      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-11-01 00:00:00.000000])
+      iex> Utils.number_of_reward_occurences_per_month(
+      ...>   "0 0 2 * * * *",
+      ...>   ~N[2022-11-01 00:00:00.000000]
+      ...> )
       30
 
-      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-12-01 00:00:00.000000])
+      iex> Utils.number_of_reward_occurences_per_month(
+      ...>   "0 0 2 * * * *",
+      ...>   ~N[2022-12-01 00:00:00.000000]
+      ...> )
       31
 
-      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-02-01 00:00:00.000000])
+      iex> Utils.number_of_reward_occurences_per_month(
+      ...>   "0 0 2 * * * *",
+      ...>   ~N[2022-02-01 00:00:00.000000]
+      ...> )
       28
 
-      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2024-02-01 00:00:00.000000])
+      iex> Utils.number_of_reward_occurences_per_month(
+      ...>   "0 0 2 * * * *",
+      ...>   ~N[2024-02-01 00:00:00.000000]
+      ...> )
       29
   """
   @spec number_of_reward_occurences_per_month(String.t(), NaiveDateTime.t()) :: non_neg_integer()
@@ -1152,10 +1194,10 @@ defmodule Archethic.Utils do
   ### Examples
 
       iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6], 3)
-      [ [1, 2], [3, 4], [5, 6] ]
+      [[1, 2], [3, 4], [5, 6]]
 
       iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6, 7], 3)
-      [ [1, 2], [3, 4], [5, 6, 7] ]
+      [[1, 2], [3, 4], [5, 6, 7]]
   """
   @spec chunk_list_in(list(), pos_integer()) :: list(list())
   def chunk_list_in(list, parts) when is_list(list) and is_number(parts) and parts > 0 do

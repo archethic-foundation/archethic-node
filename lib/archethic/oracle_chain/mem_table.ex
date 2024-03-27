@@ -15,7 +15,7 @@ defmodule Archethic.OracleChain.MemTable do
   ## Examples
 
       iex> {:ok, _} = MemTable.start_link()
-      iex> :ets.tab2list(:archethic_oracle)
+      ...> :ets.tab2list(:archethic_oracle)
       []
   """
   @spec start_link(list()) :: GenServer.on_start()
@@ -42,9 +42,9 @@ defmodule Archethic.OracleChain.MemTable do
   ## Examples
 
       iex> {:ok, _} = MemTable.start_link()
-      iex> MemTable.add_oracle_data("uco", %{ "eur" => 0.02 }, ~U[2021-06-04 10:10:00Z])
-      iex> :ets.tab2list(:archethic_oracle)
-      [{{ 1622801400, "uco"}, %{ "eur" => 0.02 }}]
+      ...> MemTable.add_oracle_data("uco", %{"eur" => 0.02}, ~U[2021-06-04 10:10:00Z])
+      ...> :ets.tab2list(:archethic_oracle)
+      [{{1_622_801_400, "uco"}, %{"eur" => 0.02}}]
   """
   @spec add_oracle_data(any(), map(), DateTime.t()) :: :ok
   def add_oracle_data(type, data, date = %DateTime{}) when is_map(data) do
@@ -62,12 +62,12 @@ defmodule Archethic.OracleChain.MemTable do
   ## Examples
 
       iex> {:ok, _} = MemTable.start_link()
-      iex> MemTable.add_oracle_data("uco", %{ "eur" => 0.02 }, ~U[2021-06-04 10:00:00Z])
-      iex> MemTable.add_oracle_data("uco", %{ "eur" => 0.04 }, ~U[2021-06-04 15:00:00Z])
-      iex> MemTable.get_oracle_data("uco", ~U[2021-06-04 10:10:00Z])
-      {:ok, %{ "eur" => 0.02 }, ~U[2021-06-04 10:00:00Z]}
+      ...> MemTable.add_oracle_data("uco", %{"eur" => 0.02}, ~U[2021-06-04 10:00:00Z])
+      ...> MemTable.add_oracle_data("uco", %{"eur" => 0.04}, ~U[2021-06-04 15:00:00Z])
+      ...> MemTable.get_oracle_data("uco", ~U[2021-06-04 10:10:00Z])
+      {:ok, %{"eur" => 0.02}, ~U[2021-06-04 10:00:00Z]}
       iex> MemTable.get_oracle_data("uco", ~U[2021-06-04 20:10:40Z])
-      {:ok, %{ "eur" => 0.04 }, ~U[2021-06-04 15:00:00Z]}
+      {:ok, %{"eur" => 0.04}, ~U[2021-06-04 15:00:00Z]}
 
   """
   @spec get_oracle_data(any(), DateTime.t()) ::
@@ -108,23 +108,23 @@ defmodule Archethic.OracleChain.MemTable do
   Get the referenced data for an oracle type for a given date
   ## Examples
       iex> {:ok, _} = MemTable.start_link()
-      iex> MemTable.put_addr("@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z])
-      iex> MemTable.get_addr()
+      ...> MemTable.put_addr("@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z])
+      ...> MemTable.get_addr()
       %{
-          current: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]},
-          prev: {nil, nil}
-       }
+        current: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]},
+        prev: {nil, nil}
+      }
       iex> MemTable.put_addr("@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z])
-      iex> MemTable.get_addr()
+      ...> MemTable.get_addr()
       %{
         current: {"@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z]},
-        prev: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]},
+        prev: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]}
       }
       iex> MemTable.put_addr("@OracleSummaryGenAddr58", ~U[2021-06-04 12:00:00Z])
-      iex> MemTable.get_addr()
+      ...> MemTable.get_addr()
       %{
         current: {"@OracleSummaryGenAddr58", ~U[2021-06-04 12:00:00Z]},
-        prev: {"@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z]},
+        prev: {"@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z]}
       }
   """
   @spec get_addr() ::

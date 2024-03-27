@@ -434,37 +434,45 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
   ## Examples
 
-      iex> ChainReader.fields_to_column_names([:address, :previous_public_key, validation_stamp: [:timestamp]])
+      iex> ChainReader.fields_to_column_names([
+      ...>   :address,
+      ...>   :previous_public_key,
+      ...>   validation_stamp: [:timestamp]
+      ...> ])
       [
-         "address",
-         "previous_public_key",
-         "validation_stamp.timestamp"
-      ]
-
-      iex> ChainReader.fields_to_column_names([:address, :previous_public_key, validation_stamp: [ledger_operations: [:fee,  :transaction_movements]]])
-      [
-         "address",
-         "previous_public_key",
-         "validation_stamp.ledger_operations.transaction_movements",
-         "validation_stamp.ledger_operations.fee",
+        "address",
+        "previous_public_key",
+        "validation_stamp.timestamp"
       ]
 
       iex> ChainReader.fields_to_column_names([
-      ...>  :address,
-      ...>  :previous_public_key,
-      ...>  data: [:content],
-      ...>  validation_stamp: [
-      ...>    :timestamp,
-      ...>    ledger_operations: [ :fee,  :transaction_movements ]
-      ...>  ]
+      ...>   :address,
+      ...>   :previous_public_key,
+      ...>   validation_stamp: [ledger_operations: [:fee, :transaction_movements]]
       ...> ])
       [
-         "address",
-         "previous_public_key",
-         "data.content",
-         "validation_stamp.ledger_operations.transaction_movements",
-         "validation_stamp.ledger_operations.fee",
-         "validation_stamp.timestamp"
+        "address",
+        "previous_public_key",
+        "validation_stamp.ledger_operations.transaction_movements",
+        "validation_stamp.ledger_operations.fee"
+      ]
+
+      iex> ChainReader.fields_to_column_names([
+      ...>   :address,
+      ...>   :previous_public_key,
+      ...>   data: [:content],
+      ...>   validation_stamp: [
+      ...>     :timestamp,
+      ...>     ledger_operations: [:fee, :transaction_movements]
+      ...>   ]
+      ...> ])
+      [
+        "address",
+        "previous_public_key",
+        "data.content",
+        "validation_stamp.ledger_operations.transaction_movements",
+        "validation_stamp.ledger_operations.fee",
+        "validation_stamp.timestamp"
       ]
   """
   @spec fields_to_column_names(list()) :: list(binary())

@@ -65,12 +65,12 @@ defmodule Archethic.Election.StorageConstraints do
 
   ## Examples
 
-      iex> node_list = Enum.map(1..50, fn _ -> %Node{ average_availability: 1 } end)
-      iex> StorageConstraints.number_replicas_by_2log10(node_list)
+      iex> node_list = Enum.map(1..50, fn _ -> %Node{average_availability: 1} end)
+      ...> StorageConstraints.number_replicas_by_2log10(node_list)
       50
 
-      iex> node_list = Enum.map(1..200, fn _ -> %Node{ average_availability: 1 } end)
-      iex> StorageConstraints.number_replicas_by_2log10(node_list)
+      iex> node_list = Enum.map(1..200, fn _ -> %Node{average_availability: 1} end)
+      ...> StorageConstraints.number_replicas_by_2log10(node_list)
       158
   """
   @spec number_replicas_by_2log10(list(Node.t()), (list(Node.t()) -> float())) :: pos_integer()

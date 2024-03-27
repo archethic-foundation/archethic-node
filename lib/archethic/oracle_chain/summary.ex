@@ -21,19 +21,33 @@ defmodule Archethic.OracleChain.Summary do
 
   ## Examples
 
-      iex> %Summary{ transactions: [
-      ...>   %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-      ...>   %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
-      ...> ]}
+      iex> %Summary{
+      ...>   transactions: [
+      ...>     %Transaction{
+      ...>       validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]},
+      ...>       data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}
+      ...>     },
+      ...>     %Transaction{
+      ...>       validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]},
+      ...>       data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}
+      ...>     }
+      ...>   ]
+      ...> }
       ...> |> Summary.aggregate()
       %Summary{
         transactions: [
-          %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-          %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
+          %Transaction{
+            validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]},
+            data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}
+          },
+          %Transaction{
+            validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]},
+            data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}
+          }
         ],
         aggregated: %{
-          ~U[2021-04-29 13:00:00Z] => %{ "uco" => %{ "eur" => 0.021, "usd" => 0.019 }},
-          ~U[2021-04-29 13:10:00Z] => %{ "uco" => %{ "eur" => 0.02, "usd" => 0.018 }}
+          ~U[2021-04-29 13:00:00Z] => %{"uco" => %{"eur" => 0.021, "usd" => 0.019}},
+          ~U[2021-04-29 13:10:00Z] => %{"uco" => %{"eur" => 0.02, "usd" => 0.018}}
         }
       }
   """
@@ -61,14 +75,21 @@ defmodule Archethic.OracleChain.Summary do
 
       iex> %Summary{
       ...>   aggregated: %{
-      ...>      ~U[2021-04-29 13:00:00Z] => %{ "uco" => %{ "eur" => 0.021, "usd" => 0.019 }},
-      ...>      ~U[2021-04-29 13:10:00Z] => %{ "uco" => %{ "eur" => 0.02, "usd" => 0.018 }}
+      ...>     ~U[2021-04-29 13:00:00Z] => %{"uco" => %{"eur" => 0.021, "usd" => 0.019}},
+      ...>     ~U[2021-04-29 13:10:00Z] => %{"uco" => %{"eur" => 0.02, "usd" => 0.018}}
       ...>   },
       ...>   transactions: [
-      ...>     %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-      ...>     %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
+      ...>     %Transaction{
+      ...>       validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]},
+      ...>       data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}
+      ...>     },
+      ...>     %Transaction{
+      ...>       validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]},
+      ...>       data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}
+      ...>     }
       ...>   ]
-      ...> } |> Summary.verify?()
+      ...> }
+      ...> |> Summary.verify?()
       true
   """
   @spec verify?(t()) :: boolean()

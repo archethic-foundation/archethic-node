@@ -15,13 +15,16 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
 
   ## Examples
 
-      iex> %SmartContractCallValidation{status: :ok, fee: 186435476} |> SmartContractCallValidation.serialize()
+      iex> %SmartContractCallValidation{status: :ok, fee: 186_435_476}
+      ...> |> SmartContractCallValidation.serialize()
       <<0, 0, 0, 0, 0, 11, 28, 199, 148>>
 
-      iex> %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0} |> SmartContractCallValidation.serialize()
+      iex> %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
+      ...> |> SmartContractCallValidation.serialize()
       <<1, 0, 0, 0, 0, 0, 0, 0, 0>>
 
-      iex> %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} |> SmartContractCallValidation.serialize()
+      iex> %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
+      ...> |> SmartContractCallValidation.serialize()
       <<2, 0, 0, 0, 0, 0, 0, 0, 0>>
   """
   def serialize(%__MODULE__{status: status, fee: fee}) do
@@ -39,7 +42,7 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
 
       iex> SmartContractCallValidation.deserialize(<<0, 0, 0, 0, 0, 11, 28, 199, 148>>)
       {
-        %SmartContractCallValidation{status: :ok, fee: 186435476},
+        %SmartContractCallValidation{status: :ok, fee: 186_435_476},
         ""
       }
 

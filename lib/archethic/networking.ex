@@ -21,14 +21,14 @@ defmodule Archethic.Networking do
 
   ## Example
 
-      iex> Archethic.Networking.validate_ip({0,0,0,0}, false)
+      iex> Archethic.Networking.validate_ip({0, 0, 0, 0}, false)
       :ok
 
-      iex> Archethic.Networking.validate_ip({127,0,0,1}, true)
+      iex> Archethic.Networking.validate_ip({127, 0, 0, 1}, true)
       {:error, :invalid_ip}
 
 
-      iex> Archethic.Networking.validate_ip({54,39,186,147},true)
+      iex> Archethic.Networking.validate_ip({54, 39, 186, 147}, true)
       :ok
 
   """
@@ -69,22 +69,22 @@ defmodule Archethic.Networking do
 
   ## Example
 
-      iex> Archethic.Networking.valid_ip?({0,0,0,0})
+      iex> Archethic.Networking.valid_ip?({0, 0, 0, 0})
       false
 
-      iex> Archethic.Networking.valid_ip?({127,0,0,1})
+      iex> Archethic.Networking.valid_ip?({127, 0, 0, 1})
       false
 
-      iex> Archethic.Networking.valid_ip?({192,168,1,1})
+      iex> Archethic.Networking.valid_ip?({192, 168, 1, 1})
       false
 
-      iex> Archethic.Networking.valid_ip?({10,10,0,1})
+      iex> Archethic.Networking.valid_ip?({10, 10, 0, 1})
       false
 
-      iex> Archethic.Networking.valid_ip?({172,16,0,1})
+      iex> Archethic.Networking.valid_ip?({172, 16, 0, 1})
       false
 
-      iex> Archethic.Networking.valid_ip?({54,39,186,147})
+      iex> Archethic.Networking.valid_ip?({54, 39, 186, 147})
       true
   """
   @spec valid_ip?(:inet.ip_address()) :: boolean()
