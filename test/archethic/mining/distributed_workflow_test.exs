@@ -161,7 +161,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Workflow.start_link(
           transaction: tx,
           welcome_node: %Node{},
-          validation_nodes: validation_nodes
+          validation_nodes: validation_nodes,
+          ref_timestamp: DateTime.utc_now()
         )
 
       assert {_,
@@ -257,7 +258,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node_public_key: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
+          node_public_key: List.first(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       previous_storage_nodes = [
@@ -365,7 +367,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
+          node_public_key: List.first(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       previous_storage_nodes = [
@@ -491,7 +494,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
+          node_public_key: List.first(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       previous_storage_nodes = [
@@ -533,7 +537,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         <<>>
       )
 
-      Process.sleep(4_000)
+      Process.sleep(500)
 
       {:wait_cross_validation_stamps,
        %{
@@ -659,7 +663,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
+          node_public_key: List.first(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       {:ok, cross_validator_pid} =
@@ -667,7 +672,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.last(validation_nodes).last_public_key
+          node_public_key: List.last(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       Workflow.add_mining_context(
@@ -922,7 +928,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
+          node_public_key: List.first(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       {:ok, cross_validator_pid} =
@@ -930,7 +937,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.last(validation_nodes).last_public_key
+          node_public_key: List.last(validation_nodes).last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       previous_storage_nodes = [
@@ -1093,7 +1101,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: context.transaction,
           welcome_node: context.welcome_node,
           validation_nodes: [context.coordinator_node | context.cross_validation_nodes],
-          node_public_key: context.coordinator_node.last_public_key
+          node_public_key: context.coordinator_node.last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       :sys.replace_state(coordinator_pid, fn {:coordinator, state} ->
@@ -1173,7 +1182,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: context.transaction,
           welcome_node: context.welcome_node,
           validation_nodes: [context.coordinator_node | context.cross_validation_nodes],
-          node_public_key: context.coordinator_node.last_public_key
+          node_public_key: context.coordinator_node.last_public_key,
+          ref_timestamp: DateTime.utc_now()
         )
 
       :sys.replace_state(coordinator_pid, fn {:coordinator, state} ->
