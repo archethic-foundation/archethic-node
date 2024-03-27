@@ -55,6 +55,13 @@ config :archethic, Archethic.Crypto,
     ]
   ]
 
+config :archethic, Archethic.Mining, start_mining_message_drift: 100
+
+config :archethic, Archethic.Mining.DistributedWorkflow,
+  global_timeout: 60_000,
+  coordinator_timeout_supplement: 200,
+  context_notification_timeout: 100
+
 config :archethic, MockCrypto.NodeKeystore, enabled: false
 config :archethic, MockCrypto.NodeKeystore.Origin, enabled: false
 config :archethic, MockCrypto.SharedSecretsKeystore, enabled: false
