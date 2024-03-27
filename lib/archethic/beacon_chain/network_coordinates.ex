@@ -61,11 +61,17 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   ### Examples
 
-      iex> NetworkCoordinates.get_patch_from_latencies(Nx.tensor([
-      ...>  [0, 100, 150],
-      ...>  [100, 0, 200],
-      ...>  [150, 200, 0]
-      ...> ], names: [:line, :column], type: {:f, 64}))
+      iex> NetworkCoordinates.get_patch_from_latencies(
+      ...>   Nx.tensor(
+      ...>     [
+      ...>       [0, 100, 150],
+      ...>       [100, 0, 200],
+      ...>       [150, 200, 0]
+      ...>     ],
+      ...>     names: [:line, :column],
+      ...>     type: {:f, 64}
+      ...>   )
+      ...> )
       [
         "28",
         "48",

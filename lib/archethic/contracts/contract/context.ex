@@ -153,18 +153,16 @@ defmodule Archethic.Contracts.Contract.Context do
       ...>   trigger: {:datetime, 0},
       ...>   timestamp: ~U[2024-02-02 10:04:10Z],
       ...>   inputs: [
-      ...>     %VersionedUnspentOutput{ 
+      ...>     %VersionedUnspentOutput{
       ...>       unspent_output: %UnspentOutput{from: "@Alice1", type: :UCO, amount: 100_000_000}
       ...>     }
       ...>   ]
       ...> }
-      ...> |> Context.valid_inputs?(
-      ...>   [
-      ...>     %VersionedUnspentOutput{ 
-      ...>       unspent_output: %UnspentOutput{ from: "@Alice1", type: :UCO, amount: 100_000_000}
-      ...>     }
-      ...>   ]
-      ...> )
+      ...> |> Context.valid_inputs?([
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Alice1", type: :UCO, amount: 100_000_000}
+      ...>   }
+      ...> ])
       true
 
       When the list of unspent outputs are bigger than the contract's inputs
@@ -174,21 +172,19 @@ defmodule Archethic.Contracts.Contract.Context do
       ...>   trigger: {:datetime, 0},
       ...>   timestamp: ~U[2024-02-02 10:04:10Z],
       ...>   inputs: [
-      ...>     %VersionedUnspentOutput{ 
+      ...>     %VersionedUnspentOutput{
       ...>       unspent_output: %UnspentOutput{from: "@Alice1", type: :UCO, amount: 100_000_000}
       ...>     }
       ...>   ]
       ...> }
-      ...> |> Context.valid_inputs?(
-      ...>   [
-      ...>     %VersionedUnspentOutput{ 
-      ...>       unspent_output: %UnspentOutput{ from: "@Alice1", type: :UCO, amount: 100_000_000}
-      ...>     },
-      ...>     %VersionedUnspentOutput{ 
-      ...>       unspent_output: %UnspentOutput{ from: "@Bob3", type: :UCO, amount: 50_000_000}
-      ...>     }
-      ...>   ]
-      ...> )
+      ...> |> Context.valid_inputs?([
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Alice1", type: :UCO, amount: 100_000_000}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 50_000_000}
+      ...>   }
+      ...> ])
       true
 
       When the contract's input doesn't exists from the unspent output list
@@ -198,18 +194,16 @@ defmodule Archethic.Contracts.Contract.Context do
       ...>   trigger: {:datetime, 0},
       ...>   timestamp: ~U[2024-02-02 10:04:10Z],
       ...>   inputs: [
-      ...>     %VersionedUnspentOutput{ 
+      ...>     %VersionedUnspentOutput{
       ...>       unspent_output: %UnspentOutput{from: "@Alice1", type: :UCO, amount: 100_000_000}
       ...>     }
       ...>   ]
       ...> }
-      ...> |> Context.valid_inputs?(
-      ...>   [
-      ...>     %VersionedUnspentOutput{ 
-      ...>       unspent_output: %UnspentOutput{ from: "@Bob3", type: :UCO, amount: 50_000_000}
-      ...>     }
-      ...>   ]
-      ...> )
+      ...> |> Context.valid_inputs?([
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 50_000_000}
+      ...>   }
+      ...> ])
       false
 
       When the contract's input doesn't list any unspent output list
@@ -220,13 +214,11 @@ defmodule Archethic.Contracts.Contract.Context do
       ...>   timestamp: ~U[2024-02-02 10:04:10Z],
       ...>   inputs: []
       ...> }
-      ...> |> Context.valid_inputs?(
-      ...>   [
-      ...>     %VersionedUnspentOutput{ 
-      ...>       unspent_output: %UnspentOutput{ from: "@Bob3", type: :UCO, amount: 50_000_000}
-      ...>     }
-      ...>   ]
-      ...> )
+      ...> |> Context.valid_inputs?([
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 50_000_000}
+      ...>   }
+      ...> ])
       false
   """
   @spec valid_inputs?(t() | nil, list(VersionedUnspentOutput.t())) :: boolean()
@@ -248,15 +240,25 @@ defmodule Archethic.Contracts.Contract.Context do
   ## Examples
 
       iex> [
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :state}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}}
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Charlie2", type: :state}
+      ...>   },
+      ...>   %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}
+      ...>   }
       ...> ]
       ...> |> Context.filter_inputs()
       [
-         %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000 }}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}
+        }
       ]
   """
   @spec filter_inputs(list(VersionedUnspentOutput.t())) :: list(VersionedUnspentOutput.t())
@@ -282,14 +284,21 @@ defmodule Archethic.Contracts.Contract.Context do
   ## Examples
 
       iex> utxos = [
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Alice5", type: :call}},
-      ...>   %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Alice5", type: :call}},
+      ...>   %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Charlie2", type: :call}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}
+      ...>   },
+      ...>   %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Alice5", type: :call}},
+      ...>   %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Alice5", type: :call}}
       ...> ]
-      iex> %Context{
+      ...> 
+      ...> %Context{
       ...>   inputs: Context.filter_inputs(utxos),
       ...>   trigger: {:transaction, "@Bob3", nil},
       ...>   status: :ok,
@@ -297,9 +306,13 @@ defmodule Archethic.Contracts.Contract.Context do
       ...> }
       ...> |> Context.ledger_inputs(utxos)
       [
-        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}},
-        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
-        %VersionedUnspentOutput{ unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 100_000_000}
+        },
+        %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob3", type: :call}},
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{from: "@Tom5", type: :UCO, amount: 200_000_000}
+        }
       ]
   """
   @spec ledger_inputs(t(), list(VersionedUnspentOutput.t())) :: list(VersionedUnspentOutput.t())

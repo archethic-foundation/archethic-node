@@ -58,16 +58,17 @@ defmodule Archethic.Reward do
     Map.get(@number_of_occurences_per_month_for_a_year, key)
   end
 
-  @doc """
+  @doc ~S"""
   Create a transaction for minting new rewards
 
   ## Examples
 
     iex> %{
-    ...>  type: :mint_rewards,
-    ...>  data: %{
-    ...>    content: "{\\n  \\"supply\\":2000000000,\\n  \\"type\\":\\"fungible\\",\\n  \\"name\\":\\"Mining UCO rewards\\",\\n  \\"symbol\\":\\"MUCO\\"\\n}\\n"
-    ...>  }
+    ...>   type: :mint_rewards,
+    ...>   data: %{
+    ...>     content:
+    ...>       "{\n  \"supply\":2000000000,\n  \"type\":\"fungible\",\n  \"name\":\"Mining UCO rewards\",\n  \"symbol\":\"MUCO\"\n}\n"
+    ...>   }
     ...> } = Reward.new_rewards_mint(2_000_000_000, 1)
   """
   @spec new_rewards_mint(amount :: non_neg_integer(), index :: non_neg_integer()) ::

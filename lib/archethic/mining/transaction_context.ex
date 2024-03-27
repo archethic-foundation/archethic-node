@@ -141,16 +141,16 @@ defmodule Archethic.Mining.TransactionContext do
   ## Examples
 
       iex> TransactionContext.aggregate_views(
-      ...>    %{
-      ...>      "node1" => true,
-      ...>      "node2" => false,
-      ...>      "node3" => true,
-      ...>      "node4" => true,
-      ...>      "node5" => false
-      ...>    },
-      ...>    ["node1", "node2", "node3"],
-      ...>    ["node4", "node2", "node5"],
-      ...>    ["node2", "node3", "node1"]
+      ...>   %{
+      ...>     "node1" => true,
+      ...>     "node2" => false,
+      ...>     "node3" => true,
+      ...>     "node4" => true,
+      ...>     "node5" => false
+      ...>   },
+      ...>   ["node1", "node2", "node3"],
+      ...>   ["node4", "node2", "node5"],
+      ...>   ["node2", "node3", "node1"]
       ...> )
       %{
         chain_nodes_view: <<1::1, 0::1, 1::1>>,

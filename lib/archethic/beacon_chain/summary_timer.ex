@@ -53,7 +53,11 @@ defmodule Archethic.BeaconChain.SummaryTimer do
 
   ## Examples
 
-    iex> SummaryTimer.previous_summaries(~U[2020-09-10 12:30:27Z], ~U[2020-09-10 12:30:30Z], "* * * * * * *")
+    iex> SummaryTimer.previous_summaries(
+    ...>   ~U[2020-09-10 12:30:27Z],
+    ...>   ~U[2020-09-10 12:30:30Z],
+    ...>   "* * * * * * *"
+    ...> )
     [
       ~U[2020-09-10 12:30:30Z],
       ~U[2020-09-10 12:30:29Z],

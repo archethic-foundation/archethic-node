@@ -121,10 +121,20 @@ defmodule Archethic.SelfRepair do
       iex> SelfRepair.missed_sync?(nil)
       true
 
-      iex> SelfRepair.missed_sync?(~U[2024-02-01 20:00:00Z], "0 0 * * *", "5 * * * * * *", ~U[2024-02-01 20:05:00Z])
+      iex> SelfRepair.missed_sync?(
+      ...>   ~U[2024-02-01 20:00:00Z],
+      ...>   "0 0 * * *",
+      ...>   "5 * * * * * *",
+      ...>   ~U[2024-02-01 20:05:00Z]
+      ...> )
       false
 
-      iex> SelfRepair.missed_sync?(~U[2024-02-01 20:00:00Z], "0 0 * * *", "5 * * * * * *", ~U[2024-02-01 22:00:00Z])
+      iex> SelfRepair.missed_sync?(
+      ...>   ~U[2024-02-01 20:00:00Z],
+      ...>   "0 0 * * *",
+      ...>   "5 * * * * * *",
+      ...>   ~U[2024-02-01 22:00:00Z]
+      ...> )
       true
   """
   @spec missed_sync?(

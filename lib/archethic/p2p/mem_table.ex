@@ -62,7 +62,8 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -79,33 +80,52 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   availability_update: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
-      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
-      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
-      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
+      ...>   reward_address:
+      ...>     <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>       87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address:
+      ...>     <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>       88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key:
+      ...>     <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36,
+      ...>       232, 185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       ...> }
-      iex> :ok = MemTable.add_node(node)
-      iex> {
+      ...> 
+      ...> :ok = MemTable.add_node(node)
+      ...> 
+      ...> {
       ...>   :ets.tab2list(:archethic_node_discovery),
       ...>   :ets.tab2list(:archethic_authorized_nodes),
       ...>   :ets.tab2list(:archethic_node_keys)
-      ...>  }
+      ...> }
       {
         # Discovery table
-        [{
-          "key1", "key2", {127, 0, 0, 1}, 3000, 4000, "AFZ", "AAA", 0.9, ~U[2020-10-22 23:19:45.797109Z], :tcp,
-          <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
-            87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-          <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-            88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
-          <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true, ~U[2020-10-22 23:19:45.797109Z],
-            true, ~U[2020-10-22 23:19:45.797109Z]
-        }],
+        [
+          {
+            "key1",
+            "key2",
+            {127, 0, 0, 1},
+            3000,
+            4000,
+            "AFZ",
+            "AAA",
+            0.9,
+            ~U[2020-10-22 23:19:45.797109Z],
+            :tcp,
+            <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87,
+              9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+            <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88,
+              122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+            <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+              185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
+            true,
+            ~U[2020-10-22 23:19:45.797109Z],
+            true,
+            ~U[2020-10-22 23:19:45.797109Z]
+          }
+        ],
         # Authorized nodes
-        [{ "key1",  ~U[2020-10-22 23:19:45.797109Z] }],
+        [{"key1", ~U[2020-10-22 23:19:45.797109Z]}],
         # Node key lookup
         [{"key2", "key1"}]
       }
@@ -113,7 +133,8 @@ defmodule Archethic.P2P.MemTable do
     Update the node P2P view if exists
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -130,54 +151,68 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   availability_update: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
-      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
-      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
-      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
+      ...>   reward_address:
+      ...>     <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>       87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address:
+      ...>     <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>       88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key:
+      ...>     <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36,
+      ...>       232, 185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       ...> }
-      iex> :ok = MemTable.add_node(node)
-      iex> :ok = MemTable.add_node(%Node{
-      ...>   ip: {80, 20, 10, 122},
-      ...>   port: 5000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key5",
-      ...>   average_availability: 90,
-      ...>   last_update_date: ~U[2020-10-22 23:20:45.797109Z],
-      ...>   synced?: false,
-      ...>   availability_update: ~U[2020-10-23 23:20:45.797109Z],
-      ...>   available?: false,
-      ...>   transport: :sctp,
-      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
-      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
-      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
-      ...>  })
-      iex> :ets.lookup(:archethic_node_discovery, "key1")
-      [{
-        "key1",
-        "key5",
-        {80, 20, 10, 122},
-        5000,
-        4000,
-        "AFZ",
-        "AAA",
-        90,
-        ~U[2020-10-22 23:19:45.797109Z],
-        :sctp,
-        <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-        <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
-        <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-          185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
-        false,
-        ~U[2020-10-22 23:20:45.797109Z],
-        false,
-        ~U[2020-10-23 23:20:45.797109Z]
-      }]
+      ...> 
+      ...> :ok = MemTable.add_node(node)
+      ...> 
+      ...> :ok =
+      ...>   MemTable.add_node(%Node{
+      ...>     ip: {80, 20, 10, 122},
+      ...>     port: 5000,
+      ...>     http_port: 4000,
+      ...>     first_public_key: "key1",
+      ...>     last_public_key: "key5",
+      ...>     average_availability: 90,
+      ...>     last_update_date: ~U[2020-10-22 23:20:45.797109Z],
+      ...>     synced?: false,
+      ...>     availability_update: ~U[2020-10-23 23:20:45.797109Z],
+      ...>     available?: false,
+      ...>     transport: :sctp,
+      ...>     reward_address:
+      ...>       <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>         87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>     last_address:
+      ...>       <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>         88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>     origin_public_key:
+      ...>       <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36,
+      ...>         232, 185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
+      ...>   })
+      ...> 
+      ...> :ets.lookup(:archethic_node_discovery, "key1")
+      [
+        {
+          "key1",
+          "key5",
+          {80, 20, 10, 122},
+          5000,
+          4000,
+          "AFZ",
+          "AAA",
+          90,
+          ~U[2020-10-22 23:19:45.797109Z],
+          :sctp,
+          <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9,
+            7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+          <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88,
+            122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+          <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
+          false,
+          ~U[2020-10-22 23:20:45.797109Z],
+          false,
+          ~U[2020-10-23 23:20:45.797109Z]
+        }
+      ]
   """
   @spec add_node(Node.t()) :: :ok
   def add_node(
@@ -328,35 +363,39 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> :ok = MemTable.add_node(node)
-      iex> {:ok, node} == MemTable.get_node("key1")
+      ...> 
+      ...> :ok = MemTable.add_node(node)
+      ...> {:ok, node} == MemTable.get_node("key1")
       true
 
     Retrieve by the last public key will perform a lookup to get the first one
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> :ok = MemTable.add_node(node)
-      iex> {:ok, node} == MemTable.get_node("key2")
+      ...> 
+      ...> :ok = MemTable.add_node(node)
+      ...> {:ok, node} == MemTable.get_node("key2")
       true
 
     Returns an error if the node is not present
 
       iex> MemTable.start_link()
-      iex> MemTable.get_node("key10")
+      ...> MemTable.get_node("key10")
       {:error, :not_found}
   """
   @spec get_node(public_key :: Crypto.key()) :: {:ok, Node.t()} | {:error, :not_found}
@@ -381,15 +420,17 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> [node] == MemTable.list_nodes()
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> [node] == MemTable.list_nodes()
       true
   """
   @spec list_nodes() :: list(Node.t())
@@ -414,15 +455,18 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node1 = %Node{
+      ...> 
+      ...> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
+      ...> 
+      ...> MemTable.add_node(node1)
+      ...> 
+      ...> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -430,10 +474,11 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key3",
       ...>   authorized?: true,
       ...>   available?: true,
-      ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z]
       ...> }
-      iex> MemTable.add_node(node2)
-      iex> [node2] == MemTable.authorized_nodes()
+      ...> 
+      ...> MemTable.add_node(node2)
+      ...> [node2] == MemTable.authorized_nodes()
       true
   """
   @spec authorized_nodes() :: list(Node.t())
@@ -460,15 +505,18 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node1 = %Node{
+      ...> 
+      ...> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
+      ...> 
+      ...> MemTable.add_node(node1)
+      ...> 
+      ...> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -478,8 +526,9 @@ defmodule Archethic.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: DateTime.utc_now()
       ...> }
-      iex> MemTable.add_node(node2)
-      iex> [node2] == MemTable.available_nodes()
+      ...> 
+      ...> MemTable.add_node(node2)
+      ...> [node2] == MemTable.available_nodes()
       true
   """
   @spec available_nodes() :: list(Node.t())
@@ -510,23 +559,27 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node1 = %Node{
+      ...> 
+      ...> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
+      ...> 
+      ...> MemTable.add_node(node1)
+      ...> 
+      ...> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3"
       ...> }
-      iex> MemTable.add_node(node2)
-      iex> MemTable.list_node_first_public_keys()
+      ...> 
+      ...> MemTable.add_node(node2)
+      ...> MemTable.list_node_first_public_keys()
       ["key1", "key3"]
   """
   @spec list_node_first_public_keys() :: list(Crypto.key())
@@ -540,25 +593,29 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node1 = %Node{
+      ...> 
+      ...> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
+      ...> 
+      ...> MemTable.add_node(node1)
+      ...> 
+      ...> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3",
       ...>   authorized?: true,
-      ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z]
       ...> }
-      iex> MemTable.add_node(node2)
-      iex> MemTable.list_authorized_public_keys()
+      ...> 
+      ...> MemTable.add_node(node2)
+      ...> MemTable.list_authorized_public_keys()
       ["key3"]
   """
   @spec list_authorized_public_keys() :: list(Crypto.key())
@@ -572,15 +629,18 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> :ok = MemTable.add_node(%Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key1",
-      ...> })
-      iex> :ok = MemTable.authorize_node("key1", ~U[2020-10-22 23:45:41.181903Z])
-      iex> MemTable.list_authorized_public_keys()
+      ...> 
+      ...> :ok =
+      ...>   MemTable.add_node(%Node{
+      ...>     ip: {127, 0, 0, 1},
+      ...>     port: 3000,
+      ...>     http_port: 4000,
+      ...>     first_public_key: "key1",
+      ...>     last_public_key: "key1"
+      ...>   })
+      ...> 
+      ...> :ok = MemTable.authorize_node("key1", ~U[2020-10-22 23:45:41.181903Z])
+      ...> MemTable.list_authorized_public_keys()
       ["key1"]
   """
   @spec authorize_node(first_public_key :: Crypto.key(), authorization_date :: DateTime.t()) ::
@@ -600,17 +660,20 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> :ok = MemTable.add_node(%Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key1",
-      ...>   authorized?: true,
-      ...>   authorization_date: ~U[2020-10-22 23:45:41.181903Z]
-      ...> })
-      iex> :ok  = MemTable.unauthorize_node("key1")
-      iex> MemTable.list_authorized_public_keys()
+      ...> 
+      ...> :ok =
+      ...>   MemTable.add_node(%Node{
+      ...>     ip: {127, 0, 0, 1},
+      ...>     port: 3000,
+      ...>     http_port: 4000,
+      ...>     first_public_key: "key1",
+      ...>     last_public_key: "key1",
+      ...>     authorized?: true,
+      ...>     authorization_date: ~U[2020-10-22 23:45:41.181903Z]
+      ...>   })
+      ...> 
+      ...> :ok = MemTable.unauthorize_node("key1")
+      ...> MemTable.list_authorized_public_keys()
       []
   """
   @spec unauthorize_node(Crypto.key()) :: :ok
@@ -630,27 +693,31 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> MemTable.get_first_node_key("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> MemTable.get_first_node_key("key1")
       "key1"
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> MemTable.get_first_node_key("key2")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> MemTable.get_first_node_key("key2")
       "key1"
   """
   @spec get_first_node_key(Crypto.key()) :: Crypto.key()
@@ -670,19 +737,26 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
-      iex> {:ok, %Node{available?: true, availability_update: ~U[2020-10-22 23:45:41Z]}} = MemTable.get_node("key1")
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-23 23:45:41Z])
-      iex> {:ok, %Node{available?: true, availability_update: ~U[2020-10-23 23:45:41Z]}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
+      ...> 
+      ...> {:ok, %Node{available?: true, availability_update: ~U[2020-10-22 23:45:41Z]}} =
+      ...>   MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.set_node_available("key1", ~U[2020-10-23 23:45:41Z])
+      ...> 
+      ...> {:ok, %Node{available?: true, availability_update: ~U[2020-10-23 23:45:41Z]}} =
+      ...>   MemTable.get_node("key1")
   """
   @spec set_node_available(Crypto.key(), DateTime.t()) :: :ok
   def set_node_available(first_public_key, availability_update)
@@ -708,17 +782,21 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
-      iex> :ok = MemTable.set_node_unavailable("key1", ~U[2020-10-23 23:45:41Z])
-      iex> {:ok, %Node{available?: false, availability_update: ~U[2020-10-23 23:45:41Z]}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
+      ...> :ok = MemTable.set_node_unavailable("key1", ~U[2020-10-23 23:45:41Z])
+      ...> 
+      ...> {:ok, %Node{available?: false, availability_update: ~U[2020-10-23 23:45:41Z]}} =
+      ...>   MemTable.get_node("key1")
   """
   @spec set_node_unavailable(Crypto.key(), DateTime.t()) :: :ok
   def set_node_unavailable(first_public_key, availability_update)
@@ -744,16 +822,18 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_synced("key1")
-      iex> {:ok, %Node{synced?: true}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.set_node_synced("key1")
+      ...> {:ok, %Node{synced?: true}} = MemTable.get_node("key1")
   """
   @spec set_node_synced(Crypto.key()) :: :ok
   def set_node_synced(first_public_key) when is_binary(first_public_key) do
@@ -770,17 +850,19 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_synced("key1")
-      iex> :ok = MemTable.set_node_unsynced("key1")
-      iex> {:ok, %Node{synced?: false}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.set_node_synced("key1")
+      ...> :ok = MemTable.set_node_unsynced("key1")
+      ...> {:ok, %Node{synced?: false}} = MemTable.get_node("key1")
   """
   @spec set_node_unsynced(Crypto.key()) :: :ok
   def set_node_unsynced(first_public_key) when is_binary(first_public_key) do
@@ -797,7 +879,8 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -805,9 +888,10 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2",
       ...>   average_availability: 0.4
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.update_node_average_availability("key1", 0.8)
-      iex> {:ok, %Node{average_availability: 0.8}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.update_node_average_availability("key1", 0.8)
+      ...> {:ok, %Node{average_availability: 0.8}} = MemTable.get_node("key1")
   """
   @spec update_node_average_availability(
           first_public_key :: Crypto.key(),
@@ -836,7 +920,8 @@ defmodule Archethic.P2P.MemTable do
   ## Examples
 
       iex> MemTable.start_link()
-      iex> node = %Node{
+      ...> 
+      ...> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
       ...>   http_port: 4000,
@@ -844,9 +929,10 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2",
       ...>   network_patch: "AAA"
       ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.update_node_network_patch("key1", "3FC")
-      iex> {:ok, %Node{network_patch: "3FC"}} = MemTable.get_node("key1")
+      ...> 
+      ...> MemTable.add_node(node)
+      ...> :ok = MemTable.update_node_network_patch("key1", "3FC")
+      ...> {:ok, %Node{network_patch: "3FC"}} = MemTable.get_node("key1")
   """
   @spec update_node_network_patch(first_public_key :: Crypto.key(), network_patch :: binary()) ::
           :ok

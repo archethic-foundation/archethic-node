@@ -19,7 +19,7 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   ## Examples
 
       iex> {:ok, _} = KOLedger.start_link()
-      iex> :ets.info(:archethic_ko_ledger)[:type]
+      ...> :ets.info(:archethic_ko_ledger)[:type]
       :set
   """
   @spec start_link(list()) :: {:ok, pid()}
@@ -40,12 +40,15 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   ## Examples
 
       iex> KOLedger.start_link()
-      iex> :ok = KOLedger.add_transaction(%Transaction{
-      ...>   address: "@Alice1",
-      ...>   validation_stamp: %ValidationStamp{},
-      ...>   cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      ...> })
-      iex> KOLedger.has_transaction?("@Alice1")
+      ...> 
+      ...> :ok =
+      ...>   KOLedger.add_transaction(%Transaction{
+      ...>     address: "@Alice1",
+      ...>     validation_stamp: %ValidationStamp{},
+      ...>     cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+      ...>   })
+      ...> 
+      ...> KOLedger.has_transaction?("@Alice1")
       true
   """
   @spec has_transaction?(binary()) :: boolean()
@@ -65,13 +68,16 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   ## Examples
 
       iex> KOLedger.start_link()
-      iex> :ok = KOLedger.add_transaction(%Transaction{
-      ...>   address: "@Alice1",
-      ...>   validation_stamp: %ValidationStamp{},
-      ...>   cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      ...> })
-      iex> KOLedger.get_details("@Alice1")
-      { %ValidationStamp{}, [:proof_of_work], [] }
+      ...> 
+      ...> :ok =
+      ...>   KOLedger.add_transaction(%Transaction{
+      ...>     address: "@Alice1",
+      ...>     validation_stamp: %ValidationStamp{},
+      ...>     cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+      ...>   })
+      ...> 
+      ...> KOLedger.get_details("@Alice1")
+      {%ValidationStamp{}, [:proof_of_work], []}
   """
   @spec get_details(binary()) ::
           {ValidationStamp.t(), inconsistencies :: list(), errors :: list()}
@@ -91,13 +97,16 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   ## Examples
 
       iex> KOLedger.start_link()
-      iex> :ok = KOLedger.add_transaction(%Transaction{
-      ...>   address: "@Alice1",
-      ...>   validation_stamp: %ValidationStamp{},
-      ...>   cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      ...> })
-      iex> :ok = KOLedger.remove_transaction("@Alice1")
-      iex> KOLedger.has_transaction?("@Alice1")
+      ...> 
+      ...> :ok =
+      ...>   KOLedger.add_transaction(%Transaction{
+      ...>     address: "@Alice1",
+      ...>     validation_stamp: %ValidationStamp{},
+      ...>     cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+      ...>   })
+      ...> 
+      ...> :ok = KOLedger.remove_transaction("@Alice1")
+      ...> KOLedger.has_transaction?("@Alice1")
       false
   """
   @spec remove_transaction(binary()) :: :ok
@@ -113,12 +122,15 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   ## Examples
 
       iex> KOLedger.start_link()
-      iex> :ok = KOLedger.add_transaction(%Transaction{
-      ...>   address: "@Alice1",
-      ...>   validation_stamp: %ValidationStamp{},
-      ...>   cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      ...> })
-      iex> :ets.tab2list(:archethic_ko_ledger)
+      ...> 
+      ...> :ok =
+      ...>   KOLedger.add_transaction(%Transaction{
+      ...>     address: "@Alice1",
+      ...>     validation_stamp: %ValidationStamp{},
+      ...>     cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+      ...>   })
+      ...> 
+      ...> :ets.tab2list(:archethic_ko_ledger)
       [
         {"@Alice1", %ValidationStamp{}, [:proof_of_work], []}
       ]

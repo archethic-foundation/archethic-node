@@ -26,106 +26,132 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   ## Examples
 
-      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-      ...> [
-      ...>  [
-      ...>    {{:atom, "transaction"}, [
-      ...>      {{:atom, "content"}, "hello"}
+      iex> ConditionInterpreter.parse(
+      ...>   {{:atom, "condition"}, [line: 1],
+      ...>    [
+      ...>      [
+      ...>        {{:atom, "transaction"},
+      ...>         [
+      ...>           {{:atom, "content"}, "hello"}
+      ...>         ]}
+      ...>      ]
       ...>    ]}
-      ...>  ]
-      ...> ]})
-      {:ok, {:transaction, nil, nil}, %ConditionsSubjects{
-        content: {:==, [], [
-          {:get_in, [], [
-            {:scope, [], nil},
-            ["transaction", "content"]
-          ]},
-          "hello"
-         ]}
-        }
-      }
+      ...> )
+      {:ok, {:transaction, nil, nil},
+       %ConditionsSubjects{
+         content:
+           {:==, [],
+            [
+              {:get_in, [],
+               [
+                 {:scope, [], nil},
+                 ["transaction", "content"]
+               ]},
+              "hello"
+            ]}
+       }}
 
     Usage of functions in the condition fields
 
-      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-      ...> [
-      ...>  [
-      ...>    {{:atom, "transaction"},  [
-      ...>      {{:atom, "content"}, {{:atom, "hash"}, [line: 2],
-      ...>       [
-      ...>         {{:., [line: 2],
-      ...>           [
-      ...>             { {:atom, "contract"}, [line: 2],
-      ...>              nil},
-      ...>             {:atom, "code"}
-      ...>           ]},
-      ...>          [no_parens: true, line: 2],
-      ...>          []}
-      ...>       ]}
-      ...>    }]}
-      ...>  ]
-      ...> ]})
+      iex> ConditionInterpreter.parse(
+      ...>   {{:atom, "condition"}, [line: 1],
+      ...>    [
+      ...>      [
+      ...>        {{:atom, "transaction"},
+      ...>         [
+      ...>           {{:atom, "content"},
+      ...>            {{:atom, "hash"}, [line: 2],
+      ...>             [
+      ...>               {{:., [line: 2],
+      ...>                 [
+      ...>                   {{:atom, "contract"}, [line: 2], nil},
+      ...>                   {:atom, "code"}
+      ...>                 ]}, [no_parens: true, line: 2], []}
+      ...>             ]}}
+      ...>         ]}
+      ...>      ]
+      ...>    ]}
+      ...> )
       {
-        :ok, {:transaction, nil, nil}, %ConditionsSubjects{
-          content:  {:==, [line: 2], [
-             {:get_in, [line: 2], [
-               {:scope, [line: 2], nil},
-               ["transaction", "content"]
-             ]},
-             {
-               {:., [line: 2], [
-                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]},
-                 :hash
-               ]}, [line: 2], [
-                 {:get_in, [line: 2], [
-                   {:scope, [line: 2], nil},
-                   ["contract", "code"]
-                 ]}
-               ]
-              }
-            ]
-          }
+        :ok,
+        {:transaction, nil, nil},
+        %ConditionsSubjects{
+          content:
+            {:==, [line: 2],
+             [
+               {:get_in, [line: 2],
+                [
+                  {:scope, [line: 2], nil},
+                  ["transaction", "content"]
+                ]},
+               {
+                 {:., [line: 2],
+                  [
+                    {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library],
+                     [:Library]},
+                    :hash
+                  ]},
+                 [line: 2],
+                 [
+                   {:get_in, [line: 2],
+                    [
+                      {:scope, [line: 2], nil},
+                      ["contract", "code"]
+                    ]}
+                 ]
+               }
+             ]}
         }
       }
 
     Usage with multiple condition fields
 
-      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-      ...> [
-      ...>   {{:atom, "transaction"}, [
-      ...>     {{:atom, "content"}, "hello"},
-      ...>     {{:atom, "uco_transfers"}, {:%{}, [line: 3],
-      ...>      [
-      ...>        {"00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E",
-      ...>         1000000000}
-      ...>      ]}
-      ...>     }
-      ...>   ]}
-      ...> ]})
-      {:ok, {:transaction, nil, nil}, %ConditionsSubjects{
-          content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
-          uco_transfers:  {:==, [], [
-            {:get_in, [], [{:scope, [], nil},
-              ["transaction", "uco_transfers"]
-            ]},
-            {:%{}, [line: 3], [{
-              "00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E", 1000000000
-            }]}
-          ]}
-        }
-      }
+      iex> ConditionInterpreter.parse(
+      ...>   {{:atom, "condition"}, [line: 1],
+      ...>    [
+      ...>      {{:atom, "transaction"},
+      ...>       [
+      ...>         {{:atom, "content"}, "hello"},
+      ...>         {{:atom, "uco_transfers"},
+      ...>          {:%{}, [line: 3],
+      ...>           [
+      ...>             {"00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E",
+      ...>              1_000_000_000}
+      ...>           ]}}
+      ...>       ]}
+      ...>    ]}
+      ...> )
+      {:ok, {:transaction, nil, nil},
+       %ConditionsSubjects{
+         content:
+           {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
+         uco_transfers:
+           {:==, [],
+            [
+              {:get_in, [], [{:scope, [], nil}, ["transaction", "uco_transfers"]]},
+              {:%{}, [line: 3],
+               [
+                 {
+                   "00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E",
+                   1_000_000_000
+                 }
+               ]}
+            ]}
+       }}
 
     Usage with origin_family condition
 
-      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-      ...> [
-      ...>   [
-      ...>     {{:atom, "inherit"}, [
-      ...>       {{:atom, "origin_family"}, {{:atom, "abc"},
-      ...>        [line: 2], nil}}
-      ...>     ]}
-      ...>   ]
-      ...> ]})
+      iex> ConditionInterpreter.parse(
+      ...>   {{:atom, "condition"}, [line: 1],
+      ...>    [
+      ...>      [
+      ...>        {{:atom, "inherit"},
+      ...>         [
+      ...>           {{:atom, "origin_family"}, {{:atom, "abc"}, [line: 2], nil}}
+      ...>         ]}
+      ...>      ]
+      ...>    ]}
+      ...> )
       {:error, "invalid origin family - L2"}
 
   """

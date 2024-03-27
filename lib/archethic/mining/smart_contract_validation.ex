@@ -263,22 +263,40 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   ## Examples
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :transaction_not_exists}}, %SmartContractCallValidation{status: :ok})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: {:error, :transaction_not_exists}},
+      ...>   %SmartContractCallValidation{status: :ok}
+      ...> )
       %SmartContractCallValidation{status: :ok}
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: :ok}, %SmartContractCallValidation{status: {:error, :transaction_not_exists}})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: :ok},
+      ...>   %SmartContractCallValidation{status: {:error, :transaction_not_exists}}
+      ...> )
       %SmartContractCallValidation{status: :ok}
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :invalid_execution}}, %SmartContractCallValidation{status: {:error, :transaction_not_exists}})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: {:error, :invalid_execution}},
+      ...>   %SmartContractCallValidation{status: {:error, :transaction_not_exists}}
+      ...> )
       %SmartContractCallValidation{status: {:error, :invalid_execution}}
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :transaction_not_exists}}, %SmartContractCallValidation{status: {:error, :invalid_execution}})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: {:error, :transaction_not_exists}},
+      ...>   %SmartContractCallValidation{status: {:error, :invalid_execution}}
+      ...> )
       %SmartContractCallValidation{status: {:error, :invalid_execution}}
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: :ok}, %SmartContractCallValidation{status: {:error, :invalid_execution}})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: :ok},
+      ...>   %SmartContractCallValidation{status: {:error, :invalid_execution}}
+      ...> )
       %SmartContractCallValidation{status: {:error, :invalid_execution}}
 
-      iex> SmartContractValidation.priorize(%SmartContractCallValidation{status: {:error, :invalid_execution}}, %SmartContractCallValidation{status: :ok})
+      iex> SmartContractValidation.priorize(
+      ...>   %SmartContractCallValidation{status: {:error, :invalid_execution}},
+      ...>   %SmartContractCallValidation{status: :ok}
+      ...> )
       %SmartContractCallValidation{status: {:error, :invalid_execution}}
   """
   @spec priorize(SmartContractCallValidation.t(), SmartContractCallValidation.t()) ::

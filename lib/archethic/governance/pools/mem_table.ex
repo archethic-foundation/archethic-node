@@ -10,8 +10,8 @@ defmodule Archethic.Governance.Pools.MemTable do
   ## Examples
 
       iex> {:ok, pid} = MemTable.start_link()
-      iex> :sys.get_state(pid)
-      %{ technical_council: %{}, ethical_council: %{}, uniris: %{}, foundation: %{} }
+      ...> :sys.get_state(pid)
+      %{technical_council: %{}, ethical_council: %{}, uniris: %{}, foundation: %{}}
   """
   @spec start_link(list()) :: {:ok, pid()}
   def start_link(_args \\ []) do
@@ -29,10 +29,13 @@ defmodule Archethic.Governance.Pools.MemTable do
   ## Examples
 
       iex> {:ok, pid} = MemTable.start_link()
-      iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
-      iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
-      iex> :sys.get_state(pid)
-      %{ technical_council: %{ "@Alice2" => 2 }, ethical_council: %{}, uniris: %{}, foundation: %{}  }
+      ...> 
+      ...> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
+      ...> 
+      ...> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
+      ...> 
+      ...> :sys.get_state(pid)
+      %{technical_council: %{"@Alice2" => 2}, ethical_council: %{}, uniris: %{}, foundation: %{}}
   """
   @spec put_pool_member(pool_name :: Pools.pool(), address :: binary(), options :: Keyword.t()) ::
           :ok
@@ -70,11 +73,15 @@ defmodule Archethic.Governance.Pools.MemTable do
   ## Examples
 
       iex> {:ok, _pid} = MemTable.start_link()
-      iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
-      iex> MemTable.put_pool_member(:technical_council, "@Bob5", weighted?: true, weight_factor: 1)
-      iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
-      iex> MemTable.list_pool_members(:technical_council)
-      [ {"@Alice2", 2}, {"@Bob5", 1} ]
+      ...> 
+      ...> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
+      ...> 
+      ...> MemTable.put_pool_member(:technical_council, "@Bob5", weighted?: true, weight_factor: 1)
+      ...> 
+      ...> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
+      ...> 
+      ...> MemTable.list_pool_members(:technical_council)
+      [{"@Alice2", 2}, {"@Bob5", 1}]
   """
   @spec list_pool_members(Pools.pool()) :: list({binary(), weight :: non_neg_integer()})
   def list_pool_members(pool) do

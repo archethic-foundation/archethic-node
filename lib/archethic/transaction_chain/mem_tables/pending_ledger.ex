@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> PendingLedger.start_link()
-      iex> :ets.info(:archethic_pending_ledger)[:type]
+      ...> :ets.info(:archethic_pending_ledger)[:type]
       :bag
   """
   @spec start_link(list()) :: {:ok, pid()}
@@ -39,9 +39,9 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> {:ok, pid} = PendingLedger.start_link()
-      iex> :ok = PendingLedger.add_address("@Alice2")
-      iex> %{table_name: table} = :sys.get_state(pid)
-      iex> :ets.tab2list(table)
+      ...> :ok = PendingLedger.add_address("@Alice2")
+      ...> %{table_name: table} = :sys.get_state(pid)
+      ...> :ets.tab2list(table)
       [
         {"@Alice2", "@Alice2"}
       ]
@@ -61,9 +61,9 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> {:ok, _} = PendingLedger.start_link()
-      iex> :ok = PendingLedger.add_address("@Alice2")
-      iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
-      iex> :ets.tab2list(:archethic_pending_ledger)
+      ...> :ok = PendingLedger.add_address("@Alice2")
+      ...> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
+      ...> :ets.tab2list(:archethic_pending_ledger)
       [
         {"@Alice2", "@Alice2"},
         {"@Alice2", "@Bob3"}
@@ -82,9 +82,9 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> {:ok, _pid} = PendingLedger.start_link()
-      iex> :ok = PendingLedger.add_address("@Alice2")
-      iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
-      iex> PendingLedger.already_signed?("@Alice2", "@Bob3")
+      ...> :ok = PendingLedger.add_address("@Alice2")
+      ...> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
+      ...> PendingLedger.already_signed?("@Alice2", "@Bob3")
       true
   """
   @spec already_signed?(binary(), binary()) :: boolean()
@@ -108,9 +108,9 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> {:ok, _pid} = PendingLedger.start_link()
-      iex> :ok = PendingLedger.add_address("@Alice2")
-      iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
-      iex> PendingLedger.get_signatures("@Alice2")
+      ...> :ok = PendingLedger.add_address("@Alice2")
+      ...> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
+      ...> PendingLedger.get_signatures("@Alice2")
       ["@Alice2", "@Bob3"]
   """
   @spec get_signatures(binary()) :: list(binary())
@@ -124,10 +124,10 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   ## Examples
 
       iex> {:ok, _pid} = PendingLedger.start_link()
-      iex> :ok = PendingLedger.add_address("@Alice2")
-      iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
-      iex> PendingLedger.remove_address("@Alice2")
-      iex> :ets.tab2list(:archethic_pending_ledger)
+      ...> :ok = PendingLedger.add_address("@Alice2")
+      ...> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
+      ...> PendingLedger.remove_address("@Alice2")
+      ...> :ets.tab2list(:archethic_pending_ledger)
       []
   """
   @spec remove_address(binary()) :: :ok

@@ -281,17 +281,17 @@ defmodule Archethic.UTXO do
   ## Examples
 
       iex> [
-      ...>   %UnspentOutput{ from: "@Alice10", type: :UCO, amount: 100_000_000},
-      ...>   %UnspentOutput{ from: "@Bob5", type: {:token, "MyToken", 0}, amount: 300_000_000},
-      ...>   %UnspentOutput{ from: "@Charlie5", type: :call},
-      ...>   %UnspentOutput{ from: "@Tom5", type: :state},
+      ...>   %UnspentOutput{from: "@Alice10", type: :UCO, amount: 100_000_000},
+      ...>   %UnspentOutput{from: "@Bob5", type: {:token, "MyToken", 0}, amount: 300_000_000},
+      ...>   %UnspentOutput{from: "@Charlie5", type: :call},
+      ...>   %UnspentOutput{from: "@Tom5", type: :state}
       ...> ]
       ...> |> UTXO.get_balance()
       %{
-         uco: 100_000_000,
-         token: %{
-           {"MyToken", 0} => 300_000_000
-         }
+        uco: 100_000_000,
+        token: %{
+          {"MyToken", 0} => 300_000_000
+        }
       }
   """
   @spec get_balance(Enumerable.t() | list(UnspentOutput.t())) :: balance()

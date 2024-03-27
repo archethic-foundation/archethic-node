@@ -145,7 +145,7 @@ defmodule Archethic.P2P.BootstrappingSeeds do
 
   ## Examples
 
-      iex> [ %Node{ip: {127, 0, 0, 1}, port: 3000, first_public_key: "mykey", transport: :tcp} ]
+      iex> [%Node{ip: {127, 0, 0, 1}, port: 3000, first_public_key: "mykey", transport: :tcp}]
       ...> |> BootstrappingSeeds.nodes_to_seeds()
       "127.0.0.1:3000:6D796B6579:tcp"
   """

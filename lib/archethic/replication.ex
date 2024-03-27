@@ -476,7 +476,8 @@ defmodule Archethic.Replication do
       ...>   %Node{network_patch: "E19", last_public_key: "key_v4"},
       ...>   %Node{network_patch: "22A", last_public_key: "key_v5"}
       ...> ]
-      iex> storage_nodes = [
+      ...> 
+      ...> storage_nodes = [
       ...>   %Node{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
       ...>   %Node{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
       ...>   %Node{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
@@ -494,7 +495,8 @@ defmodule Archethic.Replication do
       ...>   %Node{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
       ...>   %Node{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
       ...> ]
-      iex> Replication.generate_tree(validation_nodes, storage_nodes)
+      ...> 
+      ...> Replication.generate_tree(validation_nodes, storage_nodes)
       %{
         "key_v1" => [
           %Node{first_public_key: "key_S14", last_public_key: "key_S14", network_patch: "AA0"},
