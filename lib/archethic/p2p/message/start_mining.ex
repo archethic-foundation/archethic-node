@@ -68,7 +68,15 @@ defmodule Archethic.P2P.Message.StartMining do
          :ok <- check_current_node_is_elected(validation_nodes),
          :ok <- check_not_already_mining(tx.address),
          :ok <- Mining.request_chain_lock(tx) do
-      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes, contract_context)
+      {:ok, _} =
+        Mining.start(
+          tx,
+          welcome_node_public_key,
+          validation_nodes,
+          contract_context,
+          ref_timestamp
+        )
+
       %Ok{}
     else
       {:error, reason} -> get_response(tx, reason)

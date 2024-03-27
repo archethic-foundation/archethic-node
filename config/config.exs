@@ -142,12 +142,12 @@ config :archethic, ArchethicWeb.Endpoint,
 
 config :archethic, Archethic.Mining.StandaloneWorkflow, global_timeout: 10_000
 
-config :archethic, Archethic.Mining, start_mining_message_drift: 5_000
+config :archethic, Archethic.Mining, start_mining_message_drift: 4_000
 
 config :archethic, Archethic.Mining.DistributedWorkflow,
   global_timeout: 60_000,
-  coordinator_timeout_supplement: 2_000,
-  context_notification_timeout: 3_000
+  coordinator_timeout_supplement: 7_000,
+  context_notification_timeout: 4_000
 
 config :archethic, Archethic.OracleChain,
   services: [
