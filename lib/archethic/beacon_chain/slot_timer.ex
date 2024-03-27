@@ -59,7 +59,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
   ## Examples
 
-      iex> SlotTimer.previous_slots(~U[2021-01-02 03:00:00Z], ~U[2021-01-02 03:00:30Z], "*/10 * * * * * *")
+      iex> SlotTimer.previous_slots(
+      ...>   ~U[2021-01-02 03:00:00Z],
+      ...>   ~U[2021-01-02 03:00:30Z],
+      ...>   "*/10 * * * * * *"
+      ...> )
       [
         ~U[2021-01-02 03:00:30Z],
         ~U[2021-01-02 03:00:20Z],

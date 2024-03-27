@@ -168,23 +168,23 @@ defmodule Archethic.Mining.ValidationContext do
   ## Examples
 
     iex> %ValidationContext{
-    ...>  cross_validation_nodes_confirmation: <<1::1, 0::1, 1::1>>,
-    ...>  cross_validation_nodes: [
-    ...>    %Node{first_public_key: "key1"},
-    ...>    %Node{first_public_key: "key2"},
-    ...>    %Node{first_public_key: "key3"}
-    ...>  ]
+    ...>   cross_validation_nodes_confirmation: <<1::1, 0::1, 1::1>>,
+    ...>   cross_validation_nodes: [
+    ...>     %Node{first_public_key: "key1"},
+    ...>     %Node{first_public_key: "key2"},
+    ...>     %Node{first_public_key: "key3"}
+    ...>   ]
     ...> }
     ...> |> ValidationContext.enough_confirmations?()
     false
 
     iex> %ValidationContext{
-    ...>  cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1>>,
-    ...>  cross_validation_nodes: [
-    ...>    %Node{first_public_key: "key1"},
-    ...>    %Node{first_public_key: "key2"},
-    ...>    %Node{first_public_key: "key3"}
-    ...>  ]
+    ...>   cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1>>,
+    ...>   cross_validation_nodes: [
+    ...>     %Node{first_public_key: "key1"},
+    ...>     %Node{first_public_key: "key2"},
+    ...>     %Node{first_public_key: "key3"}
+    ...>   ]
     ...> }
     ...> |> ValidationContext.enough_confirmations?()
     true
@@ -204,11 +204,11 @@ defmodule Archethic.Mining.ValidationContext do
   ## Examples
 
     iex> %ValidationContext{
-    ...>  cross_validation_nodes: [
-    ...>    %Node{last_public_key: "key2"},
-    ...>    %Node{last_public_key: "key3"}
-    ...>  ],
-    ...>  cross_validation_nodes_confirmation: <<0::1, 0::1>>
+    ...>   cross_validation_nodes: [
+    ...>     %Node{last_public_key: "key2"},
+    ...>     %Node{last_public_key: "key3"}
+    ...>   ],
+    ...>   cross_validation_nodes_confirmation: <<0::1, 0::1>>
     ...> }
     ...> |> ValidationContext.confirm_validation_node("key3")
     %ValidationContext{
@@ -242,7 +242,7 @@ defmodule Archethic.Mining.ValidationContext do
     ...>     %Node{last_public_key: "key1"},
     ...>     %Node{last_public_key: "key2"},
     ...>     %Node{last_public_key: "key3"},
-    ...>     %Node{last_public_key: "key4"},
+    ...>     %Node{last_public_key: "key4"}
     ...>   ],
     ...>   cross_validation_nodes_confirmation: <<0::1, 1::1, 0::1, 1::1>>
     ...> }
@@ -297,18 +297,18 @@ defmodule Archethic.Mining.ValidationContext do
   ## Examples
 
     iex> %ValidationContext{
-    ...>  cross_validation_stamps: [
-    ...>    %CrossValidationStamp{},
-    ...>    %CrossValidationStamp{},
-    ...>    %CrossValidationStamp{},
-    ...>  ],
-    ...>  cross_validation_nodes: [
-    ...>    %Node{},
-    ...>    %Node{},
-    ...>    %Node{},
-    ...>    %Node{},
-    ...>  ],
-    ...>  cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1, 1::1>>
+    ...>   cross_validation_stamps: [
+    ...>     %CrossValidationStamp{},
+    ...>     %CrossValidationStamp{},
+    ...>     %CrossValidationStamp{}
+    ...>   ],
+    ...>   cross_validation_nodes: [
+    ...>     %Node{},
+    ...>     %Node{},
+    ...>     %Node{},
+    ...>     %Node{}
+    ...>   ],
+    ...>   cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1, 1::1>>
     ...> }
     ...> |> ValidationContext.enough_cross_validation_stamps?()
     false
@@ -377,7 +377,7 @@ defmodule Archethic.Mining.ValidationContext do
     ...>   cross_validation_nodes: [
     ...>     %Node{last_public_key: "key2"},
     ...>     %Node{last_public_key: "key3"},
-    ...>     %Node{last_public_key: "key4"},
+    ...>     %Node{last_public_key: "key4"}
     ...>   ]
     ...> }
     ...> |> ValidationContext.cross_validation_node?("key3")
@@ -388,7 +388,7 @@ defmodule Archethic.Mining.ValidationContext do
     ...>   cross_validation_nodes: [
     ...>     %Node{last_public_key: "key2"},
     ...>     %Node{last_public_key: "key3"},
-    ...>     %Node{last_public_key: "key4"},
+    ...>     %Node{last_public_key: "key4"}
     ...>   ]
     ...> }
     ...> |> ValidationContext.cross_validation_node?("key1")
@@ -409,14 +409,30 @@ defmodule Archethic.Mining.ValidationContext do
   ## Examples
 
     iex> %ValidationContext{
-    ...>    full_replication_tree: %{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>],  beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] },
-    ...>    sub_replication_tree: %{ chain: <<1::1, 0::1>>, beacon: <<1::1, 0::1>>, IO: <<1::1, 0::1>> },
-    ...> } = %ValidationContext{
-    ...>    coordinator_node: %Node{last_public_key: "key1"},
-    ...>    cross_validation_nodes: [%Node{last_public_key: "key2"}],
-    ...>    cross_validation_nodes_confirmation: <<1::1>>
-    ...> }
-    ...> |> ValidationContext.add_replication_tree(%{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>], beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] }, "key2")
+    ...>   full_replication_tree: %{
+    ...>     chain: [<<0::1, 1::1>>, <<1::1, 0::1>>],
+    ...>     beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>],
+    ...>     IO: [<<0::1, 1::1>>, <<1::1, 0::1>>]
+    ...>   },
+    ...>   sub_replication_tree: %{
+    ...>     chain: <<1::1, 0::1>>,
+    ...>     beacon: <<1::1, 0::1>>,
+    ...>     IO: <<1::1, 0::1>>
+    ...>   }
+    ...> } =
+    ...>   %ValidationContext{
+    ...>     coordinator_node: %Node{last_public_key: "key1"},
+    ...>     cross_validation_nodes: [%Node{last_public_key: "key2"}],
+    ...>     cross_validation_nodes_confirmation: <<1::1>>
+    ...>   }
+    ...>   |> ValidationContext.add_replication_tree(
+    ...>     %{
+    ...>       chain: [<<0::1, 1::1>>, <<1::1, 0::1>>],
+    ...>       beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>],
+    ...>       IO: [<<0::1, 1::1>>, <<1::1, 0::1>>]
+    ...>     },
+    ...>     "key2"
+    ...>   )
   """
   @spec add_replication_tree(
           t(),
@@ -887,9 +903,18 @@ defmodule Archethic.Mining.ValidationContext do
   ## Examples
 
       iex> %ValidationContext{
-      ...>   coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
-      ...>   cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC",  last_public_key: "key2"}],
-      ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB", available?: true}, %Node{first_public_key: "key4", network_patch: "EFC", available?: true}],
+      ...>   coordinator_node: %Node{
+      ...>     first_public_key: "key1",
+      ...>     network_patch: "AAA",
+      ...>     last_public_key: "key1"
+      ...>   },
+      ...>   cross_validation_nodes: [
+      ...>     %Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}
+      ...>   ],
+      ...>   chain_storage_nodes: [
+      ...>     %Node{first_public_key: "key3", network_patch: "BBB", available?: true},
+      ...>     %Node{first_public_key: "key4", network_patch: "EFC", available?: true}
+      ...>   ],
       ...>   cross_validation_nodes_confirmation: <<1::1>>,
       ...>   chain_storage_nodes_view: <<1::1, 1::1>>,
       ...>   beacon_storage_nodes_view: <<1::1, 1::1>>
@@ -906,20 +931,40 @@ defmodule Archethic.Mining.ValidationContext do
           beacon: [],
           chain: [<<1::1, 0::1>>, <<0::1, 1::1>>]
         },
-        coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
-        cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
-        chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB", available?: true}, %Node{first_public_key: "key4", network_patch: "EFC", available?: true}],
+        coordinator_node: %Node{
+          first_public_key: "key1",
+          network_patch: "AAA",
+          last_public_key: "key1"
+        },
+        cross_validation_nodes: [
+          %Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}
+        ],
+        chain_storage_nodes: [
+          %Node{first_public_key: "key3", network_patch: "BBB", available?: true},
+          %Node{first_public_key: "key4", network_patch: "EFC", available?: true}
+        ],
         cross_validation_nodes_confirmation: <<1::1>>,
         chain_storage_nodes_view: <<1::1, 1::1>>,
         beacon_storage_nodes_view: <<1::1, 1::1>>
       }
 
       iex> %ValidationContext{
-      ...>   coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
-      ...>   cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC",  last_public_key: "key2"}],
-      ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB", available?: true}, %Node{first_public_key: "key4", network_patch: "EFC", available?: true}, %Node{first_public_key: "key5", network_patch: "A0C", available?: true}, %Node{first_public_key: "key6", network_patch: "BBB", available?: true}],
+      ...>   coordinator_node: %Node{
+      ...>     first_public_key: "key1",
+      ...>     network_patch: "AAA",
+      ...>     last_public_key: "key1"
+      ...>   },
+      ...>   cross_validation_nodes: [
+      ...>     %Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}
+      ...>   ],
+      ...>   chain_storage_nodes: [
+      ...>     %Node{first_public_key: "key3", network_patch: "BBB", available?: true},
+      ...>     %Node{first_public_key: "key4", network_patch: "EFC", available?: true},
+      ...>     %Node{first_public_key: "key5", network_patch: "A0C", available?: true},
+      ...>     %Node{first_public_key: "key6", network_patch: "BBB", available?: true}
+      ...>   ],
       ...>   cross_validation_nodes_confirmation: <<1::1>>,
-      ...>   chain_storage_nodes_view: <<0::1, 1::1, 1::1, 0::1>>,
+      ...>   chain_storage_nodes_view: <<0::1, 1::1, 1::1, 0::1>>
       ...> }
       ...> |> ValidationContext.create_replication_tree()
       %ValidationContext{
@@ -933,9 +978,20 @@ defmodule Archethic.Mining.ValidationContext do
           beacon: [],
           chain: [<<0::1, 0::1, 1::1, 0::1>>, <<0::1, 1::1, 0::1, 0::1>>]
         },
-        coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
-        cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
-         chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB", available?: true}, %Node{first_public_key: "key4", network_patch: "EFC", available?: true}, %Node{first_public_key: "key5", network_patch: "A0C", available?: true}, %Node{first_public_key: "key6", network_patch: "BBB", available?: true}],
+        coordinator_node: %Node{
+          first_public_key: "key1",
+          network_patch: "AAA",
+          last_public_key: "key1"
+        },
+        cross_validation_nodes: [
+          %Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}
+        ],
+        chain_storage_nodes: [
+          %Node{first_public_key: "key3", network_patch: "BBB", available?: true},
+          %Node{first_public_key: "key4", network_patch: "EFC", available?: true},
+          %Node{first_public_key: "key5", network_patch: "A0C", available?: true},
+          %Node{first_public_key: "key6", network_patch: "BBB", available?: true}
+        ],
         cross_validation_nodes_confirmation: <<1::1>>,
         chain_storage_nodes_view: <<0::1, 1::1, 1::1, 0::1>>
       }

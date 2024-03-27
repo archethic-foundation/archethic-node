@@ -8,15 +8,15 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Remember that we convert all keywords to maps in the prewalk.
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[]")
-    iex> ASTHelper.is_keyword_list?(ast)
+    ...> ASTHelper.is_keyword_list?(ast)
     false
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[sum: 1, product: 10]")
-    iex> ASTHelper.is_keyword_list?(ast)
+    ...> ASTHelper.is_keyword_list?(ast)
     true
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[1,2,3]")
-    iex> ASTHelper.is_keyword_list?(ast)
+    ...> ASTHelper.is_keyword_list?(ast)
     false
   """
   @spec is_keyword_list?(Macro.t()) :: boolean()
@@ -36,7 +36,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is a map
 
     iex> ast = quote do: %{"sum" => 1, "product" => 10}
-    iex> ASTHelper.is_map?(ast)
+    ...> ASTHelper.is_map?(ast)
     true
   """
   @spec is_map?(Macro.t()) :: boolean()
@@ -47,11 +47,11 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is an integer
 
     iex> ast = quote do: 1
-    iex> ASTHelper.is_number?(ast)
+    ...> ASTHelper.is_number?(ast)
     true
 
     iex> ast = quote do: 1.01
-    iex> ASTHelper.is_number?(ast)
+    ...> ASTHelper.is_number?(ast)
     true
   """
   @spec is_number?(Macro.t()) :: boolean()
@@ -63,12 +63,12 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is an binary
 
     iex> ast = quote do: "hello"
-    iex> ASTHelper.is_binary?(ast)
+    ...> ASTHelper.is_binary?(ast)
     true
 
     iex> _hello = "hello"
-    iex> ast = quote do: "#{_hello} world"
-    iex> ASTHelper.is_binary?(ast)
+    ...> ast = quote do: "#{_hello} world"
+    ...> ASTHelper.is_binary?(ast)
     true
   """
   @spec is_binary?(Macro.t()) :: boolean()
@@ -80,7 +80,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is a a list
 
     iex> ast = quote do: [1, 2]
-    iex> ASTHelper.is_list?(ast)
+    ...> ASTHelper.is_list?(ast)
     true
   """
   @spec is_list?(Macro.t()) :: boolean()
@@ -118,19 +118,19 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is a function call or not
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("hello(12)")
-    iex> ASTHelper.is_function_call?(ast)
+    ...> ASTHelper.is_function_call?(ast)
     true
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("hello()")
-    iex> ASTHelper.is_function_call?(ast)
+    ...> ASTHelper.is_function_call?(ast)
     true
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("Module.hello()")
-    iex> ASTHelper.is_function_call?(ast)
+    ...> ASTHelper.is_function_call?(ast)
     true
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("hello")
-    iex> ASTHelper.is_function_call?(ast)
+    ...> ASTHelper.is_function_call?(ast)
     false
   """
   @spec is_function_call?(Macro.t()) :: boolean()
@@ -142,7 +142,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Convert a keyword AST into a map AST
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[sum: 1, product: 10]")
-    iex> Macro.to_string(ASTHelper.keyword_to_map(ast))
+    ...> Macro.to_string(ASTHelper.keyword_to_map(ast))
     ~s(%{"sum" => 1, "product" => 10})
   """
   @spec keyword_to_map(Macro.t()) :: Macro.t()
@@ -175,10 +175,10 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
       If we don't wrap in a block and the code is a single expression, it would be automatically whitelisted.
 
     iex> ASTHelper.wrap_in_block({:if, [], [true, [do: 1, else: 2]]})
-    iex> {:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]}
+    ...> {:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]}
 
     iex> ASTHelper.wrap_in_block({:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]})
-    iex> {:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]}
+    ...> {:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]}
   """
   def wrap_in_block(ast = {:__block__, _, _}), do: ast
   def wrap_in_block(ast), do: {:__block__, [], [ast]}

@@ -19,10 +19,10 @@ defmodule Archethic.Utils.Testnet do
     ## Example
 
         iex> "192.168.0.1/24" |> Subnet.parse()
-        {:ok, %Subnet{address: {192,168,0,1}, mask: 24}}
+        {:ok, %Subnet{address: {192, 168, 0, 1}, mask: 24}}
 
         iex> "2001:db8::/64" |> Subnet.parse()
-        {:ok, %Subnet{address: {8193,3512,0,0,0,0,0,0}, mask: 64}}
+        {:ok, %Subnet{address: {8193, 3512, 0, 0, 0, 0, 0, 0}, mask: 64}}
 
     """
     @spec parse(binary()) :: {:ok, t} | {:error, term}
@@ -43,7 +43,7 @@ defmodule Archethic.Utils.Testnet do
     ## Example
 
         iex> "192.168.0.1/24" |> Subnet.parse!()
-        %Subnet{address: {192,168,0,1}, mask: 24}
+        %Subnet{address: {192, 168, 0, 1}, mask: 24}
 
         iex> "abc/24" |> Subnet.parse!()
         ** (ArgumentError) abc/24 is not a subnet

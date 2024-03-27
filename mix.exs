@@ -79,6 +79,7 @@ defmodule Archethic.MixProject do
       {:logger_file_backend, "~> 0.0.13", only: :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
+      {:doctest_formatter, "~> 0.2.1", runtime: false},
 
       # Security
       {:sobelow, "~> 0.11", runtime: false},

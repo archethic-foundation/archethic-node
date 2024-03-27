@@ -441,16 +441,26 @@ defmodule Archethic.P2P do
 
   ## Examples
 
-     iex> list_nodes = [%Node{network_patch: "AA0"}, %Node{network_patch: "F50"}, %Node{network_patch: "3A2"}]
-     iex> P2P.nearest_nodes(list_nodes, "12F")
+     iex> list_nodes = [
+     ...>   %Node{network_patch: "AA0"},
+     ...>   %Node{network_patch: "F50"},
+     ...>   %Node{network_patch: "3A2"}
+     ...> ]
+     ...> 
+     ...> P2P.nearest_nodes(list_nodes, "12F")
      [
        %Node{network_patch: "3A2"},
        %Node{network_patch: "AA0"},
        %Node{network_patch: "F50"}
      ]
 
-     iex> list_nodes = [%Node{network_patch: "AA0"}, %Node{network_patch: "F50"}, %Node{network_patch: "3A2"}]
-     iex> P2P.nearest_nodes(list_nodes, "C3A")
+     iex> list_nodes = [
+     ...>   %Node{network_patch: "AA0"},
+     ...>   %Node{network_patch: "F50"},
+     ...>   %Node{network_patch: "3A2"}
+     ...> ]
+     ...> 
+     ...> P2P.nearest_nodes(list_nodes, "C3A")
      [
        %Node{network_patch: "F50"},
        %Node{network_patch: "AA0"},
@@ -548,21 +558,23 @@ defmodule Archethic.P2P do
   ## Examples
 
       iex> node_list = [
-      ...>  %Node{first_public_key: "key1"},
-      ...>  %Node{first_public_key: "key2"},
-      ...>  %Node{first_public_key: "key3"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"}
       ...> ]
-      iex> subset = [%Node{first_public_key: "key2"}]
-      iex> P2P.bitstring_from_node_subsets(node_list, subset)
+      ...> 
+      ...> subset = [%Node{first_public_key: "key2"}]
+      ...> P2P.bitstring_from_node_subsets(node_list, subset)
       <<0::1, 1::1, 0::1>>
 
       iex> node_list = [
-      ...>  %Node{first_public_key: "key1"},
-      ...>  %Node{first_public_key: "key2"},
-      ...>  %Node{first_public_key: "key3"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"}
       ...> ]
-      iex> subset = [%Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}]
-      iex> P2P.bitstring_from_node_subsets(node_list, subset)
+      ...> 
+      ...> subset = [%Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}]
+      ...> P2P.bitstring_from_node_subsets(node_list, subset)
       <<0::1, 1::1, 1::1>>
   """
   @spec bitstring_from_node_subsets(
@@ -630,17 +642,23 @@ defmodule Archethic.P2P do
       iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key0", [])
       false
 
-      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key0", [%Node{ip: {127, 0, 0, 1}, port: 3001}])
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key0", [
+      ...>   %Node{ip: {127, 0, 0, 1}, port: 3001}
+      ...> ])
       false
 
     Returns false when the node with the ip/PORT is found but the chain of keys is followed
 
-      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key1", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1") }])
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key1", [
+      ...>   %Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1")}
+      ...> ])
       false
 
     Returns true when the node with the ip/PORT is found but the chain of keys doesn't match
 
-      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key10", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1")}])
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key10", [
+      ...>   %Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1")}
+      ...> ])
       true
   """
   @spec duplicating_node?(
@@ -667,17 +685,17 @@ defmodule Archethic.P2P do
   ## Examples
 
       iex> [
-      ...>   %Node{ first_public_key: "key1"},
-      ...>   %Node{ first_public_key: "key2"},
-      ...>   %Node{ first_public_key: "key3"},
-      ...>   %Node{ first_public_key: "key4"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"},
+      ...>   %Node{first_public_key: "key4"}
       ...> ]
       ...> |> P2P.unprioritize_node("key1")
       [
-        %Node{ first_public_key: "key2"},
-        %Node{ first_public_key: "key3"},
-        %Node{ first_public_key: "key4"},
-        %Node{ first_public_key: "key1"}
+        %Node{first_public_key: "key2"},
+        %Node{first_public_key: "key3"},
+        %Node{first_public_key: "key4"},
+        %Node{first_public_key: "key1"}
       ]
   """
   @spec unprioritize_node(list(Node.t()), Crypto.key()) :: list(Node.t())
