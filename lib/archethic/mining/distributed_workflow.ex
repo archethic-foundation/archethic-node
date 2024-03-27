@@ -63,6 +63,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
                                     __MODULE__,
                                     :coordinator_timeout_supplement
                                   ])
+  @start_mining_message_drift Application.compile_env!(:archethic, [
+                                Archethic.Mining,
+                                :start_mining_message_drift
+                              ])
   @context_notification_timeout Application.compile_env!(:archethic, [
                                   __MODULE__,
                                   :context_notification_timeout
@@ -156,14 +160,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
     GenStateMachine.cast(pid, {:replication_error, reason, node_public_key})
   end
 
-  defp get_context_timeout(:hosting), do: Message.get_max_timeout()
-  defp get_context_timeout(:oracle), do: @context_notification_timeout + 1_000
-  defp get_context_timeout(_type), do: @context_notification_timeout
+  defp get_context_timeout(:hosting),
+    do: @start_mining_message_drift + @context_notification_timeout * 2
+
+  defp get_context_timeout(_type), do: @start_mining_message_drift + @context_notification_timeout
 
   defp get_coordinator_timeout(type),
     do: get_context_timeout(type) + @coordinator_timeout_supplement
 
-  defp get_mining_timeout(type) when type == :hosting, do: @mining_timeout * 3
+  defp get_mining_timeout(type) when type == :hosting, do: @mining_timeout * 2
   defp get_mining_timeout(_type), do: @mining_timeout
 
   def init(opts \\ []) do
@@ -173,6 +178,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     node_public_key = Keyword.get(opts, :node_public_key)
     timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
     contract_context = Keyword.get(opts, :contract_context)
+    ref_timestamp = Keyword.get(opts, :ref_timestamp)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
@@ -181,25 +187,37 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    next_events = [
-      {:next_event, :internal,
-       {:start_mining, tx, welcome_node, validation_nodes, contract_context}},
-      {:next_event, :internal, :prior_validation}
-    ]
+    case time_offset(ref_timestamp, timeout) do
+      0 ->
+        Logger.warning("Mining process created after global timeout",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
-    {:ok, :idle,
-     %{
-       node_public_key: node_public_key,
-       start_time: System.monotonic_time(),
-       timeout: timeout
-     }, next_events}
+        # :ignore will terminate the process normally without error
+        :ignore
+
+      timeout ->
+        next_events = [
+          {:next_event, :internal,
+           {:start_mining, tx, welcome_node, validation_nodes, contract_context}},
+          {{:timeout, :stop_timeout}, timeout, :any}
+        ]
+
+        {:ok, :idle,
+         %{
+           ref_timestamp: ref_timestamp,
+           node_public_key: node_public_key,
+           start_time: System.monotonic_time()
+         }, next_events}
+    end
   end
 
   def handle_event(
         :internal,
         {:start_mining, tx, welcome_node, validation_nodes, contract_context},
         :idle,
-        data
+        data = %{node_public_key: node_public_key}
       ) do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
@@ -210,19 +228,23 @@ defmodule Archethic.Mining.DistributedWorkflow do
     previous_address = Transaction.previous_address(tx)
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
-    {:ok, genesis_address} =
-      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+    genesis_address_task =
+      Task.async(fn ->
+        TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+      end)
+
+    resolved_addresses_task =
+      Task.async(fn -> TransactionChain.resolve_transaction_addresses!(tx) end)
+
+    [{:ok, genesis_address}, resolved_addresses] =
+      Task.await_many([genesis_address_task, resolved_addresses_task])
 
     genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
 
     beacon_storage_nodes =
-      Election.beacon_storage_nodes(
-        BeaconChain.subset_from_address(tx.address),
-        BeaconChain.next_slot(validation_time),
-        authorized_nodes
-      )
-
-    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
+      tx.address
+      |> BeaconChain.subset_from_address()
+      |> Election.beacon_storage_nodes(BeaconChain.next_slot(validation_time), authorized_nodes)
 
     io_storage_nodes =
       if Transaction.network_type?(tx.type) do
@@ -233,7 +255,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
-    [coordinator_node | cross_validation_nodes] = validation_nodes
+    [coordinator_node = %Node{last_public_key: coordinator_key} | cross_validation_nodes] =
+      validation_nodes
 
     context =
       ValidationContext.new(
@@ -250,7 +273,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         genesis_address: genesis_address
       )
 
-    {:keep_state, Map.put(data, :context, context)}
+    role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
+
+    {:next_state, role, Map.put(data, :context, context),
+     {:next_event, :internal, :build_transaction_context}}
   end
 
   def handle_event(:enter, :idle, :idle, _data = %{}) do
@@ -258,62 +284,31 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   def handle_event(
-        :internal,
-        :prior_validation,
+        :enter,
         :idle,
-        data = %{
-          node_public_key: node_public_key,
-          context:
-            context = %ValidationContext{
-              transaction: tx,
-              coordinator_node: %Node{last_public_key: coordinator_key},
-              validation_time: validation_time
-            }
-        }
+        :cross_validator,
+        _data = %{context: %ValidationContext{transaction: tx}}
       ) do
-    role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
+    Logger.info("Act as cross validator",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-    new_context =
-      case PendingTransactionValidation.validate(tx, validation_time) do
-        :ok ->
-          Logger.debug("Pending transaction valid",
-            transaction_address: Base.encode16(tx.address),
-            transaction_type: tx.type
-          )
+    :keep_state_and_data
+  end
 
-          ValidationContext.set_pending_transaction_validation(context, true)
+  def handle_event(
+        :enter,
+        :idle,
+        :coordinator,
+        _data = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.info("Act as coordinator",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-        {:error, reason} ->
-          Logger.debug("Invalid transaction - #{inspect(reason)}",
-            transaction_address: Base.encode16(tx.address),
-            transaction_type: tx.type
-          )
-
-          ValidationContext.set_pending_transaction_validation(context, false, reason)
-      end
-
-    next_events =
-      case role do
-        :cross_validator ->
-          [
-            {:next_event, :internal, :build_transaction_context},
-            {:next_event, :internal, :notify_context}
-          ]
-
-        :coordinator ->
-          [
-            {:next_event, :internal, :build_transaction_context}
-          ]
-      end
-
-    new_data =
-      Map.put(
-        data,
-        :context,
-        new_context
-      )
-
-    {:next_state, role, new_data, next_events}
+    :keep_state_and_data
   end
 
   def handle_event(
@@ -321,7 +316,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :build_transaction_context,
         state,
         data = %{
-          timeout: timeout,
           context:
             context = %ValidationContext{
               genesis_address: genesis_address,
@@ -385,46 +379,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
     next_events =
       case state do
         :coordinator ->
-          # TODO: Provide a better waiting time management
-          # for example rolling percentile latency could be way to achieve this
-          # (https://cs.stackexchange.com/a/129178)
-          waiting_time = get_context_timeout(tx.type)
-
-          Logger.debug(
-            "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",
-            transaction_address: Base.encode16(tx.address),
-            transaction_type: tx.type
-          )
-
-          [
-            {{:timeout, :wait_confirmations}, waiting_time, :any},
-            {{:timeout, :stop_timeout}, timeout, :any}
-          ]
+          [{:next_event, :internal, :prior_validation}]
 
         :cross_validator ->
-          [
-            {{:timeout, :change_coordinator}, get_coordinator_timeout(tx.type), :any},
-            {{:timeout, :stop_timeout}, timeout, :any}
-          ]
+          [{:next_event, :internal, :notify_context}, {:next_event, :internal, :prior_validation}]
       end
 
     {:keep_state, %{data | context: new_context}, next_events}
-  end
-
-  def handle_event(
-        :enter,
-        :idle,
-        :cross_validator,
-        _data = %{
-          context: %ValidationContext{transaction: tx}
-        }
-      ) do
-    Logger.info("Act as cross validator",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    :keep_state_and_data
   end
 
   def handle_event(:internal, :notify_context, :cross_validator, %{
@@ -436,17 +397,62 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   def handle_event(
-        :enter,
-        :idle,
-        :coordinator,
-        _data = %{context: %ValidationContext{transaction: tx}}
+        :internal,
+        :prior_validation,
+        state,
+        data = %{
+          context:
+            context = %ValidationContext{transaction: tx, validation_time: validation_time},
+          ref_timestamp: ref_timestamp
+        }
       ) do
-    Logger.info("Act as coordinator",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
+    new_context =
+      case PendingTransactionValidation.validate(tx, validation_time) do
+        :ok ->
+          Logger.debug("Pending transaction valid",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
+          )
 
-    :keep_state_and_data
+          ValidationContext.set_pending_transaction_validation(context, true)
+
+        {:error, reason} ->
+          Logger.debug("Invalid transaction - #{inspect(reason)}",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
+          )
+
+          ValidationContext.set_pending_transaction_validation(context, false, reason)
+      end
+
+    new_data = Map.put(data, :context, new_context)
+
+    timeout =
+      case state do
+        :coordinator -> get_context_timeout(tx.type)
+        :cross_validator -> get_coordinator_timeout(tx.type)
+      end
+
+    case {state, time_offset(ref_timestamp, timeout)} do
+      {:coordinator, 0} ->
+        # If waiting context is already over we check if change coordinator timeout is also over
+        # If it is, there is a new coordinator so this node is not anymore part of the validation
+        if time_offset(ref_timestamp, get_coordinator_timeout(tx.type)) > 0,
+          do: {:keep_state, new_data, [{{:timeout, :wait_confirmations}, 0, :any}]},
+          else: :stop
+
+      {:coordinator, timeout} ->
+        Logger.debug(
+          "Coordinator will wait #{timeout} ms before continue with the responding nodes",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        {:keep_state, new_data, [{{:timeout, :wait_confirmations}, timeout, :any}]}
+
+      {:cross_validator, timeout} ->
+        {:keep_state, new_data, [{{:timeout, :change_coordinator}, timeout, :any}]}
+    end
   end
 
   def handle_event(
@@ -460,9 +466,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    actions = [
-      {{:timeout, :wait_confirmations}, get_context_timeout(tx.type), :any}
-    ]
+    actions = [{{:timeout, :wait_confirmations}, get_context_timeout(tx.type), :any}]
 
     {:keep_state_and_data, actions}
   end
@@ -519,19 +523,23 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:timeout, :wait_confirmations},
         :any,
         :coordinator,
-        _data = %{context: %ValidationContext{transaction: tx}}
+        _data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
-    Logger.warning("Timeout to get the context validation nodes context is reached",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
+    if ValidationContext.enough_confirmations?(context) do
+      :keep_state_and_data
+    else
+      Logger.warning("Timeout to get the context validation nodes context is reached",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
+      )
 
-    Logger.warning("Validation stamp will be created with the confirmed cross validation nodes",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
+      Logger.warning("Validation stamp will be created with the confirmed cross validation nodes",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
+      )
 
-    {:keep_state_and_data, {:next_event, :internal, :create_and_notify_validation_stamp}}
+      {:keep_state_and_data, {:next_event, :internal, :create_and_notify_validation_stamp}}
+    end
   end
 
   def handle_event(
@@ -906,7 +914,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx,
-              cross_validation_nodes: validation_nodes
+              cross_validation_nodes: validation_nodes,
+              validation_stamp: nil
             },
           node_public_key: node_public_key
         }
@@ -924,6 +933,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :stop
 
       _ ->
+        Logger.info("New coordinator is elected after previous coordinator timeout",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         nb_cross_validation_nodes = length(next_cross_validation_nodes)
 
         new_context =
@@ -944,6 +958,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         end
     end
   end
+
+  def handle_event({:timeout, :change_coordinator}, :any, :cross_validator, _),
+    do: :keep_state_and_data
 
   def handle_event(
         {:timeout, :stop_timeout},
@@ -1243,5 +1260,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
     message = %UnlockChain{address: tx_address}
 
     context |> ValidationContext.get_chain_replication_nodes() |> P2P.broadcast_message(message)
+  end
+
+  defp time_offset(ref_time, timeout) do
+    # If time offset is negative (timeout is already passed based on ref_time) 
+    # this function returns 0. GenStateMachine works with timeout = 0 and directly create
+    # an event in the Process message box after all external message already in the box
+    ref_time
+    |> DateTime.add(timeout, :millisecond)
+    |> DateTime.diff(DateTime.utc_now(), :millisecond)
+    |> max(0)
   end
 end
