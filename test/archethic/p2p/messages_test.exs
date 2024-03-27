@@ -181,6 +181,7 @@ defmodule Archethic.P2P.MessageTest do
 
       network_hash = :crypto.hash(:sha256, "networkview")
       p2p_hash = :crypto.hash(:sha256, "p2pview")
+      ref_timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
       # no context
       assert %StartMining{
@@ -188,14 +189,16 @@ defmodule Archethic.P2P.MessageTest do
                welcome_node_public_key: welcome_node_public_key,
                validation_node_public_keys: validation_node_public_keys,
                network_chains_view_hash: network_hash,
-               p2p_view_hash: p2p_hash
+               p2p_view_hash: p2p_hash,
+               ref_timestamp: ref_timestamp
              } ==
                %StartMining{
                  transaction: tx,
                  welcome_node_public_key: welcome_node_public_key,
                  validation_node_public_keys: validation_node_public_keys,
                  network_chains_view_hash: network_hash,
-                 p2p_view_hash: p2p_hash
+                 p2p_view_hash: p2p_hash,
+                 ref_timestamp: ref_timestamp
                }
                |> Message.encode()
                |> Message.decode()
@@ -214,7 +217,8 @@ defmodule Archethic.P2P.MessageTest do
                validation_node_public_keys: validation_node_public_keys,
                network_chains_view_hash: network_hash,
                p2p_view_hash: p2p_hash,
-               contract_context: ctx
+               contract_context: ctx,
+               ref_timestamp: ref_timestamp
              } ==
                %StartMining{
                  transaction: tx,
@@ -222,7 +226,8 @@ defmodule Archethic.P2P.MessageTest do
                  validation_node_public_keys: validation_node_public_keys,
                  network_chains_view_hash: network_hash,
                  p2p_view_hash: p2p_hash,
-                 contract_context: ctx
+                 contract_context: ctx,
+                 ref_timestamp: ref_timestamp
                }
                |> Message.encode()
                |> Message.decode()
