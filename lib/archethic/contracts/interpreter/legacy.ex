@@ -25,22 +25,22 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
       ...>      content: regex_match?(\"^Mr.Y|Mr.X{1}$\"),
       ...>      origin_family: biometric
       ...>    ]
-      ...>
+      ...> 
       ...>    condition inherit: [
       ...>       content: regex_match?(\"hello\")
       ...>    ]
-      ...>
+      ...> 
       ...>    condition oracle: [
       ...>      content: json_path_extract(\"$.uco.eur\") > 1
       ...>    ]
-      ...>
+      ...> 
       ...>    actions triggered_by: datetime, at: 1603270603 do
       ...>      new_content = \"Sent #{1_040_000_000}\"
       ...>      set_type transfer
       ...>      set_content new_content
       ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 1_040_000_000
       ...>    end
-      ...>
+      ...> 
       ...>    actions triggered_by: oracle do
       ...>      set_content \"uco price changed\"
       ...>    end
@@ -217,7 +217,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                                     {
                                       :__aliases__,
                                       [
-                                        alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+                                        alias:
+                                          Archethic.Contracts.Interpreter.Legacy.TransactionStatements
                                       ],
                                       [:TransactionStatements]
                                     },
@@ -298,7 +299,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                                         {
                                           :__aliases__,
                                           [
-                                            alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+                                            alias:
+                                              Archethic.Contracts.Interpreter.Legacy.TransactionStatements
                                           ],
                                           [:TransactionStatements]
                                         },
@@ -352,7 +354,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                                         {
                                           :__aliases__,
                                           [
-                                            alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+                                            alias:
+                                              Archethic.Contracts.Interpreter.Legacy.TransactionStatements
                                           ],
                                           [:TransactionStatements]
                                         },
@@ -416,7 +419,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                                         {
                                           :__aliases__,
                                           [
-                                            alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+                                            alias:
+                                              Archethic.Contracts.Interpreter.Legacy.TransactionStatements
                                           ],
                                           [:TransactionStatements]
                                         },
@@ -431,7 +435,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                                           "to",
                                           "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"
                                         },
-                                        {"amount", 1040000000}
+                                        {"amount", 1_040_000_000}
                                       ]
                                     ]
                                   }

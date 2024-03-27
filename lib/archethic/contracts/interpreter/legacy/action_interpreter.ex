@@ -20,51 +20,119 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
 
   ## Examples
 
-      iex> ActionInterpreter.parse({{:atom, "actions"}, [line: 1],
-      ...> [
-      ...>   [
-      ...>     {{:atom, "triggered_by"}, {{:atom, "transaction"}, [line: 1], nil}}
-      ...>   ],
-      ...>   [
-      ...>     do: {{:atom, "add_uco_transfer"}, [line: 2],
+      iex> ActionInterpreter.parse(
+      ...>   {{:atom, "actions"}, [line: 1],
+      ...>    [
       ...>      [
-      ...>        [
-      ...>          {{:atom, "to"}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"},
-      ...>          {{:atom, "amount"}, 2000000000}
-      ...>        ]
-      ...>      ]}
-      ...>   ]
-      ...> ]})
-      { :ok, {:transaction, nil, nil}, { :__block__, [], [ { :=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}] }, {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]} ] }}
+      ...>        {{:atom, "triggered_by"}, {{:atom, "transaction"}, [line: 1], nil}}
+      ...>      ],
+      ...>      [
+      ...>        do:
+      ...>          {{:atom, "add_uco_transfer"}, [line: 2],
+      ...>           [
+      ...>             [
+      ...>               {{:atom, "to"},
+      ...>                "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"},
+      ...>               {{:atom, "amount"}, 2_000_000_000}
+      ...>             ]
+      ...>           ]}
+      ...>      ]
+      ...>    ]}
+      ...> )
+      {:ok, {:transaction, nil, nil},
+       {:__block__, [],
+        [
+          {:=, [line: 2],
+           [
+             {:scope, [line: 2], nil},
+             {:update_in, [line: 2],
+              [
+                {:scope, [line: 2], nil},
+                ["next_transaction"],
+                {:&, [line: 2],
+                 [
+                   {{:., [line: 2],
+                     [
+                       {:__aliases__,
+                        [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements],
+                        [:TransactionStatements]},
+                       :add_uco_transfer
+                     ]}, [line: 2],
+                    [
+                      {:&, [line: 2], [1]},
+                      [
+                        {"to",
+                         "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"},
+                        {"amount", 2_000_000_000}
+                      ]
+                    ]}
+                 ]}
+              ]}
+           ]},
+          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [],
+           [{:scope, [], nil}]}
+        ]}}
 
       Usage with trigger accepting parameters
 
-      iex> ActionInterpreter.parse({{:atom, "actions"}, [line: 1],
-      ...> [
-      ...>   [
-      ...>     {{:atom, "triggered_by"}, {{:atom, "datetime"},
-      ...>      [line: 1], nil}},
-      ...>     {{:atom, "at"}, 1391309030}
-      ...>   ],
-      ...>   [
-      ...>     do: {{:atom, "add_recipient"}, [line: 2],
-      ...>      ["0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}
-      ...>   ]
-      ...> ]})
-      { :ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, { :__block__, [], [ { :=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}] }, {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]} ] }}
+      iex> ActionInterpreter.parse(
+      ...>   {{:atom, "actions"}, [line: 1],
+      ...>    [
+      ...>      [
+      ...>        {{:atom, "triggered_by"}, {{:atom, "datetime"}, [line: 1], nil}},
+      ...>        {{:atom, "at"}, 1_391_309_030}
+      ...>      ],
+      ...>      [
+      ...>        do:
+      ...>          {{:atom, "add_recipient"}, [line: 2],
+      ...>           ["0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}
+      ...>      ]
+      ...>    ]}
+      ...> )
+      {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]},
+       {:__block__, [],
+        [
+          {:=, [line: 2],
+           [
+             {:scope, [line: 2], nil},
+             {:update_in, [line: 2],
+              [
+                {:scope, [line: 2], nil},
+                ["next_transaction"],
+                {:&, [line: 2],
+                 [
+                   {{:., [line: 2],
+                     [
+                       {:__aliases__,
+                        [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements],
+                        [:TransactionStatements]},
+                       :add_recipient
+                     ]}, [line: 2],
+                    [
+                      {:&, [line: 2], [1]},
+                      "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"
+                    ]}
+                 ]}
+              ]}
+           ]},
+          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [],
+           [{:scope, [], nil}]}
+        ]}}
 
 
       Prevent usage of not authorized functions
 
-      iex> ActionInterpreter.parse({{:atom, "actions"}, [line: 1],
-      ...>   [
-      ...>     [{{:atom, "triggered_by"}, {{:atom, "transaction"}, [line: 1], nil}}],
-      ...>     [
-      ...>       do: {{:., [line: 2],
+      iex> ActionInterpreter.parse(
+      ...>   {{:atom, "actions"}, [line: 1],
+      ...>    [
+      ...>      [{{:atom, "triggered_by"}, {{:atom, "transaction"}, [line: 1], nil}}],
+      ...>      [
+      ...>        do:
+      ...>          {{:., [line: 2],
       ...>            [{:__aliases__, [line: 2], [atom: "System"]}, {:atom, "user_home"}]},
-      ...>      [line: 2], []}
-      ...>     ]
-      ...>   ]}
+      ...>           [line: 2], []}
+      ...>      ]
+      ...>    ]}
       ...> )
       {:error, "unexpected term - System - L2"}
 

@@ -21,8 +21,10 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   ## Examples
 
       iex> {:ok, _} = OriginKeyLookup.start_link()
-      iex> { :ets.info(:archethic_origin_keys)[:type], :ets.info(:archethic_origin_key_by_type)[:type] }
-      { :set, :bag }
+      ...> 
+      ...> {:ets.info(:archethic_origin_keys)[:type],
+      ...>  :ets.info(:archethic_origin_key_by_type)[:type]}
+      {:set, :bag}
   """
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
@@ -45,21 +47,21 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   ## Examples
 
       iex> OriginKeyLookup.start_link()
-      iex> :ok = OriginKeyLookup.add_public_key(:software, "key1")
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
-      iex> { :ets.tab2list(:archethic_origin_keys), :ets.tab2list(:archethic_origin_key_by_type) }
+      ...> :ok = OriginKeyLookup.add_public_key(:software, "key1")
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
+      ...> {:ets.tab2list(:archethic_origin_keys), :ets.tab2list(:archethic_origin_key_by_type)}
       {
-          [
-            {"key1", :software},
-            {"key2", :hardware},
-            {"key3", :hardware}
-          ],
-          [
-            {:hardware, "key2"},
-            {:hardware, "key3"},
-            {:software, "key1"}
-          ],
+        [
+          {"key1", :software},
+          {"key2", :hardware},
+          {"key3", :hardware}
+        ],
+        [
+          {:hardware, "key2"},
+          {:hardware, "key3"},
+          {:software, "key1"}
+        ]
       }
   """
   @spec add_public_key(
@@ -78,9 +80,9 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   ## Examples
 
       iex> OriginKeyLookup.start_link()
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
-      iex> OriginKeyLookup.list_public_keys(:hardware)
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
+      ...> OriginKeyLookup.list_public_keys(:hardware)
       ["key2", "key3"]
   """
   @spec list_public_keys(SharedSecrets.origin_family()) :: list(Crypto.key())
@@ -96,10 +98,10 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   ## Examples
 
       iex> OriginKeyLookup.start_link()
-      iex> :ok = OriginKeyLookup.add_public_key(:software, "key1")
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
-      iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
-      iex> OriginKeyLookup.list_public_keys()
+      ...> :ok = OriginKeyLookup.add_public_key(:software, "key1")
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
+      ...> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
+      ...> OriginKeyLookup.list_public_keys()
       [
         "key1",
         "key2",
@@ -118,8 +120,8 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   ## Examples
 
       iex> OriginKeyLookup.start_link()
-      iex> :ok = OriginKeyLookup.add_public_key(:software, "key1")
-      iex> OriginKeyLookup.has_public_key?("key1")
+      ...> :ok = OriginKeyLookup.add_public_key(:software, "key1")
+      ...> OriginKeyLookup.has_public_key?("key1")
       true
   """
   @spec has_public_key?(Crypto.key()) :: boolean()

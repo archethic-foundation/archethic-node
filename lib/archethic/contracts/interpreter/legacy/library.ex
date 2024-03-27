@@ -66,7 +66,10 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
 
   ## Examples
 
-      iex> Library.json_path_extract("{ \"firstName\": \"John\", \"lastName\": \"Doe\"}", "$.firstName")
+      iex> Library.json_path_extract(
+      ...>   "{ \"firstName\": \"John\", \"lastName\": \"Doe\"}",
+      ...>   "$.firstName"
+      ...> )
       "John"
 
       iex> Library.json_path_extract("{ \"firstName\": \"John\", \"lastName\": \"Doe\"}", "$.book")
@@ -94,7 +97,10 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
 
   ## Examples
 
-       iex> Library.json_path_match?("{\"1622541930\":{\"uco\":{\"eur\":0.176922,\"usd\":0.21642}}}", "$.*.uco.usd")
+       iex> Library.json_path_match?(
+       ...>   "{\"1622541930\":{\"uco\":{\"eur\":0.176922,\"usd\":0.21642}}}",
+       ...>   "$.*.uco.usd"
+       ...> )
        true
   """
   @spec json_path_match?(binary(), binary()) :: boolean()
@@ -113,7 +119,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
 
   ## Examples
 
-      iex> Library.hash("hello","sha256")
+      iex> Library.hash("hello", "sha256")
       "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824"
 
       iex> Library.hash("hello")

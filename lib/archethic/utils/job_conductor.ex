@@ -6,26 +6,26 @@ defmodule Archethic.Utils.JobConductor do
   ## Example
 
       iex> f = fn x ->
-      iex>   :persistent_term.put("s_#{x}", System.system_time)
-      iex>   Process.sleep(50)
-      iex>   :persistent_term.put("e_#{x}", System.system_time)
-      iex>   :done
-      iex> end
-      iex>
-      iex> {:ok, _} = JobConductor.start_link [name: JobConductor]
-      iex>
-      iex> spawn(fn -> JobConductor.conduct f, [1] end)
-      iex> spawn(fn -> JobConductor.conduct f, [2] end)
-      iex> Process.sleep(5) # let spawned calls some time to spawn
-      iex>
-      iex> JobConductor.conduct f, [3]
+      ...>   :persistent_term.put("s_#{x}", System.system_time())
+      ...>   Process.sleep(50)
+      ...>   :persistent_term.put("e_#{x}", System.system_time())
+      ...>   :done
+      ...> end
+      ...> 
+      ...> {:ok, _} = JobConductor.start_link(name: JobConductor)
+      ...> 
+      ...> spawn(fn -> JobConductor.conduct(f, [1]) end)
+      ...> spawn(fn -> JobConductor.conduct(f, [2]) end)
+      ...> # let spawned calls some time to spawn
+      ...> Process.sleep(5)
+      ...> 
+      ...> JobConductor.conduct(f, [3])
       {:ok, :done}
-      iex>
       iex> e1 = :persistent_term.get("e_1")
-      iex> s2 = :persistent_term.get("s_2")
-      iex> e2 = :persistent_term.get("e_2")
-      iex> s3 = :persistent_term.get("s_3")
-      iex> e1 < s2 and e2 < s3
+      ...> s2 = :persistent_term.get("s_2")
+      ...> e2 = :persistent_term.get("e_2")
+      ...> s3 = :persistent_term.get("s_3")
+      ...> e1 < s2 and e2 < s3
       true
   """
   @typedoc "Return value of `conduct` function"
@@ -45,15 +45,13 @@ defmodule Archethic.Utils.JobConductor do
 
   ## Example
 
-      iex> {:ok, c} = JobConductor.start_link []
-      iex>
-      iex> JobConductor.conduct(fn -> :done end, [], c)
+      iex> {:ok, c} = JobConductor.start_link([])
+      ...> 
+      ...> JobConductor.conduct(fn -> :done end, [], c)
       {:ok, :done}
-      iex>
       iex> JobConductor.conduct(fn -> raise "exception" end, [], c)
       {:rescued, %RuntimeError{message: "exception"}}
-      iex>
-      iex> JobConductor.conduct(fn -> throw :garbage end, [], c)
+      iex> JobConductor.conduct(fn -> throw(:garbage) end, [], c)
       {:caught, :garbage}
   """
   @spec conduct(function, [any], GenServer.server(), timeout) :: conduct

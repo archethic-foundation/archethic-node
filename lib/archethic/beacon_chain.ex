@@ -76,9 +76,10 @@ defmodule Archethic.BeaconChain do
 
   ## Examples
 
-      iex> BeaconChain.subset_from_address(<<0, 0, 44, 242, 77, 186, 95, 176, 163,
-      ...> 14, 38, 232, 59, 42, 197, 185, 226, 158, 51, 98, 147, 139, 152, 36,
-      ...> 27, 22, 30, 92, 31, 167, 66, 94, 115, 4, >>)
+      iex> BeaconChain.subset_from_address(
+      ...>   <<0, 0, 44, 242, 77, 186, 95, 176, 163, 14, 38, 232, 59, 42, 197, 185, 226, 158, 51,
+      ...>     98, 147, 139, 152, 36, 27, 22, 30, 92, 31, 167, 66, 94, 115, 4>>
+      ...> )
       <<44>>
   """
   @spec subset_from_address(binary()) :: binary()

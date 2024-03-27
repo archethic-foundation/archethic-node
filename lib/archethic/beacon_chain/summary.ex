@@ -66,117 +66,179 @@ defmodule Archethic.BeaconChain.Summary do
 
     ### Aggregate the P2P view and the transaction summaries for a static list of nodes during the beacon chain
 
-      iex> Summary.aggregate_slots(%Summary{}, [
-      ...>  %Slot{
-      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_attestations: [
-      ...>     %ReplicationAttestation {
-      ...>       transaction_summary: %TransactionSummary{
-      ...>         address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>              99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>         type: :transfer,
-      ...>         timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>         fee: 10_000_000
-      ...>       }
+      iex> Summary.aggregate_slots(
+      ...>   %Summary{},
+      ...>   [
+      ...>     %Slot{
+      ...>       slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>       transaction_attestations: [
+      ...>         %ReplicationAttestation{
+      ...>           transaction_summary: %TransactionSummary{
+      ...>             address:
+      ...>               <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65,
+      ...>                 232, 166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49,
+      ...>                 204, 255, 12>>,
+      ...>             type: :transfer,
+      ...>             timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>             fee: 10_000_000
+      ...>           }
+      ...>         }
+      ...>       ],
+      ...>       p2p_view: %{availabilities: <<600::16, 0::16, 600::16>>}
+      ...>     },
+      ...>     %Slot{
+      ...>       slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>       transaction_attestations: [
+      ...>         %ReplicationAttestation{
+      ...>           transaction_summary: %TransactionSummary{
+      ...>             address:
+      ...>               <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65,
+      ...>                 232, 166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49,
+      ...>                 204, 255, 12>>,
+      ...>             type: :transfer,
+      ...>             timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>             fee: 10_000_000
+      ...>           }
+      ...>         }
+      ...>       ],
+      ...>       p2p_view: %{availabilities: <<600::16, 0::16, 600::16>>}
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:50Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:50Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 200::16, 470::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:40Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 500::16, 0::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:40Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:40Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:30Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:30Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:30Z]
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<600::16, 0::16, 600::16>>}
-      ...>  },
-      ...>  %Slot{
-      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_attestations: [
-      ...>     %ReplicationAttestation {
-      ...>       transaction_summary: %TransactionSummary{
-      ...>         address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>              99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>         type: :transfer,
-      ...>         timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>         fee: 10_000_000
-      ...>       }
-      ...>     }
+      ...>   [
+      ...>     %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
+      ...>     %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
+      ...>     %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]}
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<600::16, 0::16, 600::16>>}
-      ...>  },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 200::16, 470::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 500::16, 0::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
-      ...> ], [
-      ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
-      ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
-      ...>   %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]}
-      ...> ], SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *"))
+      ...>   SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *")
+      ...> )
       %Summary{
-          transaction_attestations: [
-            %ReplicationAttestation{
-              transaction_summary: %TransactionSummary{
-                  address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-                  type: :transfer,
-                  timestamp: ~U[2020-06-25 15:11:53Z],
-                  fee: 10_000_000
-              }
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              address:
+                <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232,
+                  166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+              type: :transfer,
+              timestamp: ~U[2020-06-25 15:11:53Z],
+              fee: 10_000_000
             }
-          ],
+          }
+        ],
         node_availabilities: <<1::1, 0::1, 1::1>>,
         node_average_availabilities: [1.0, 0.4601449275362319, 0.7717391304347827]
       }
 
     ### Aggregate the P2P view and the transaction attestations with new node joining during the beacon chain epoch
 
-      iex> Summary.aggregate_slots(%Summary{}, [
-      ...>  %Slot{
-      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_attestations: [
-      ...>     %ReplicationAttestation {
-      ...>        transaction_summary: %TransactionSummary{
-      ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>               99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>          type: :transfer,
-      ...>          timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>          fee: 10_000_000
-      ...>        }
+      iex> Summary.aggregate_slots(
+      ...>   %Summary{},
+      ...>   [
+      ...>     %Slot{
+      ...>       slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>       transaction_attestations: [
+      ...>         %ReplicationAttestation{
+      ...>           transaction_summary: %TransactionSummary{
+      ...>             address:
+      ...>               <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65,
+      ...>                 232, 166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49,
+      ...>                 204, 255, 12>>,
+      ...>             type: :transfer,
+      ...>             timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>             fee: 10_000_000
+      ...>           }
+      ...>         }
+      ...>       ],
+      ...>       p2p_view: %{availabilities: <<0::16, 0::16, 600::16, 600::16>>}
+      ...>     },
+      ...>     %Slot{
+      ...>       slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>       transaction_attestations: [
+      ...>         %ReplicationAttestation{
+      ...>           transaction_summary: %TransactionSummary{
+      ...>             address:
+      ...>               <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65,
+      ...>                 232, 166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49,
+      ...>                 204, 255, 12>>,
+      ...>             type: :transfer,
+      ...>             timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>             fee: 10_000_000
+      ...>           }
+      ...>         }
+      ...>       ],
+      ...>       p2p_view: %{availabilities: <<0::16, 0::16, 600::16, 600::16>>}
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<200::16, 300::16, 600::16, 600::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:50Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<200::16, 200::16, 600::16, 600::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:50Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 200::16, 600::16, 600::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:50Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:40Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:40Z]
+      ...>     },
+      ...>     %Slot{
+      ...>       p2p_view: %{availabilities: <<600::16, 600::16, 0::16>>},
+      ...>       slot_time: ~U[2020-06-25 15:11:30Z]
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<0::16, 0::16, 600::16, 600::16>>}
-      ...>  },
-      ...>  %Slot{
-      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_attestations: [
-      ...>     %ReplicationAttestation {
-      ...>        transaction_summary: %TransactionSummary{
-      ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>               99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>          type: :transfer,
-      ...>          timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>          fee: 10_000_000
-      ...>        }
-      ...>     }
+      ...>   [
+      ...>     %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
+      ...>     %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
+      ...>     %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]},
+      ...>     %Node{first_public_key: "key4", enrollment_date: ~U[2020-06-25 15:11:45Z]}
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<0::16, 0::16, 600::16, 600::16>>}
-      ...>  },
-      ...>  %Slot{ p2p_view: %{availabilities: <<200::16, 300::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<200::16, 200::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 200::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 0::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
-      ...> ], [
-      ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
-      ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
-      ...>   %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]},
-      ...>   %Node{first_public_key: "key4", enrollment_date: ~U[2020-06-25 15:11:45Z]}
-      ...> ], SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *"))
+      ...>   SlotTimer.get_time_interval(~U[2020-06-25 15:12:00Z], "0 */10 * * * * *")
+      ...> )
       %Summary{
         transaction_attestations: [
-          %ReplicationAttestation {
+          %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
-              address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+              address:
+                <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232,
+                  166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
               type: :transfer,
               timestamp: ~U[2020-06-25 15:11:53Z],
               fee: 10_000_000
@@ -184,7 +246,12 @@ defmodule Archethic.BeaconChain.Summary do
           }
         ],
         node_availabilities: <<1::1, 0::1, 1::1, 1::1>>,
-        node_average_availabilities: [0.5434782608695653, 0.48369565217391314, 0.6231884057971014, 1.0]
+        node_average_availabilities: [
+          0.5434782608695653,
+          0.48369565217391314,
+          0.6231884057971014,
+          1.0
+        ]
       }
   """
   @spec aggregate_slots(

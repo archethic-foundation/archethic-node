@@ -516,20 +516,22 @@ defmodule Archethic.TransactionChain.Transaction do
 
       iex> %Transaction{
       ...>   cross_validation_stamps: [
-      ...>      %CrossValidationStamp{inconsistencies: []},
-      ...>      %CrossValidationStamp{inconsistencies: [:invalid_ledger_operations]},
-      ...>      %CrossValidationStamp{inconsistencies: [:invalid_proof_of_work]}
+      ...>     %CrossValidationStamp{inconsistencies: []},
+      ...>     %CrossValidationStamp{inconsistencies: [:invalid_ledger_operations]},
+      ...>     %CrossValidationStamp{inconsistencies: [:invalid_proof_of_work]}
       ...>   ]
-      ...> } |> Transaction.atomic_commitment?
+      ...> }
+      ...> |> Transaction.atomic_commitment?()
       false
 
       iex> %Transaction{
       ...>   cross_validation_stamps: [
-      ...>      %CrossValidationStamp{inconsistencies: []},
-      ...>      %CrossValidationStamp{inconsistencies: []},
-      ...>      %CrossValidationStamp{inconsistencies: []}
+      ...>     %CrossValidationStamp{inconsistencies: []},
+      ...>     %CrossValidationStamp{inconsistencies: []},
+      ...>     %CrossValidationStamp{inconsistencies: []}
       ...>   ]
-      ...> } |> Transaction.atomic_commitment?
+      ...> }
+      ...> |> Transaction.atomic_commitment?()
       true
   """
   @spec atomic_commitment?(t()) :: boolean()
