@@ -64,13 +64,23 @@ defmodule Mix.Tasks.Archethic.Db do
   end
 
   defp rebuild_utxo do
+    utxo_dirname = FileImpl.base_path()
+
     File.cp_r!(
-      FileImpl.base_path(),
-      FileImpl.base_path() <>
-        "_backup-#{DateTime.utc_now() |> DateTime.to_unix()}"
+      utxo_dirname,
+      utxo_dirname <> "_backup-#{DateTime.utc_now() |> DateTime.to_unix()}"
     )
 
-    File.rm_rf!(FileImpl.base_path())
+    resolved_addresses =
+      utxo_dirname
+      |> File.ls!()
+      |> Enum.map(fn filename ->
+        genesis = Base.decode16!(filename, case: :mixed)
+        {genesis, genesis}
+      end)
+      |> Map.new()
+
+    File.rm_rf!(utxo_dirname)
 
     Application.ensure_started(:telemetry)
 
@@ -135,7 +145,7 @@ defmodule Mix.Tasks.Archethic.Db do
       :ets.tab2list(:sorted_transactions)
       |> Enum.chunk_every(2000)
       |> Enum.reduce(
-        %{ingest_task: nil, resolved_addresses: %{}},
+        %{ingest_task: nil, resolved_addresses: resolved_addresses},
         fn addresses, %{ingest_task: ingest_task, resolved_addresses: resolved_addresses} ->
           txs =
             Task.async_stream(addresses, &fetch_transaction(&1, authorized_nodes),
