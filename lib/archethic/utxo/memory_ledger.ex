@@ -93,11 +93,11 @@ defmodule Archethic.UTXO.MemoryLedger do
   """
   @spec remove_consumed_inputs(
           genesis_address :: Crypto.prepended_hash(),
-          utxos :: list(VersionedUnspentOutput.t())
+          consumed_inputs :: list(UnspentOutput.t())
         ) :: :ok
-  def remove_consumed_inputs(genesis_address, utxos) do
+  def remove_consumed_inputs(genesis_address, consumed_inputs) do
     :ets.lookup(@table_name, genesis_address)
-    |> Enum.filter(fn {_, utxo} -> Enum.member?(utxos, utxo) end)
+    |> Enum.filter(fn {_, utxo} -> Enum.member?(consumed_inputs, utxo.unspent_output) end)
     |> Enum.each(fn elem = {_, utxo} ->
       size = :erlang.external_size(utxo)
       :ets.delete_object(@table_name, elem)

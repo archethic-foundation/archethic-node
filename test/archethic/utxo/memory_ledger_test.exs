@@ -219,7 +219,9 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
 
       assert %{size: ^expected_size} = MemoryLedger.get_genesis_stats(address)
 
-      MemoryLedger.remove_consumed_inputs(address, [utxo2])
+      MemoryLedger.remove_consumed_inputs(address, [
+        VersionedUnspentOutput.unwrap_unspent_output(utxo2)
+      ])
 
       expected_size = div(expected_size, 2)
 

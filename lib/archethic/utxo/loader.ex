@@ -108,10 +108,12 @@ defmodule Archethic.UTXO.Loader do
 
     transaction_unspent_outputs = stamp_unspent_outputs(stamp, transaction_address)
 
+    consumed_inputs = VersionedUnspentOutput.unwrap_unspent_outputs(consumed_inputs)
+
     new_unspent_outputs =
       genesis_address
       |> UTXO.stream_unspent_outputs()
-      |> Stream.reject(&Enum.member?(consumed_inputs, &1))
+      |> Stream.reject(&Enum.member?(consumed_inputs, &1.unspent_output))
       |> Enum.concat(transaction_unspent_outputs)
 
     # We compact all the unspent outputs into new ones, cleaning the previous unspent outputs
