@@ -17,6 +17,8 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -881,6 +883,7 @@ defmodule Archethic.Contracts.WorkerTest do
               genesis
               |> UTXO.stream_unspent_outputs()
               |> Enum.find(&(&1.unspent_output.from == valid_trigger_tx_address))
+              |> VersionedUnspentOutput.unwrap_unspent_output()
 
             UTXO.MemoryLedger.remove_consumed_inputs(genesis, [utxo])
             send(me, :transaction_valid_sent)
