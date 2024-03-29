@@ -132,7 +132,7 @@ defmodule Archethic.Contracts.Interpreter do
           opts :: execute_opts()
         ) ::
           {:ok, nil | Transaction.t(), State.t(), logs :: list(String.t())}
-          | {:error, err :: String.t()}
+          | {:error, :trigger_not_exists}
           | {:error, err :: Exception.t(), stacktrace :: term(), logs :: list(String.t())}
 
   def execute_trigger(
@@ -151,7 +151,7 @@ defmodule Archethic.Contracts.Interpreter do
       ) do
     case Map.get(triggers, trigger_key) do
       nil ->
-        {:error, "Trigger not found on the contract"}
+        {:error, :trigger_not_exists}
 
       %{args: args, ast: trigger_code} ->
         timestamp_now = Keyword.get(opts, :time_now, DateTime.utc_now()) |> DateTime.to_unix()

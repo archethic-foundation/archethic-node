@@ -118,8 +118,7 @@ defmodule Archethic.Contracts do
       )
     end
     |> cache_interpreter_execute(key,
-      timeout_err_msg: "Trigger's execution timed-out",
-      rescue_err: :trigger_failure
+      timeout_err_msg: "Trigger's execution timed-out"
     )
     |> cast_trigger_result(state, contract_tx)
   end
@@ -156,7 +155,7 @@ defmodule Archethic.Contracts do
         {:error,
          %Failure{
            logs: logs,
-           error: "Execution was successful but the state exceed the threshold",
+           error: :state_exceed_threshold,
            stacktrace: [],
            user_friendly_error: "Execution was successful but the state exceed the threshold"
          }}
@@ -166,15 +165,21 @@ defmodule Archethic.Contracts do
 
   defp cast_trigger_result(err = {:error, %Failure{}}, _, _), do: err
 
-  defp cast_trigger_result({:error, err}, _, _) do
-    {:error, %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}}
+  defp cast_trigger_result({:error, :trigger_not_exists}, _, _) do
+    {:error,
+     %Failure{
+       logs: [],
+       error: :trigger_not_exists,
+       stacktrace: [],
+       user_friendly_error: "Trigger not found in the contract"
+     }}
   end
 
   defp cast_trigger_result({:error, err, stacktrace, logs}, _, _) do
     {:error,
      %Failure{
        logs: logs,
-       error: err,
+       error: :execution_raise,
        stacktrace: stacktrace,
        user_friendly_error: append_line_to_error(err, stacktrace)
      }}
@@ -262,7 +267,7 @@ defmodule Archethic.Contracts do
                 {:error,
                  %Failure{
                    user_friendly_error: append_line_to_error(err, __STACKTRACE__),
-                   error: :function_failure,
+                   error: :execution_raise,
                    stacktrace: __STACKTRACE__,
                    logs: []
                  }}
@@ -350,17 +355,6 @@ defmodule Archethic.Contracts do
       maybe_recipient,
       inputs
     )
-  rescue
-    err ->
-      stacktrace = __STACKTRACE__
-
-      {:error,
-       %Failure{
-         error: err,
-         user_friendly_error: append_line_to_error(err, stacktrace),
-         logs: [],
-         stacktrace: stacktrace
-       }}
   end
 
   defp do_execute_condition(nil, :inherit, _, _, _, _, _), do: {:ok, []}
@@ -368,7 +362,7 @@ defmodule Archethic.Contracts do
   defp do_execute_condition(nil, _, _, _, _, _, _) do
     {:error,
      %Failure{
-       error: "Missing condition",
+       error: :missing_condition,
        user_friendly_error: "Missing condition",
        logs: [],
        stacktrace: []
@@ -408,8 +402,7 @@ defmodule Archethic.Contracts do
         end
       end,
       key,
-      timeout_err_msg: "Condition's execution timed-out",
-      rescue_err: :condition_failure
+      timeout_err_msg: "Condition's execution timed-out"
     )
   end
 
@@ -529,7 +522,6 @@ defmodule Archethic.Contracts do
 
   defp cache_interpreter_execute(fun, key, opts) do
     timeout = Keyword.get(opts, :timeout, 5_000)
-    rescue_err = Keyword.get(opts, :rescue_err, :execution_failure)
 
     func = fn ->
       try do
@@ -547,7 +539,7 @@ defmodule Archethic.Contracts do
         {:error,
          %Failure{
            user_friendly_error: append_line_to_error(err, stacktrace),
-           error: rescue_err,
+           error: :execution_raise,
            stacktrace: stacktrace,
            logs: []
          }}
@@ -558,7 +550,7 @@ defmodule Archethic.Contracts do
   rescue
     _ ->
       timeout_err_msg = Keyword.get(opts, :timeout_err_msg, "Contract's execution timeouts")
-      {:error, %Failure{user_friendly_error: timeout_err_msg, error: :timeout}}
+      {:error, %Failure{user_friendly_error: timeout_err_msg, error: :execution_timeout}}
   end
 
   defp inputs_digest(inputs) do

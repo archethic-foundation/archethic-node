@@ -348,7 +348,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, "Trigger not found on the contract"} =
+      assert {:error, :trigger_not_exists} =
                Interpreter.execute_trigger(
                  {:transaction, "function", []},
                  Contract.from_transaction!(contract_tx),

@@ -38,7 +38,7 @@ defmodule ArchethicWeb.API.JsonRPC.ErrorTest do
 
       assert %{"code" => 207} = Error.get_error({:custom_error, :invalid_inherit_constraints, ""})
       assert %{"code" => 208} = Error.get_error({:custom_error, :parsing_contract, ""})
-      assert %{"code" => 250} = Error.get_error({:custom_error, :function_failure, ""})
+      assert %{"code" => 250} = Error.get_error({:custom_error, :execution_raise, ""})
       assert %{"code" => 251} = Error.get_error({:custom_error, :function_is_private, ""})
       assert %{"code" => 252} = Error.get_error({:custom_error, :function_does_not_exist, ""})
     end

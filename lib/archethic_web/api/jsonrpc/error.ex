@@ -40,7 +40,7 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   defp get_custom_code(:invalid_transaction_constraints), do: 206
   defp get_custom_code(:invalid_inherit_constraints), do: 207
   defp get_custom_code(:parsing_contract), do: 208
-  defp get_custom_code(:function_failure), do: 250
+  defp get_custom_code(:execution_raise), do: 250
   defp get_custom_code(:function_is_private), do: 251
   defp get_custom_code(:function_does_not_exist), do: 252
   defp get_custom_code(:function_timeout), do: 253
