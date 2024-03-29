@@ -6,9 +6,19 @@ defmodule Archethic.Contracts.Contract.Failure do
   @enforce_keys [:user_friendly_error]
   defstruct [:user_friendly_error, :error, stacktrace: [], logs: []]
 
+  @type error ::
+          :state_exceed_threshold
+          | :trigger_not_exists
+          | :execution_raise
+          | :execution_timeout
+          | :function_does_not_exist
+          | :function_is_private
+          | :function_timeout
+          | :missing_condition
+
   @type t :: %__MODULE__{
           user_friendly_error: String.t(),
-          error: term(),
+          error: error(),
           stacktrace: term(),
           logs: list(String.t())
         }

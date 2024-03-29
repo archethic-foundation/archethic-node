@@ -426,7 +426,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         resolve_last: false
       }
 
-      assert {:error, :function_failure, "There was an error while executing the function",
+      assert {:error, :execution_raise, "There was an error while executing the function",
               "bad argument in arithmetic expression - L4"} = CallContractFunction.execute(params)
     end
 
