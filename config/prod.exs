@@ -293,3 +293,9 @@ config :archethic, :throttle,
     period: 1000,
     limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "20") |> String.to_integer()
   ]
+
+if System.get_env("ARCHETHIC_OTLP_ENDPOINT") do
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: System.fetch("ARCHETHIC_OTLP_ENDPOINT")
+end

@@ -69,6 +69,8 @@ release :archethic_node do
     applications: [
       :runtime_tools,
       :observer_cli,
+      opentelemetry_exporter: :permanent,
+      opentelemetry: :temporary,
       archethic: :permanent
     ]
   )

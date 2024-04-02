@@ -102,6 +102,9 @@ defmodule Archethic.MixProject do
       {:telemetry_metrics_prometheus_core, "~> 1.1"},
       {:telemetry_poller, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.7"},
+      {:opentelemetry_exporter, "~> 1.6"},
+      {:opentelemetry, "~> 1.4"},
+      {:opentelemetry_api, "~> 1.2"},
 
       # Utils
       {:crontab, "~> 1.1"},

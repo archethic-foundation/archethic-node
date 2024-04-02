@@ -211,6 +211,10 @@ config :ex_cldr,
 
 config :ex_json_schema, :remote_schema_resolver, {Archethic.Utils, :local_schema_resolver!}
 
+config :opentelemetry,
+  resource: [service: %{name: "archethic"}],
+  traces_exporter: :otlp
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config("#{Mix.env()}.exs")
