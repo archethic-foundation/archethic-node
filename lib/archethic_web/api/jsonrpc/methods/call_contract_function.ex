@@ -64,11 +64,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
 
   defp get_inputs(contract_address, _resolve? = true) do
     case Archethic.fetch_genesis_address(contract_address) do
-      {:ok, genesis_address} ->
-        {:ok, Archethic.get_unspent_outputs(genesis_address)}
-
-      {:error, _} = e ->
-        e
+      {:ok, genesis_address} -> {:ok, Archethic.get_unspent_outputs(genesis_address)}
+      {:error, _} = e -> e
     end
   end
 

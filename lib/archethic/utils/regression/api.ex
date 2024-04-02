@@ -164,7 +164,7 @@ defmodule Archethic.Utils.Regression.Api do
           data :: TransactionData.t(),
           endpoint :: t(),
           opts :: Keyword.t()
-        ) :: {:ok, tx_address :: String.t()} | {:error, reason :: term()}
+        ) :: {:ok, tx_address :: Crypto.prepended_hash()} | {:error, reason :: term()}
   def send_transaction_with_await_replication(
         transaction_seed,
         tx_type,
@@ -219,7 +219,7 @@ defmodule Archethic.Utils.Regression.Api do
 
           {:ok, {:error, reason}} ->
             Logger.error(
-              "Transaction #{Base.encode16(tx.address)}confirmation fails - #{inspect(reason)}"
+              "Transaction #{Base.encode16(tx.address)} confirmation fails - #{inspect(reason)}"
             )
 
             {:error, reason}
@@ -389,6 +389,40 @@ defmodule Archethic.Utils.Regression.Api do
          ) do
       {:ok, %{"data" => %{"transactionInputs" => inputs}}} ->
         inputs
+    end
+  end
+
+  @doc """
+  Call the API to execute a public function
+  """
+  @spec call_function(
+          contract_address :: Crypto.prepended_hash(),
+          function_name :: String.t(),
+          args :: list(),
+          resolve_last :: boolean(),
+          endpoint :: t()
+        ) :: {:ok, result :: term()} | {:error, error :: term()}
+  def call_function(contract_address, function_name, args, resolve_last, endpoint) do
+    request = %{
+      "jsonrpc" => "2.0",
+      "id" => 1,
+      "method" => "contract_fun",
+      "params" => %{
+        "contract" => Base.encode16(contract_address),
+        "function" => function_name,
+        "args" => args,
+        "resolve_last" => resolve_last
+      }
+    }
+
+    case WebClient.with_connection(
+           endpoint.host,
+           endpoint.port,
+           &WebClient.json(&1, "/api/rpc", request),
+           endpoint.protocol
+         ) do
+      {:ok, %{"result" => result}} -> {:ok, result}
+      {:ok, %{"error" => error}} -> {:error, error}
     end
   end
 
