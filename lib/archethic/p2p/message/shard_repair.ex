@@ -11,6 +11,7 @@ defmodule Archethic.P2P.Message.ShardRepair do
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
@@ -19,7 +20,7 @@ defmodule Archethic.P2P.Message.ShardRepair do
           io_addresses: list(Crypto.prepended_hash())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(
         %__MODULE__{
           first_address: first_address,

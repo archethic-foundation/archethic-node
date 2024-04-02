@@ -5,9 +5,9 @@ defmodule Archethic.P2P.Message.GetTransactionSummary do
   @enforce_keys [:address]
   defstruct [:address]
 
-  alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.TransactionChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.TransactionSummaryMessage
   alias Archethic.P2P.Message.NotFound
 
@@ -15,7 +15,8 @@ defmodule Archethic.P2P.Message.GetTransactionSummary do
           address: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryMessage.t() | NotFound.t()
+  @spec process(__MODULE__.t(), Message.metadata()) ::
+          TransactionSummaryMessage.t() | NotFound.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_transaction_summary(address) do
       {:ok, summary} ->

@@ -5,16 +5,16 @@ defmodule Archethic.P2P.Message.NotifyPreviousChain do
 
   defstruct [:address]
 
-  alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.Replication
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
           address: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(%__MODULE__{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)
     %Ok{}

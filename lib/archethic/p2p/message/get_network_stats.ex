@@ -8,7 +8,7 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
 
   alias Archethic.BeaconChain.NetworkCoordinates
   alias Archethic.BeaconChain.Subset.StatsCollector
-  alias Archethic.Crypto
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.NetworkStats
 
   @type t :: %__MODULE__{
@@ -39,7 +39,7 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   @doc """
   Process the message to get the network stats from the summary cache
   """
-  @spec process(t(), Crypto.key()) :: NetworkStats.t()
+  @spec process(t(), Message.metadata()) :: NetworkStats.t()
   def process(%__MODULE__{summary_time: summary_time}, _node_public_key) do
     %NetworkStats{stats: StatsCollector.get(summary_time, NetworkCoordinates.timeout())}
   end

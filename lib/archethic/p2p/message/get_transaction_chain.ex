@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
 
   alias Archethic.Crypto
   alias Archethic.DB
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.TransactionChain
   alias Archethic.Utils
@@ -18,7 +19,7 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
         }
 
   # paging_state received contains binary offset for next page, to be used for query
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: TransactionList.t()
   def process(%__MODULE__{address: tx_address, paging_state: paging_state, order: order}, _) do
     {chain, more?, paging_address} =
       case TransactionChain.resolve_paging_state(tx_address, paging_state, order) do

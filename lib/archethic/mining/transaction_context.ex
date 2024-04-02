@@ -122,7 +122,7 @@ defmodule Archethic.Mining.TransactionContext do
         TaskSupervisor,
         node_public_keys,
         fn node_public_key ->
-          {node_public_key, P2P.send_message(node_public_key, %Ping{}, 1000)}
+          {node_public_key, P2P.send_message(node_public_key, %Ping{}, timeout: 1000)}
         end,
         on_timeout: :kill_task
       )

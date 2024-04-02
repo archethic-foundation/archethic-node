@@ -75,7 +75,14 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   @doc """
   Send a message to the given node using the right connection bearer
   """
-  @spec send_message(Node.t(), message :: Message.request(), timeout :: non_neg_integer()) ::
+  @spec send_message(
+          node :: Node.t(),
+          message :: Message.request(),
+          options :: [
+            timeout: timeout(),
+            trace: binary()
+          ]
+        ) ::
           {:ok, Message.response()}
           | {:error, :timeout}
           | {:error, :closed}
@@ -83,13 +90,17 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   def send_message(
         %Node{first_public_key: node_public_key},
         message,
-        timeout
+        opts \\ []
       ) do
     if node_public_key == Crypto.first_node_public_key() do
       # if the node was itself just process the message
-      {:ok, Message.process(message, node_public_key)}
+      {:ok,
+       Message.process(message, %{
+         sender_public_key: node_public_key,
+         trace: Keyword.get(opts, :trace, "")
+       })}
     else
-      case Connection.send_message(node_public_key, message, timeout) do
+      case Connection.send_message(node_public_key, message, opts) do
         {:ok, data} ->
           {:ok, data}
 

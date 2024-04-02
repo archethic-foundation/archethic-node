@@ -8,9 +8,9 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
   @enforce_keys [:address, :signature]
   defstruct [:address, :signature]
 
-  alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.Utils
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
@@ -18,13 +18,13 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
           signature: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(
         %__MODULE__{
           address: address,
           signature: signature
         },
-        node_public_key
+        %{sender_public_key: node_public_key}
       ) do
     Mining.confirm_replication(address, signature, node_public_key)
     %Ok{}

@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
@@ -23,7 +24,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           genesis_address: Crypto.prepended_hash()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | ReplicationError.t()
   def process(
         %__MODULE__{
           transaction:

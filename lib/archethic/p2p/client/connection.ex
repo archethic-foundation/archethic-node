@@ -41,14 +41,19 @@ defmodule Archethic.P2P.Client.Connection do
   It may returns `{:error, :timeout}` if either the send or the receiving take more than the timeout value provided.
   It may also returns `{:error, :closed}` is the socket closed or any error in the transport layer
   """
-  @spec send_message(Crypto.key(), Message.request(), timeout()) ::
+  @spec send_message(
+          node_public_key :: Crypto.key(),
+          request :: Message.request(),
+          opts :: [timeout: timeout(), trace: binary]
+        ) ::
           {:ok, Message.response()}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(public_key, message, timeout \\ 3_000) do
+  def send_message(public_key, message, opts \\ []) do
     ref = make_ref()
 
-    GenStateMachine.cast(via_tuple(public_key), {:send_message, ref, self(), message, timeout})
+    timeout = Keyword.get(opts, :timeout, 3_000)
+    GenStateMachine.cast(via_tuple(public_key), {:send_message, ref, self(), message, opts})
 
     receive do
       {^ref, msg} ->
@@ -265,7 +270,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event(
         :cast,
-        {:send_message, ref, from, _msg, _timeout},
+        {:send_message, ref, from, _msg, _opts},
         :disconnected,
         _data
       ) do
@@ -275,7 +280,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event(
         :cast,
-        {:send_message, ref, from, message, timeout},
+        {:send_message, ref, from, message, opts},
         {:connected, socket},
         data = %{
           request_id: request_id,
@@ -299,7 +304,8 @@ defmodule Archethic.P2P.Client.Connection do
               message: message,
               message_id: request_id,
               sender_public_key: Crypto.first_node_public_key(),
-              signature: signature
+              signature: signature,
+              trace: Keyword.get(opts, :trace, "")
             },
             node_public_key
           )
@@ -325,6 +331,8 @@ defmodule Archethic.P2P.Client.Connection do
 
         res
       end)
+
+    timeout = Keyword.get(opts, :timeout, 3_000)
 
     new_data =
       data

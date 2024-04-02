@@ -216,6 +216,9 @@ defmodule Archethic.P2P.Message do
   @doc """
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
   """
-  @spec process(request(), Crypto.key()) :: response()
-  def process(msg, key), do: msg.__struct__.process(msg, key)
+  @spec process(request(), metadata()) ::
+          response()
+  def process(msg, metadata), do: msg.__struct__.process(msg, metadata)
+
+  @type metadata() :: %{sender_public_key: Crypto.key(), trace: binary()}
 end

@@ -10,9 +10,11 @@ defmodule Archethic.P2P.Message.NotifyReplicationValidation do
 
   alias Archethic.Utils
   alias Archethic.Mining
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
 
-  def process(%__MODULE__{address: address}, node_public_key) do
+  @spec process(t(), Message.metadata()) :: Ok.t()
+  def process(%__MODULE__{address: address}, %{sender_public_key: node_public_key}) do
     Mining.notify_replication_validation(address, node_public_key)
     %Ok{}
   end

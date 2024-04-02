@@ -25,6 +25,7 @@ defmodule Archethic.P2P.Message.StartMining do
   alias Archethic.Mining
   alias Archethic.Utils
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.SelfRepair.NetworkChain
@@ -41,7 +42,7 @@ defmodule Archethic.P2P.Message.StartMining do
           contract_context: nil | Contract.Context.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | Error.t()
   def process(
         %__MODULE__{
           transaction: tx = %Transaction{},

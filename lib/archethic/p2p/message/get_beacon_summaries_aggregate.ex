@@ -3,9 +3,9 @@ defmodule Archethic.P2P.Message.GetBeaconSummariesAggregate do
   Represents a message to get a beacon summary aggregate
   """
 
-  alias Archethic.Crypto
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SummaryAggregate
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.NotFound
 
   @enforce_keys [:date]
@@ -15,7 +15,7 @@ defmodule Archethic.P2P.Message.GetBeaconSummariesAggregate do
           date: DateTime.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: SummaryAggregate.t() | NotFound.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: SummaryAggregate.t() | NotFound.t()
   def process(%__MODULE__{date: date}, _) do
     case BeaconChain.get_summaries_aggregate(date) do
       {:ok, aggregate} ->

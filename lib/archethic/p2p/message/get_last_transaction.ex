@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetLastTransaction do
 
   alias Archethic.Crypto
   alias Archethic.Utils
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.NotFound
   alias Archethic.TransactionChain
@@ -16,7 +17,7 @@ defmodule Archethic.P2P.Message.GetLastTransaction do
           address: Crypto.versioned_hash()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: NotFound.t() | Error.t() | Transaction.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: NotFound.t() | Error.t() | Transaction.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_last_transaction(address) do
       {:ok, tx} ->

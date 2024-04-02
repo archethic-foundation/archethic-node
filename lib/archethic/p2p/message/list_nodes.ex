@@ -2,8 +2,8 @@ defmodule Archethic.P2P.Message.ListNodes do
   @moduledoc """
   Represents a message to fetch the list of nodes
   """
-  alias Archethic.Crypto
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.NodeList
 
   defstruct [:authorized_and_available?]
@@ -12,7 +12,7 @@ defmodule Archethic.P2P.Message.ListNodes do
           authorized_and_available?: boolean()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: NodeList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: NodeList.t()
   def process(%__MODULE__{authorized_and_available?: false}, _),
     do: %NodeList{nodes: P2P.list_nodes()}
 

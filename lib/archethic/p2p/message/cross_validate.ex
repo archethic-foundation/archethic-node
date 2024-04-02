@@ -21,6 +21,7 @@ defmodule Archethic.P2P.Message.CrossValidate do
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Mining
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.Utils
 
@@ -36,7 +37,7 @@ defmodule Archethic.P2P.Message.CrossValidate do
           aggregated_utxos: list(VersionedUnspentOutput.t())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(
         %__MODULE__{
           address: tx_address,

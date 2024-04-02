@@ -11,6 +11,7 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
   alias Archethic.P2P
   alias Archethic.TransactionChain
   alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message
 
   @type t :: %__MODULE__{
           last_address: Crypto.versioned_hash(),
@@ -19,7 +20,7 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
           timestamp: DateTime.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(
         %__MODULE__{
           genesis_address: genesis_address,

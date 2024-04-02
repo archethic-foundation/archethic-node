@@ -186,7 +186,7 @@ defmodule Archethic do
             transaction_type: type
           )
 
-        _ ->
+        :ok ->
           :ok
       end
     end)

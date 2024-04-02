@@ -40,7 +40,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
           previous_storage_nodes_public_keys: list(Crypto.key())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(
         %__MODULE__{
           address: tx_address,

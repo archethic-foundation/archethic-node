@@ -9,11 +9,12 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
   alias Archethic.TransactionChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.AddressList
 
   @type t :: %__MODULE__{address: Crypto.prepended_hash()}
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: AddressList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: AddressList.t()
   def process(%__MODULE__{address: address, limit: limit}, _) do
     %AddressList{addresses: TransactionChain.get_next_addresses(address, limit)}
   end

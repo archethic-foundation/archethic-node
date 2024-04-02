@@ -63,9 +63,9 @@ defmodule Archethic.SelfRepairTest do
     end)
 
     MockClient
-    |> expect(:send_message, fn node, msg = %GetNextAddresses{address: "Alice2"}, timeout ->
+    |> expect(:send_message, fn node, msg = %GetNextAddresses{address: "Alice2"}, opts ->
       send(me, :get_next_addresses)
-      DefaultImpl.send_message(node, msg, timeout)
+      DefaultImpl.send_message(node, msg, opts)
     end)
 
     SelfRepair.update_last_address("Alice2", [node])

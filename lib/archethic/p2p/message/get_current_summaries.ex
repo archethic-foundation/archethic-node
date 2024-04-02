@@ -6,17 +6,17 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
   @enforce_keys [:subsets]
   defstruct [:subsets]
 
-  alias Archethic.Crypto
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Subset
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.TransactionSummaryList
 
   @type t :: %__MODULE__{
           subsets: list(binary())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: TransactionSummaryList.t()
   def process(%__MODULE__{subsets: subsets}, _) do
     transaction_summaries =
       Enum.flat_map(subsets, fn subset ->

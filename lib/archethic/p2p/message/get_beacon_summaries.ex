@@ -4,8 +4,8 @@ defmodule Archethic.P2P.Message.GetBeaconSummaries do
   """
   defstruct [:addresses]
 
-  alias Archethic.Crypto
   alias Archethic.BeaconChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -14,7 +14,7 @@ defmodule Archethic.P2P.Message.GetBeaconSummaries do
           addresses: list(binary())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: BeaconSummaryList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: BeaconSummaryList.t()
   def process(%__MODULE__{addresses: addresses}, _) do
     %BeaconSummaryList{
       summaries: BeaconChain.get_beacon_summaries(addresses)

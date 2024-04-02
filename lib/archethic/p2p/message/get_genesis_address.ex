@@ -6,16 +6,16 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
   @enforce_keys [:address]
   defstruct [:address]
 
-  alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.TransactionChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.GenesisAddress
 
   @type t() :: %__MODULE__{
           address: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: GenesisAddress.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: GenesisAddress.t()
   def process(%__MODULE__{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
 

@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   defstruct [:address, offset: nil, limit: 0]
 
   alias Archethic.Crypto
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.TransactionChain
@@ -28,7 +29,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
           limit: non_neg_integer()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: UnspentOutputList.t()
   def process(%__MODULE__{address: genesis_address, offset: offset, limit: limit}, _) do
     sorted_utxos =
       genesis_address

@@ -144,7 +144,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 200
+                 timeout: 200
                )
 
       # ensure there was no delay
@@ -202,7 +202,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 10
+                 timeout: 10
                )
 
       assert {_, %{messages: %{}}} = :sys.get_state(pid)
@@ -424,7 +424,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 1000
+                 timeout: 1000
                )
 
       Process.sleep(10)
@@ -441,7 +441,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 1000
+                 timeout: 1000
                )
 
       Process.sleep(10)
@@ -502,7 +502,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 1000
+                 timeout: 1000
                )
 
       Process.sleep(10)
@@ -544,7 +544,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                Connection.send_message(
                  node_key,
                  %GetTransaction{address: ArchethicCase.random_address()},
-                 10
+                 timeout: 10
                )
 
       Process.sleep(10)

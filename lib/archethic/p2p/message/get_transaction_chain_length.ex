@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.GetTransactionChainLength do
   alias Archethic.Crypto
   alias Archethic.TransactionChain
   alias Archethic.Utils
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.TransactionChainLength
 
   @type t :: %__MODULE__{
@@ -15,7 +16,7 @@ defmodule Archethic.P2P.Message.GetTransactionChainLength do
         }
 
   # Returns the length of the transaction chain
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionChainLength.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: TransactionChainLength.t()
   def process(%__MODULE__{address: address}, _) do
     %TransactionChainLength{
       length: TransactionChain.get_size(address)

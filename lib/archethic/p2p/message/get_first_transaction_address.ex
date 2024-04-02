@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddress do
   Hash of first public key gives first transaction address
   """
   alias Archethic.Utils
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.FirstTransactionAddress
   alias Archethic.TransactionChain
   alias Archethic.P2P.Message.NotFound
@@ -34,6 +35,7 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddress do
     {%__MODULE__{address: address}, rest}
   end
 
+  @spec process(t(), Message.metadata()) :: NotFound.t() | FirstTransactionAddress.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_first_transaction_address(address) do
       {:error, :transaction_not_exists} ->
