@@ -9,6 +9,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
@@ -56,7 +57,54 @@ defmodule Archethic.Contracts.InterpreterTest do
 
                condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
-                 throw "something bad happened"
+                 throw code: 1, message: "something bad happened", data: [key: "value"]
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should ensure throw params" do
+      assert {:error, "Throw must have a message - throw - L3"} =
+               """
+               @version 1
+               export fun public() do
+                 throw code: 1
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "Throw must have a code - throw - L3"} =
+               """
+               @version 1
+               export fun public() do
+                 throw message: "Hello"
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "Throw code must be an integer - throw - L3"} =
+               """
+               @version 1
+               export fun public() do
+                 throw code: "string", message: "string"
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "Throw message must be a string - throw - L3"} =
+               """
+               @version 1
+               export fun public() do
+                 throw code: 1, message: ["list"]
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "Invalid throw params: invalid_param - throw - L3"} =
+               """
+               @version 1
+               export fun public() do
+                 throw code: 1, message: "string", invalid_param: "hello"
                end
                """
                |> Interpreter.parse()
@@ -491,7 +539,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       condition triggered_by: transaction, as: []
       actions triggered_by: transaction do
-        throw "something bad happened"
+        throw code: 42, message: "Something wrong happened"
       end
       """
 
@@ -499,7 +547,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, "something bad happened", [], []} =
+      error = %Library.ErrorContractThrow{code: 42, message: "Something wrong happened"}
+
+      assert {:error, ^error, _, []} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -514,7 +564,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       @version 1
 
       condition triggered_by: transaction, as: [
-        content: throw "invalid content"
+        content: throw code: 12, message: "Invalid content", data: transaction.content
       ]
       actions triggered_by: transaction do
         Contract.set_content "ok"
@@ -522,7 +572,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       """
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "qwerty")
 
       %Contract{
         conditions: %{
@@ -533,11 +583,12 @@ defmodule Archethic.Contracts.InterpreterTest do
       contract_constants = Constants.from_transaction(contract_tx)
       incoming_constants = Constants.from_transaction(incoming_tx)
 
-      assert {:error, "content", "invalid content", []} =
-               Interpreter.execute_condition(1, subjects, %{
-                 "transaction" => incoming_constants,
-                 "contract" => contract_constants
-               })
+      assert_raise Library.ErrorContractThrow, "Invalid content", fn ->
+        Interpreter.execute_condition(1, subjects, %{
+          "transaction" => incoming_constants,
+          "contract" => contract_constants
+        })
+      end
     end
 
     test "should be able to throw in a private function (from an action)" do
@@ -549,7 +600,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
 
       fun function_that_throws() do
-        throw "you shall not pass"
+        throw code: 2, message: "you shall not pass", data: [key: "value"]
       end
       """
 
@@ -557,7 +608,13 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, "you shall not pass", [], []} =
+      error = %Library.ErrorContractThrow{
+        code: 2,
+        message: "you shall not pass",
+        data: %{"key" => "value"}
+      }
+
+      assert {:error, ^error, _, []} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -578,7 +635,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
 
       fun function_that_throws() do
-        throw "you shall not pass"
+        throw code: 2, message: "you shall not pass", data: [key: "value"]
       end
       """
 
@@ -595,17 +652,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       contract_constants = Constants.from_transaction(contract_tx)
       incoming_constants = Constants.from_transaction(incoming_tx)
 
-      assert {
-               :error,
-               "address",
-               "you shall not pass",
-               []
-             } =
-               Interpreter.execute_condition(1, subjects, %{
-                 :functions => functions,
-                 "transaction" => incoming_constants,
-                 "contract" => contract_constants
-               })
+      assert_raise Library.ErrorContractThrow, "you shall not pass", fn ->
+        Interpreter.execute_condition(1, subjects, %{
+          :functions => functions,
+          "transaction" => incoming_constants,
+          "contract" => contract_constants
+        })
+      end
     end
 
     test "Should not be able to use out of scope variables" do

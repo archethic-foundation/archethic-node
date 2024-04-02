@@ -12,6 +12,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
     defexception [:message]
   end
 
+  defmodule ErrorContractThrow do
+    defexception [:code, :message, :data]
+  end
+
   @doc """
   Validate a module function call with arity
   """

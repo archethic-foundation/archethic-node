@@ -740,7 +740,7 @@ defmodule Archethic.ContractsTest do
       end
 
       export fun function_that_throws() do
-        throw "nope"
+        throw code: 1, message: "Invalid parameters", data: ["param1", 2]
       end
       """
 
@@ -748,8 +748,18 @@ defmodule Archethic.ContractsTest do
 
       contract = Contract.from_transaction!(contract_tx)
 
-      assert {:error, %Failure{user_friendly_error: "nope"}} =
-               Contracts.execute_function(contract, "function_that_throws", [], [])
+      data = %{
+        "code" => 1,
+        "message" => "Invalid parameters",
+        "data" => ["param1", 2]
+      }
+
+      assert {:error,
+              %Failure{
+                user_friendly_error: "Invalid parameters - L8",
+                error: :contract_throw,
+                data: ^data
+              }} = Contracts.execute_function(contract, "function_that_throws", [], [])
     end
 
     test "should return an error if the function takes too much time" do
