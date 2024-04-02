@@ -77,6 +77,12 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   end
 
   # Error must be static (jsonrpc spec), the dynamic part is in the 4th tuple position
+  defp format_reason(%Failure{error: :contract_throw, data: data}) do
+    data = if match?({:ok, _}, Jason.encode(data)), do: data, else: nil
+
+    {:error, :contract_throw, "Function execution returned an error", data}
+  end
+
   defp format_reason(%Failure{error: error, user_friendly_error: reason}),
     do: {:error, error, "There was an error while executing the function", reason}
 

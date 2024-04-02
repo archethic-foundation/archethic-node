@@ -127,17 +127,12 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     {node, acc}
   end
 
-  # throw
-  defp prewalk({{:atom, "throw"}, _, [reason]}, acc, _visibility) when is_binary(reason) do
-    {{:throw, [context: Elixir, imports: [{1, Kernel}]], [reason]}, acc}
-  end
-
   defp prewalk(node = {{:atom, function_name}, _, args}, _acc, true)
-       when is_list(args) and function_name != "for",
+       when is_list(args) and function_name not in ["for", "throw"],
        do: throw({:error, node, "not allowed to call function from public function"})
 
   defp prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions}, false)
-       when is_list(args) and function_name != "for" do
+       when is_list(args) and function_name not in ["for", "throw"] do
     arity = length(args)
 
     if FunctionKeys.exist?(functions, function_name, arity) and

@@ -13,6 +13,7 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
+  alias __MODULE__.Interpreter.Library
   alias __MODULE__.Loader
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
@@ -175,14 +176,8 @@ defmodule Archethic.Contracts do
      }}
   end
 
-  defp cast_trigger_result({:error, err, stacktrace, logs}, _, _) do
-    {:error,
-     %Failure{
-       logs: logs,
-       error: :execution_raise,
-       stacktrace: stacktrace,
-       user_friendly_error: append_line_to_error(err, stacktrace)
-     }}
+  defp cast_trigger_result({:error, err, stacktrace, _logs}, _, _) do
+    {:error, raise_to_failure(err, stacktrace)}
   end
 
   # No output transaction, no state update
@@ -262,25 +257,7 @@ defmodule Archethic.Contracts do
               value = Interpreter.execute_function(function, constants, args_values)
               {:ok, value, logs}
             rescue
-              err ->
-                # error from the code (ex: 1 + "abc")
-                {:error,
-                 %Failure{
-                   user_friendly_error: append_line_to_error(err, __STACKTRACE__),
-                   error: :execution_raise,
-                   stacktrace: __STACKTRACE__,
-                   logs: []
-                 }}
-            catch
-              err ->
-                # throw from the code
-                {:error,
-                 %Failure{
-                   user_friendly_error: err,
-                   error: :function_failure,
-                   stacktrace: [],
-                   logs: []
-                 }}
+              err -> {:error, raise_to_failure(err, __STACKTRACE__)}
             end
           end)
 
@@ -504,19 +481,35 @@ defmodule Archethic.Contracts do
     }
   end
 
+  defp raise_to_failure(
+         err = %Library.ErrorContractThrow{code: code, message: message, data: data},
+         stacktrace
+       ) do
+    %Failure{
+      user_friendly_error: append_line_to_error(err, stacktrace),
+      error: :contract_throw,
+      stacktrace: stacktrace,
+      data: %{"code" => code, "message" => message, "data" => data},
+      logs: []
+    }
+  end
+
+  defp raise_to_failure(err, stacktrace) do
+    %Failure{
+      user_friendly_error: append_line_to_error(err, stacktrace),
+      error: :execution_raise,
+      stacktrace: stacktrace,
+      logs: []
+    }
+  end
+
   defp append_line_to_error(err, stacktrace) do
     case Enum.find_value(stacktrace, fn
-           {_, _, _, [file: 'nofile', line: line]} ->
-             line
-
-           _ ->
-             false
+           {_, _, _, [file: 'nofile', line: line]} -> line
+           _ -> false
          end) do
-      line when is_integer(line) ->
-        Exception.message(err) <> " - L#{line}"
-
-      _ ->
-        Exception.message(err)
+      line when is_integer(line) -> Exception.message(err) <> " - L#{line}"
+      _ -> Exception.message(err)
     end
   end
 
@@ -535,17 +528,8 @@ defmodule Archethic.Contracts do
 
     # We set the maximum timeout for a transaction to be processed before the kill the cache
     case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
-      {:error, err, stacktrace} ->
-        {:error,
-         %Failure{
-           user_friendly_error: append_line_to_error(err, stacktrace),
-           error: :execution_raise,
-           stacktrace: stacktrace,
-           logs: []
-         }}
-
-      result ->
-        result
+      {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
+      result -> result
     end
   rescue
     _ ->

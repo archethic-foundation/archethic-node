@@ -74,6 +74,43 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
   end
 
   describe "execute" do
+    test "should return detailled error when contract throw explicitely" do
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        @version 1
+        export fun public() do
+          list = ["list", "with", "values"]
+          throw code: 1, message: "Invalid list", data: list
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      contract_address_hex = Base.encode16(contract_address)
+
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
+
+      params = %{
+        contract: contract_address_hex,
+        function: "public",
+        args: [],
+        resolve_last: false
+      }
+
+      error_data = %{
+        "code" => 1,
+        "message" => "Invalid list",
+        "data" => ["list", "with", "values"]
+      }
+
+      assert {:error, :contract_throw, "Function execution returned an error", ^error_data} =
+               CallContractFunction.execute(params)
+    end
+
     test "should resolve last contract chain address" do
       contract_tx =
         %Transaction{address: contract_address} =

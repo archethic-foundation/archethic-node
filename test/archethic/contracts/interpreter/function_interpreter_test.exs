@@ -260,13 +260,16 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+               |> FunctionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("hello", 0)
+               )
     end
 
-    test "should  be able to call throw" do
+    test "should be able to call throw" do
       code = ~S"""
       export fun im_public() do
-       throw "err"
+       throw code: 123, message: "throw"
       end
       """
 
@@ -275,7 +278,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+               |> FunctionInterpreter.parse(FunctionKeys.new())
     end
   end
 

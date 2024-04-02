@@ -8,6 +8,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.Library.ErrorContractThrow
   alias Archethic.Contracts.Interpreter.FunctionKeys
   alias Archethic.Contracts.Interpreter.Scope
 
@@ -38,9 +39,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {:!, _, _}, acc), do: {node, acc}
   def prewalk(node = {:&&, _, _}, acc), do: {node, acc}
   def prewalk(node = {:||, _, _}, acc), do: {node, acc}
-
-  # throw "reason"
-  def prewalk(node = {:throw, _, [reason]}, acc) when is_binary(reason), do: {node, acc}
 
   # ranges
   def prewalk(node = {:.., _, _}, acc), do: {node, acc}
@@ -260,8 +258,23 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # throw
-  def prewalk({{:atom, "throw"}, _, [reason]}, acc) when is_binary(reason) do
-    {{:throw, [context: Elixir, imports: [{1, Kernel}]], [reason]}, acc}
+  def prewalk(node = {{:atom, "throw"}, _meta, [args]}, acc) when is_list(args) do
+    args = Map.new(args)
+    {code, args} = Map.pop(args, {:atom, "code"})
+    {message, args} = Map.pop(args, {:atom, "message"})
+    {_data, args} = Map.pop(args, {:atom, "data"})
+
+    if map_size(args) > 0 do
+      invalid_keys = Map.keys(args) |> Enum.map_join(",", &elem(&1, 1))
+      throw({:error, node, "Invalid throw params: #{invalid_keys}"})
+    end
+
+    if code == nil, do: throw({:error, node, "Throw must have a code"})
+    unless is_integer(code), do: throw({:error, node, "Throw code must be an integer"})
+    if message == nil, do: throw({:error, node, "Throw must have a message"})
+    unless is_binary(message), do: throw({:error, node, "Throw message must be a string"})
+
+    {node, acc}
   end
 
   # function call, should be placed after "for" prewalk
@@ -378,6 +391,23 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
           unquote(block)
         end)
+      end
+
+    {new_node, acc}
+  end
+
+  def postwalk({{:atom, "throw"}, meta, [{:%{}, _, args}]}, acc) when is_list(args) do
+    args = Map.new(args)
+    code = Map.get(args, "code")
+    message = Map.get(args, "message")
+    data = Map.get(args, "data")
+
+    new_node =
+      quote line: Keyword.fetch!(meta, :line) do
+        raise ErrorContractThrow,
+          code: unquote(code),
+          message: unquote(message),
+          data: unquote(data)
       end
 
     {new_node, acc}

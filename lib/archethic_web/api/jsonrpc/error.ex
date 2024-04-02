@@ -44,4 +44,5 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   defp get_custom_code(:function_is_private), do: 251
   defp get_custom_code(:function_does_not_exist), do: 252
   defp get_custom_code(:function_timeout), do: 253
+  defp get_custom_code(:contract_throw), do: 254
 end
