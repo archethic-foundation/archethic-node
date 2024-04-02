@@ -21,6 +21,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias __MODULE__.UcoAth
   alias __MODULE__.DeterministicBalance
   alias __MODULE__.Dex
+  alias __MODULE__.Throw
 
   require Logger
 
@@ -46,6 +47,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
       {"Counter", Counter.play(storage_nonce_pubkey, endpoint)},
       {"Legacy", Legacy.play(storage_nonce_pubkey, endpoint)},
       {"Dex", Dex.play(storage_nonce_pubkey, endpoint)},
+      {"Throw", Throw.play(storage_nonce_pubkey, endpoint)},
       {"UcoAth", UcoAth.play(storage_nonce_pubkey, endpoint)}
     ]
 
@@ -95,7 +97,12 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   Trigger a smart contract by sending a transaction from given seed
   By passing the [wait: true] flag, it will block until the contract produces a new transaction
   """
-  @spec trigger(String.t(), binary(), Api.t(), Keyword.t()) :: binary()
+  @spec trigger(
+          trigger_seed :: String.t(),
+          contract_address :: Crypto.prepended_hash(),
+          endpoint :: Api.t(),
+          opts :: Keyword.t()
+        ) :: {:ok, tx_address :: Crypto.prepended_hash()} | {:error, reason :: term()}
   def trigger(trigger_seed, contract_address, endpoint, opts \\ []) do
     Logger.debug("TRIGGER: Sending trigger transaction")
     wait? = Keyword.get(opts, :wait, false)
@@ -105,12 +112,12 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         contract_address
         |> Api.get_last_transaction(endpoint)
         |> Map.get("address")
-        |> Base.encode16()
+        |> Base.decode16!()
       else
         nil
       end
 
-    {:ok, trigger_address} =
+    res =
       Api.send_transaction_with_await_replication(
         trigger_seed,
         Keyword.get(opts, :type, :transfer),
@@ -123,15 +130,34 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         opts
       )
 
-    Logger.debug("TRIGGER: transaction sent at #{Base.encode16(trigger_address)}")
+    case res do
+      {:ok, trigger_address} ->
+        Logger.debug("TRIGGER: transaction sent at #{Base.encode16(trigger_address)}")
 
-    if Keyword.get(opts, :wait, false) do
-      # wait until the contract produces a new transaction
-      :ok = wait_until_new_transaction(last_contract_address, endpoint)
+        if Keyword.get(opts, :wait, false) do
+          # wait until the contract produces a new transaction
+          :ok = wait_until_new_transaction(last_contract_address, endpoint)
+        end
+
+      {:error, reason} ->
+        Logger.debug("TRIGGER: transaction failed with reason: #{inspect(reason)}")
     end
 
-    trigger_address
+    res
   end
+
+  @doc """
+  Call the API to execute a public function
+  """
+  @spec call_function(
+          contract_address :: Crypto.prepended_hash(),
+          function_name :: String.t(),
+          args :: list(),
+          resolve_last :: boolean(),
+          endpoint :: Api.t()
+        ) :: {:ok, result :: term()} | {:error, error :: term()}
+  defdelegate call_function(contract_address, function_name, args, resolve_last, endpoint),
+    to: Api
 
   def random_address() do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
