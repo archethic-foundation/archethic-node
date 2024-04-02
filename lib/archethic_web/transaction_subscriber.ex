@@ -102,6 +102,14 @@ defmodule ArchethicWeb.TransactionSubscriber do
       transaction_confirmed: tx_address
     )
 
+    try do
+      mining_span = :persistent_term.get({:initial_mining_span, tx_address})
+      OpenTelemetry.Tracer.set_current_span(mining_span)
+      OpenTelemetry.Tracer.end_span(mining_span)
+    rescue
+      _ -> :ok
+    end
+
     send(from, {:new_transaction, tx_address})
 
     case Map.get(state, tx_address) do

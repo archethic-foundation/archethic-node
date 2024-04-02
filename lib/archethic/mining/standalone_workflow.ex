@@ -38,6 +38,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
+  require OpenTelemetry.Tracer
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
 
@@ -65,6 +66,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: tx.type
     )
 
+    mining_span_context = OpenTelemetry.Tracer.start_span(:mining)
+    OpenTelemetry.Span.set_attribute(mining_span_context, "address", Base.encode16(tx.address))
+    OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
     current_node = P2P.get_node_info()
 
@@ -79,13 +84,18 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         authorized_nodes
       )
 
-    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
+    resolved_addresses =
+      OpenTelemetry.Tracer.with_span :resolve_address, %{links: [mining_span_context]} do
+        TransactionChain.resolve_transaction_addresses!(tx)
+      end
 
     previous_address = Transaction.previous_address(tx)
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
     {:ok, genesis_address} =
-      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+      OpenTelemetry.Tracer.with_span "fetch genesis address" do
+        TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+      end
 
     genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
 
@@ -103,13 +113,15 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
      io_storage_nodes_view} =
-      TransactionContext.get(
-        Transaction.previous_address(tx),
-        genesis_address,
-        Enum.map(chain_storage_nodes, & &1.first_public_key),
-        Enum.map(beacon_storage_nodes, & &1.first_public_key),
-        Enum.map(io_storage_nodes, & &1.first_public_key)
-      )
+      OpenTelemetry.Tracer.with_span "fetch context" do
+        TransactionContext.get(
+          Transaction.previous_address(tx),
+          genesis_address,
+          Enum.map(chain_storage_nodes, & &1.first_public_key),
+          Enum.map(beacon_storage_nodes, & &1.first_public_key),
+          Enum.map(io_storage_nodes, & &1.first_public_key)
+        )
+      end
 
     :telemetry.execute([:archethic, :mining, :fetch_context], %{
       duration: System.monotonic_time() - start
@@ -130,8 +142,13 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         genesis_address: genesis_address
       )
 
+    pending_validation =
+      OpenTelemetry.Tracer.with_span "pending validation" do
+        PendingTransactionValidation.validate(tx, validation_time)
+      end
+
     validation_context =
-      case PendingTransactionValidation.validate(tx, validation_time) do
+      case pending_validation do
         :ok ->
           ValidationContext.set_pending_transaction_validation(validation_context, true)
 
@@ -152,12 +169,14 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       |> ValidationContext.add_aggregated_utxos(unspent_outputs)
       |> validate()
 
-    start_replication(validation_context)
+    request_replication_span = start_replication(validation_context)
 
     new_state =
       state
       |> Map.put(:context, validation_context)
       |> Map.put(:confirmations, [])
+      |> Map.put(:mining_span_context, mining_span_context)
+      |> Map.put(:request_replication_span, request_replication_span)
 
     {:noreply, new_state, @mining_timeout}
   end
@@ -165,9 +184,17 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp validate(context = %ValidationContext{}) do
     context
     |> ValidationContext.confirm_validation_node(Crypto.last_node_public_key())
-    |> ValidationContext.create_validation_stamp()
+    |> then(fn context ->
+      OpenTelemetry.Tracer.with_span "create stamp" do
+        ValidationContext.create_validation_stamp(context)
+      end
+    end)
     |> ValidationContext.create_replication_tree()
-    |> ValidationContext.cross_validate()
+    |> then(fn context ->
+      OpenTelemetry.Tracer.with_span "cross validate" do
+        ValidationContext.cross_validate(context)
+      end
+    end)
   end
 
   defp start_replication(
@@ -194,17 +221,19 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     }
 
     results =
-      Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
-        replication_nodes,
-        &P2P.send_message(&1, message),
-        ordered: false,
-        on_timeout: :kill_task,
-        timeout: Message.get_timeout(message) + 2000
-      )
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
-      |> Enum.to_list()
+      OpenTelemetry.Tracer.with_span "request validation" do
+        Task.Supervisor.async_stream_nolink(
+          Archethic.TaskSupervisor,
+          replication_nodes,
+          &P2P.send_message(&1, message),
+          ordered: false,
+          on_timeout: :kill_task,
+          timeout: Message.get_timeout(message) + 2000
+        )
+        |> Stream.filter(&match?({:ok, _}, &1))
+        |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+        |> Enum.to_list()
+      end
 
     if Enum.all?(results, &match?(%Ok{}, &1)) do
       Logger.info(
@@ -213,10 +242,15 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
 
+      replication_request_context = OpenTelemetry.Tracer.start_span("request_replication")
+      OpenTelemetry.Tracer.set_current_span(replication_request_context)
+
       P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
         address: validated_tx.address,
         genesis_address: genesis_address
       })
+
+      replication_request_context
     else
       errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
 
@@ -227,6 +261,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         _ ->
           send(self(), {:replication_error, :invalid_atomic_commitment})
       end
+
+      nil
     end
   end
 
@@ -293,7 +329,9 @@ defmodule Archethic.Mining.StandaloneWorkflow do
               transaction: %Transaction{address: address, type: type},
               validation_time: validation_time,
               genesis_address: genesis_address
-            }
+            },
+          mining_span_context: mining_span_context,
+          request_replication_span: request_replication_span
         }
       ) do
     with {:ok, node_index} <-
@@ -307,6 +345,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       new_state = %{state | context: new_context}
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
+        OpenTelemetry.Tracer.end_span(request_replication_span)
+
+        OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
         duration = System.monotonic_time() - start_time
 
         # send the mining_completed event
@@ -318,6 +360,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         })
 
         notify(new_state)
+
+        OpenTelemetry.Tracer.end_span(mining_span_context)
         {:stop, :normal, new_state}
       else
         {:noreply, new_state}
@@ -359,9 +403,17 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   end
 
   defp notify(%{context: context}) do
-    notify_attestation(context)
-    notify_io_nodes(context)
-    notify_previous_chain(context)
+    OpenTelemetry.Tracer.with_span :notify_attestation do
+      notify_attestation(context)
+    end
+
+    OpenTelemetry.Tracer.with_span "notify I/O" do
+      notify_io_nodes(context)
+    end
+
+    OpenTelemetry.Tracer.with_span "notify previous chain" do
+      notify_previous_chain(context)
+    end
 
     :ok
   end

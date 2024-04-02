@@ -1287,4 +1287,19 @@ defmodule Archethic.Utils do
 
     {Enum.reverse(items), more?, offset}
   end
+
+  @spec extract_progagated_context(binary()) :: :ok
+  def extract_progagated_context(""), do: :ok
+
+  def extract_progagated_context(trace) do
+    :otel_propagator_text_map.extract([{"traceparent", trace}])
+    :otel_ctx.attach(:otel_ctx.get_current())
+  end
+
+  @spec inject_propagated_context() :: binary()
+  def inject_propagated_context do
+    :otel_propagator_text_map.inject([])
+    |> Map.new()
+    |> Map.get("traceparent")
+  end
 end

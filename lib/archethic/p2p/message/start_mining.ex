@@ -52,14 +52,16 @@ defmodule Archethic.P2P.Message.StartMining do
           p2p_view_hash: p2p_view_hash,
           contract_context: contract_context
         },
-        _
+        metadata
       ) do
     with :ok <- check_synchronization(network_chains_view_hash, p2p_view_hash),
          :ok <- check_valid_election(tx, validation_nodes),
          :ok <- check_current_node_is_elected(validation_nodes),
          :ok <- check_not_already_mining(tx.address),
          :ok <- Mining.request_chain_lock(tx) do
-      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes, contract_context)
+      {:ok, _} =
+        Mining.start(tx, welcome_node_public_key, validation_nodes, contract_context, metadata)
+
       %Ok{}
     else
       {:error, :invalid_validation_nodes_election} ->

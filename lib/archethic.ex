@@ -33,6 +33,7 @@ defmodule Archethic do
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
+  require OpenTelemetry.Tracer
 
   @doc """
     Returns true if a node is up and false if it is down
@@ -123,10 +124,23 @@ defmodule Archethic do
       contract_context: contract_context
     }
 
+    mining_span = OpenTelemetry.Tracer.start_span("mining")
+    OpenTelemetry.Tracer.set_current_span(mining_span)
+    OpenTelemetry.Span.set_attribute(mining_span, "address", Base.encode16(tx.address))
+
+    OpenTelemetry.Span.set_attribute(
+      mining_span,
+      "node",
+      welcome_node_key |> P2P.get_node_info!() |> Node.endpoint()
+    )
+
+    trace = Archethic.Utils.inject_propagated_context()
+    :persistent_term.put({:initial_mining_span, tx.address}, mining_span)
+
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       validation_nodes,
-      &P2P.send_message(&1, message),
+      &P2P.send_message(&1, message, trace: trace),
       ordered: false,
       on_timeout: :kill_task,
       timeout: Message.get_timeout(message) + 2000

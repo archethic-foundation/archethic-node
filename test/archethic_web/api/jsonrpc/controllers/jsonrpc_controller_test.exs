@@ -20,7 +20,9 @@ defmodule ArchethicWeb.API.JsonRPCControllerTest do
       authorization_date: DateTime.utc_now(),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      ip: {127, 0, 0, 1},
+      port: 3_000
     })
 
     start_supervised!(NetworkView)
