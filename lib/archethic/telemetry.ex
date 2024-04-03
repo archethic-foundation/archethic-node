@@ -10,12 +10,19 @@ defmodule Archethic.Telemetry do
 
   def init(_arg) do
     [
-      {TelemetryMetricsPrometheus.Core, [metrics: metrics()]}
+      {TelemetryMetricsPrometheus.Core, [metrics: metrics()]},
+      {:telemetry_poller, measurements: periodic_metrics(), period: 60_000}
     ]
     |> Supervisor.init(strategy: :one_for_one)
   end
 
-  def metrics do
+  defp periodic_metrics do
+    [
+      {Archethic.Contracts, :maximum_calls_in_queue, []}
+    ]
+  end
+
+  defp metrics do
     [
       # VM
       last_value("vm.memory.atom", unit: :byte),
@@ -35,6 +42,7 @@ defmodule Archethic.Telemetry do
       last_value("vm.total_run_queue_lengths.total"),
       last_value("vm.total_run_queue_lengths.cpu"),
       last_value("vm.total_run_queue_lengths.io"),
+
       # Archethic
       distribution("archethic.election.validation_nodes.duration",
         unit: {:native, :millisecond},
@@ -83,6 +91,7 @@ defmodule Archethic.Telemetry do
           buckets: [500, 700, 1000, 1500, 2000, 3000, 5000, 10000]
         ]
       ),
+      last_value("archethic.contract.queued_calls"),
       distribution("archethic.contract.parsing.duration",
         unit: {:native, :millisecond},
         measurement: :duration,

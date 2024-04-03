@@ -23,6 +23,7 @@ defmodule Archethic.Contracts do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Utils
+  alias Archethic.UTXO
 
   require Logger
 
@@ -285,6 +286,37 @@ defmodule Archethic.Contracts do
             {:ok, value, logs}
         end
     end
+  end
+
+  def maximum_calls_in_queue() do
+    genesis_addresses =
+      Registry.select(Archethic.ContractRegistry, [
+        {{:"$1", :_, :_}, [], [:"$1"]}
+      ])
+
+    queued_calls =
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        genesis_addresses,
+        fn genesis_address ->
+          genesis_address
+          |> UTXO.stream_unspent_outputs()
+          |> Enum.filter(&(&1.unspent_output.type == :call))
+          |> Enum.count()
+        end,
+        timeout: 5_000,
+        ordered: false,
+        on_timeout: :kill_task,
+        max_concurrency: 100
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(&elem(&1, 1))
+      |> Enum.sum()
+
+    :telemetry.execute(
+      [:archethic, :contract],
+      %{queued_calls: queued_calls}
+    )
   end
 
   defp get_function_from_contract(%{functions: functions}, function_name, args_values) do
