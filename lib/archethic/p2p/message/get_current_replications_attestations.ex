@@ -1,4 +1,4 @@
-defmodule Archethic.P2P.Message.GetCurrentSummaries do
+defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestations do
   @moduledoc """
   Represents a message to get the current beacon slots for a subset
   """
@@ -7,33 +7,26 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
   defstruct [:subsets]
 
   alias Archethic.Crypto
-  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Subset
-  alias Archethic.P2P.Message.TransactionSummaryList
+  alias Archethic.P2P.Message.ReplicationAttestationList
 
   @type t :: %__MODULE__{
           subsets: list(binary())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryList.t()
+  @spec process(__MODULE__.t(), Crypto.key()) :: ReplicationAttestationList.t()
   def process(%__MODULE__{subsets: subsets}, _) do
-    transaction_summaries =
+    replications_attestations =
       Enum.flat_map(subsets, fn subset ->
-        transaction_summaries = BeaconChain.get_summary_slots(subset)
-
-        %Slot{transaction_attestations: transaction_attestations} =
+        %Slot{transaction_attestations: replication_attestations} =
           Subset.get_current_slot(subset)
 
-        Enum.reduce(
-          transaction_attestations,
-          transaction_summaries,
-          &[&1.transaction_summary | &2]
-        )
+        replication_attestations
       end)
 
-    %TransactionSummaryList{
-      transaction_summaries: transaction_summaries
+    %ReplicationAttestationList{
+      replications_attestations: replications_attestations
     }
   end
 
