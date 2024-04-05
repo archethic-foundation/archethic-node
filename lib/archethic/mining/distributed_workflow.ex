@@ -589,18 +589,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     notify_cross_validation_stamp(new_context)
 
-    confirmed_cross_validation_nodes =
-      ValidationContext.get_confirmed_validation_nodes(new_context)
-
     actions = [{{:timeout, :change_coordinator}, :cancel}]
     new_data = %{data | context: new_context}
 
-    with 1 <- length(confirmed_cross_validation_nodes),
-         true <- ValidationContext.atomic_commitment?(new_context) do
-      {:next_state, :replication, new_data, actions}
+    if ValidationContext.enough_cross_validation_stamps?(new_context) do
+      if ValidationContext.atomic_commitment?(new_context) do
+        {:next_state, :replication, new_data, actions}
+      else
+        {:next_state, :consensus_not_reached, new_data, actions}
+      end
     else
-      _ ->
-        {:next_state, :wait_cross_validation_stamps, new_data, actions}
+      {:next_state, :wait_cross_validation_stamps, new_data, actions}
     end
   end
 
