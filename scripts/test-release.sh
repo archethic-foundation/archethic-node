@@ -9,6 +9,7 @@ UPGRADE=0
 INSTALL=0
 PREPARE=0
 NB_OF_RELEASES=0
+UPFROM=latest
 export MIX_ENV=dev
 
 usage() {
@@ -20,11 +21,12 @@ usage() {
   echo "  " release.sh -p "       Prepare the release for hot reload"
   echo "  " release.sh -u "       Upgrade the release"
   echo "  " release.sh -n "       Set the number of node to apply the command"
+  echo "  " release.sh -v "       Specifiy the version to up from, works only with -p"
   echo "  " release.sh -h "       Print the help usage"
   echo ""
 }
 
-while getopts ":uiphn:" option; do
+while getopts ":uiphn:v:" option; do
   case "${option}" in
   u) UPGRADE=1 ;;
   p) PREPARE=1 ;;
@@ -37,6 +39,8 @@ while getopts ":uiphn:" option; do
       exit 1
     fi
     ;;
+  v) 
+    UPFROM=${OPTARG};;
   h)
     usage
     exit 0
@@ -51,6 +55,11 @@ shift $((OPTIND - 1))
 
 if [[ $NB_OF_RELEASES = 0 ]]; then
   NB_OF_RELEASES=2
+fi
+
+if [[ $UPFROM != "latest" && $PREPARE == 0 ]]; then
+  usage
+  exit 1
 fi
 
 # For every commands:
@@ -111,7 +120,11 @@ elif [ $PREPARE == 1 ]; then
 
   build_deps
 
-  mix distillery.release --upgrade
+  if [[ $UPFROM == "latest" ]]; then
+    mix distillery.release --upgrade
+  else
+    mix distillery.release --upgrade --upfrom $UPFROM
+  fi
 
   # cp the .tar.gz for distillery
   echo "Copy release on $NB_OF_RELEASES release dir"
