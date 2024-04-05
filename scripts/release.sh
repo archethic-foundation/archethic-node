@@ -8,6 +8,7 @@ UPGRADE=0
 PREPARE=0
 SERVICE_CREATION=0
 SUFFIX=""
+UPFROM=latest
 
 usage() {
   echo "Usage:"
@@ -18,11 +19,12 @@ usage() {
   echo "  " release.sh -p          "Prepare the release"
   echo "  " release.sh -u          "Upgrade the release"
   echo "  " release.sh -s          "Create a systemd service"
+  echo "  " release.sh -v          "Specifiy the version to up from, works only with -p"
   echo "  " release.sh -h          "Print the help usage"
   echo ""
 }
 
-while getopts :suphn: option
+while getopts :suphn:v: option
 do
   case "${option}"
   in
@@ -30,6 +32,8 @@ do
     p) PREPARE=1;;
     n) SUFFIX=-${OPTARG};;
     s) SERVICE_CREATION=1;;
+    v) 
+      UPFROM=${OPTARG};;
     h)
       usage
       exit 0
@@ -41,6 +45,11 @@ do
   esac
 done
 shift $((OPTIND -1))
+
+if [[ $UPFROM != "latest" && $PREPARE == 0 ]]; then
+  usage
+  exit 1
+fi
 
 source ~/.profile
 
@@ -112,8 +121,12 @@ mkdir -p $INSTALL_DIR
 if [[ $PREPARE == 1 ]]
 then
   # Build upgrade releases
-  echo "Build the upgrade release"
-  MIX_ENV=prod mix distillery.release --upgrade
+  echo "Build the upgrade release from $UPFROM version"
+  if [[ $UPFROM == "latest" ]]; then
+    MIX_ENV=prod mix distillery.release --upgrade
+  else
+    MIX_ENV=prod mix distillery.release --upgrade --upfrom $UPFROM
+  fi
 
   echo "Copy upgraded release into ${INSTALL_DIR}/releases/${VERSION}"
   mkdir -p $INSTALL_DIR/releases/$VERSION
