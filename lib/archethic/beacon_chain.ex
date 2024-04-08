@@ -16,6 +16,7 @@ defmodule Archethic.BeaconChain do
   alias __MODULE__.SummaryAggregate
   alias __MODULE__.SummaryTimer
   alias __MODULE__.Update
+  alias __MODULE__.ReplicationAttestation
 
   alias Archethic.Crypto
 

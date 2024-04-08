@@ -296,4 +296,18 @@ defmodule Archethic.SelfRepair do
   """
   @spec next_repair_time() :: DateTime.t()
   defdelegate next_repair_time, to: Scheduler
+
+  @doc """
+  Synchronously synchronize all the transactions that happened since last summary aggregate
+  """
+  @spec synchronize_current_summary() :: :ok
+  def synchronize_current_summary() do
+    download_nodes =
+      DateTime.utc_now()
+      |> BeaconChain.next_summary_date()
+      |> P2P.authorized_and_available_nodes(true)
+
+    BeaconChain.list_replications_attestations_from_current_slot()
+    |> Sync.process_replications_attestations(download_nodes)
+  end
 end

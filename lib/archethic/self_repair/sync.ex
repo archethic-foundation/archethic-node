@@ -353,6 +353,17 @@ defmodule Archethic.SelfRepair.Sync do
     store_last_sync_date(summary_time)
   end
 
+  @spec process_replications_attestations(list(ReplicationAttestation.t()), list(Node.t())) :: :ok
+  def process_replications_attestations(replications_attestations, download_nodes) do
+    nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
+
+    replications_attestations
+    |> adjust_attestations(download_nodes)
+    |> Stream.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+    |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
+    |> synchronize_transactions(download_nodes)
+  end
+
   # To avoid beacon chain database migration we have to support both summaries with genesis address and without
   # Hence, we need to adjust or revised the attestation to include the genesis addresses
   # which is not present in the version 1 of transaction's summary.
