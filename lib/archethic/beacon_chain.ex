@@ -26,6 +26,8 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.GetCurrentSummaries
+  alias Archethic.P2P.Message.GetCurrentReplicationsAttestations
+  alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
@@ -339,12 +341,50 @@ defmodule Archethic.BeaconChain do
   """
   @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
           list(TransactionSummary.t())
-  def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
-    next_summary_date = next_summary_date(DateTime.truncate(date, :millisecond))
+  def list_transactions_summaries_from_current_slot(datetime = %DateTime{} \\ DateTime.utc_now()) do
+    get_next_summary_elected_subsets_by_nodes(datetime)
+    |> Task.async_stream(
+      fn {node, subsets} ->
+        fetch_current_summaries(node, subsets)
+      end,
+      ordered: false,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
 
+    # remove duplicates & sort
+    |> Stream.uniq_by(& &1.address)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  @doc """
+  Return the replications attestation that were gathered since last
+  """
+  @spec list_replications_attestations_from_current_slot(DateTime.t()) ::
+          list(ReplicationAttestation.t())
+  def list_replications_attestations_from_current_slot(
+        datetime = %DateTime{} \\ DateTime.utc_now()
+      ) do
+    get_next_summary_elected_subsets_by_nodes(datetime)
+    |> Task.async_stream(
+      fn {node, subsets} ->
+        {:ok, replications_attestations} = fetch_current_replications_attestations(node, subsets)
+        replications_attestations
+      end,
+      ordered: false,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(fn {:ok, replications_attestations} -> replications_attestations end)
+    |> Stream.uniq_by(& &1.transaction_summary.address)
+    |> Enum.sort_by(& &1.transaction_summary.timestamp, {:desc, DateTime})
+  end
+
+  defp get_next_summary_elected_subsets_by_nodes(datetime) do
+    next_summary_date = next_summary_date(DateTime.truncate(datetime, :millisecond))
     authorized_nodes = P2P.authorized_and_available_nodes(next_summary_date, true)
 
-    # get the subsets to request per node
     list_subsets()
     |> Enum.map(fn subset ->
       subset
@@ -359,21 +399,6 @@ defmodule Archethic.BeaconChain do
         Map.update(acc1, node, [subset], &[subset | &1])
       end)
     end)
-
-    # download the summaries
-    |> Task.async_stream(
-      fn {node, subsets} ->
-        fetch_current_summaries(node, subsets)
-      end,
-      ordered: false,
-      max_concurrency: 256
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
-
-    # remove duplicates & sort
-    |> Stream.uniq_by(& &1.address)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 
   defp get_summary_address_by_node(date, subset, authorized_nodes) do
@@ -401,6 +426,33 @@ defmodule Archethic.BeaconChain do
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
+  end
+
+  defp fetch_current_replications_attestations(node, subsets, paging_address \\ nil, acc \\ []) do
+    case P2P.send_message(node, %GetCurrentReplicationsAttestations{
+           subsets: subsets,
+           paging_address: paging_address
+         }) do
+      {:ok,
+       %GetCurrentReplicationsAttestationsResponse{
+         replications_attestations: replications_attestations,
+         more?: more?,
+         paging_address: paging_address
+       }} ->
+        if more? do
+          fetch_current_replications_attestations(
+            node,
+            subsets,
+            paging_address,
+            acc ++ replications_attestations
+          )
+        else
+          {:ok, acc ++ replications_attestations}
+        end
+
+      _ ->
+        :error
+    end
   end
 
   defp fetch_beacon_summaries(node, addresses) do

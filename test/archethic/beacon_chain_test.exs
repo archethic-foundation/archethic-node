@@ -18,7 +18,8 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
-
+  alias Archethic.P2P.Message.GetCurrentReplicationsAttestations
+  alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetCurrentSummaries
@@ -31,6 +32,7 @@ defmodule Archethic.BeaconChainTest do
 
   doctest Archethic.BeaconChain
 
+  import ArchethicCase
   import Mox
   import Mock
 
@@ -58,7 +60,7 @@ defmodule Archethic.BeaconChainTest do
   end
 
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
-    public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    public_key = random_address()
 
     assert :ok = BeaconChain.add_end_of_node_sync(public_key, DateTime.utc_now())
 
@@ -78,8 +80,8 @@ defmodule Archethic.BeaconChainTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        last_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
@@ -118,7 +120,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: random_address()
       }
 
       node2 = %Node{
@@ -131,7 +133,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: random_address()
       }
 
       node3 = %Node{
@@ -144,7 +146,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: random_address()
       }
 
       node4 = %Node{
@@ -157,7 +159,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: random_address()
       }
 
       P2P.add_and_connect_node(node1)
@@ -175,7 +177,7 @@ defmodule Archethic.BeaconChainTest do
     end
 
     test "should download the beacon summary", %{summary_time: summary_time} do
-      addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr1 = random_address()
 
       tx_summary = %TransactionSummary{
         address: addr1,
@@ -217,8 +219,8 @@ defmodule Archethic.BeaconChainTest do
       summary_time: summary_time,
       nodes: [node1, node2, node3, node4]
     } do
-      addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr1 = random_address()
+      addr2 = random_address()
 
       tx_summary1 = %TransactionSummary{
         address: addr1,
@@ -630,8 +632,8 @@ defmodule Archethic.BeaconChainTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        last_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
@@ -646,7 +648,7 @@ defmodule Archethic.BeaconChainTest do
            %TransactionSummaryList{
              transaction_summaries: [
                %TransactionSummary{
-                 address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 address: random_address(),
                  timestamp: now
                }
              ]
@@ -660,5 +662,203 @@ defmodule Archethic.BeaconChainTest do
       # each call to GetCurrentSummaries return a list of 1 transactionSummary (mock above)
       assert length(summaries) == 26
     end
+  end
+
+  describe "list_replications_attestations_from_current_slot/0" do
+    test "should return empty if there is nothing yet" do
+      assert [] = BeaconChain.list_replications_attestations_from_current_slot()
+    end
+
+    test "should return the attestations (1 page)" do
+      now = DateTime.utc_now()
+
+      nodes = [
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          authorized?: true,
+          authorization_date: now |> DateTime.add(-10)
+        },
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "BBB",
+          network_patch: "BBB",
+          authorized?: true,
+          authorization_date: now |> DateTime.add(-10)
+        }
+      ]
+
+      for node <- nodes, do: P2P.add_and_connect_node(node)
+
+      replications_attestations = [random_replication_attestation(now)]
+
+      MockClient
+      |> expect(:send_message, length(nodes), fn _, %GetCurrentReplicationsAttestations{}, _ ->
+        {:ok,
+         %GetCurrentReplicationsAttestationsResponse{
+           replications_attestations: replications_attestations,
+           more?: false,
+           paging_address: nil
+         }}
+      end)
+
+      assert ^replications_attestations =
+               BeaconChain.list_replications_attestations_from_current_slot()
+    end
+
+    test "should return the attestations (2 pages)" do
+      now = DateTime.utc_now()
+
+      nodes = [
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          authorized?: true,
+          authorization_date: now |> DateTime.add(-10)
+        },
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "BBB",
+          network_patch: "BBB",
+          authorized?: true,
+          authorization_date: now |> DateTime.add(-10)
+        }
+      ]
+
+      for node <- nodes, do: P2P.add_and_connect_node(node)
+
+      page1_replications_attestations = [
+        random_replication_attestation(now),
+        random_replication_attestation(now),
+        random_replication_attestation(now)
+      ]
+
+      page2_replications_attestations = [
+        random_replication_attestation(now),
+        random_replication_attestation(now)
+      ]
+
+      paging_address = random_address()
+
+      MockClient
+      |> expect(:send_message, length(nodes) * 2, fn
+        _, %GetCurrentReplicationsAttestations{paging_address: nil}, _ ->
+          {:ok,
+           %GetCurrentReplicationsAttestationsResponse{
+             replications_attestations: page1_replications_attestations,
+             more?: true,
+             paging_address: paging_address
+           }}
+
+        _, %GetCurrentReplicationsAttestations{paging_address: ^paging_address}, _ ->
+          {:ok,
+           %GetCurrentReplicationsAttestationsResponse{
+             replications_attestations: page2_replications_attestations,
+             more?: false,
+             paging_address: nil
+           }}
+      end)
+
+      expected_replications_attestations =
+        page1_replications_attestations ++ page2_replications_attestations
+
+      assert ^expected_replications_attestations =
+               BeaconChain.list_replications_attestations_from_current_slot()
+    end
+
+    test "should merge attestations when different" do
+      now = DateTime.utc_now()
+
+      node1 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: now |> DateTime.add(-10)
+      }
+
+      node2 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        geo_patch: "BBB",
+        network_patch: "BBB",
+        authorized?: true,
+        authorization_date: now |> DateTime.add(-10)
+      }
+
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+
+      replication_attestation1 = random_replication_attestation(now)
+      replication_attestation2 = random_replication_attestation(now)
+      replication_attestation3 = random_replication_attestation(now)
+      node1_replications_attestations = [replication_attestation1, replication_attestation2]
+      node2_replications_attestations = [replication_attestation1, replication_attestation3]
+
+      MockClient
+      |> expect(:send_message, 2, fn
+        ^node1, %GetCurrentReplicationsAttestations{}, _ ->
+          {:ok,
+           %GetCurrentReplicationsAttestationsResponse{
+             replications_attestations: node1_replications_attestations,
+             more?: false,
+             paging_address: nil
+           }}
+
+        ^node2, %GetCurrentReplicationsAttestations{}, _ ->
+          {:ok,
+           %GetCurrentReplicationsAttestationsResponse{
+             replications_attestations: node2_replications_attestations,
+             more?: false,
+             paging_address: nil
+           }}
+      end)
+
+      replications_attestations = BeaconChain.list_replications_attestations_from_current_slot()
+      assert 3 == length(replications_attestations)
+      assert Enum.any?(replications_attestations, &(&1 == replication_attestation1))
+      assert Enum.any?(replications_attestations, &(&1 == replication_attestation2))
+      assert Enum.any?(replications_attestations, &(&1 == replication_attestation3))
+    end
+  end
+
+  defp random_replication_attestation(datetime) do
+    %ReplicationAttestation{
+      version: 2,
+      transaction_summary: %TransactionSummary{
+        address: random_address(),
+        type: :transfer,
+        timestamp: datetime,
+        fee: 10_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+        genesis_address: random_address()
+      },
+      confirmations: Enum.map(0..9, &{&1, "signature#{&1}"})
+    }
   end
 end
