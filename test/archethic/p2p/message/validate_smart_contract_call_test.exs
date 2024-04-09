@@ -4,6 +4,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
   alias Archethic.Contracts.Contract.Failure
 
+  alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.P2P
   alias Archethic.P2P.Node
@@ -457,6 +458,71 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                  timestamp: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should filter the utxos coming from calls" do
+      contract_tx =
+        ~s"""
+        @version 1
+        condition triggered_by: transaction, as: [
+          content: contract.balance.uco == 0.0
+        ]
+        actions triggered_by: transaction do
+          Contract.set_content "ok"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      contract_address = contract_tx.address
+      call_address = random_address()
+      protocol_version = Mining.protocol_version()
+      now = DateTime.utc_now()
+
+      MockDB
+      |> expect(:get_transaction, fn
+        ^contract_address, _, _ -> {:ok, contract_tx}
+      end)
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetUnspentOutputs{address: ^contract_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 protocol_version: protocol_version,
+                 unspent_output: %UnspentOutput{
+                   from: call_address,
+                   type: :call,
+                   timestamp: now
+                 }
+               },
+               %VersionedUnspentOutput{
+                 protocol_version: protocol_version,
+                 unspent_output: %UnspentOutput{
+                   amount: 100_000_000,
+                   from: call_address,
+                   type: :UCO,
+                   timestamp: now
+                 }
+               }
+             ],
+             more?: false,
+             offset: nil
+           }}
+      end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
+
+      assert %SmartContractCallValidation{status: :ok} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{
+                   address: contract_address
+                 },
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(random_public_key())
     end
   end
 end

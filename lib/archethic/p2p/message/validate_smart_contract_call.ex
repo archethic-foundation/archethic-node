@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Context
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.ActionWithTransaction
@@ -20,6 +21,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -100,7 +104,11 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       | validation_stamp: ValidationStamp.generate_dummy(timestamp: datetime)
     }
 
-    unspent_outputs = Archethic.get_unspent_outputs(recipient_address)
+    unspent_outputs =
+      Archethic.get_unspent_outputs(recipient_address)
+      |> VersionedUnspentOutput.wrap_unspent_outputs(Mining.protocol_version())
+      |> Context.filter_inputs()
+      |> VersionedUnspentOutput.unwrap_unspent_outputs()
 
     with {:ok, contract_tx} <- get_last_transaction(recipient_address),
          {:ok, contract} <- parse_contract(contract_tx),
