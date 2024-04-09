@@ -17,6 +17,7 @@ defmodule Archethic.Replication do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.Governance
+  alias Archethic.Mining.Error
   alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.P2P.Message
@@ -47,11 +48,7 @@ defmodule Archethic.Replication do
           tx :: Transaction.t(),
           contract_context :: nil | Contract.Context.t(),
           validation_inputs :: list(VersionedUnspentOutput.t())
-        ) ::
-          :ok
-          | {:error, TransactionValidator.error()}
-          | {:error, :transaction_already_exists}
-          | {:error, :invalid_validation_inputs}
+        ) :: :ok | {:error, Error.t()}
   def validate_transaction(
         tx = %Transaction{address: address, type: type},
         contract_context,
@@ -63,7 +60,7 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {:error, :transaction_already_exists}
+      {:error, Error.new(:invalid_pending_transaction, "Transaction already exists")}
     else
       start_time = System.monotonic_time()
 
@@ -207,8 +204,7 @@ defmodule Archethic.Replication do
           tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
           opts :: sync_options()
-        ) ::
-          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
+        ) :: :ok | {:error, Error.t()}
   def validate_and_store_transaction(
         tx = %Transaction{address: address, type: type},
         genesis_address,
@@ -228,7 +224,7 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {:error, :transaction_already_exists}
+      {:error, Error.new(:invalid_pending_transaction, "Transaction already exists")}
     else
       start_time = System.monotonic_time()
 
@@ -341,7 +337,7 @@ defmodule Archethic.Replication do
           transaction_type: type
         )
 
-        {:error, :invalid_validation_inputs}
+        {:error, Error.new(:consensus_not_reached, "Invalid validation inputs")}
     end
   end
 
