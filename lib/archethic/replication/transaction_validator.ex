@@ -2,12 +2,12 @@ defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
   alias Archethic.Bootstrap
-  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.DB
   alias Archethic.Election
   alias Archethic.Mining
+  alias Archethic.Mining.Error
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.OracleChain
   alias Archethic.P2P
@@ -25,24 +25,6 @@ defmodule Archethic.Replication.TransactionValidator do
 
   require Logger
 
-  @typedoc """
-  Represents the different errors during the validation for the transaction replication
-  """
-  @type error ::
-          :invalid_atomic_commitment
-          | :invalid_node_election
-          | :invalid_proof_of_work
-          | :invalid_transaction_fee
-          | :invalid_transaction_movements
-          | :insufficient_funds
-          | :invalid_chain
-          | :invalid_transaction_with_inconsistencies
-          | :invalid_inherit_constraints
-          | :invalid_unspent_outputs
-          | {:invalid_recipients_execution, String.t(), any()}
-          | :invalid_contract_execution
-          | :invalid_contract_context_inputs
-
   @doc """
   Validate transaction with context
 
@@ -54,7 +36,7 @@ defmodule Archethic.Replication.TransactionValidator do
           genesis_address :: Crypto.prepended_hash(),
           inputs :: list(VersionedUnspentOutput.t()),
           contract_context :: nil | Contract.Context.t()
-        ) :: :ok | {:error, error()}
+        ) :: :ok | {:error, Error.t()}
   def validate(
         tx = %Transaction{},
         previous_transaction,
@@ -69,55 +51,20 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  # it is fine to assume validation_stamp is valid because this step is done after validate_validation_stamp
-  defp validate_inheritance(
-         prev_tx = %Transaction{data: %TransactionData{code: code}},
-         next_tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: validation_time
-           }
-         },
-         contract_context,
-         validation_inputs
-       )
-       when code != "" do
+  defp validate_inheritance(prev_tx, next_tx, contract_context, validation_inputs) do
     contract_inputs =
       case contract_context do
-        nil ->
-          validation_inputs
-
-        %Contract.Context{inputs: inputs} ->
-          inputs
+        nil -> validation_inputs
+        %Contract.Context{inputs: inputs} -> inputs
       end
 
-    case Contracts.execute_condition(
-           :inherit,
-           Contract.from_transaction!(prev_tx),
-           next_tx,
-           nil,
-           validation_time,
-           VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs)
-         ) do
-      {:ok, _logs} ->
-        :ok
-
-      _ ->
-        # TODO: propagate error, or subject
-        {:error, :invalid_inherit_constraints}
-    end
+    SmartContractValidation.validate_inherit_condition(prev_tx, next_tx, contract_inputs)
   end
 
-  # handle case:
-  # - no prev tx
-  # - prev tx has no inherit condition
-  defp validate_inheritance(_prev_tx, _next_tx, _contract_context, _inputs), do: :ok
-
   defp validate_chain(tx, prev_tx) do
-    if TransactionChain.valid?([tx, prev_tx]) do
-      :ok
-    else
-      {:error, :invalid_chain}
-    end
+    if TransactionChain.valid?([tx, prev_tx]),
+      do: :ok,
+      else: {:error, Error.new(:consensus_not_reached, "Invalid chain")}
   end
 
   @doc """
@@ -125,7 +72,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
   This function called by the replication nodes which are involved in the chain storage
   """
-  @spec validate(Transaction.t()) :: :ok | {:error, error()}
+  @spec validate(Transaction.t()) :: :ok | {:error, Error.t()}
   def validate(tx = %Transaction{}) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
@@ -141,10 +88,9 @@ defmodule Archethic.Replication.TransactionValidator do
        when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
-         {:ok, encoded_state} <-
-           validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs),
+         {:ok, encoded_state, contract_recipient_fees} <-
+           validate_smart_contract(tx, prev_tx, genesis_address, contract_context, inputs),
          :ok <- validate_inputs(tx, inputs, encoded_state, contract_context),
-         {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
          :ok <-
            validate_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state) do
       :ok
@@ -155,50 +101,69 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp validate_contract_recipients(%Transaction{
-         validation_stamp: %ValidationStamp{recipients: []}
-       }) do
-    {:ok, 0}
-  end
-
-  defp validate_contract_recipients(
+  defp validate_smart_contract(
          tx = %Transaction{
            data: %TransactionData{recipients: recipients},
-           validation_stamp: %ValidationStamp{
-             recipients: resolved_recipients,
-             timestamp: timestamp
-           }
-         }
+           validation_stamp: %ValidationStamp{recipients: resolved_recipients}
+         },
+         prev_tx,
+         genesis_address,
+         contract_context,
+         inputs
        ) do
-    res =
+    resolved_recipients =
       recipients
       |> Enum.zip(resolved_recipients)
       |> Enum.map(fn {recipient, resolved_address} ->
         %Recipient{recipient | address: resolved_address}
       end)
-      |> SmartContractValidation.validate_contract_calls(tx, timestamp)
 
-    case res do
-      {:ok, fees} -> {:ok, fees}
-      {:error, message, data} -> {:error, {:invalid_recipients_execution, message, data}}
+    with :ok <- validate_contract_context_inputs(contract_context, inputs),
+         :ok <- validate_distinct_contract_recipients(tx, resolved_recipients),
+         {:ok, encoded_state} <-
+           validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs),
+         {:ok, contract_recipients_fee} <- validate_contract_recipients(tx, resolved_recipients) do
+      {:ok, encoded_state, contract_recipients_fee}
     end
   end
 
-  defp validate_contract_execution(contract_context, prev_tx, genesis_address, tx, inputs) do
-    if Contract.Context.valid_inputs?(contract_context, inputs) do
-      case SmartContractValidation.valid_contract_execution?(
-             contract_context,
-             prev_tx,
-             genesis_address,
-             tx,
-             inputs
-           ) do
-        {true, encoded_state} -> {:ok, encoded_state}
-        _ -> {:error, :invalid_contract_execution}
-      end
-    else
-      {:error, :invalid_contract_context_inputs}
-    end
+  defp validate_contract_context_inputs(contract_context, inputs) do
+    if Contract.Context.valid_inputs?(contract_context, inputs),
+      do: :ok,
+      else: {:error, Error.new(:invalid_contract_context_inputs)}
+  end
+
+  defp validate_distinct_contract_recipients(
+         %Transaction{data: %TransactionData{recipients: recipients}},
+         resolved_recipients
+       ) do
+    if length(recipients) == length(resolved_recipients) and
+         resolved_recipients == Enum.uniq_by(resolved_recipients, & &1.address),
+       do: :ok,
+       else: {:error, Error.new(:recipients_not_distinct)}
+  end
+
+  defp validate_contract_execution(
+         contract_context,
+         prev_tx,
+         genesis_address,
+         next_tx,
+         inputs
+       ) do
+    SmartContractValidation.validate_contract_execution(
+      contract_context,
+      prev_tx,
+      genesis_address,
+      next_tx,
+      inputs
+    )
+  end
+
+  defp validate_contract_recipients(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
+         resolved_recipients
+       ) do
+    SmartContractValidation.validate_contract_calls(resolved_recipients, tx, validation_time)
   end
 
   defp validate_consensus(
@@ -212,11 +177,9 @@ defmodule Archethic.Replication.TransactionValidator do
   end
 
   defp validate_atomic_commitment(tx) do
-    if Transaction.atomic_commitment?(tx) do
-      :ok
-    else
-      {:error, :invalid_atomic_commitment}
-    end
+    if Transaction.atomic_commitment?(tx),
+      do: :ok,
+      else: {:error, Error.new(:consensus_not_reached, "Invalid atomic commitment")}
   end
 
   defp validate_cross_validation_stamps_inconsistencies(stamps) do
@@ -224,7 +187,14 @@ defmodule Archethic.Replication.TransactionValidator do
       :ok
     else
       Logger.error("Inconsistencies: #{inspect(Enum.map(stamps, & &1.inconsistencies))}")
-      {:error, :invalid_transaction_with_inconsistencies}
+
+      error_data =
+        stamps
+        |> Enum.flat_map(& &1.inconsistencies)
+        |> Enum.uniq()
+        |> Enum.map(&(&1 |> Atom.to_string() |> String.replace("_", " ")))
+
+      {:error, Error.new(:consensus_not_reached, error_data)}
     end
   end
 
@@ -247,16 +217,14 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: tx.type
       )
 
-      {:error, :invalid_proof_of_work}
+      {:error, Error.new(:consensus_not_reached, "Invalid proof of work")}
     end
   end
 
   defp validate_node_election(tx = %Transaction{}) do
-    if valid_election?(tx) do
-      :ok
-    else
-      {:error, :invalid_node_election}
-    end
+    if valid_election?(tx),
+      do: :ok,
+      else: {:error, Error.new(:consensus_not_reached, "Invalid election")}
   end
 
   defp valid_election?(
@@ -314,7 +282,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: tx.type
       )
 
-      {:error, :invalid_transaction_fee}
+      {:error, Error.new(:consensus_not_reached, "Invalid transaction fee")}
     end
   end
 
@@ -367,7 +335,7 @@ defmodule Archethic.Replication.TransactionValidator do
           transaction_type: tx.type
         )
 
-        {:error, :invalid_transaction_movements}
+        {:error, Error.new(:consensus_not_reached, "Invalid transaction movements")}
     end
   end
 
@@ -383,7 +351,7 @@ defmodule Archethic.Replication.TransactionValidator do
       transaction_type: tx.type
     )
 
-    {:error, error}
+    {:error, Error.new(error)}
   end
 
   defp validate_inputs(
@@ -412,26 +380,26 @@ defmodule Archethic.Replication.TransactionValidator do
          encoded_state,
          contract_context
        ) do
-    {sufficient_funds?, ledger_operations} =
-      LedgerOperations.consume_inputs(
-        %LedgerOperations{fee: fee},
-        address,
-        timestamp,
-        inputs,
-        Transaction.get_movements(tx),
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
-        encoded_state,
-        contract_context
-      )
+    case LedgerOperations.consume_inputs(
+           %LedgerOperations{fee: fee},
+           address,
+           timestamp,
+           inputs,
+           Transaction.get_movements(tx),
+           LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
+           encoded_state,
+           contract_context
+         ) do
+      {:ok, ledger_operations} ->
+        case validate_consume_inputs(tx, ledger_operations) do
+          :ok -> validate_unspent_outputs(tx, ledger_operations)
+          err -> err
+        end
 
-    with :ok <- validate_sufficient_funds(sufficient_funds?),
-         :ok <- validate_consume_inputs(tx, ledger_operations) do
-      validate_unspent_outputs(tx, ledger_operations)
+      {:error, :insufficient_funds} ->
+        {:error, Error.new(:insufficient_funds)}
     end
   end
-
-  defp validate_sufficient_funds(true), do: :ok
-  defp validate_sufficient_funds(false), do: {:error, :insufficient_funds}
 
   defp validate_consume_inputs(
          %Transaction{
@@ -453,7 +421,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: type
       )
 
-      {:error, :invalid_consumed_inputs}
+      {:error, Error.new(:consensus_not_reached, "Invalid consumed inputs")}
     end
   end
 
@@ -477,7 +445,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: type
       )
 
-      {:error, :invalid_unspent_outputs}
+      {:error, Error.new(:consensus_not_reached, "Invalid unspent outputs")}
     end
   end
 end
