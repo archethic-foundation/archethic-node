@@ -110,7 +110,7 @@ defmodule Archethic.Mining.ValidationContext do
           contract_context: nil | Contract.Context.t(),
           genesis_address: binary(),
           aggregated_utxos: list(VersionedUnspentOutput.t()),
-          mining_error: Error.t()
+          mining_error: Error.t() | nil
         }
 
   @doc """
@@ -154,17 +154,13 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @doc """
-  Set the pending transaction validation flag and the returned error
+  Set the mining error. If one is already set, keeps the existing one
   """
-  @spec set_pending_transaction_validation(t(), boolean(), binary()) :: t()
-  def set_pending_transaction_validation(context = %__MODULE__{}, valid?, error_reason \\ "")
-      when is_boolean(valid?) do
-    %{
-      context
-      | valid_pending_transaction?: valid?,
-        pending_transaction_error_detail: error_reason
-    }
-  end
+  @spec set_mining_error(context :: t(), mining_error :: Error.t()) :: t()
+  def set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
+    do: %__MODULE__{context | mining_error: mining_error}
+
+  def set_mining_error(context, _), do: context
 
   @doc """
   Determine if the enough context has been retrieved
@@ -714,10 +710,7 @@ defmodule Archethic.Mining.ValidationContext do
     %__MODULE__{context | validation_stamp: validation_stamp}
   end
 
-  defp validate_smart_contract(
-         context = %__MODULE__{mining_error: mining_error},
-         resolved_recipients
-       ) do
+  defp validate_smart_contract(context, resolved_recipients) do
     with :ok <- validate_contract_context_inputs(context),
          :ok <- validate_distinct_contract_recipients(resolved_recipients),
          {:ok, encoded_state} <- validate_contract_execution(context),
@@ -725,11 +718,7 @@ defmodule Archethic.Mining.ValidationContext do
            validate_contract_recipients(context, resolved_recipients) do
       {context, encoded_state, contract_recipients_fee}
     else
-      {:error, err} ->
-        # Keep previous error if any
-        if mining_error == nil,
-          do: {%__MODULE__{context | mining_error: err}, nil, 0},
-          else: {context, nil, 0}
+      {:error, err} -> {set_mining_error(context, err), nil, 0}
     end
   end
 
@@ -767,8 +756,7 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx = %Transaction{address: address, type: tx_type},
            resolved_addresses: resolved_addresses,
            contract_context: contract_context,
-           aggregated_utxos: unspent_outputs,
-           mining_error: mining_error
+           aggregated_utxos: unspent_outputs
          },
          fee,
          validation_time,
@@ -796,16 +784,7 @@ defmodule Archethic.Mining.ValidationContext do
         {context, new_ops}
 
       {:error, :insufficient_funds} ->
-        context =
-          if mining_error == nil do
-            error = Error.new(:insufficient_funds)
-            %__MODULE__{context | mining_error: error}
-          else
-            # Keep previous error if any
-            context
-          end
-
-        {context, ops}
+        {set_mining_error(context, Error.new(:insufficient_funds)), ops}
     end
   end
 
@@ -852,8 +831,7 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: next_tx,
            previous_transaction: prev_tx,
            contract_context: contract_context,
-           aggregated_utxos: unspent_outputs,
-           mining_error: mining_error
+           aggregated_utxos: unspent_outputs
          },
          validation_stamp
        ) do
@@ -868,11 +846,8 @@ defmodule Archethic.Mining.ValidationContext do
            %{next_tx | validation_stamp: validation_stamp},
            contract_inputs
          ) do
-      :ok ->
-        context
-
-      {:error, error} ->
-        if mining_error == nil, do: %__MODULE__{context | mining_error: error}, else: context
+      :ok -> context
+      {:error, error} -> set_mining_error(context, error)
     end
   end
 
