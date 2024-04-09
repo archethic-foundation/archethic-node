@@ -37,10 +37,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :insufficient_funds
           | :invalid_chain
           | :invalid_transaction_with_inconsistencies
-          | :invalid_contract_acceptance
-          | :invalid_pending_transaction
           | :invalid_inherit_constraints
-          | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
           | {:invalid_recipients_execution, String.t(), any()}
           | :invalid_contract_execution
@@ -106,7 +103,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
       _ ->
         # TODO: propagate error, or subject
-        {:error, :invalid_contract_acceptance}
+        {:error, :invalid_inherit_constraints}
     end
   end
 

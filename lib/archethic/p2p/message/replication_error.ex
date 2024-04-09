@@ -72,20 +72,19 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp serialize_reason(:insufficient_funds), do: <<7::8>>
   defp serialize_reason(:invalid_chain), do: <<8::8>>
   defp serialize_reason(:invalid_transaction_with_inconsistencies), do: <<9::8>>
-  defp serialize_reason(:invalid_contract_acceptance), do: <<10::8>>
-  defp serialize_reason(:invalid_pending_transaction), do: <<11::8>>
-  defp serialize_reason(:invalid_inherit_constraints), do: <<12::8>>
-  defp serialize_reason(:invalid_validation_stamp_signature), do: <<13::8>>
-  defp serialize_reason(:invalid_unspent_outputs), do: <<14::8>>
+  defp serialize_reason(:invalid_pending_transaction), do: <<10::8>>
+  defp serialize_reason(:invalid_inherit_constraints), do: <<11::8>>
+  defp serialize_reason(:invalid_validation_stamp_signature), do: <<12::8>>
+  defp serialize_reason(:invalid_unspent_outputs), do: <<13::8>>
 
   defp serialize_reason({:invalid_recipients_execution, message, data}) do
     message_bin = <<VarInt.from_value(byte_size(message))::binary, message::binary>>
-    <<15::8, message_bin::binary, TypedEncoding.serialize(data, :compact)::bitstring>>
+    <<14::8, message_bin::binary, TypedEncoding.serialize(data, :compact)::bitstring>>
   end
 
-  defp serialize_reason(:invalid_contract_execution), do: <<16::8>>
-  defp serialize_reason(:invalid_validation_inputs), do: <<17::8>>
-  defp serialize_reason(:invalid_contract_context_inputs), do: <<18::8>>
+  defp serialize_reason(:invalid_contract_execution), do: <<15::8>>
+  defp serialize_reason(:invalid_validation_inputs), do: <<16::8>>
+  defp serialize_reason(:invalid_contract_context_inputs), do: <<17::8>>
 
   @doc """
   DeSerialize a replication error message
@@ -137,25 +136,24 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp deserialize_reason(<<9::8, rest::bitstring>>),
     do: {:invalid_transaction_with_inconsistencies, rest}
 
-  defp deserialize_reason(<<10::8, rest::bitstring>>), do: {:invalid_contract_acceptance, rest}
-  defp deserialize_reason(<<11::8, rest::bitstring>>), do: {:invalid_pending_transaction, rest}
-  defp deserialize_reason(<<12::8, rest::bitstring>>), do: {:invalid_inherit_constraints, rest}
+  defp deserialize_reason(<<10::8, rest::bitstring>>), do: {:invalid_pending_transaction, rest}
+  defp deserialize_reason(<<11::8, rest::bitstring>>), do: {:invalid_inherit_constraints, rest}
 
-  defp deserialize_reason(<<13::8, rest::bitstring>>),
+  defp deserialize_reason(<<12::8, rest::bitstring>>),
     do: {:invalid_validation_stamp_signature, rest}
 
-  defp deserialize_reason(<<14::8, rest::bitstring>>), do: {:invalid_unspent_outputs, rest}
+  defp deserialize_reason(<<13::8, rest::bitstring>>), do: {:invalid_unspent_outputs, rest}
 
-  defp deserialize_reason(<<15::8, rest::bitstring>>) do
+  defp deserialize_reason(<<14::8, rest::bitstring>>) do
     {message_length, rest} = VarInt.get_value(rest)
     <<message::binary-size(message_length), rest::bitstring>> = rest
     {data, rest} = TypedEncoding.deserialize(rest, :compact)
     {{:invalid_recipients_execution, message, data}, rest}
   end
 
-  defp deserialize_reason(<<16::8, rest::bitstring>>), do: {:invalid_contract_execution, rest}
-  defp deserialize_reason(<<17::8, rest::bitstring>>), do: {:invalid_validation_inputs, rest}
+  defp deserialize_reason(<<15::8, rest::bitstring>>), do: {:invalid_contract_execution, rest}
+  defp deserialize_reason(<<16::8, rest::bitstring>>), do: {:invalid_validation_inputs, rest}
 
-  defp deserialize_reason(<<18::8, rest::bitstring>>),
+  defp deserialize_reason(<<17::8, rest::bitstring>>),
     do: {:invalid_contract_context_inputs, rest}
 end

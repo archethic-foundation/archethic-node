@@ -28,7 +28,6 @@ defmodule Archethic.P2P.Message.ReplicationErrorTest do
       :insufficient_funds,
       :invalid_chain,
       :invalid_transaction_with_inconsistencies,
-      :invalid_contract_acceptance,
       :invalid_pending_transaction,
       :invalid_inherit_constraints,
       :invalid_validation_stamp_signature,

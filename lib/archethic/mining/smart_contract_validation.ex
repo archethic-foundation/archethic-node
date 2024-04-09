@@ -11,11 +11,14 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Crypto
   alias Archethic.BeaconChain
   alias Archethic.Election
+  alias Archethic.Mining.Error
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -40,9 +43,7 @@ defmodule Archethic.Mining.SmartContractValidation do
           recipients :: list(Recipient.t()),
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
-        ) ::
-          {:ok, fee :: non_neg_integer()}
-          | {:error, message :: String.t(), data :: any()}
+        ) :: {:ok, fee :: non_neg_integer()} | {:error, error :: Error.t()}
   def validate_contract_calls([], _, _), do: {:ok, 0}
 
   def validate_contract_calls(
@@ -50,6 +51,9 @@ defmodule Archethic.Mining.SmartContractValidation do
         transaction = %Transaction{},
         validation_time = %DateTime{}
       ) do
+    default_error =
+      Error.new(:invalid_recipients_execution, "Failed to validate call due to timeout")
+
     TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(
       recipients,
@@ -60,9 +64,9 @@ defmodule Archethic.Mining.SmartContractValidation do
       max_concurrency: length(recipients)
     )
     |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.reduce_while({:error, "Failed to validate call due to timeout", nil}, fn
-      {:ok, {:ok, fee}}, {_, _, _} -> {:cont, {:ok, fee}}
-      {:ok, {:ok, fee}}, {_, total_fee} -> {:cont, {:ok, total_fee + fee}}
+    |> Enum.reduce_while({:error, default_error}, fn
+      {:ok, {:ok, fee}}, {:error, _} -> {:cont, {:ok, fee}}
+      {:ok, {:ok, fee}}, {:ok, total_fee} -> {:cont, {:ok, total_fee + fee}}
       {:ok, {:error, error}}, _ -> {:halt, error}
     end)
   end
@@ -81,10 +85,12 @@ defmodule Archethic.Mining.SmartContractValidation do
 
     conflicts_resolver = fn results ->
       Enum.sort_by(results, fn
-        %SmartContractCallValidation{status: {:error, :invalid_execution, _}} -> 1
-        %SmartContractCallValidation{status: :ok} -> 2
-        %SmartContractCallValidation{status: {:error, :insufficient_funds}} -> 3
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}} -> 4
+        %SmartContractCallValidation{status: :ok} -> 1
+        %SmartContractCallValidation{status: {:error, :invalid_condition, _}} -> 2
+        %SmartContractCallValidation{status: {:error, :invalid_execution, _}} -> 3
+        %SmartContractCallValidation{status: {:error, :insufficient_funds}} -> 4
+        %SmartContractCallValidation{status: {:error, :parsing_error, _}} -> 5
+        %SmartContractCallValidation{status: {:error, :transaction_not_exists}} -> 6
       end)
       |> List.first()
     end
@@ -103,88 +109,72 @@ defmodule Archethic.Mining.SmartContractValidation do
         {:ok, fee}
 
       {:ok, %SmartContractCallValidation{status: error_status}} ->
-        data = %{recipient: Base.encode16(genesis_address)}
+        data = %{"recipient" => Base.encode16(genesis_address)}
         {:error, format_error_status(error_status, data)}
 
       {:error, :network_issue} ->
-        data = %{recipient: Base.encode16(genesis_address)}
+        data = %{"recipient" => Base.encode16(genesis_address)}
         {:error, {:error, "Failed to validate call due to timeout", data}}
     end
   end
 
   defp format_error_status({:error, :transaction_not_exists}, data) do
-    {:error, "Contract recipient does not exists", data}
+    data = Map.put(data, "message", "Contract recipient does not exists")
+    {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
   defp format_error_status(
-         {:error, :invalid_execution, %Failure{user_friendly_error: message, data: data}},
+         {:error, :invalid_execution, %Failure{user_friendly_error: message, data: failure_data}},
          data
        ) do
-    {:error, message, data}
+    data = data |> Map.put("message", message) |> Map.put("data", failure_data)
+    {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
   defp format_error_status({:error, :invalid_condition, subject}, data) do
-    {:error, "Invalid condition on #{subject}", data}
+    data = Map.put(data, "message", "Invalid condition on #{subject}")
+    {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
   defp format_error_status({:error, :parsing_error, reason}, data) do
-    {:error, "Error when parsing contract #{reason}", data}
+    data = data |> Map.put("message", "Error when parsing contract") |> Map.put("data", reason)
+    {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
   @doc """
   Execute the contract if it's relevant and return a boolean if given transaction is genuine.
   It also return the result because it's need to extract the state
   """
-  @spec valid_contract_execution?(
+  @spec validate_contract_execution(
           contract_context :: Contract.Context.t(),
           prev_tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
           next_tx :: Transaction.t(),
           chain_unspent_outputs :: list(VersionedUnspentOutput.t())
-        ) :: {boolean(), State.encoded() | nil}
-  def valid_contract_execution?(
-        %Contract.Context{
+        ) :: {:ok, State.encoded() | nil} | {:error, Error.t()}
+  def validate_contract_execution(
+        contract_context = %Contract.Context{
           status: status,
           trigger: trigger,
-          timestamp: timestamp,
-          inputs: contract_inputs
+          timestamp: timestamp
         },
         prev_tx,
         genesis_address,
         next_tx,
         chain_unspent_outputs
       ) do
-    trigger_type = trigger_to_trigger_type(trigger)
-    recipient = trigger_to_recipient(trigger)
-    opts = trigger_to_execute_opts(trigger)
+    chain_unspent_outputs = VersionedUnspentOutput.unwrap_unspent_outputs(chain_unspent_outputs)
 
     with {:ok, maybe_trigger_tx} <-
-           validate_trigger(
-             trigger,
-             timestamp,
-             genesis_address,
-             VersionedUnspentOutput.unwrap_unspent_outputs(chain_unspent_outputs)
-           ),
-         {:ok, contract} <-
-           Contract.from_transaction(prev_tx),
-         {:ok, res} <-
-           Contracts.execute_trigger(
-             trigger_type,
-             contract,
-             maybe_trigger_tx,
-             recipient,
-             VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs),
-             opts
-           ),
-         {:ok, encoded_state} <-
-           validate_result(res, next_tx, status) do
+           validate_trigger(trigger, timestamp, genesis_address, chain_unspent_outputs),
+         {:ok, contract} <- parse_contract(prev_tx),
+         {:ok, res} <- execute_trigger(contract_context, contract, maybe_trigger_tx),
+         {:ok, encoded_state} <- validate_result(res, next_tx, status) do
       {true, encoded_state}
-    else
-      _ -> {false, nil}
     end
   end
 
-  def valid_contract_execution?(
+  def validate_contract_execution(
         _contract_context = nil,
         prev_tx = %Transaction{data: %TransactionData{code: code}},
         _genesis_address,
@@ -194,32 +184,59 @@ defmodule Archethic.Mining.SmartContractValidation do
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
     if prev_tx |> Contract.from_transaction!() |> Contract.contains_trigger?(),
-      do: {false, nil},
-      else: {true, nil}
+      do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
+      else: {:ok, nil}
   end
 
-  def valid_contract_execution?(_, _, _, _, _), do: {true, nil}
+  def validate_contract_execution(_, _, _, _, _), do: {:ok, nil}
 
-  defp validate_result(
-         %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},
-         next_tx,
-         _status = :tx_output
-       ) do
-    same_payload? =
-      next_tx
-      |> Contract.remove_seed_ownership()
-      |> Transaction.same_payload?(expected_next_tx)
+  @doc """
+  Validate contract inherit constraint
+  """
+  @spec validate_inherit_condition(
+          prev_tx :: Transaction.t(),
+          next_tx :: Transaction.t(),
+          contract_inputs :: list(VersionedUnspentOutput.t())
+        ) :: :ok | {:error, Error.t()}
+  def validate_inherit_condition(
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        next_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
+        contract_inputs
+      )
+      when code != "" do
+    case Contracts.execute_condition(
+           :inherit,
+           Contract.from_transaction!(prev_tx),
+           next_tx,
+           nil,
+           validation_time,
+           VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs)
+         ) do
+      {:ok, _logs} ->
+        :ok
 
-    if same_payload?, do: {:ok, encoded_state}, else: :error
+      {:error, %Failure{user_friendly_error: user_friendly_error, data: data}} ->
+        {:error, Error.new(:invalid_inherit_constraints, data || user_friendly_error)}
+
+      {:error, _} ->
+        {:error, Error.new(:invalid_inherit_constraints)}
+    end
   end
 
-  defp validate_result(_, _, _), do: :error
+  def validate_inherit_condition(_, _, _), do: :ok
 
   defp validate_trigger({:datetime, datetime}, validation_datetime, _, _) do
     if within_drift_tolerance?(validation_datetime, datetime) do
       {:ok, nil}
     else
-      :invalid_triggers_execution
+      error =
+        Error.new(:invalid_contract_execution, %{
+          "message" => "Invalid trigger datetime",
+          "triggerDatetime" => DateTime.to_unix(datetime, :second),
+          "validationTime" => DateTime.to_unix(validation_datetime, :second)
+        })
+
+      {:error, error}
     end
   end
 
@@ -232,7 +249,14 @@ defmodule Archethic.Mining.SmartContractValidation do
     if matches_date? && within_drift_tolerance?(validation_datetime, interval_datetime) do
       {:ok, nil}
     else
-      :invalid_triggers_execution
+      error =
+        Error.new(:invalid_contract_execution, %{
+          "message" => "Invalid trigger interval",
+          "intervalTime" => DateTime.to_unix(interval_datetime, :second),
+          "validationTime" => DateTime.to_unix(validation_datetime, :second)
+        })
+
+      {:error, error}
     end
   end
 
@@ -254,7 +278,13 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract: Base.encode16(contract_genesis_address)
         )
 
-        :invalid_triggers_execution
+        error =
+          Error.new(:invalid_contract_execution, %{
+            "message" => "Invalid trigger transaction",
+            "triggerAddress" => Base.encode16(address)
+          })
+
+        {:error, error}
     end
   end
 
@@ -267,7 +297,13 @@ defmodule Archethic.Mining.SmartContractValidation do
 
       {:error, _} ->
         # todo: it might too strict to say that it's invalid in some cases (timeout)
-        :invalid_triggers_execution
+        error =
+          Error.new(:invalid_contract_execution, %{
+            "message" => "Invalid trigger oracle",
+            "triggerAddress" => Base.encode16(address)
+          })
+
+        {:error, error}
     end
   end
 
@@ -294,4 +330,66 @@ defmodule Archethic.Mining.SmartContractValidation do
     DateTime.diff(validation_datetime, datetime) >= 0 and
       DateTime.diff(validation_datetime, datetime) < 10
   end
+
+  defp parse_contract(prev_tx) do
+    case Contract.from_transaction(prev_tx) do
+      {:ok, contract} ->
+        {:ok, contract}
+
+      {:error, reason} ->
+        error =
+          Error.new(:invalid_contract_execution, %{
+            "message" => "Cannot parse previous contract transaction",
+            "data" => reason
+          })
+
+        {:error, error}
+    end
+  end
+
+  defp execute_trigger(
+         %Contract.Context{trigger: trigger, inputs: contract_inputs},
+         contract,
+         maybe_trigger_tx
+       ) do
+    trigger_type = trigger_to_trigger_type(trigger)
+    recipient = trigger_to_recipient(trigger)
+    opts = trigger_to_execute_opts(trigger)
+    contract_inputs = VersionedUnspentOutput.unwrap_unspent_outputs(contract_inputs)
+
+    case Contracts.execute_trigger(
+           trigger_type,
+           contract,
+           maybe_trigger_tx,
+           recipient,
+           contract_inputs,
+           opts
+         ) do
+      {:ok, res} ->
+        {:ok, res}
+
+      {:error, %Failure{user_friendly_error: message, data: data}} ->
+        {:error, Error.new(:invalid_contract_execution, data || message)}
+    end
+  end
+
+  defp validate_result(
+         %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},
+         next_tx,
+         _status = :tx_output
+       ) do
+    same_payload? =
+      next_tx |> Contract.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
+
+    if same_payload? do
+      {:ok, encoded_state}
+    else
+      {:error,
+       Error.new(:invalid_contract_execution, "Transaction does not match expected result")}
+    end
+  end
+
+  defp validate_result(_, _, _),
+    do:
+      {:error, Error.new(:invalid_contract_execution, "Contract should not output a transaction")}
 end
