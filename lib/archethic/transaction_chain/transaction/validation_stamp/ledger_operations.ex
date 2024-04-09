@@ -226,8 +226,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           token_to_mint :: list(VersionedUnspentOutput.t()),
           encoded_state :: State.encoded() | nil,
           contract_context :: ContractContext.t() | nil
-        ) ::
-          {sufficient_funds? :: boolean(), ledger_operations :: t()}
+        ) :: {:ok, ledger_operations :: t()} | {:error, :insufficient_funds}
   def consume_inputs(
         ops = %__MODULE__{fee: fee},
         change_address,
@@ -263,7 +262,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end)
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
-
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
 
     if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
@@ -292,12 +290,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         |> Enum.filter(&(&1.amount > 0))
         |> add_state_utxo(encoded_state, change_address, timestamp)
 
-      {true,
+      {:ok,
        ops
        |> Map.put(:unspent_outputs, new_unspent_outputs)
        |> Map.put(:consumed_inputs, versioned_consumed_utxos)}
     else
-      {false, ops}
+      {:error, :insufficient_funds}
     end
   end
 
