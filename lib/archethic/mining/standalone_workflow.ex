@@ -132,11 +132,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
     validation_context =
       case PendingTransactionValidation.validate(tx, validation_time) do
-        :ok ->
-          ValidationContext.set_pending_transaction_validation(validation_context, true)
-
-        {:error, reason} ->
-          ValidationContext.set_pending_transaction_validation(validation_context, false, reason)
+        :ok -> validation_context
+        {:error, error} -> ValidationContext.set_mining_error(validation_context, error)
       end
 
     validation_context =

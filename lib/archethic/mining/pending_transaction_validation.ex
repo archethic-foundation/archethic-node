@@ -14,6 +14,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   alias Archethic.Networking
 
+  alias Archethic.Mining.Error
+
   alias Archethic.OracleChain
 
   alias Archethic.P2P
@@ -73,11 +75,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @doc """
   Determines if the transaction is accepted into the network
   """
-  @spec validate(Transaction.t(), DateTime.t()) :: :ok | {:error, any()}
-  def validate(
-        tx = %Transaction{address: address, type: type},
-        validation_time = %DateTime{} \\ DateTime.utc_now()
-      ) do
+  @spec validate(Transaction.t(), DateTime.t()) :: :ok | {:error, Error.t()}
+  def validate(tx = %Transaction{type: type}, validation_time = %DateTime{} \\ DateTime.utc_now()) do
     start = System.monotonic_time()
 
     with :ok <- do_accept_transaction(tx, validation_time),
@@ -97,13 +96,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       :ok
     else
-      {:error, reason} = e ->
-        Logger.info("Invalid Transaction: #{reason}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        e
+      {:error, reason} -> {:error, Error.new(:invalid_pending_transaction, reason)}
     end
   end
 
@@ -151,26 +144,35 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp validate_contract(%Transaction{
          data: %TransactionData{code: code, ownerships: ownerships}
        }) do
-    if TransactionData.code_size_valid?(code) do
-      case Contracts.parse(code) do
-        {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
-          if Enum.any?(
-               ownerships,
-               &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
-             ) do
-            :ok
-          else
-            {:error, "Requires storage nonce public key as authorized public keys"}
-          end
+    with :ok <- validate_code_size(code),
+         {:ok, contract} <- parse_contract(code) do
+      validate_contract_ownership(contract, ownerships)
+    end
+  end
 
-        {:ok, %Contract{}} ->
-          :ok
+  defp validate_code_size(code) do
+    if TransactionData.code_size_valid?(code),
+      do: :ok,
+      else: {:error, "Invalid transaction, code exceed max size"}
+  end
 
-        {:error, reason} ->
-          {:error, "Smart contract invalid #{inspect(reason)}"}
-      end
+  defp parse_contract(code) do
+    case Contracts.parse(code) do
+      {:ok, contract} -> {:ok, contract}
+      {:error, reason} -> {:error, "Smart contract invalid #{inspect(reason)}"}
+    end
+  end
+
+  defp validate_contract_ownership(contract, ownerships) do
+    with true <- Contract.contains_trigger?(contract),
+         false <-
+           Enum.any?(
+             ownerships,
+             &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
+           ) do
+      {:error, "Requires storage nonce public key as authorized public keys"}
     else
-      {:error, "Invalid transaction, code exceed max size"}
+      _ -> :ok
     end
   end
 

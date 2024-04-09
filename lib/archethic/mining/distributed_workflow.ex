@@ -281,15 +281,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
             transaction_type: tx.type
           )
 
-          ValidationContext.set_pending_transaction_validation(context, true)
+          context
 
-        {:error, reason} ->
-          Logger.debug("Invalid transaction - #{inspect(reason)}",
+        {:error, error} ->
+          Logger.debug("Invalid pending transaction - #{inspect(error)}",
             transaction_address: Base.encode16(tx.address),
             transaction_type: tx.type
           )
 
-          ValidationContext.set_pending_transaction_validation(context, false, reason)
+          ValidationContext.set_mining_error(context, error)
       end
 
     next_events =
@@ -301,17 +301,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
           ]
 
         :coordinator ->
-          [
-            {:next_event, :internal, :build_transaction_context}
-          ]
+          [{:next_event, :internal, :build_transaction_context}]
       end
 
-    new_data =
-      Map.put(
-        data,
-        :context,
-        new_context
-      )
+    new_data = Map.put(data, :context, new_context)
 
     {:next_state, role, new_data, next_events}
   end
