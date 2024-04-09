@@ -15,6 +15,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.Election
 
+  alias Archethic.Mining.Error
   alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.TransactionContext
   alias Archethic.Mining.ValidationContext
@@ -137,6 +138,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       end
 
     validation_context =
+      %ValidationContext{mining_error: mining_error} =
       validation_context
       |> ValidationContext.put_transaction_context(
         prev_tx,
@@ -149,7 +151,9 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       |> ValidationContext.add_aggregated_utxos(unspent_outputs)
       |> validate()
 
-    start_replication(validation_context)
+    if mining_error == nil,
+      do: start_replication(validation_context),
+      else: send(self(), {:replication_error, mining_error})
 
     new_state =
       state
@@ -218,48 +222,25 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
 
       case Enum.dedup(errors) do
-        [%ReplicationError{reason: reason}] ->
-          send(self(), {:replication_error, reason})
+        [%ReplicationError{error: error}] ->
+          send(self(), {:replication_error, error})
 
         _ ->
-          send(self(), {:replication_error, :invalid_atomic_commitment})
+          send(
+            self(),
+            {:replication_error, Error.new(:consensus_not_reached, "Invalid atomic commitment")}
+          )
       end
     end
   end
 
   def handle_info(
-        {:replication_error, reason},
+        {:replication_error, error},
         state = %{
-          context:
-            context = %ValidationContext{
-              transaction: %Transaction{address: tx_address},
-              pending_transaction_error_detail: pending_error_detail,
-              invalid_recipents_error_detail: {message, _data}
-            }
+          context: context = %ValidationContext{transaction: %Transaction{address: tx_address}}
         }
       ) do
-    {error_context, error_reason} =
-      case reason do
-        :invalid_pending_transaction ->
-          {:invalid_transaction, pending_error_detail}
-
-        :invalid_inherit_constraints ->
-          {:invalid_transaction, "Inherit constraints not respected"}
-
-        :insufficient_funds ->
-          {:invalid_transaction, "Insufficient funds"}
-
-        :invalid_proof_of_work ->
-          {:invalid_transaction, "Invalid origin signature"}
-
-        :invalid_recipients_execution ->
-          {:invalid_transaction, "Invalid recipient execution: #{message}"}
-
-        reason ->
-          {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
-      end
-
-    Logger.warning("Invalid transaction #{inspect(error_reason)}",
+    Logger.warning("Invalid transaction #{inspect(error)}",
       transaction_address: Base.encode16(tx_address)
     )
 
@@ -268,7 +249,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     )
 
     # Notify error to the welcome node
-    message = %ValidationError{address: tx_address, context: error_context, reason: error_reason}
+    message = %ValidationError{address: tx_address, error: error}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
       P2P.send_message(
@@ -345,14 +326,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     )
 
     # Notify error to the welcome node
-    message = %ValidationError{context: :network_issue, reason: "timeout", address: tx.address}
+    message = %ValidationError{error: Error.new(:timeout), address: tx.address}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-      P2P.send_message(
-        welcome_node,
-        message
-      )
-
+      P2P.send_message(welcome_node, message)
       :ok
     end)
 

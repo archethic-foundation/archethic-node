@@ -615,7 +615,7 @@ defmodule Archethic.P2P do
   @doc """
   Send multiple message at once for the given nodes.
   """
-  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
+  @spec broadcast_message(list(Node.t()), Message.t()) :: :ok
   def broadcast_message(nodes, message) do
     Task.Supervisor.start_child(TaskSupervisor, fn -> do_broadcast_message(nodes, message) end)
     :ok

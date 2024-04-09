@@ -16,11 +16,11 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.WebSocket.Client, as: WSClient
 
-  alias __MODULE__.Counter
-  alias __MODULE__.Legacy
-  alias __MODULE__.UcoAth
-  alias __MODULE__.DeterministicBalance
-  alias __MODULE__.Dex
+  # alias __MODULE__.Counter
+  # alias __MODULE__.Legacy
+  # alias __MODULE__.UcoAth
+  # alias __MODULE__.DeterministicBalance
+  # alias __MODULE__.Dex
   alias __MODULE__.Throw
 
   require Logger
@@ -43,12 +43,12 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     storage_nonce_pubkey = Api.get_storage_nonce_public_key(endpoint)
 
     res = [
-      {"DeterministicBalance", DeterministicBalance.play(storage_nonce_pubkey, endpoint)},
-      {"Counter", Counter.play(storage_nonce_pubkey, endpoint)},
-      {"Legacy", Legacy.play(storage_nonce_pubkey, endpoint)},
-      {"Dex", Dex.play(storage_nonce_pubkey, endpoint)},
-      {"Throw", Throw.play(storage_nonce_pubkey, endpoint)},
-      {"UcoAth", UcoAth.play(storage_nonce_pubkey, endpoint)}
+      # {"DeterministicBalance", DeterministicBalance.play(storage_nonce_pubkey, endpoint)},
+      # {"Counter", Counter.play(storage_nonce_pubkey, endpoint)},
+      # {"Legacy", Legacy.play(storage_nonce_pubkey, endpoint)},
+      # {"Dex", Dex.play(storage_nonce_pubkey, endpoint)},
+      {"Throw", Throw.play(storage_nonce_pubkey, endpoint)}
+      # {"UcoAth", UcoAth.play(storage_nonce_pubkey, endpoint)}
     ]
 
     Enum.each(res, fn

@@ -526,6 +526,14 @@ defmodule Archethic.TransactionChain.Transaction do
 
       iex> %Transaction{
       ...>   cross_validation_stamps: [
+      ...>     %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+      ...>   ]
+      ...> }
+      ...> |> Transaction.atomic_commitment?()
+      false
+
+      iex> %Transaction{
+      ...>   cross_validation_stamps: [
       ...>     %CrossValidationStamp{inconsistencies: []},
       ...>     %CrossValidationStamp{inconsistencies: []},
       ...>     %CrossValidationStamp{inconsistencies: []}
@@ -536,12 +544,7 @@ defmodule Archethic.TransactionChain.Transaction do
   """
   @spec atomic_commitment?(t()) :: boolean()
   def atomic_commitment?(%__MODULE__{cross_validation_stamps: stamps}) when is_list(stamps) do
-    nb_distinct_inconsistencies =
-      stamps
-      |> Enum.dedup_by(& &1.inconsistencies)
-      |> length
-
-    nb_distinct_inconsistencies == 1
+    Enum.all?(stamps, &(&1.inconsistencies == []))
   end
 
   def atomic_commitment?(%__MODULE__{cross_validation_stamps: _}), do: false

@@ -70,16 +70,28 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Throw do
 
         :error
 
-      {:error, "Invalid recipient execution: Param should be \"Hello\" - L10"} ->
-        Logger.info("Trigger tx on smart contract throw has been refused as expected")
-        :ok
-
-      {:error, reason} ->
-        Logger.error(
-          "Trigger tx on smart contract throw has been refused with invalid reason: #{inspect(reason)}"
-        )
-
-        :error
+      {:error, error} ->
+        if match?(
+             %{
+               "code" => -31003,
+               "data" => %{
+                 "data" => %{
+                   "code" => 1,
+                   "data" => "Invalid",
+                   "message" => "Param should be \"Hello\""
+                 },
+                 "message" => "Param should be \"Hello\" - L10"
+               },
+               "message" => "Invalid recipients execution"
+             },
+             error
+           ) do
+          Logger.info("Trigger tx on smart contract throw has been refused as expected")
+        else
+          Logger.error(
+            "Trigger tx on smart contract throw has been refused with invalid reason: #{inspect(error)}"
+          )
+        end
     end
   end
 

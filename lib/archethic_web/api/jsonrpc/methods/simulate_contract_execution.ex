@@ -148,7 +148,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   defp format_reason(:invalid_transaction_constraints),
     do:
       {:custom_error, :invalid_transaction_constraints,
-       "Trigger transactin failed to pass transaction constraints"}
+       "Trigger transaction failed to pass transaction constraints"}
 
   defp format_reason(:invalid_inherit_constraints),
     do:
