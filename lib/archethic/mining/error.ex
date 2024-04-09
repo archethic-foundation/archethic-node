@@ -15,6 +15,9 @@ defmodule Archethic.Mining.Error do
           ValidationStamp.error()
           | :timeout
           | :consensus_not_reached
+          | :transaction_in_mining
+
+  @type context :: :invalid_transaction | :network_issue
 
   @type t :: %__MODULE__{
           code: integer(),
@@ -30,8 +33,11 @@ defmodule Archethic.Mining.Error do
     %__MODULE__{code: code, message: message, data: data}
   end
 
+  defp get_error_code_message(:transaction_in_mining),
+    do: {-30000, "Transaction already in mining with different data"}
+
   defp get_error_code_message(:invalid_pending_transaction),
-    do: {-30000, "Invalid transaction data"}
+    do: {-30100, "Invalid transaction data"}
 
   defp get_error_code_message(:insufficient_funds), do: {-31000, "Insufficient funds"}
 
@@ -54,15 +60,24 @@ defmodule Archethic.Mining.Error do
   defp get_error_code_message(:timeout), do: {-31502, "Transaction validation timeout"}
 
   @doc """
+  Return the context of the error.
+  :invalid_transaction for error related to user transaction
+  :network_issue for error related to network validation
+  """
+  @spec get_context(mining_error :: t()) :: context()
+  def get_context(%__MODULE__{code: code}) when code <= -31500, do: :network_issue
+  def get_context(_), do: :invalid_transaction
+
+  @doc """
   Convert a mining error into a validation stamp error atom
   """
   @spec to_stamp_error(mining_error :: t()) :: ValidationStamp.error() | nil
-  def to_stamp_error(%__MODULE__{code: -30000}), do: :invalid_pending_transaction
+  def to_stamp_error(%__MODULE__{code: -30100}), do: :invalid_pending_transaction
   def to_stamp_error(%__MODULE__{code: -31000}), do: :insufficient_funds
   def to_stamp_error(%__MODULE__{code: -31001}), do: :invalid_inherit_constraints
-  def to_stamp_error(%__MODULE__{code: -30002}), do: :invalid_contract_execution
-  def to_stamp_error(%__MODULE__{code: -30003}), do: :invalid_recipients_execution
-  def to_stamp_error(%__MODULE__{code: -30004}), do: :recipients_not_distinct
+  def to_stamp_error(%__MODULE__{code: -31002}), do: :invalid_contract_execution
+  def to_stamp_error(%__MODULE__{code: -31003}), do: :invalid_recipients_execution
+  def to_stamp_error(%__MODULE__{code: -31004}), do: :recipients_not_distinct
   def to_stamp_error(%__MODULE__{code: -31500}), do: :invalid_contract_context_inputs
   def to_stamp_error(_), do: nil
 

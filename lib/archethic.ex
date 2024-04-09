@@ -8,6 +8,7 @@ defmodule Archethic do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.Mining
+  alias Archethic.Mining.Error, as: MiningError
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message
@@ -264,12 +265,7 @@ defmodule Archethic do
 
   defp notify_welcome_node(welcome_node_key, address, :already_locked) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      message = %ValidationError{
-        context: :invalid_transaction,
-        reason: "Transaction already in mining with different data",
-        address: address
-      }
-
+      message = %ValidationError{error: MiningError.new(:transaction_in_mining), address: address}
       P2P.send_message(welcome_node_key, message)
     end)
 

@@ -6,7 +6,9 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
   alias Absinthe.Subscription
 
+  alias Archethic.Crypto
   alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.Mining.Error
   alias Archethic.PubSub
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -34,10 +36,9 @@ defmodule ArchethicWeb.TransactionSubscriber do
   @doc """
   Report a transaction error
   """
-  @spec report_error(binary(), atom(), binary()) :: :ok
-  def report_error(tx_address, context, reason)
-      when is_binary(tx_address) and is_binary(reason) do
-    GenServer.cast(__MODULE__, {:error, tx_address, context, reason})
+  @spec report_error(tx_address :: Crypto.prepended_hash(), error :: Error.t()) :: :ok
+  def report_error(tx_address, error) do
+    GenServer.cast(__MODULE__, {:error, tx_address, error})
   end
 
   def init(_) do
@@ -46,39 +47,15 @@ defmodule ArchethicWeb.TransactionSubscriber do
     {:ok, %{}}
   end
 
-  def handle_cast(
-        {:error, tx_address, context, error},
-        state
-      ) do
+  def handle_cast({:error, tx_address, error = %Error{message: message}}, state) do
     %{from: from} = Map.get(state, tx_address, %{from: make_ref()})
-    send(from, {:transaction_error, tx_address, context, error})
+    send(from, {:transaction_error, tx_address, error})
 
-    # %{
-    #   address: tx_address,
-    #   context: context,
-    #   error: %{
-    #     message: "Invalid recipient",
-    #     code: -4001,
-    #     data: %{
-    #       recipient: "0000",
-    #       message: "Transaction not exists"
-    #     }
-    #   }
-    # }
-    #
-    # %{
-    #   address: tx_address,
-    #   context: context,
-    #   error: %{
-    #     message: "COnsensus not reached",
-    #     code: -4002,
-    #     data: [:proof_of_intergrity]
-    #   }
-    # }
+    context = Error.get_context(error)
 
     Subscription.publish(
       Endpoint,
-      %{address: tx_address, context: context, reason: error},
+      %{address: tx_address, context: context, reason: message, error: Map.from_struct(error)},
       transaction_error: tx_address
     )
 

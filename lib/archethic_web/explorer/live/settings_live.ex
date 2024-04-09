@@ -5,6 +5,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
 
   alias Archethic.Crypto
 
+  alias Archethic.Mining.Error
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
@@ -99,11 +101,11 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
     {:noreply, new_socket}
   end
 
-  def handle_info({:transaction_error, _address, _context, reason}, socket) do
+  def handle_info({:transaction_error, _address, %Error{message: message}}, socket) do
     new_socket =
       socket
       |> assign(:sending, false)
-      |> assign(:notification, "Transaction is invalid - #{reason}")
+      |> assign(:notification, "Transaction is invalid - #{message}")
       |> assign(:notification_data, "")
       |> assign(:notification_status, "error")
 

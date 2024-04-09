@@ -446,7 +446,11 @@ defmodule Archethic.Utils.Regression.Api do
     query = """
     subscription {
       transactionError(address: "#{Base.encode16(txn_address)}") {
-        reason
+        error {
+          code
+          message
+          data
+        }
     }
     }
     """
@@ -461,8 +465,8 @@ defmodule Archethic.Utils.Regression.Api do
       %{"transactionConfirmed" => %{"nbConfirmations" => _}} ->
         :ok
 
-      %{"transactionError" => %{"reason" => reason}} ->
-        {:error, reason}
+      %{"transactionError" => %{"error" => error}} ->
+        {:error, error}
 
       {:error, reason} ->
         {:error, reason}

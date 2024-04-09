@@ -33,9 +33,6 @@ defmodule Archethic.Mining.ValidationContext do
       IO: []
     },
     previous_storage_nodes: [],
-    valid_pending_transaction?: false,
-    pending_transaction_error_detail: "",
-    invalid_recipents_error_detail: {"", nil},
     storage_nodes_confirmations: [],
     sub_replication_tree_validations: [],
     aggregated_utxos: [],
@@ -102,10 +99,7 @@ defmodule Archethic.Mining.ValidationContext do
           cross_validation_stamps: list(CrossValidationStamp.t()),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
-          valid_pending_transaction?: boolean(),
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
-          pending_transaction_error_detail: binary(),
-          pending_transaction_error_detail: {String.t(), any()},
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
           genesis_address: binary(),
@@ -784,7 +778,10 @@ defmodule Archethic.Mining.ValidationContext do
         {context, new_ops}
 
       {:error, :insufficient_funds} ->
-        {set_mining_error(context, Error.new(:insufficient_funds)), ops}
+        new_ops =
+          LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
+
+        {set_mining_error(context, Error.new(:insufficient_funds)), new_ops}
     end
   end
 
@@ -1355,23 +1352,6 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&Enum.at(storage_nodes, &1))
     |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
-
-  @doc """
-  Get the first available error or nil
-  """
-  @spec get_first_error(t()) :: atom()
-  def get_first_error(%__MODULE__{
-        validation_stamp: %ValidationStamp{error: nil},
-        cross_validation_stamps: cross_validation_stamps
-      }) do
-    cross_validation_stamps
-    |> Enum.reduce_while(nil, fn
-      %CrossValidationStamp{inconsistencies: []}, nil -> {:cont, nil}
-      %CrossValidationStamp{inconsistencies: [first_error | _rest]}, nil -> {:halt, first_error}
-    end)
-  end
-
-  def get_first_error(%__MODULE__{validation_stamp: %ValidationStamp{error: error}}), do: error
 
   @doc """
   Add a replication nodes validation confirmation

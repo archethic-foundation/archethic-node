@@ -28,8 +28,8 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
         Replication.add_transaction_to_commit_pool(tx, inputs)
         %Ok{}
 
-      {:error, reason} ->
-        %ReplicationError{address: tx.address, reason: reason}
+      {:error, error} ->
+        %ReplicationError{address: tx.address, error: error}
     end
   end
 

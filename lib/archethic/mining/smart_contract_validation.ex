@@ -168,9 +168,8 @@ defmodule Archethic.Mining.SmartContractValidation do
     with {:ok, maybe_trigger_tx} <-
            validate_trigger(trigger, timestamp, genesis_address, chain_unspent_outputs),
          {:ok, contract} <- parse_contract(prev_tx),
-         {:ok, res} <- execute_trigger(contract_context, contract, maybe_trigger_tx),
-         {:ok, encoded_state} <- validate_result(res, next_tx, status) do
-      {true, encoded_state}
+         {:ok, res} <- execute_trigger(contract_context, contract, maybe_trigger_tx) do
+      validate_result(res, next_tx, status)
     end
   end
 

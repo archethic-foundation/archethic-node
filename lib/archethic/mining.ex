@@ -10,6 +10,7 @@ defmodule Archethic.Mining do
   alias Archethic.Election
 
   alias __MODULE__.DistributedWorkflow
+  alias __MODULE__.Error
   alias __MODULE__.Fee
   alias __MODULE__.StandaloneWorkflow
   alias __MODULE__.WorkerSupervisor
@@ -18,7 +19,6 @@ defmodule Archethic.Mining do
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.RequestChainLock
 
   alias Archethic.TransactionChain.Transaction
@@ -248,14 +248,13 @@ defmodule Archethic.Mining do
   """
   @spec notify_replication_error(
           address :: binary(),
-          reason :: ReplicationError.reason(),
+          error :: Error.t(),
           Crypto.key()
         ) :: :ok
-  def notify_replication_error(tx_address, error_reason, node_public_key) do
+  def notify_replication_error(tx_address, error, node_public_key) do
     pid = get_mining_process!(tx_address, 1_000)
 
-    if pid,
-      do: DistributedWorkflow.replication_error(pid, error_reason, node_public_key)
+    if pid, do: DistributedWorkflow.replication_error(pid, error, node_public_key)
 
     :ok
   end
