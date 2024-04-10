@@ -96,39 +96,68 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     unspent_outputs = Archethic.get_unspent_outputs(recipient_address)
 
-    with {:ok, contract_tx} <- TransactionChain.get_last_transaction(recipient_address),
-         {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         trigger = Contract.get_trigger_for_recipient(recipient),
-         {:ok, _} <-
-           Contracts.execute_condition(
-             trigger,
-             contract,
-             transaction,
-             recipient,
-             datetime,
-             unspent_outputs
-           ),
-         {:ok, execution_result} <-
-           Contracts.execute_trigger(trigger, contract, transaction, recipient, unspent_outputs,
-             time_now: datetime
-           ) do
-      %SmartContractCallValidation{
-        status: :ok,
-        fee: calculate_fee(execution_result, contract, datetime)
-      }
-    else
+    case TransactionChain.get_last_transaction(recipient_address) do
+      {:ok, contract_tx} ->
+        %Transaction{
+          validation_stamp: %ValidationStamp{timestamp: latest_validation_time}
+        } = contract_tx
+
+        with {:ok, contract} <- Contracts.from_transaction(contract_tx),
+             trigger = Contract.get_trigger_for_recipient(recipient),
+             {:ok, _} <-
+               Contracts.execute_condition(
+                 trigger,
+                 contract,
+                 transaction,
+                 recipient,
+                 datetime,
+                 unspent_outputs
+               ),
+             {:ok, execution_result} <-
+               Contracts.execute_trigger(
+                 trigger,
+                 contract,
+                 transaction,
+                 recipient,
+                 unspent_outputs,
+                 time_now: datetime
+               ) do
+          %SmartContractCallValidation{
+            status: :ok,
+            fee: calculate_fee(execution_result, contract, datetime),
+            latest_validation_time: latest_validation_time
+          }
+        else
+          {:error, %Failure{}} ->
+            %SmartContractCallValidation{
+              status: {:error, :invalid_execution},
+              fee: 0,
+              latest_validation_time: latest_validation_time
+            }
+
+          {:error, %ConditionRejected{}} ->
+            %SmartContractCallValidation{
+              status: {:error, :invalid_execution},
+              fee: 0,
+              latest_validation_time: latest_validation_time
+            }
+
+          # When contract's code is invalid or missing
+          {:error, reason} when is_binary(reason) ->
+            %SmartContractCallValidation{
+              status: {:error, :transaction_not_exists},
+              fee: 0,
+              latest_validation_time: latest_validation_time
+            }
+        end
+
       {:error, reason} when reason in [:transaction_not_exists, :invalid_transaction] ->
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
-
-      {:error, %Failure{}} ->
-        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
-
-      {:error, %ConditionRejected{}} ->
-        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
-
-      # When contract's code is invalid or missing
-      {:error, reason} when is_binary(reason) ->
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
+        # if there is no transaction, use epoch
+        %SmartContractCallValidation{
+          status: {:error, :transaction_not_exists},
+          fee: 0,
+          latest_validation_time: DateTime.from_unix!(0)
+        }
     end
   end
 
