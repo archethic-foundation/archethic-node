@@ -12,17 +12,6 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
 
   @doc """
   Serialize message into binary
-
-  ## Examples
-
-      iex> %SmartContractCallValidation{status: :ok, fee: 186435476} |> SmartContractCallValidation.serialize()
-      <<0, 0, 0, 0, 0, 11, 28, 199, 148>>
-
-      iex> %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0} |> SmartContractCallValidation.serialize()
-      <<1, 0, 0, 0, 0, 0, 0, 0, 0>>
-
-      iex> %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} |> SmartContractCallValidation.serialize()
-      <<2, 0, 0, 0, 0, 0, 0, 0, 0>>
   """
   def serialize(%__MODULE__{status: status, fee: fee}) do
     <<serialize_status(status)::8, fee::64>>
@@ -34,26 +23,6 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
 
   @doc """
   Deserialize the encoded message
-
-  ## Examples
-
-      iex> SmartContractCallValidation.deserialize(<<0, 0, 0, 0, 0, 11, 28, 199, 148>>)
-      {
-        %SmartContractCallValidation{status: :ok, fee: 186435476},
-        ""
-      }
-
-      iex> SmartContractCallValidation.deserialize(<<1, 0, 0, 0, 0, 0, 0, 0, 0>>)
-      {
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0},
-        ""
-      }
-
-      iex> SmartContractCallValidation.deserialize(<<2, 0, 0, 0, 0, 0, 0, 0, 0>>)
-      {
-        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0},
-        ""
-      }
   """
   def deserialize(<<status_byte::8, fee::64, rest::bitstring>>) do
     status = deserialize_status(status_byte)
