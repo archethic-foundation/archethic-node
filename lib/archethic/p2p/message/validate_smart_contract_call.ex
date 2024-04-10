@@ -112,35 +112,55 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       |> Context.filter_inputs()
       |> VersionedUnspentOutput.unwrap_unspent_outputs()
 
-    with {:ok, contract_tx} <- get_last_transaction(recipient_address),
-         {:ok, contract} <- parse_contract(contract_tx),
-         trigger = Contract.get_trigger_for_recipient(recipient),
-         :ok <-
-           execute_condition(trigger, contract, transaction, recipient, datetime, unspent_outputs),
-         {:ok, execution_result} <-
-           execute_trigger(trigger, contract, transaction, recipient, unspent_outputs, datetime) do
-      fee = calculate_fee(execution_result, contract, datetime)
+    case get_last_transaction(recipient_address) do
+      {:ok, contract_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
+        with {:ok, contract} <- parse_contract(contract_tx),
+             trigger = Contract.get_trigger_for_recipient(recipient),
+             :ok <-
+               execute_condition(
+                 trigger,
+                 contract,
+                 transaction,
+                 recipient,
+                 datetime,
+                 unspent_outputs
+               ),
+             {:ok, execution_result} <-
+               execute_trigger(
+                 trigger,
+                 contract,
+                 transaction,
+                 recipient,
+                 unspent_outputs,
+                 datetime
+               ),
+             :ok <-
+               validate_enough_funds(
+                 transaction,
+                 recipient_address,
+                 execution_result,
+                 unspent_outputs
+               ) do
+          %SmartContractCallValidation{
+            status: :ok,
+            fee: calculate_fee(execution_result, contract, datetime),
+            last_chain_sync_date: timestamp
+          }
+        else
+          error_status ->
+            %SmartContractCallValidation{
+              status: error_status,
+              fee: 0,
+              last_chain_sync_date: timestamp
+            }
+        end
 
-      transfers_to_contract =
-        transaction
-        |> Transaction.get_movements()
-        |> Enum.filter(fn movement ->
-          TransactionChain.get_genesis_address(movement.to) == recipient_address
-        end)
-
-      if enough_funds_to_send?(execution_result, unspent_outputs, transfers_to_contract) do
+      error_status ->
         %SmartContractCallValidation{
-          status: :ok,
-          fee: fee
+          status: error_status,
+          fee: 0,
+          last_chain_sync_date: DateTime.from_unix!(0)
         }
-      else
-        %SmartContractCallValidation{
-          status: {:error, :insufficient_funds},
-          fee: 0
-        }
-      end
-    else
-      error_status -> %SmartContractCallValidation{status: error_status, fee: 0}
     end
   end
 
@@ -180,6 +200,19 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       {:ok, result} -> {:ok, result}
       {:error, failure = %Failure{}} -> {:error, :invalid_execution, failure}
     end
+  end
+
+  defp validate_enough_funds(transaction, recipient_address, execution_result, unspent_outputs) do
+    transfers_to_contract =
+      transaction
+      |> Transaction.get_movements()
+      |> Enum.filter(fn movement ->
+        TransactionChain.get_genesis_address(movement.to) == recipient_address
+      end)
+
+    if enough_funds_to_send?(execution_result, unspent_outputs, transfers_to_contract),
+      do: :ok,
+      else: {:error, :insufficient_funds}
   end
 
   defp calculate_fee(
