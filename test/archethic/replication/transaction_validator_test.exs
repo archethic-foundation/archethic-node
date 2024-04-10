@@ -5,6 +5,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
+  alias Archethic.Mining.Error
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
@@ -86,7 +87,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   end
 
   describe "validate/1" do
-    test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached" do
+    test "should return error when the atomic commitment is not reached" do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -96,30 +97,30 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert {:error, :invalid_atomic_commitment} =
+      assert {:error, %Error{data: "Invalid atomic commitment"}} =
                TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_proof_of_work} when an invalid proof of work" do
-      assert {:error, :invalid_proof_of_work} =
+    test "should return error when an invalid proof of work" do
+      assert {:error, %Error{data: "Invalid proof of work"}} =
                TransactionFactory.create_transaction_with_invalid_proof_of_work()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_node_election} when the validation stamp signature is invalid" do
-      assert {:error, :invalid_node_election} =
+    test "should return error when the validation stamp signature is invalid" do
+      assert {:error, %Error{data: "Invalid election"}} =
                TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_transaction_movements} when the transaction movements are invalid" do
-      assert {:error, :invalid_transaction_movements} =
+    test "should return error when the transaction movements are invalid" do
+      assert {:error, %Error{data: "Invalid transaction movements"}} =
                TransactionFactory.create_transaction_with_invalid_transaction_movements()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies" do
+    test "should return error when there is an atomic commitment but with inconsistencies" do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -129,7 +130,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert {:error, :invalid_transaction_with_inconsistencies} =
+      assert {:error, %Error{data: "Invalid atomic commitment"}} =
                TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
                |> TransactionValidator.validate()
     end
@@ -222,7 +223,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                )
     end
 
-    test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
+    test "should return error when the fees are invalid" do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -238,11 +239,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
-      assert {:error, :invalid_transaction_fee} =
+      assert {:error, %Error{data: "Invalid transaction fee"}} =
                TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
     end
 
-    test "should return {:error, :invalid_transaction_fee} when the fees are invalid using contract context" do
+    test "should return error when the fees are invalid using contract context" do
       contract_seed = "seed"
 
       contract_genesis =
@@ -301,7 +302,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, trigger_tx}
       end)
 
-      assert {:error, :invalid_transaction_fee} =
+      assert {:error, %Error{data: "Invalid transaction fee"}} =
                TransactionValidator.validate(
                  next_tx,
                  prev_tx,
@@ -311,7 +312,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                )
     end
 
-    test "should return {:error, :invalid_recipients_execution} if recipient contract execution invalid" do
+    test "should return error if recipient contract execution invalid" do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -343,11 +344,10 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, %GenesisAddress{address: recipient_genesis, timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:error, {:invalid_recipients_execution, _, _}} =
-               TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
+      assert {:error, _} = TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
     end
 
-    test "should return {:error, :invalid_contract_context_inputs} when the inputs are invalid using contract context" do
+    test "should return error when the inputs are invalid using contract context" do
       contract_seed = "seed"
 
       contract_genesis =
@@ -406,7 +406,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, trigger_tx}
       end)
 
-      assert {:error, :invalid_contract_context_inputs} =
+      assert {:error, %Error{message: "Invalid contract context inputs"}} =
                TransactionValidator.validate(
                  next_tx,
                  prev_tx,

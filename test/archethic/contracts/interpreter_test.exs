@@ -394,7 +394,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, :trigger_not_exists} =
                Interpreter.execute_trigger(
@@ -417,7 +417,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, %Transaction{}, _state, _logs} =
                Interpreter.execute_trigger(
@@ -440,7 +440,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -473,7 +473,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx =
-        %Transaction{address: tx_address} = TransactionFactory.create_valid_transaction([])
+        %Transaction{address: tx_address} = TransactionFactory.create_valid_transaction()
 
       tx_address_hex = Base.encode16(tx_address)
 
@@ -512,7 +512,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -545,7 +545,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       error = %Library.ErrorContractThrow{code: 42, message: "Something wrong happened"}
 
@@ -606,7 +606,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       error = %Library.ErrorContractThrow{
         code: 2,
@@ -640,7 +640,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       """
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       %Contract{
         functions: functions,
@@ -677,7 +677,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, _, _, _} =
                Interpreter.execute_trigger(
@@ -708,7 +708,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, _, _, _} =
                Interpreter.execute_trigger(
@@ -740,7 +740,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _, _state, _logs} =
                Interpreter.execute_trigger(
@@ -770,7 +770,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -807,7 +807,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code, content: "4")
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -848,7 +848,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -885,7 +885,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -922,7 +922,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {
                :ok,
@@ -956,7 +956,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, nil, _state, _logs} =
                Interpreter.execute_trigger(
@@ -981,7 +981,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, _, _, _} =
                Interpreter.execute_trigger(
@@ -1119,7 +1119,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 

@@ -5,6 +5,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
+  alias Archethic.Mining.Error
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
@@ -89,7 +90,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       P2P.add_and_connect_node(node)
 
-      assert {:error, "Invalid condition on content", _} =
+      assert {:error, %Error{data: %{"message" => "Invalid condition on content"}}} =
                SmartContractValidation.validate_contract_calls(
                  [
                    %Recipient{address: "@SC1"},
@@ -193,7 +194,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node1)
       P2P.add_and_connect_node(node2)
 
-      assert {:error, "Invalid condition on content", _} =
+      assert {:error, %Error{data: %{"message" => "Invalid condition on content"}}} =
                SmartContractValidation.validate_contract_calls(
                  [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
                  %Transaction{},
@@ -202,7 +203,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
     end
   end
 
-  describe "valid_contract_execution?/5" do
+  describe "validate_contract_execution/5" do
     setup do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -235,8 +236,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: "Contract has not been triggered"}} =
+               SmartContractValidation.validate_contract_execution(
                  nil,
                  prev_tx,
                  genesis,
@@ -261,8 +262,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  nil,
                  prev_tx,
                  genesis,
@@ -293,8 +294,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -324,8 +325,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -361,8 +362,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: %{"message" => "Invalid trigger datetime"}}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -393,8 +394,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -425,8 +426,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: %{"message" => "Invalid trigger interval"}}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -457,8 +458,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -489,8 +490,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: "Transaction does not match expected result"}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -525,8 +526,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {true, ^encoded_state} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, ^encoded_state} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -561,8 +562,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: "Contract should not output a transaction"}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -597,8 +598,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: "Contract should not output a transaction"}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_tx,
                  genesis,
@@ -648,8 +649,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         inputs: []
       }
 
-      assert {true, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:ok, nil} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,
@@ -690,8 +691,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: trigger_tx.validation_stamp.timestamp
       }
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: %{"message" => "Invalid trigger transaction"}}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,
@@ -741,8 +742,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         inputs: v_unspent_outputs
       }
 
-      assert {false, nil} =
-               SmartContractValidation.valid_contract_execution?(
+      assert {:error, %Error{data: %{"message" => "Invalid trigger transaction"}}} =
+               SmartContractValidation.validate_contract_execution(
                  contract_context,
                  prev_contract_tx,
                  contract_genesis,

@@ -28,7 +28,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _logs} =
                code
@@ -477,7 +477,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       end
       """
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _logs} =
                code
@@ -497,7 +497,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       end
       """
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, "N/A", []} =
                code
@@ -517,7 +517,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       end
       """
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       assert_raise Library.ErrorContractThrow, "Something went wrong", fn ->
         code
@@ -542,7 +542,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       end
       """
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _logs} =
                code

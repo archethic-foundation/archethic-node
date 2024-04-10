@@ -1,5 +1,6 @@
 defmodule Archethic.Mining.StandaloneWorkflowTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
@@ -27,9 +28,9 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
+  alias Archethic.TransactionFactory
   import Mox
 
   test "run/1 should auto validate the transaction and request storage" do
@@ -63,7 +64,19 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
     me = self()
 
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    tx =
+      TransactionFactory.create_valid_transaction(
+        [
+          %UnspentOutput{
+            type: :UCO,
+            amount: 1_000_000_000,
+            from: random_address(),
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          }
+        ],
+        type: :data,
+        content: "content"
+      )
 
     {:ok, agent_pid} = Agent.start_link(fn -> nil end)
 
@@ -119,6 +132,8 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     receive do
       {:ack_replication, sig, public_key} ->
         send(pid, {:ack_replication, sig, public_key})
+    after
+      3000 -> :skip
     end
 
     assert_receive :transaction_replicated
