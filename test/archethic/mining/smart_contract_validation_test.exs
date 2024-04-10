@@ -31,10 +31,20 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               latest_validation_time: DateTime.utc_now()
+             }}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 654_321}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 654_321,
+               latest_validation_time: DateTime.utc_now()
+             }}
         end
       )
 
@@ -68,10 +78,20 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :invalid_execution},
+               fee: 0,
+               latest_validation_time: DateTime.utc_now()
+             }}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 0}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 0,
+               latest_validation_time: DateTime.utc_now()
+             }}
         end
       )
 
@@ -103,66 +123,26 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                )
     end
 
-    test "should returns {false, 0} if one node replying asserting the contract is invalid" do
-      MockClient
-      |> stub(
-        :send_message,
-        fn
-          %Node{port: 1234},
-          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
-          _ ->
-            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
-
-          %Node{port: 1235},
-          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
-          _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
-        end
-      )
-
-      node1 = %Node{
-        ip: "127.0.0.1",
-        port: 1234,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now(),
-        geo_patch: "AAA"
-      }
-
-      node2 = %Node{
-        ip: "127.0.0.1",
-        port: 1235,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now(),
-        geo_patch: "AAA"
-      }
-
-      P2P.add_and_connect_node(node1)
-      P2P.add_and_connect_node(node2)
-
-      assert {false, 0} =
-               SmartContractValidation.validate_contract_calls(
-                 [%Recipient{address: "@SC1"}],
-                 %Transaction{},
-                 DateTime.utc_now()
-               )
-    end
-
     test "should returns {false, 0} if one smart contract is invalid" do
       MockClient
       |> stub(
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :invalid_execution},
+               fee: 0,
+               latest_validation_time: DateTime.utc_now()
+             }}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               latest_validation_time: DateTime.utc_now()
+             }}
         end
       )
 
@@ -194,6 +174,174 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       assert {false, 0} =
                SmartContractValidation.validate_contract_calls(
                  [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
+    end
+
+    test "should resolve the conflict (validation_time)" do
+      node1 = %Node{
+        ip: "127.0.0.1",
+        port: 1234,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      node2 = %Node{
+        ip: "127.0.0.1",
+        port: 1235,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          ^node1, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               latest_validation_time: ~U[2024-04-10 00:00:00Z]
+             }}
+
+          ^node2, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :invalid_execution},
+               fee: 0,
+               latest_validation_time: ~U[2024-04-09 00:00:00Z]
+             }}
+        end
+      )
+
+      assert {true, 123_456} =
+               SmartContractValidation.validate_contract_calls(
+                 [%Recipient{address: random_address()}],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
+    end
+
+    test "should resolve the conflict (invalid_execution)" do
+      node1 = %Node{
+        ip: "127.0.0.1",
+        port: 1234,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      node2 = %Node{
+        ip: "127.0.0.1",
+        port: 1235,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          ^node1, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               latest_validation_time: ~U[2024-04-10 00:00:00Z]
+             }}
+
+          ^node2, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :invalid_execution},
+               fee: 0,
+               latest_validation_time: ~U[2024-04-10 00:00:00Z]
+             }}
+        end
+      )
+
+      assert {false, 0} =
+               SmartContractValidation.validate_contract_calls(
+                 [%Recipient{address: random_address()}],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
+    end
+
+    test "should resolve the conflict (ok)" do
+      node1 = %Node{
+        ip: "127.0.0.1",
+        port: 1234,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      node2 = %Node{
+        ip: "127.0.0.1",
+        port: 1235,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA"
+      }
+
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          ^node1, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               latest_validation_time: ~U[2024-04-10 00:00:00Z]
+             }}
+
+          ^node2, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :transaction_not_exists},
+               fee: 0,
+               latest_validation_time: ~U[2024-04-10 00:00:00Z]
+             }}
+        end
+      )
+
+      assert {true, 123_456} =
+               SmartContractValidation.validate_contract_calls(
+                 [%Recipient{address: random_address()}],
                  %Transaction{},
                  DateTime.utc_now()
                )

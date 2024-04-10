@@ -162,7 +162,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
         )
         |> Fee.calculate(nil, 0.07, DateTime.utc_now(), nil, 0, current_protocol_version())
 
-      assert %SmartContractCallValidation{status: :ok, fee: expected_fee} ==
+      assert %SmartContractCallValidation{status: :ok, fee: ^expected_fee} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_with_test_for_fee"},
                  transaction: incoming_tx,
