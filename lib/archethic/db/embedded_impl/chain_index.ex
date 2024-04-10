@@ -17,6 +17,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @archethic_db_type_stats :archethic_db_type_stats
   @archetic_db_tx_index_cache :chain_index_cache
 
+  # 100 Ko
+  @batch_read_size 102_400
+
   require Logger
 
   def start_link(arg \\ []) do
@@ -249,34 +252,35 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   defp search_tx_entry(search_address = <<_::8, _::8, digest::binary>>, db_path) do
     <<subset::8, _::binary>> = digest
 
-    case File.open(index_summary_path(db_path, subset), [:binary, :read]) do
-      {:ok, fd} ->
-        case do_search_tx_entry(fd, search_address) do
-          nil ->
-            :file.close(fd)
-            {:error, :not_exists}
+    db_path
+    |> index_summary_path(subset)
+    |> File.stream!([], @batch_read_size)
+    |> Enum.reduce_while(<<>>, fn content, acc ->
+      case do_search_tx_entry(<<acc::bitstring, content::bitstring>>, search_address) do
+        rest when is_binary(rest) -> {:cont, rest}
+        res when is_tuple(res) -> {:halt, res}
+      end
+    end)
+    |> then(fn
+      {genesis_address, size, offset} ->
+        {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
 
-          {genesis_address, size, offset} ->
-            :file.close(fd)
-
-            {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
-        end
-
-      {:error, _} ->
+      _ ->
         {:error, :not_exists}
-    end
+    end)
+  rescue
+    _ -> {:error, :not_exists}
   end
 
-  defp do_search_tx_entry(fd, search_address) do
+  defp do_search_tx_entry(content, search_address) do
     # We need to extract hash metadata information to know how many bytes to decode
     # as hashes can have different sizes based on the algorithm used
-    with {:ok, <<current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
+    with <<current_curve_id::8, current_hash_type::8, rest::bitstring>> <- content,
          hash_size <- Crypto.hash_size(current_hash_type),
-         {:ok, current_digest} <- :file.read(fd, hash_size),
-         {:ok, <<genesis_curve_id::8, genesis_hash_type::8>>} <- :file.read(fd, 2),
+         <<current_digest::binary-size(hash_size), genesis_curve_id::8, genesis_hash_type::8,
+           rest::bitstring>> <- rest,
          hash_size <- Crypto.hash_size(genesis_hash_type),
-         {:ok, genesis_digest} <- :file.read(fd, hash_size),
-         {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
+         <<genesis_digest::binary-size(hash_size), size::32, offset::32, rest::bitstring>> <- rest do
       current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
 
       # If it's the address we are looking for, we return the genesis address
@@ -285,11 +289,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
         {genesis_address, size, offset}
       else
-        do_search_tx_entry(fd, search_address)
+        do_search_tx_entry(rest, search_address)
       end
     else
-      :eof ->
-        nil
+      <<>> -> <<>>
+      # This happens when the content is not a complete entry
+      _rest -> content
     end
   end
 
