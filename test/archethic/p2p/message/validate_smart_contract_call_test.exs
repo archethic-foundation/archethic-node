@@ -226,7 +226,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
          }}
       end)
 
-      assert %SmartContractCallValidation{status: :ok, fee: expected_fee} ==
+      assert %SmartContractCallValidation{status: :ok, fee: ^expected_fee} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_with_test_for_fee"},
                  transaction: incoming_tx,

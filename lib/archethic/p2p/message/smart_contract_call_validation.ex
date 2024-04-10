@@ -1,11 +1,14 @@
 defmodule Archethic.P2P.Message.SmartContractCallValidation do
   @moduledoc """
-  Represents a module to attest the validation of a transaction towards a contract
+  Response of ValidateSmartContractCall message.
   """
 
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Utils.VarInt
 
+  @typedoc """
+  `last_chain_sync_date` is used for conflict resolution. If there are no transaction yet, use epoch.
+  """
   @type t :: %__MODULE__{
           status:
             :ok
@@ -14,16 +17,23 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
             | {:error, :invalid_execution, Failure.t()}
             | {:error, :invalid_condition, String.t()}
             | {:error, :parsing_error, String.t()},
-          fee: non_neg_integer()
+          fee: non_neg_integer(),
+          last_chain_sync_date: DateTime.t()
         }
 
-  defstruct [:status, :fee]
+  @enforce_keys [:status, :fee, :last_chain_sync_date]
+  defstruct [:status, :fee, :last_chain_sync_date]
 
   @doc """
   Serialize message into binary
   """
-  def serialize(%__MODULE__{status: status, fee: fee}) do
-    <<serialize_status(status)::bitstring, fee::64>>
+  def serialize(%__MODULE__{
+        status: status,
+        fee: fee,
+        last_chain_sync_date: last_chain_sync_date
+      }) do
+    <<serialize_status(status)::bitstring, fee::64,
+      DateTime.to_unix(last_chain_sync_date, :millisecond)::64>>
   end
 
   defp serialize_status(:ok), do: <<0::8>>
@@ -44,8 +54,13 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   Deserialize the encoded message
   """
   def deserialize(<<bin::bitstring>>) do
-    {status, <<fee::64, rest::bitstring>>} = deserialize_status(bin)
-    {%__MODULE__{status: status, fee: fee}, rest}
+    {status, <<fee::64, unix_time::64, rest::bitstring>>} = deserialize_status(bin)
+
+    {%__MODULE__{
+       status: status,
+       fee: fee,
+       last_chain_sync_date: DateTime.from_unix!(unix_time, :millisecond)
+     }, rest}
   end
 
   defp deserialize_status(<<0::8, rest::bitstring>>), do: {:ok, rest}
