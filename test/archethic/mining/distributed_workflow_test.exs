@@ -16,6 +16,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.Election
 
   alias Archethic.Mining.DistributedWorkflow, as: Workflow
+  alias Archethic.Mining.Error
   alias Archethic.Mining.Fee
   alias Archethic.Mining.ValidationContext
 
@@ -1050,12 +1051,14 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     test "should not replicate if there is a validation error", %{tx: tx} do
       validation_context = create_context(tx)
 
+      error = Error.new(:invalid_pending_transaction, "Transactiion already exists")
       validation_stamp = create_validation_stamp(validation_context)
-      validation_stamp = %ValidationStamp{validation_stamp | error: :invalid_pending_transaction}
+      validation_stamp = %ValidationStamp{validation_stamp | error: Error.to_stamp_error(error)}
 
       context =
         validation_context
         |> ValidationContext.add_validation_stamp(validation_stamp)
+        |> ValidationContext.set_mining_error(error)
 
       me = self()
 
@@ -1322,7 +1325,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
       cross_validation_nodes_confirmation: <<1::1, 1::1>>,
-      valid_pending_transaction?: true,
       validation_time: validation_time,
       sub_replication_tree: %{chain: <<1::1>>},
       chain_storage_nodes: [storage_node]

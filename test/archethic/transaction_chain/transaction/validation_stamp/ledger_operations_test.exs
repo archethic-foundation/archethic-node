@@ -710,13 +710,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should return insufficient funds when not enough uco" do
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {false, _} = LedgerOperations.consume_inputs(ops, "@Alice", DateTime.utc_now())
+      assert {:error, :insufficient_funds} =
+               LedgerOperations.consume_inputs(ops, "@Alice", DateTime.utc_now())
     end
 
     test "should return insufficient funds when not enough tokens" do
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {false, _} =
+      assert {:error, :insufficient_funds} =
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
@@ -745,7 +746,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {true, ops_result} =
+      assert {:ok, ops_result} =
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
@@ -809,7 +810,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {true, ops_result} =
+      assert {:ok, ops_result} =
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
@@ -866,7 +867,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {true, ops_result} =
+      assert {:ok, ops_result} =
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
@@ -936,7 +937,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {false, _} =
+      assert {:error, :insufficient_funds} =
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
@@ -1005,7 +1006,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ]
         |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 unspent_outputs: [
                   %UnspentOutput{
@@ -1051,7 +1052,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
                )
 
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 unspent_outputs: [
                   %UnspentOutput{
@@ -1108,7 +1109,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       new_state = :crypto.strong_rand_bytes(32)
 
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 consumed_inputs: ^inputs,
                 unspent_outputs: [
@@ -1146,7 +1147,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     #
     #   tx_validation_time = DateTime.utc_now()
     #
-    #   assert {true,
+    #   assert {:ok,
     #           %LedgerOperations{
     #             consumed_inputs: [],
     #             unspent_outputs: []
@@ -1164,7 +1165,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     # end
 
     test "should not return any utxo if nothing is spent" do
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 fee: 0,
                 unspent_outputs: [],
@@ -1225,7 +1226,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         VersionedUnspentOutput.wrap_unspent_outputs(utxo_not_used, current_protocol_version()) ++
           consumed_utxo
 
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 fee: 0,
                 unspent_outputs: [],
@@ -1287,7 +1288,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         VersionedUnspentOutput.wrap_unspent_outputs(optimized_utxo, current_protocol_version()) ++
           consumed_utxo
 
-      assert {true,
+      assert {:ok,
               %LedgerOperations{
                 fee: 0,
                 unspent_outputs: [],
@@ -1348,7 +1349,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       Enum.each(1..5, fn _ ->
         randomized_utxo = Enum.shuffle(all_utxo)
 
-        assert {true,
+        assert {:ok,
                 %LedgerOperations{
                   fee: 0,
                   unspent_outputs: [],

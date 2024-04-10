@@ -445,7 +445,7 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       MockClient
       |> stub(:send_message, fn

@@ -113,8 +113,12 @@ defmodule Archethic.Mining.SmartContractValidation do
         {:error, format_error_status(error_status, data)}
 
       {:error, :network_issue} ->
-        data = %{"recipient" => Base.encode16(genesis_address)}
-        {:error, {:error, "Failed to validate call due to timeout", data}}
+        data = %{
+          "recipient" => Base.encode16(genesis_address),
+          "message" => "Failed to validate call due to timeout"
+        }
+
+        {:error, {:error, Error.new(:invalid_recipients_execution, data)}}
     end
   end
 

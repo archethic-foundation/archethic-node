@@ -311,7 +311,7 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should consider state size" do
-      tx = TransactionFactory.create_valid_transaction([])
+      tx = TransactionFactory.create_valid_transaction()
 
       fee_without_state =
         Fee.calculate(tx, nil, 0.2, DateTime.utc_now(), nil, 0, current_protocol_version())

@@ -172,7 +172,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -199,7 +199,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -237,7 +237,7 @@ defmodule Archethic.ContractsTest do
       contract_tx =
         ContractFactory.create_valid_contract_tx(code, state: encoded_state, inputs: [uco_utxo])
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -264,7 +264,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
@@ -291,7 +291,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, %Failure{}} =
                Contracts.execute_condition(
@@ -322,7 +322,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -490,7 +490,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      trigger_tx = TransactionFactory.create_valid_transaction([])
+      trigger_tx = TransactionFactory.create_valid_transaction()
 
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Juliette"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
@@ -591,7 +591,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = TransactionFactory.create_valid_transaction([])
+      incoming_tx = TransactionFactory.create_valid_transaction()
 
       assert {:error, %Failure{user_friendly_error: "division_by_zero - L8"}} =
                Contracts.execute_trigger(
