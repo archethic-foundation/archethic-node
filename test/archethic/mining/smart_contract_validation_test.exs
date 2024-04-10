@@ -32,18 +32,28 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 123_456,
+               last_chain_sync_date: DateTime.utc_now()
+             }}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 654_321}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 654_321,
+               last_chain_sync_date: DateTime.utc_now()
+             }}
         end
       )
 
       node = %Node{
         ip: "127.0.0.1",
         port: 1234,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -70,18 +80,27 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
             {:ok,
-             %SmartContractCallValidation{status: {:error, :invalid_condition, "content"}, fee: 0}}
+             %SmartContractCallValidation{
+               status: {:error, :invalid_condition, "content"},
+               fee: 0,
+               last_chain_sync_date: DateTime.utc_now()
+             }}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 0}}
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 0,
+               last_chain_sync_date: DateTime.utc_now()
+             }}
         end
       )
 
       node = %Node{
         ip: "127.0.0.1",
         port: 1234,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -105,28 +124,14 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                )
     end
 
-    test "should resolve the conflict" do
-      MockClient
-      |> stub(
-        :send_message,
-        fn
-          %Node{port: 1234},
-          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
-          _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 777_777}}
-
-          %Node{port: 1235},
-          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
-          _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
-        end
-      )
+    test "should resolve the conflict (ok)" do
+      last_chain_sync_date = DateTime.utc_now()
 
       node1 = %Node{
         ip: "127.0.0.1",
         port: 1234,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -136,8 +141,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       node2 = %Node{
         ip: "127.0.0.1",
         port: 1235,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -147,33 +152,42 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node1)
       P2P.add_and_connect_node(node2)
 
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          ^node1, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 777_777,
+               last_chain_sync_date: last_chain_sync_date
+             }}
+
+          ^node2, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :transaction_not_exists},
+               fee: 0,
+               last_chain_sync_date: last_chain_sync_date
+             }}
+        end
+      )
+
       assert {:ok, _} =
                SmartContractValidation.validate_contract_calls(
-                 [%Recipient{address: "@SC1"}],
+                 [%Recipient{address: random_address()}],
                  %Transaction{},
                  DateTime.utc_now()
                )
     end
 
-    test "should return error if one smart contract is invalid" do
-      MockClient
-      |> stub(
-        :send_message,
-        fn
-          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok,
-             %SmartContractCallValidation{status: {:error, :invalid_condition, "content"}, fee: 0}}
-
-          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{status: :ok, fee: 123_456}}
-        end
-      )
-
+    test "should resolve the conflict (last_chain_sync_date)" do
       node1 = %Node{
         ip: "127.0.0.1",
         port: 1234,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -183,8 +197,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       node2 = %Node{
         ip: "127.0.0.1",
         port: 1235,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -194,9 +208,31 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node1)
       P2P.add_and_connect_node(node2)
 
-      assert {:error, %Error{data: %{"message" => "Invalid condition on content"}}} =
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          ^node1, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: :ok,
+               fee: 777_777,
+               last_chain_sync_date: ~U[2024-04-10 00:00:00Z]
+             }}
+
+          ^node2, %ValidateSmartContractCall{}, _ ->
+            {:ok,
+             %SmartContractCallValidation{
+               status: {:error, :invalid_condition, "content"},
+               fee: 0,
+               last_chain_sync_date: ~U[2024-04-09 00:00:00Z]
+             }}
+        end
+      )
+
+      assert {:ok, _} =
                SmartContractValidation.validate_contract_calls(
-                 [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
+                 [%Recipient{address: random_address()}],
                  %Transaction{},
                  DateTime.utc_now()
                )
@@ -208,8 +244,8 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: ArchethicCase.random_public_key(),
-        last_public_key: ArchethicCase.random_public_key(),
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
