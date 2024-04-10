@@ -84,7 +84,12 @@ defmodule Archethic.Mining.SmartContractValidation do
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     conflicts_resolver = fn results ->
-      Enum.sort_by(results, fn
+      %SmartContractCallValidation{last_chain_sync_date: highest_date} =
+        Enum.max_by(results, & &1.last_chain_sync_date, DateTime)
+
+      results
+      |> Enum.filter(&(&1.last_chain_sync_date == highest_date))
+      |> Enum.sort_by(fn
         %SmartContractCallValidation{status: :ok} -> 1
         %SmartContractCallValidation{status: {:error, :invalid_condition, _}} -> 2
         %SmartContractCallValidation{status: {:error, :invalid_execution, _}} -> 3

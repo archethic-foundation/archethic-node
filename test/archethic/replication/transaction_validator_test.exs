@@ -338,7 +338,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       end)
       |> expect(:send_message, fn _, %ValidateSmartContractCall{}, _ ->
         {:ok,
-         %SmartContractCallValidation{status: {:error, :invalid_condition, "content"}, fee: 0}}
+         %SmartContractCallValidation{
+           status: {:error, :invalid_condition, "content"},
+           fee: 0,
+           last_chain_sync_date: DateTime.utc_now()
+         }}
       end)
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^recipient_address}, _ ->
         {:ok, %GenesisAddress{address: recipient_genesis, timestamp: DateTime.utc_now()}}
