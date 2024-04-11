@@ -60,23 +60,27 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp scan_summary_table(filename) do
-    case File.open(filename, [:binary, :read]) do
-      {:ok, fd} ->
-        do_scan_summary_table(fd)
+    filename
+    |> File.stream!([], @batch_read_size)
+    |> Enum.reduce(<<>>, fn content, acc ->
+      do_scan_summary_table(<<acc::bitstring, content::bitstring>>)
+    end)
 
-      {:error, _} ->
-        :ok
-    end
+    :ok
+  rescue
+    _ -> :ok
   end
 
-  defp do_scan_summary_table(fd) do
-    with {:ok, <<_current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
+  defp do_scan_summary_table(<<>>), do: <<>>
+
+  defp do_scan_summary_table(content) do
+    with <<_current_curve_id::8, current_hash_type::8, rest::bitstring>> <- content,
          hash_size <- Crypto.hash_size(current_hash_type),
-         {:ok, _current_digest} <- :file.read(fd, hash_size),
-         {:ok, <<genesis_curve_id::8, genesis_hash_type::8>>} <- :file.read(fd, 2),
+         <<_current_digest::binary-size(hash_size), genesis_curve_id::8, genesis_hash_type::8,
+           rest::bitstring>> <- rest,
          hash_size <- Crypto.hash_size(genesis_hash_type),
-         {:ok, genesis_digest} <- :file.read(fd, hash_size),
-         {:ok, <<size::32, _offset::32>>} <- :file.read(fd, 8) do
+         <<genesis_digest::binary-size(hash_size), size::32, _offset::32, rest::bitstring>> <-
+           rest do
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
 
       :ets.update_counter(
@@ -89,11 +93,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         {genesis_address, 0, 0}
       )
 
-      do_scan_summary_table(fd)
+      do_scan_summary_table(rest)
     else
-      :eof ->
-        :file.close(fd)
-        nil
+      _rest -> content
     end
   end
 
@@ -272,6 +274,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     _ -> {:error, :not_exists}
   end
 
+  defp do_search_tx_entry(<<>>, _), do: <<>>
+
   defp do_search_tx_entry(content, search_address) do
     # We need to extract hash metadata information to know how many bytes to decode
     # as hashes can have different sizes based on the algorithm used
@@ -292,7 +296,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         do_search_tx_entry(rest, search_address)
       end
     else
-      <<>> -> <<>>
       # This happens when the content is not a complete entry
       _rest -> content
     end
@@ -586,7 +589,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @spec get_genesis_address(address :: Crypto.prepended_hash(), db_path :: String.t()) ::
           genesis_address :: Crypto.prepended_hash()
   def get_genesis_address(address, db_path) do
-    with [] <- :ets.lookup(@archethic_db_last_index, address),
+    with [] <- :ets.lookup(@archethic_db_chain_stats, address),
          {:error, :not_exists} <- get_tx_entry(address, db_path) do
       # If the transaction is not found (the transaction is not storred)
       # We may be aware if the genesis if the node storred a least one tranaction of this chain
