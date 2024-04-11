@@ -27,7 +27,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
         # Open the file as the position from the transaction in the chain file
         fd = File.open!(filepath, [:binary, :read])
-        :file.position(fd, offset)
 
         {:ok, <<size::32, version::32>>} = :file.pread(fd, offset, 8)
         column_names = fields_to_column_names(fields)
@@ -396,31 +395,32 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   defp read_transaction(_fd, _fields, limit, position, acc) when limit == position, do: acc
 
   defp read_transaction(fd, fields, limit, position, acc) do
-    case :file.read(fd, 1) do
-      {:ok, <<column_name_size::8>>} ->
-        {:ok, <<value_size::32>>} = :file.read(fd, 4)
-
-        {:ok, <<column_name::binary-size(column_name_size), value::binary-size(value_size)>>} =
-          :file.read(fd, column_name_size + value_size)
+    case :file.read(fd, 5) do
+      {:ok, <<column_name_size::8, value_size::32>>} ->
+        {:ok, <<column_name::binary-size(column_name_size)>>} = :file.read(fd, column_name_size)
 
         position = position + 5 + column_name_size + value_size
 
         # Without field selection we take all the fields of the transaction
         if fields == [] do
+          {:ok, <<value::binary-size(value_size)>>} = :file.read(fd, value_size)
           read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
         else
           # Check if we need to take this field based on the selection criteria
           cond do
             column_name in fields ->
               # match a field
+              {:ok, <<value::binary-size(value_size)>>} = :file.read(fd, value_size)
               read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
 
             Enum.any?(fields, &String.starts_with?(column_name, &1 <> ".")) ->
               # match a nested field
+              {:ok, <<value::binary-size(value_size)>>} = :file.read(fd, value_size)
               read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
 
             true ->
               # We continue to the next as the selection critieria didn't match
+              :file.position(fd, {:cur, value_size})
               read_transaction(fd, fields, limit, position, acc)
           end
         end
