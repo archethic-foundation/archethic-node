@@ -118,7 +118,7 @@ defmodule Archethic.Utils.WebSocket.SocketHandler do
 
     new_state =
       state
-      |> Map.update!(:queries, &Map.put(&1, msg_ref, :hearbeat))
+      |> Map.update!(:queries, &Map.put(&1, msg_ref, :heartbeat))
       |> Map.update!(:msg_ref, &(&1 + 1))
 
     {:reply, {:text, msg}, new_state}
