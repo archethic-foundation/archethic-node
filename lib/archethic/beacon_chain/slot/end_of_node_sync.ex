@@ -24,48 +24,8 @@ defmodule Archethic.BeaconChain.Slot.EndOfNodeSync do
         ...>   timestamp: ~U[2020-06-25 15:11:53Z]
         ...> }
         ...> |> EndOfNodeSync.serialize()
-        <<
-          # Public key
-          0,
-          0,
-          27,
-          7,
-          231,
-          56,
-          158,
-          71,
-          37,
-          55,
-          178,
-          16,
-          94,
-          82,
-          36,
-          5,
-          33,
-          248,
-          1,
-          151,
-          236,
-          81,
-          191,
-          35,
-          110,
-          247,
-          4,
-          87,
-          172,
-          199,
-          154,
-          209,
-          17,
-          94,
-          # Timestamp
-          94,
-          244,
-          190,
-          185
-        >>
+        <<0, 0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236, 81,
+          191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94, 94, 244, 190, 185>>
   """
   @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{public_key: public_key, timestamp: timestamp}) do

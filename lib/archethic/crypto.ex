@@ -670,7 +670,7 @@ defmodule Archethic.Crypto do
       ...> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
       ...> Crypto.ec_decrypt!(cipher, pv)
       ** (RuntimeError) Decryption failed
-                                                              ```
+                                                                  ```
   """
   @spec ec_decrypt!(encoded_cipher :: binary(), private_key :: key()) :: binary()
   def ec_decrypt!(encoded_cipher, private_key)
