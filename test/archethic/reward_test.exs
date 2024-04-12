@@ -14,8 +14,6 @@ defmodule Archethic.RewardTest do
 
   alias Archethic.UTXO
 
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
-
   doctest Reward
 
   setup do
@@ -47,7 +45,7 @@ defmodule Archethic.RewardTest do
     token_address1 = :crypto.strong_rand_bytes(32)
     token_address2 = :crypto.strong_rand_bytes(32)
 
-    NetworkLookup.set_network_pool_address(address)
+    :persistent_term.put(:reward_gen_addr, address)
 
     reward_amount = Reward.validation_nodes_reward()
 
@@ -96,5 +94,7 @@ defmodule Archethic.RewardTest do
                token_address: ^token_address1
              }
            ] = Reward.get_transfers()
+
+    :persistent_term.erase(:reward_gen_addr)
   end
 end

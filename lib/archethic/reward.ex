@@ -13,8 +13,6 @@ defmodule Archethic.Reward do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.SharedSecrets
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -138,7 +136,7 @@ defmodule Archethic.Reward do
       end)
 
     network_pool_balance =
-      SharedSecrets.get_network_pool_address()
+      genesis_address()
       |> UTXO.stream_unspent_outputs()
       |> Stream.map(& &1.unspent_output)
       |> UTXO.get_balance()
