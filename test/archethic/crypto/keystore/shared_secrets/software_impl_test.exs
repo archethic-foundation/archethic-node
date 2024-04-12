@@ -17,7 +17,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     test "should initialize the node shared secrets to null when not transaction found" do
       {:ok, _pid} = Keystore.start_link()
       assert [{_, 0}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
-      assert [{_, 0}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
+      assert [{_, 0}] = :ets.lookup(:archethic_shared_secrets_keystore, :reward_index)
     end
 
     test "should initialize the node shared secrets index from the stored transactions" do
@@ -53,7 +53,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       unix_timestamp = DateTime.to_unix(~U[2021-10-10 00:00:00Z])
 
       assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
-      assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
+      assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :reward_index)
 
       assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
       assert sign_fun.("hello") == Crypto.sign("hello", elem(daily_nonce_keypair, 1))
@@ -65,16 +65,14 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
     timestamp = ~U[2021-04-08 06:35:17Z]
 
-    {daily_nonce_seed, transaction_seed, network_pool_seed} =
-      load_secrets(~U[2021-04-08 06:35:17Z])
+    {daily_nonce_seed, transaction_seed, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
 
     unix_timestamp = DateTime.to_unix(timestamp)
 
     assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
     [{_, tx_sign_fun}] = :ets.lookup(:archethic_shared_secrets_keystore, :transaction_sign_fun)
 
-    [{_, network_pool_sign_fun}] =
-      :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_sign_fun)
+    [{_, reward_sign_fun}] = :ets.lookup(:archethic_shared_secrets_keystore, :reward_sign_fun)
 
     {_, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
     assert sign_fun.("hello") == Crypto.sign("hello", pv)
@@ -82,8 +80,8 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     {_, pv} = Crypto.derive_keypair(transaction_seed, 0)
     assert tx_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
 
-    {_, pv} = Crypto.derive_keypair(network_pool_seed, 0)
-    assert network_pool_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
+    {_, pv} = Crypto.derive_keypair(reward_seed, 0)
+    assert reward_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
   end
 
   test "sign_with_node_shared_secrets_key/1 should sign the data with the latest node shared secrets private key" do
@@ -114,31 +112,31 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     assert pub == Keystore.node_shared_secrets_public_key(2)
   end
 
-  test "sign_with_network_pool_key/1 should sign the data with the latest network pool private key" do
+  test "sign_with_reward_key/1 should sign the data with the latest network pool private key" do
     Keystore.start_link()
 
-    {_, _, network_pool_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
-    {_, pv} = Crypto.derive_keypair(network_pool_seed, 0)
+    {_, _, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
+    {_, pv} = Crypto.derive_keypair(reward_seed, 0)
 
-    assert Crypto.sign("hello", pv) == Keystore.sign_with_network_pool_key("hello")
+    assert Crypto.sign("hello", pv) == Keystore.sign_with_reward_key("hello")
   end
 
-  test "sign_with_network_pool_key/2 should sign the data with a given network pool private key" do
+  test "sign_with_reward_key/2 should sign the data with a given network pool private key" do
     Keystore.start_link()
 
-    {_, _, network_pool_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
-    {_, pv} = Crypto.derive_keypair(network_pool_seed, 2)
+    {_, _, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
+    {_, pv} = Crypto.derive_keypair(reward_seed, 2)
 
-    assert Crypto.sign("hello", pv) == Keystore.sign_with_network_pool_key("hello", 2)
+    assert Crypto.sign("hello", pv) == Keystore.sign_with_reward_key("hello", 2)
   end
 
-  test "network_pool_public_key/1 should return a given network pool public key" do
+  test "reward_public_key/1 should return a given network pool public key" do
     Keystore.start_link()
 
-    {_, _, network_pool_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
-    {pub, _} = Crypto.derive_keypair(network_pool_seed, 2)
+    {_, _, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
+    {pub, _} = Crypto.derive_keypair(reward_seed, 2)
 
-    assert pub == Keystore.network_pool_public_key(2)
+    assert pub == Keystore.reward_public_key(2)
   end
 
   test ":archethic_shared_secrets_daily_keys should keep only 2 most recent elements" do
@@ -166,7 +164,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       secrets: secrets,
       daily_nonce_seed: daily_nonce_seed,
       transaction_seed: transaction_seed,
-      network_pool_seed: network_pool_seed,
+      reward_seed: reward_seed,
       aes_key: aes_key
     } = gen_secrets()
 
@@ -174,7 +172,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
     assert :ok = Keystore.unwrap_secrets(secrets, encrypted_key, timestamp)
 
-    {daily_nonce_seed, transaction_seed, network_pool_seed}
+    {daily_nonce_seed, transaction_seed, reward_seed}
   end
 
   defp gen_secrets do
@@ -182,21 +180,21 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
     transaction_seed = :crypto.strong_rand_bytes(32)
-    network_pool_seed = :crypto.strong_rand_bytes(32)
+    reward_seed = :crypto.strong_rand_bytes(32)
 
     encrypted_daily_nonce_seed = Crypto.aes_encrypt(daily_nonce_seed, aes_key)
     encrypted_transaction_seed = Crypto.aes_encrypt(transaction_seed, aes_key)
-    encrypted_network_pool_seed = Crypto.aes_encrypt(network_pool_seed, aes_key)
+    encrypted_reward_seed = Crypto.aes_encrypt(reward_seed, aes_key)
 
     secrets =
       <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
-        encrypted_network_pool_seed::binary>>
+        encrypted_reward_seed::binary>>
 
     %{
       secrets: secrets,
       daily_nonce_seed: daily_nonce_seed,
       transaction_seed: transaction_seed,
-      network_pool_seed: network_pool_seed,
+      reward_seed: reward_seed,
       aes_key: aes_key
     }
   end

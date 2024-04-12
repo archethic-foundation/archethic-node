@@ -118,7 +118,7 @@ defmodule Archethic.Reward do
   @spec next_address(non_neg_integer()) :: binary()
   def next_address(index) do
     (index + 1)
-    |> Crypto.network_pool_public_key()
+    |> Crypto.reward_public_key()
     |> Crypto.derive_address()
   end
 
@@ -135,7 +135,7 @@ defmodule Archethic.Reward do
         {reward_address, uco_amount}
       end)
 
-    network_pool_balance =
+    reward_balance =
       genesis_address()
       |> UTXO.stream_unspent_outputs()
       |> Stream.map(& &1.unspent_output)
@@ -144,16 +144,15 @@ defmodule Archethic.Reward do
       |> Map.to_list()
       |> Enum.sort(fn {_, qty1}, {_, qty2} -> qty1 < qty2 end)
 
-    do_get_transfers(nodes, network_pool_balance, [])
+    do_get_transfers(nodes, reward_balance, [])
   end
 
-  defp do_get_transfers([node | rest], network_pool_balance, acc) do
+  defp do_get_transfers([node | rest], reward_balance, acc) do
     {address, amount} = node
 
-    {transfers, network_pool_balance} =
-      get_node_transfers(address, network_pool_balance, amount, [])
+    {transfers, reward_balance} = get_node_transfers(address, reward_balance, amount, [])
 
-    do_get_transfers(rest, network_pool_balance, Enum.concat(acc, transfers))
+    do_get_transfers(rest, reward_balance, Enum.concat(acc, transfers))
   end
 
   defp do_get_transfers([], _, acc), do: acc
@@ -186,7 +185,7 @@ defmodule Archethic.Reward do
     end
   end
 
-  defp get_node_transfers(_, network_pool_balance, 0, acc), do: {acc, network_pool_balance}
+  defp get_node_transfers(_, reward_balance, 0, acc), do: {acc, reward_balance}
 
   defp get_node_transfers(_, [], _, acc), do: {acc, []}
 

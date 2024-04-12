@@ -46,7 +46,7 @@ defmodule Archethic.Reward.Scheduler do
         PubSub.register_to_new_transaction_by_type(:mint_rewards)
         PubSub.register_to_new_transaction_by_type(:node_rewards)
 
-        index = Crypto.number_of_network_pool_keys()
+        index = Crypto.number_of_reward_keys()
         Logger.info("Reward Scheduler scheduled during init - (index: #{index})")
 
         {:idle,
@@ -87,7 +87,7 @@ defmodule Archethic.Reward.Scheduler do
         data
       ) do
     if Crypto.first_node_public_key() == first_public_key do
-      index = Crypto.number_of_network_pool_keys()
+      index = Crypto.number_of_reward_keys()
 
       PubSub.register_to_new_transaction_by_type(:mint_rewards)
       PubSub.register_to_new_transaction_by_type(:node_rewards)

@@ -255,7 +255,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     genesis_address =
       TransactionChain.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
 
-    {last_network_pool_address, _} = TransactionChain.get_last_address(genesis_address)
+    {last_reward_address, _} = TransactionChain.get_last_address(genesis_address)
 
     previous_address = Transaction.previous_address(tx)
 
@@ -265,7 +265,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                previous_address,
                P2P.authorized_and_available_nodes()
              ),
-           {^last_network_pool_address, _} <-
+           {^last_reward_address, _} <-
              TransactionChain.get_last_address(genesis_address, last_scheduling_date) do
         :ok
       else

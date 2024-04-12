@@ -15,7 +15,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   alias Archethic.TransactionChain.TransactionData.Ownership
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   require Logger
 
@@ -40,14 +40,14 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     Logger.info("Node shared secrets keys positioned at #{nb_node_shared_secrets_keys}")
 
-    nb_network_pool_keys =
+    nb_reward_keys =
       TransactionChain.count_transactions_by_type(:node_rewards) +
         TransactionChain.count_transactions_by_type(:mint_rewards)
 
-    Logger.info("Network pool keys positioned at #{nb_network_pool_keys}")
+    Logger.info("Network pool keys positioned at #{nb_reward_keys}")
 
     :ets.insert(@keystore_table, {:shared_secrets_index, nb_node_shared_secrets_keys})
-    :ets.insert(@keystore_table, {:network_pool_index, nb_network_pool_keys})
+    :ets.insert(@keystore_table, {:reward_index, nb_reward_keys})
 
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
@@ -57,9 +57,26 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     {:ok, %{}}
   end
 
+  @impl GenServer
+  def code_change(1, state, _extra) do
+    [reward_sign_fun] = :ets.take(@keystore_table, :network_pool_sign_fun)
+    [reward_public_key_fun] = :ets.take(@keystore_table, :network_pool_public_key_fun)
+    [reward_seed_wrap_fun] = :ets.take(@keystore_table, :network_pool_seed_wrap_fun)
+
+    :ets.insert(@keystore_table, {:reward_sign_fun, reward_sign_fun})
+    :ets.insert(@keystore_table, {:reward_public_key_fun, reward_public_key_fun})
+    :ets.insert(@keystore_table, {:reward_seed_wrap_fun, reward_seed_wrap_fun})
+
+    :node_shared_secrets
+    |> TransactionChain.list_addresses_by_type()
+    |> Stream.take(-2)
+    |> Enum.each(&load_node_shared_secrets_tx/1)
+
+    {:ok, state}
+  end
+
   # we store functions in the ETS table, so we need to reload them
   # every upgrade to avoid: "xxx is invalid, likely because it points to an old version of the code"
-  @impl GenServer
   def code_change(_, state, _extra) do
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
@@ -124,14 +141,14 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   end
 
   @impl SharedSecretsKeystore
-  def sign_with_network_pool_key(data) do
-    [{_, index}] = :ets.lookup(@keystore_table, :network_pool_index)
-    sign_with_network_pool_key(data, index)
+  def sign_with_reward_key(data) do
+    [{_, index}] = :ets.lookup(@keystore_table, :reward_index)
+    sign_with_reward_key(data, index)
   end
 
   @impl SharedSecretsKeystore
-  def sign_with_network_pool_key(data, index) do
-    [{_, sign_fun}] = :ets.lookup(@keystore_table, :network_pool_sign_fun)
+  def sign_with_reward_key(data, index) do
+    [{_, sign_fun}] = :ets.lookup(@keystore_table, :reward_sign_fun)
     sign_fun.(data, index)
   end
 
@@ -160,20 +177,20 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   end
 
   @impl SharedSecretsKeystore
-  def network_pool_public_key(index) do
-    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :network_pool_public_key_fun)
+  def reward_public_key(index) do
+    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :reward_public_key_fun)
     public_key_fun.(index)
   end
 
   @impl SharedSecretsKeystore
   def wrap_secrets(secret_key) do
     [{_, transaction_seed_wrap_fun}] = :ets.lookup(@keystore_table, :transaction_seed_wrap_fun)
-    [{_, network_pool_seed_wrap_fun}] = :ets.lookup(@keystore_table, :network_pool_seed_wrap_fun)
+    [{_, reward_seed_wrap_fun}] = :ets.lookup(@keystore_table, :reward_seed_wrap_fun)
 
     encrypted_transaction_seed = transaction_seed_wrap_fun.(secret_key)
-    encrypted_network_pool_seed = network_pool_seed_wrap_fun.(secret_key)
+    encrypted_reward_seed = reward_seed_wrap_fun.(secret_key)
 
-    {encrypted_transaction_seed, encrypted_network_pool_seed}
+    {encrypted_transaction_seed, encrypted_reward_seed}
   end
 
   @impl SharedSecretsKeystore
@@ -195,14 +212,14 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   end
 
   @impl SharedSecretsKeystore
-  def get_network_pool_key_index do
-    [{_, index}] = :ets.lookup(@keystore_table, :network_pool_index)
+  def get_reward_key_index do
+    [{_, index}] = :ets.lookup(@keystore_table, :reward_index)
     index
   end
 
   @impl SharedSecretsKeystore
-  def set_network_pool_key_index(index) do
-    true = :ets.insert(@keystore_table, {:network_pool_index, index})
+  def set_reward_key_index(index) do
+    true = :ets.insert(@keystore_table, {:reward_index, index})
     :ok
   end
 
@@ -218,12 +235,12 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
          timestamp
        ) do
     <<enc_daily_nonce_seed::binary-size(60), enc_transaction_seed::binary-size(60),
-      enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
+      enc_reward_seed::binary-size(60)>> = encrypted_secrets
 
     with {:ok, aes_key} <- Crypto.ec_decrypt_with_first_node_key(encrypted_aes_key),
          {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
          {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
-         {:ok, network_pool_seed} <- Crypto.aes_decrypt(enc_network_pool_seed, aes_key) do
+         {:ok, reward_seed} <- Crypto.aes_decrypt(enc_reward_seed, aes_key) do
       sign_daily_nonce_fun = fn data ->
         {pub, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
         Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
@@ -236,8 +253,8 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         Crypto.sign(data, pv)
       end
 
-      network_pool_sign_fun = fn data, index ->
-        {_, pv} = Crypto.derive_keypair(network_pool_seed, index)
+      reward_sign_fun = fn data, index ->
+        {_, pv} = Crypto.derive_keypair(reward_seed, index)
         Crypto.sign(data, pv)
       end
 
@@ -246,8 +263,8 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         pub
       end
 
-      network_pool_public_key_fun = fn index ->
-        {pub, _} = Crypto.derive_keypair(network_pool_seed, index)
+      reward_public_key_fun = fn index ->
+        {pub, _} = Crypto.derive_keypair(reward_seed, index)
         pub
       end
 
@@ -255,19 +272,19 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         Crypto.aes_encrypt(transaction_seed, secret_key)
       end
 
-      network_pool_seed_wrap_fun = fn secret_key ->
-        Crypto.aes_encrypt(network_pool_seed, secret_key)
+      reward_seed_wrap_fun = fn secret_key ->
+        Crypto.aes_encrypt(reward_seed, secret_key)
       end
 
       :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), sign_daily_nonce_fun})
       remove_older_daily_keys(DateTime.to_unix(timestamp))
 
       :ets.insert(@keystore_table, {:transaction_sign_fun, transaction_sign_fun})
-      :ets.insert(@keystore_table, {:network_pool_sign_fun, network_pool_sign_fun})
+      :ets.insert(@keystore_table, {:reward_sign_fun, reward_sign_fun})
       :ets.insert(@keystore_table, {:transaction_public_key_fun, transaction_public_key_fun})
-      :ets.insert(@keystore_table, {:network_pool_public_key_fun, network_pool_public_key_fun})
+      :ets.insert(@keystore_table, {:reward_public_key_fun, reward_public_key_fun})
       :ets.insert(@keystore_table, {:transaction_seed_wrap_fun, transaction_seed_wrap_fun})
-      :ets.insert(@keystore_table, {:network_pool_seed_wrap_fun, network_pool_seed_wrap_fun})
+      :ets.insert(@keystore_table, {:reward_seed_wrap_fun, reward_seed_wrap_fun})
 
       :ok
     end

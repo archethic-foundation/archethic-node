@@ -265,7 +265,7 @@ defmodule Archethic.Crypto do
   Encrypt the node shared secrets transaction seed located in the keystore using the given secret key
   """
   @spec wrap_secrets(key :: binary()) ::
-          {enc_transaction_seed :: binary(), enc_network_pool_seed :: binary()}
+          {enc_transaction_seed :: binary(), enc_reward_seed :: binary()}
   defdelegate wrap_secrets(aes_key), to: SharedSecretsKeystore
 
   defp get_extended_seed(seed, additional_data) do
@@ -315,8 +315,8 @@ defmodule Archethic.Crypto do
   @doc """
   Return the the network pool public key using the network pool transaction seed
   """
-  @spec network_pool_public_key(index :: non_neg_integer()) :: key()
-  defdelegate network_pool_public_key(index), to: SharedSecretsKeystore
+  @spec reward_public_key(index :: non_neg_integer()) :: key()
+  defdelegate reward_public_key(index), to: SharedSecretsKeystore
 
   @doc """
   Return the storage nonce public key
@@ -349,10 +349,10 @@ defmodule Archethic.Crypto do
   @doc """
   Return the number of network pool keys after incrementation
   """
-  @spec number_of_network_pool_keys() :: non_neg_integer()
-  defdelegate number_of_network_pool_keys,
+  @spec number_of_reward_keys() :: non_neg_integer()
+  defdelegate number_of_reward_keys,
     to: SharedSecretsKeystore,
-    as: :get_network_pool_key_index
+    as: :get_reward_key_index
 
   @doc """
   Generate a keypair in a deterministic way using a seed
@@ -497,23 +497,23 @@ defmodule Archethic.Crypto do
   @doc """
   Sign the data with the network pool transaction seed
   """
-  @spec sign_with_network_pool_key(data :: iodata()) :: binary()
-  def sign_with_network_pool_key(data) when is_bitstring(data) or is_list(data) do
+  @spec sign_with_reward_key(data :: iodata()) :: binary()
+  def sign_with_reward_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
-    |> SharedSecretsKeystore.sign_with_network_pool_key()
+    |> SharedSecretsKeystore.sign_with_reward_key()
   end
 
   @doc """
   Sign the data with the network pool transaction seed
   """
-  @spec sign_with_network_pool_key(data :: iodata(), index :: non_neg_integer()) ::
+  @spec sign_with_reward_key(data :: iodata(), index :: non_neg_integer()) ::
           binary()
-  def sign_with_network_pool_key(data, index)
+  def sign_with_reward_key(data, index)
       when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
     data
     |> Utils.wrap_binary()
-    |> SharedSecretsKeystore.sign_with_network_pool_key(index)
+    |> SharedSecretsKeystore.sign_with_reward_key(index)
   end
 
   @doc """
@@ -1128,7 +1128,7 @@ defmodule Archethic.Crypto do
   def load_transaction(%Transaction{type: type, address: address})
       when type in [:node_rewards, :mint_rewards] do
     nb_transactions = TransactionChain.get_size(address)
-    SharedSecretsKeystore.set_network_pool_key_index(nb_transactions)
+    SharedSecretsKeystore.set_reward_key_index(nb_transactions)
 
     Logger.info("Network pool chain positioned at#{nb_transactions}",
       transaction_address: Base.encode16(address),

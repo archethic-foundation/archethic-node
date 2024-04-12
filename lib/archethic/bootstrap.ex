@@ -357,14 +357,14 @@ defmodule Archethic.Bootstrap do
   """
   @spec genesis_allocation() :: float()
   def genesis_allocation do
-    network_pool_amount = 1.46e9
+    reward_amount = 1.46e9
 
     genesis_pools =
       :archethic
       |> Application.get_env(NetworkInit)
       |> Keyword.fetch!(:genesis_pools)
 
-    Enum.reduce(genesis_pools, network_pool_amount, &(&1.amount + &2))
+    Enum.reduce(genesis_pools, reward_amount, &(&1.amount + &2))
   end
 
   defp get_genesis_seed do
