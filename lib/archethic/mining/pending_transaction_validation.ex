@@ -420,7 +420,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     with {^last_address, _} <-
            TransactionChain.get_last_address(genesis_address, last_scheduling_date),
-         {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
+         {:ok, _} <- NodeRenewal.decode_transaction_content(content),
          true <- sorted_authorized_keys == sorted_node_renewal_authorized_keys do
       :ok
     else

@@ -636,13 +636,17 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       })
 
       MockDB
-      |> expect(:get_latest_tps, fn -> 1000.0 end)
+      |> expect(:get_latest_tps, 2, fn -> 1000.0 end)
 
-      content =
-        <<0, 0, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150, 213,
+      content_without_version =
+        <<0, 1, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150, 213,
           145, 87, 209, 98, 25, 28, 148, 198, 77, 174, 48, 16, 117, 253, 15, 0, 0, 105, 113, 238,
           128, 201, 90, 172, 230, 46, 99, 215, 130, 104, 26, 196, 222, 157, 89, 101, 74, 248, 245,
           118, 36, 194, 213, 108, 141, 175, 248, 6, 120>>
+
+      content_with_version =
+        <<1, 0, 0, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150,
+          213, 145, 87, 209, 98, 25, 28, 148, 198, 77, 174, 48, 16, 117, 253, 15>>
 
       code = """
       condition inherit: [
@@ -667,12 +671,22 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         TransactionFactory.create_non_valided_transaction(
           type: :node_shared_secrets,
-          content: content,
+          content: content_without_version,
           code: code,
           ownerships: [ownership]
         )
 
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
+      assert :ok = PendingTransactionValidation.validate(tx)
+
+      tx =
+        TransactionFactory.create_non_valided_transaction(
+          type: :node_shared_secrets,
+          content: content_with_version,
+          code: code,
+          ownerships: [ownership]
+        )
+
       assert :ok = PendingTransactionValidation.validate(tx)
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
@@ -691,7 +705,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> expect(:get_latest_tps, fn -> 1000.0 end)
 
       content =
-        <<0, 0, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150, 213,
+        <<0, 1, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150, 213,
           145, 87, 209, 98, 25, 28, 148, 198, 77, 174, 48, 16, 117, 253, 15, 0, 0, 105, 113, 238,
           128, 201, 90, 172, 230, 46, 99, 215, 130, 104, 26, 196, 222, 157, 89, 101, 74, 248, 245,
           118, 36, 194, 213, 108, 141, 175, 248, 6, 120>>
