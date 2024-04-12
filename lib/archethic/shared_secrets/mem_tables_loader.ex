@@ -114,10 +114,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
           timestamp: timestamp
         }
       }) do
-    {:ok, daily_nonce_public_key, network_pool_address} =
+    {:ok, daily_nonce_public_key, _network_pool_address} =
       NodeRenewal.decode_transaction_content(content)
-
-    NetworkLookup.set_network_pool_address(network_pool_address)
 
     NetworkLookup.set_daily_nonce_public_key(
       daily_nonce_public_key,
@@ -128,11 +126,6 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
       transaction_address: Base.encode16(address),
       transaction_type: :node_shared_secrets
     )
-  end
-
-  def load_transaction(%Transaction{type: type, address: address})
-      when type in [:node_rewards, :mint_rewards] do
-    NetworkLookup.set_network_pool_address(address)
   end
 
   def load_transaction(_), do: :ok

@@ -48,12 +48,6 @@ defmodule Archethic.SharedSecrets do
   defdelegate has_origin_public_key?(origin_public_key), to: OriginKeyLookup, as: :has_public_key?
 
   @doc """
-  Get the last network pool address
-  """
-  @spec get_network_pool_address() :: Crypto.key()
-  defdelegate get_network_pool_address, to: NetworkLookup
-
-  @doc """
   Get the daily nonce public key before this date
   """
   @spec get_daily_nonce_public_key(DateTime.t()) :: Crypto.key()

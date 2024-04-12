@@ -394,10 +394,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     {_, pv} = Crypto.generate_deterministic_keypair(network_pool_seed)
 
-    {pub, _} = Crypto.derive_keypair(network_pool_seed, 1)
-
-    NetworkLookup.set_network_pool_address(Crypto.derive_address(pub))
-
     MockCrypto.SharedSecretsKeystore
     |> expect(:sign_with_network_pool_key, fn data, _ ->
       Crypto.sign(data, pv)
@@ -409,7 +405,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     assert :ok = NetworkInit.init_network_reward_pool()
 
-    network_address = SharedSecrets.get_network_pool_address()
+    network_address = Crypto.network_pool_public_key(1) |> Crypto.derive_address()
     key = {network_address, 0}
 
     network_pool_genesis = Crypto.network_pool_public_key(0) |> Crypto.derive_address()
