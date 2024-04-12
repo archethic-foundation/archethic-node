@@ -48,10 +48,10 @@ defmodule Archethic.Governance.Code.Proposal.Parser do
       ...> "
       ...> |> Parser.get_changes()
       {:ok, "diff --git a/lib/archethic/governance.ex b/lib/archethic/governance.ex
-                                                               index 30787f1..6535f52 100644
-                                                               --- a/lib/archethic/governance.ex
-                                                               +++ b/lib/archethic/governance.ex
-                                                               @@ -1,107 +1,107 @@\n"}
+                                                                   index 30787f1..6535f52 100644
+                                                                   --- a/lib/archethic/governance.ex
+                                                                   +++ b/lib/archethic/governance.ex
+                                                                   @@ -1,107 +1,107 @@\n"}
   """
   @spec get_changes(binary()) :: {:ok, binary()} | {:error, :missing_changes}
   def get_changes(content) when is_binary(content) do

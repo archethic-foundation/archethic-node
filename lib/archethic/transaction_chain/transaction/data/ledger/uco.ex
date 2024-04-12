@@ -32,55 +32,9 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
       ...>   ]
       ...> }
       ...> |> UCOLedger.serialize(1)
-      <<
-        # Number of UCO transfers in VarInt
-        1,
-        1,
-        # UCO recipient
-        0,
-        0,
-        59,
-        140,
-        2,
-        130,
-        52,
-        88,
-        206,
-        176,
-        29,
-        10,
-        173,
-        95,
-        179,
-        27,
-        166,
-        66,
-        52,
-        165,
-        11,
-        146,
-        194,
-        246,
-        89,
-        73,
-        85,
-        202,
-        120,
-        242,
-        136,
-        136,
-        63,
-        53,
-        # UCO amount
-        0,
-        0,
-        0,
-        0,
-        62,
-        149,
-        186,
-        128
-      >>
+      <<1, 1, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52, 165,
+        11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53, 0, 0, 0, 0, 62, 149, 186,
+        128>>
   """
   @spec serialize(uco_ledger :: t(), tx_version :: pos_integer()) :: binary()
   def serialize(%__MODULE__{transfers: transfers}, tx_version) do
