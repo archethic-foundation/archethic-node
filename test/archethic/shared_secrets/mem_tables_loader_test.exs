@@ -131,10 +131,6 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
       assert NetworkLookup.get_daily_nonce_public_key(
                NodeRenewalScheduler.next_application_date(DateTime.utc_now())
              )
-
-      assert NetworkLookup.get_network_pool_address() ==
-               <<0, 0, 134, 118, 192, 4, 151, 93, 80, 114, 78, 96, 104, 42, 113, 76, 22, 142, 79,
-                 138, 169, 159, 93, 80, 246, 65, 59, 171, 182, 223, 96, 3, 170, 18>>
     end
   end
 

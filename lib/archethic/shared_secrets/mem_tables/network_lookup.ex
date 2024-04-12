@@ -5,7 +5,7 @@ defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
   alias Archethic.Crypto
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   @table_name :archethic_shared_secrets_network
 
@@ -25,61 +25,6 @@ defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
     :ets.insert(@table_name, {{:daily_nonce, 0}, @genesis_daily_nonce_public_key})
 
     {:ok, []}
-  end
-
-  @doc """
-  Define the last network pool address
-
-  ## Examples
-
-      iex> NetworkLookup.start_link()
-      ...> 
-      ...> NetworkLookup.set_network_pool_address(
-      ...>   <<120, 232, 56, 47, 135, 12, 110, 76, 250, 5, 240, 210, 92, 165, 151, 239, 181, 101,
-      ...>     24, 29, 24, 245, 231, 225, 47, 78, 103, 57, 254, 206, 159, 217>>
-      ...> )
-      ...> 
-      ...> :ets.tab2list(:archethic_shared_secrets_network)
-      [
-        {:network_pool_address,
-         <<120, 232, 56, 47, 135, 12, 110, 76, 250, 5, 240, 210, 92, 165, 151, 239, 181, 101, 24,
-           29, 24, 245, 231, 225, 47, 78, 103, 57, 254, 206, 159, 217>>},
-        {{:daily_nonce, 0},
-         <<0, 1, 207, 10, 216, 159, 45, 111, 246, 18, 53, 128, 31, 127, 69, 104, 136, 74, 244, 225,
-           71, 122, 199, 230, 122, 233, 123, 61, 92, 150, 157, 139, 218, 8>>}
-      ]
-  """
-  @spec set_network_pool_address(binary()) :: :ok
-  def set_network_pool_address(address) when is_binary(address) do
-    true = :ets.insert(@table_name, {:network_pool_address, address})
-    :ok
-  end
-
-  @doc """
-  Retrieve the last network pool address
-
-  ## Examples
-
-      iex> NetworkLookup.start_link()
-      ...> 
-      ...> NetworkLookup.set_network_pool_address(
-      ...>   <<120, 232, 56, 47, 135, 12, 110, 76, 250, 5, 240, 210, 92, 165, 151, 239, 181, 101,
-      ...>     24, 29, 24, 245, 231, 225, 47, 78, 103, 57, 254, 206, 159, 217>>
-      ...> )
-      ...> 
-      ...> NetworkLookup.get_network_pool_address()
-      <<120, 232, 56, 47, 135, 12, 110, 76, 250, 5, 240, 210, 92, 165, 151, 239, 181, 101, 24, 29,
-        24, 245, 231, 225, 47, 78, 103, 57, 254, 206, 159, 217>>
-  """
-  @spec get_network_pool_address :: binary()
-  def get_network_pool_address do
-    case :ets.lookup(@table_name, :network_pool_address) do
-      [{_, key}] ->
-        key
-
-      _ ->
-        ""
-    end
   end
 
   @doc """
@@ -170,4 +115,11 @@ defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
 
     public_key
   end
+
+  def code_change(1, state, _extra) do
+    :ets.delete(@table_name, :network_pool_address)
+    {:ok, state}
+  end
+
+  def code_change(_, state, _extra), do: {:ok, state}
 end

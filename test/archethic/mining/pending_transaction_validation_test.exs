@@ -18,7 +18,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.Reward.Scheduler
 
   alias Archethic.SharedSecrets
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
 
   alias Archethic.TransactionChain
@@ -931,8 +930,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         TransactionFactory.create_non_valided_transaction(type: :mint_rewards, content: content)
 
-      NetworkLookup.set_network_pool_address(tx.address)
-
       {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
 
       assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
@@ -966,8 +963,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         TransactionFactory.create_non_valided_transaction(type: :mint_rewards, content: content)
 
-      NetworkLookup.set_network_pool_address(tx.address)
-
       {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
 
       assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
@@ -1000,8 +995,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx =
         TransactionFactory.create_non_valided_transaction(type: :mint_rewards, content: content)
-
-      NetworkLookup.set_network_pool_address(random_address())
 
       {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
 
