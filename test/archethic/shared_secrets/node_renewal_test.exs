@@ -1,5 +1,6 @@
 defmodule Archethic.SharedSecrets.NodeRenewalTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Crypto
 
@@ -34,7 +35,18 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
 
     assert Ownership.authorized_public_key?(ownership, Crypto.first_node_public_key())
 
-    assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
+    assert {:ok, _} = NodeRenewal.decode_transaction_content(content)
+  end
+
+  test "decode_transaction_content should decode with and with content version" do
+    public_key = <<1::16, :crypto.strong_rand_bytes(32)::binary>>
+
+    assert {:ok, ^public_key} =
+             <<public_key::binary, random_address()::binary>>
+             |> NodeRenewal.decode_transaction_content()
+
+    assert {:ok, ^public_key} =
+             <<1::8, public_key::binary>> |> NodeRenewal.decode_transaction_content()
   end
 
   describe "next_authorized_node_public_keys/0" do

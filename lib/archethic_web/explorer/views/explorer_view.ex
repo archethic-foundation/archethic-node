@@ -196,13 +196,10 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   end
 
   def format_transaction_content(:node_shared_secrets, content) do
-    {:ok, daily_nonce_public_key, network_address} =
-      NodeRenewal.decode_transaction_content(content)
+    {:ok, daily_nonce_public_key} = NodeRenewal.decode_transaction_content(content)
 
     """
     daily nonce public key: #{Base.encode16(daily_nonce_public_key)}
-
-    network address: #{Base.encode16(network_address)}
     """
   end
 

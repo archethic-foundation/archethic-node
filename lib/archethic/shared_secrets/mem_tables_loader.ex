@@ -114,8 +114,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
           timestamp: timestamp
         }
       }) do
-    {:ok, daily_nonce_public_key, _network_pool_address} =
-      NodeRenewal.decode_transaction_content(content)
+    {:ok, daily_nonce_public_key} = NodeRenewal.decode_transaction_content(content)
 
     NetworkLookup.set_daily_nonce_public_key(
       daily_nonce_public_key,

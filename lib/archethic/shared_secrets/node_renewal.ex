@@ -25,6 +25,8 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
           authorization_date: DateTime.t()
         }
 
+  @content_version 1
+
   @spec next_address(non_neg_integer()) :: binary()
   def next_address(key_index) do
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
@@ -85,11 +87,6 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
       <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
         encrypted_network_pool_seed::binary>>
 
-    network_pool_address =
-      Crypto.number_of_network_pool_keys()
-      |> Crypto.network_pool_public_key()
-      |> Crypto.derive_address()
-
     Transaction.new(
       :node_shared_secrets,
       %TransactionData{
@@ -105,7 +102,7 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
           secrets: true
         ]
         """,
-        content: <<daily_nonce_public_key::binary, network_pool_address::binary>>,
+        content: <<@content_version::8, daily_nonce_public_key::binary>>,
         ownerships: [
           Ownership.new(secret, secret_key, authorized_node_public_keys)
         ]
@@ -117,14 +114,15 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   @doc """
   Decode the transaction content from the node renewal transaction
   """
-  @spec decode_transaction_content(binary()) :: {:ok, binary(), binary()} | :error
-  def decode_transaction_content(content) when is_binary(content) do
-    with {daily_nonce_public_key, rest} <- Utils.deserialize_public_key(content),
-         {network_pool_address, _rest} <- Utils.deserialize_address(rest) do
-      {:ok, daily_nonce_public_key, network_pool_address}
-    else
-      _ ->
-        :error
-    end
+  @spec decode_transaction_content(binary()) :: {:ok, Crypto.prepended_hash()} | :error
+  def decode_transaction_content(content = <<1::16, _::bitstring>>) do
+    # Content without version
+    {daily_nonce_public_key, _rest} = Utils.deserialize_public_key(content)
+    {:ok, daily_nonce_public_key}
+  end
+
+  def decode_transaction_content(<<version::8, rest::bitstring>>) when version == 1 do
+    {daily_nonce_public_key, _rest} = Utils.deserialize_public_key(rest)
+    {:ok, daily_nonce_public_key}
   end
 end
