@@ -99,7 +99,7 @@ defmodule ArchethicCase do
     |> stub(:write_inputs, fn _, _ -> :ok end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
-    {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
+    {:ok, reward_counter} = Agent.start_link(fn -> 0 end)
 
     MockCrypto.NodeKeystore
     |> stub(:first_public_key, fn ->
@@ -151,13 +151,12 @@ defmodule ArchethicCase do
 
       ECDSA.sign(:secp256r1, pv, data)
     end)
-    |> stub(:sign_with_network_pool_key, fn data ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", 0, :secp256r1)
+    |> stub(:sign_with_reward_key, fn data ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("reward_seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
-    |> stub(:sign_with_network_pool_key, fn data, index ->
-      {_, <<_::8, _::8, pv::binary>>} =
-        Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+    |> stub(:sign_with_reward_key, fn data, index ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("reward_seed", index, :secp256r1)
 
       ECDSA.sign(:secp256r1, pv, data)
     end)
@@ -169,21 +168,21 @@ defmodule ArchethicCase do
       {pub, _} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
       pub
     end)
-    |> stub(:network_pool_public_key, fn index ->
-      {pub, _} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+    |> stub(:reward_public_key, fn index ->
+      {pub, _} = Crypto.derive_keypair("reward_seed", index, :secp256r1)
       pub
     end)
     |> stub(:wrap_secrets, fn secret_key ->
       encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
-      encrypted_network_pool_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+      encrypted_reward_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
 
-      {encrypted_transaction_seed, encrypted_network_pool_seed}
+      {encrypted_transaction_seed, encrypted_reward_seed}
     end)
     |> stub(:unwrap_secrets, fn _, _, _ -> :ok end)
-    |> stub(:get_network_pool_key_index, fn -> Agent.get(network_pool_counter, & &1) end)
+    |> stub(:get_reward_key_index, fn -> Agent.get(reward_counter, & &1) end)
     |> stub(:get_node_shared_key_index, fn -> Agent.get(shared_secrets_counter, & &1) end)
-    |> stub(:set_network_pool_key_index, fn index ->
-      Agent.update(network_pool_counter, fn _ -> index end)
+    |> stub(:set_reward_key_index, fn index ->
+      Agent.update(reward_counter, fn _ -> index end)
     end)
     |> stub(:set_node_shared_secrets_key_index, fn index ->
       Agent.update(shared_secrets_counter, fn _ -> index end)

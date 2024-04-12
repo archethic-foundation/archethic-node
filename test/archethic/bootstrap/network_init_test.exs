@@ -291,7 +291,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     |> stub(:unwrap_secrets, fn _, _, _ ->
       send(me, :set_daily_nonce)
       send(me, :set_transaction_seed)
-      send(me, :set_network_pool)
+      send(me, :set_reward)
       :ok
     end)
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->
@@ -307,7 +307,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     NetworkInit.init_node_shared_secrets_chain()
 
     assert_receive {:transaction, %Transaction{type: :node_shared_secrets}}
-    assert_receive :set_network_pool
+    assert_receive :set_reward
     assert_receive :set_daily_nonce
     assert_receive :set_transaction_seed
 
@@ -390,28 +390,28 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %NotFound{}}
     end)
 
-    network_pool_seed = :crypto.strong_rand_bytes(32)
+    reward_seed = :crypto.strong_rand_bytes(32)
 
-    {_, pv} = Crypto.generate_deterministic_keypair(network_pool_seed)
+    {_, pv} = Crypto.generate_deterministic_keypair(reward_seed)
 
     MockCrypto.SharedSecretsKeystore
-    |> expect(:sign_with_network_pool_key, fn data, _ ->
+    |> expect(:sign_with_reward_key, fn data, _ ->
       Crypto.sign(data, pv)
     end)
-    |> stub(:network_pool_public_key, fn index ->
-      {pub, _} = Crypto.derive_keypair(network_pool_seed, index)
+    |> stub(:reward_public_key, fn index ->
+      {pub, _} = Crypto.derive_keypair(reward_seed, index)
       pub
     end)
 
     assert :ok = NetworkInit.init_network_reward_pool()
 
-    network_address = Crypto.network_pool_public_key(1) |> Crypto.derive_address()
+    network_address = Crypto.reward_public_key(1) |> Crypto.derive_address()
     key = {network_address, 0}
 
-    network_pool_genesis = Crypto.network_pool_public_key(0) |> Crypto.derive_address()
+    reward_genesis = Crypto.reward_public_key(0) |> Crypto.derive_address()
 
     assert %{token: %{^key => 3_444_185_300_000_000}} =
-             network_pool_genesis
+             reward_genesis
              |> UTXO.stream_unspent_outputs()
              |> Enum.map(& &1.unspent_output)
              |> UTXO.get_balance()

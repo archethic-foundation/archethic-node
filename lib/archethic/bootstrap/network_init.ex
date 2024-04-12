@@ -47,10 +47,10 @@ defmodule Archethic.Bootstrap.NetworkInit do
                                 [__MODULE__, :genesis_origin_public_keys]
                               )
 
-  @genesis_network_pool_amount Application.compile_env!(
-                                 :archethic,
-                                 [__MODULE__, :genesis_network_pool_amount]
-                               )
+  @genesis_reward_amount Application.compile_env!(
+                           :archethic,
+                           [__MODULE__, :genesis_reward_amount]
+                         )
 
   defp get_genesis_pools do
     Application.get_env(:archethic, __MODULE__) |> Keyword.get(:genesis_pools, [])
@@ -162,7 +162,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
   def init_network_reward_pool() do
     Logger.info("Create mining reward pool")
 
-    Reward.new_rewards_mint(@genesis_network_pool_amount, 0)
+    Reward.new_rewards_mint(@genesis_reward_amount, 0)
     |> self_validation()
     |> self_replication()
   end

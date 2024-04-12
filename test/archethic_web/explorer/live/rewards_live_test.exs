@@ -21,7 +21,7 @@ defmodule ArchethicWeb.Explorer.RewardsLiveTest do
   setup do
     reward_chain_genesis_address =
       0
-      |> Crypto.network_pool_public_key()
+      |> Crypto.reward_public_key()
       |> Crypto.derive_address()
 
     :persistent_term.put(:reward_gen_addr, reward_chain_genesis_address)
@@ -31,7 +31,7 @@ defmodule ArchethicWeb.Explorer.RewardsLiveTest do
       Stream.map(1..35, fn index ->
         address =
           index
-          |> Crypto.network_pool_public_key()
+          |> Crypto.reward_public_key()
           |> Crypto.derive_address()
 
         time =

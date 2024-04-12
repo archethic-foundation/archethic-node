@@ -80,12 +80,12 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
              index >= 0 do
     {daily_nonce_public_key, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
-    {encrypted_transaction_seed, encrypted_network_pool_seed} = Crypto.wrap_secrets(secret_key)
+    {encrypted_transaction_seed, encrypted_reward_seed} = Crypto.wrap_secrets(secret_key)
     encrypted_daily_nonce_seed = Crypto.aes_encrypt(daily_nonce_seed, secret_key)
 
     secret =
       <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
-        encrypted_network_pool_seed::binary>>
+        encrypted_reward_seed::binary>>
 
     Transaction.new(
       :node_shared_secrets,

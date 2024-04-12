@@ -101,11 +101,11 @@ defmodule Archethic.Bootstrap.Sync do
 
     encrypted_daily_nonce_seed = Crypto.aes_encrypt(@genesis_daily_nonce_seed, secret_key)
     encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
-    encrypted_network_pool_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+    encrypted_reward_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
 
     secrets =
       <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
-        encrypted_network_pool_seed::binary>>
+        encrypted_reward_seed::binary>>
 
     :ok = Crypto.unwrap_secrets(secrets, encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
 

@@ -282,7 +282,7 @@ defmodule Archethic.Bootstrap.SyncTest do
       MockCrypto.SharedSecretsKeystore
       |> stub(:unwrap_secrets, fn encrypted_secrets, encrypted_secret_key, timestamp ->
         <<enc_daily_nonce_seed::binary-size(60), _enc_transaction_seed::binary-size(60),
-          _enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
+          _enc_reward_seed::binary-size(60)>> = encrypted_secrets
 
         {:ok, aes_key} = Crypto.ec_decrypt_with_first_node_key(encrypted_secret_key)
         {:ok, daily_nonce_seed} = Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key)

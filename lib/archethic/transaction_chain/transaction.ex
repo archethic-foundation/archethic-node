@@ -241,7 +241,7 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp get_transaction_public_keys(type) when type in [:node_rewards, :mint_rewards] do
-    key_index = Crypto.number_of_network_pool_keys()
+    key_index = Crypto.number_of_reward_keys()
     do_get_transaction_public_keys(type, key_index)
   end
 
@@ -267,8 +267,8 @@ defmodule Archethic.TransactionChain.Transaction do
 
   defp do_get_transaction_public_keys(type, key_index)
        when type in [:node_rewards, :mint_rewards] do
-    previous_public_key = Crypto.network_pool_public_key(key_index)
-    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    previous_public_key = Crypto.reward_public_key(key_index)
+    next_public_key = Crypto.reward_public_key(key_index + 1)
     {previous_public_key, next_public_key}
   end
 
@@ -280,7 +280,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   defp previous_sign_transaction(tx = %__MODULE__{type: type})
        when type in [:node_rewards, :mint_rewards] do
-    key_index = Crypto.number_of_network_pool_keys()
+    key_index = Crypto.number_of_reward_keys()
     previous_signature = do_previous_sign_transaction(tx, key_index)
 
     %{tx | previous_signature: previous_signature}
@@ -319,7 +319,7 @@ defmodule Archethic.TransactionChain.Transaction do
     tx
     |> extract_for_previous_signature()
     |> serialize(:extended)
-    |> Crypto.sign_with_network_pool_key(key_index)
+    |> Crypto.sign_with_reward_key(key_index)
   end
 
   @doc """
