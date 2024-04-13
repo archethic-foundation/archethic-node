@@ -7,8 +7,8 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
   """
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.BootstrappingNodes
-  alias Archethic.Crypto
 
   @enforce_keys [:patch]
   defstruct [:patch]
@@ -17,7 +17,7 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
           patch: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: BootstrappingNodes.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: BootstrappingNodes.t()
   def process(%__MODULE__{patch: patch}, _) do
     top_nodes = P2P.authorized_and_available_nodes()
 

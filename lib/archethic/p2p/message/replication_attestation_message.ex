@@ -5,13 +5,17 @@ defmodule Archethic.P2P.Message.ReplicationAttestationMessage do
   """
 
   alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.Crypto
   alias Archethic.PubSub
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.Utils
 
   require Logger
+  require OpenTelemetry.Tracer
 
   defstruct replication_attestation: %ReplicationAttestation{}
 
@@ -19,7 +23,7 @@ defmodule Archethic.P2P.Message.ReplicationAttestationMessage do
           replication_attestation: ReplicationAttestation.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | Error.t()
   def process(
         %__MODULE__{
           replication_attestation:
@@ -30,20 +34,29 @@ defmodule Archethic.P2P.Message.ReplicationAttestationMessage do
               }
             }
         },
-        _
+        %{trace: trace}
       ) do
-    case ReplicationAttestation.validate(attestation) do
-      :ok ->
-        PubSub.notify_replication_attestation(attestation)
-        %Ok{}
+    Utils.extract_progagated_context(trace)
 
-      {:error, :invalid_confirmations_signatures} ->
-        Logger.error("Invalid attestation signatures",
-          transaction_address: Base.encode16(tx_address),
-          transaction_type: tx_type
-        )
+    OpenTelemetry.Tracer.with_span "replicate attestation" do
+      OpenTelemetry.Tracer.set_attribute(
+        "node",
+        P2P.get_node_info() |> Node.endpoint()
+      )
 
-        %Error{reason: :invalid_attestation}
+      case ReplicationAttestation.validate(attestation) do
+        :ok ->
+          PubSub.notify_replication_attestation(attestation)
+          %Ok{}
+
+        {:error, :invalid_confirmations_signatures} ->
+          Logger.error("Invalid attestation signatures",
+            transaction_address: Base.encode16(tx_address),
+            transaction_type: tx_type
+          )
+
+          %Error{reason: :invalid_attestation}
+      end
     end
   end
 

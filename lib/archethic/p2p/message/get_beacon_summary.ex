@@ -9,6 +9,7 @@ defmodule Archethic.P2P.Message.GetBeaconSummary do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.BeaconChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.NotFound
   alias Archethic.BeaconChain.Summary
 
@@ -16,7 +17,7 @@ defmodule Archethic.P2P.Message.GetBeaconSummary do
           address: Crypto.versioned_hash()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Summary.t() | NotFound.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Summary.t() | NotFound.t()
   def process(%__MODULE__{address: address}, _) do
     case BeaconChain.get_summary(address) do
       {:ok, summary} ->

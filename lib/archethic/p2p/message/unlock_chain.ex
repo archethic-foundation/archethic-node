@@ -4,6 +4,7 @@ defmodule Archethic.P2P.Message.UnlockChain do
   """
   alias Archethic.Crypto
   alias Archethic.Mining.ChainLock
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.Utils
 
@@ -12,7 +13,7 @@ defmodule Archethic.P2P.Message.UnlockChain do
 
   @type t :: %__MODULE__{address: Crypto.prepended_hash()}
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(%__MODULE__{address: address}, _) do
     ChainLock.unlock(address)
     %Ok{}

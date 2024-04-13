@@ -95,7 +95,7 @@ defmodule Archethic.P2PTest do
       |> expect(
         :send_message,
         3,
-        fn _node, %GetTransaction{}, _timeout ->
+        fn _node, %GetTransaction{}, _opts ->
           {:ok, %Transaction{}}
         end
       )
@@ -106,16 +106,16 @@ defmodule Archethic.P2PTest do
     test "should run resolver conflicts when the results are different", %{nodes: nodes} do
       MockClient
       |> stub(:send_message, fn
-        %Node{port: 3004}, %GetTransaction{}, _timeout ->
+        %Node{port: 3004}, %GetTransaction{}, _opts ->
           {:ok, %Transaction{}}
 
-        %Node{port: 3003}, %GetTransaction{}, _timeout ->
+        %Node{port: 3003}, %GetTransaction{}, _opts ->
           {:ok, %NotFound{}}
 
-        %Node{port: 3002}, %GetTransaction{}, _timeout ->
+        %Node{port: 3002}, %GetTransaction{}, _opts ->
           {:ok, %NotFound{}}
 
-        _, %GetTransaction{}, _timeout ->
+        _, %GetTransaction{}, _opts ->
           {:ok, %Transaction{}}
       end)
 
@@ -139,14 +139,14 @@ defmodule Archethic.P2PTest do
       |> expect(
         :send_message,
         4,
-        fn _node, _message, _timeout ->
+        fn _node, _message, _opts ->
           {:ok, %Transaction{}}
         end
       )
       |> expect(
         :send_message,
         1,
-        fn _node, _message, _timeout ->
+        fn _node, _message, _opts ->
           :timer.sleep(200)
           {:ok, %NotFound{}}
         end

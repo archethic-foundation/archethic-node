@@ -3,7 +3,7 @@ defmodule Archethic.P2P.Message.GetDashboardData do
   Represents a message to request the first public key from a transaction chain
   """
 
-  alias Archethic.Crypto
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.DashboardData
   alias ArchethicWeb.DashboardMetrics
 
@@ -13,7 +13,7 @@ defmodule Archethic.P2P.Message.GetDashboardData do
           since: nil | DateTime.t()
         }
 
-  @spec process(t(), Crypto.key()) :: DashboardData.t()
+  @spec process(t(), Message.metadata()) :: DashboardData.t()
   def process(%__MODULE__{since: nil}, _) do
     %DashboardData{buckets: DashboardMetrics.get_all()}
   end

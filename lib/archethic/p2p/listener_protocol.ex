@@ -74,7 +74,8 @@ defmodule Archethic.P2P.ListenerProtocol do
          message: message,
          sender_public_key: sender_pkey,
          signature: signature,
-         decrypted_raw_message: decrypted_raw_message
+         decrypted_raw_message: decrypted_raw_message,
+         trace: trace
        }} ->
         valid_signature? =
           Crypto.verify?(
@@ -85,7 +86,7 @@ defmodule Archethic.P2P.ListenerProtocol do
 
         if valid_signature? do
           message
-          |> process_msg(sender_pkey)
+          |> process_msg(%{sender_public_key: sender_pkey, trace: trace})
           |> encode_response(message_id, sender_pkey)
           |> reply(transport, socket, message)
         else
@@ -127,10 +128,10 @@ defmodule Archethic.P2P.ListenerProtocol do
       {:error, Exception.format(:error, err, __STACKTRACE__)}
   end
 
-  defp process_msg(message, sender_pkey) do
+  defp process_msg(message, metadata) do
     start_processing_time = System.monotonic_time()
 
-    Message.process(message, sender_pkey)
+    Message.process(message, metadata)
     |> tap(fn _ ->
       :telemetry.execute(
         [:archethic, :p2p, :handle_message],

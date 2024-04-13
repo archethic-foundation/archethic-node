@@ -22,7 +22,7 @@ defmodule Archethic.P2P.Client do
   @callback send_message(
               node :: Node.t(),
               message :: Message.request(),
-              timeout :: non_neg_integer()
+              opts :: [timeout: timeout(), trace: binary()]
             ) ::
               {:ok, Message.response()}
               | {:error, :timeout}

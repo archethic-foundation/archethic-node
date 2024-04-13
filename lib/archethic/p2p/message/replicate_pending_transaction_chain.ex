@@ -17,40 +17,59 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.AcknowledgeStorage
+
+  require OpenTelemetry.Tracer
 
   @type t() :: %__MODULE__{
           address: binary(),
           genesis_address: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{address: address, genesis_address: genesis_address}, sender_public_key) do
-    case Replication.get_transaction_in_commit_pool(address) do
-      {:ok,
-       tx = %Transaction{
-         address: tx_address,
-         validation_stamp: %ValidationStamp{timestamp: validation_time}
-       }, validation_inputs} ->
-        Task.Supervisor.start_child(TaskSupervisor, fn ->
-          authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | Error.t()
+  def process(
+        %__MODULE__{address: address, genesis_address: genesis_address},
+        %{
+          sender_public_key: sender_public_key,
+          trace: trace
+        }
+      ) do
+    Utils.extract_progagated_context(trace)
 
-          Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
+    OpenTelemetry.Tracer.with_span "replicate transaction" do
+      OpenTelemetry.Tracer.set_attribute(
+        "node",
+        P2P.get_node_info() |> Node.endpoint()
+      )
 
-          TransactionChain.write_inputs(
-            tx_address,
-            convert_unspent_outputs_to_inputs(validation_inputs)
-          )
+      case Replication.get_transaction_in_commit_pool(address) do
+        {:ok,
+         tx = %Transaction{
+           address: tx_address,
+           validation_stamp: %ValidationStamp{timestamp: validation_time}
+         }, validation_inputs} ->
+          Task.Supervisor.start_child(TaskSupervisor, fn ->
+            authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-          P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
-        end)
+            Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
 
-        %Ok{}
+            TransactionChain.write_inputs(
+              tx_address,
+              convert_unspent_outputs_to_inputs(validation_inputs)
+            )
 
-      {:error, :transaction_not_exists} ->
-        %Error{reason: :invalid_transaction}
+            P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
+          end)
+
+          %Ok{}
+
+        {:error, :transaction_not_exists} ->
+          %Error{reason: :invalid_transaction}
+      end
     end
   end
 

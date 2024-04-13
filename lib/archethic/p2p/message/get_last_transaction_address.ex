@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.GetLastTransactionAddress do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.TransactionChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.LastTransactionAddress
 
   @type t :: %__MODULE__{
@@ -15,7 +16,7 @@ defmodule Archethic.P2P.Message.GetLastTransactionAddress do
           timestamp: DateTime.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: LastTransactionAddress.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: LastTransactionAddress.t()
   def process(%__MODULE__{address: address, timestamp: timestamp}, _) do
     {address, time} = TransactionChain.get_last_address(address, timestamp)
     %LastTransactionAddress{address: address, timestamp: time}

@@ -9,6 +9,7 @@ defmodule Archethic.P2P.Message.NewTransaction do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.TransactionChain.Transaction
@@ -20,7 +21,7 @@ defmodule Archethic.P2P.Message.NewTransaction do
           contract_context: nil | Contract.Context.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | Error.t()
   def process(
         %__MODULE__{
           transaction: tx,

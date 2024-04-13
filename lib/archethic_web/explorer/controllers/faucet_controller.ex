@@ -13,6 +13,8 @@ defmodule ArchethicWeb.Explorer.FaucetController do
   alias ArchethicWeb.TransactionSubscriber
   alias ArchethicWeb.Explorer.FaucetRateLimiter
 
+  require OpenTelemetry.Tracer
+
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
   @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
 
@@ -121,6 +123,14 @@ defmodule ArchethicWeb.Explorer.FaucetController do
 
     receive do
       {:new_transaction, ^tx_address} ->
+        try do
+          mining_span = :persistent_term.get({:initial_mining_span, tx_address})
+          OpenTelemetry.Tracer.set_current_span(mining_span)
+          OpenTelemetry.Tracer.end_span(mining_span)
+        rescue
+          _ -> :ok
+        end
+
         FaucetRateLimiter.register(recipient_address, System.monotonic_time())
         {:ok, tx_address}
     after

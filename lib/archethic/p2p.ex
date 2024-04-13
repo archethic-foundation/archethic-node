@@ -369,21 +369,25 @@ defmodule Archethic.P2P do
 
   For mode details see `send_message/3`
   """
-  @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
-  def send_message!(node, message, timeout \\ 0)
+  @spec send_message!(
+          node :: Crypto.key() | Node.t(),
+          request :: Message.request(),
+          options :: [timeout: timeout(), trace: binary()]
+        ) :: Message.response()
+  def send_message!(node, message, opts)
 
-  def send_message!(public_key, message, timeout) when is_binary(public_key) do
+  def send_message!(public_key, message, opts) when is_binary(public_key) do
     public_key
     |> get_node_info!
-    |> send_message!(message, timeout)
+    |> send_message!(message, opts)
   end
 
   def send_message!(
         node = %Node{ip: ip, port: port},
         message,
-        timeout
+        opts
       ) do
-    case Client.send_message(node, message, timeout) do
+    case Client.send_message(node, message, opts) do
       {:ok, ref} ->
         ref
 
@@ -398,29 +402,38 @@ defmodule Archethic.P2P do
   If the exchange fails, the node availability history will decrease
   and will be locally unavailable until the next exchange
   """
-  @spec send_message(Crypto.key() | Node.t(), Message.request(), timeout()) ::
+  @spec send_message(
+          node :: Crypto.key() | Node.t(),
+          request :: Message.request(),
+          options :: [timeout: timeout(), trace: binary()]
+        ) ::
           {:ok, Message.response()}
           | {:error, :not_found}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(node, message, timeout \\ 0)
+  def send_message(node, message, opts \\ [])
 
-  def send_message(public_key, message, timeout) when is_binary(public_key) do
+  def send_message(public_key, message, opts) when is_binary(public_key) do
     case get_node_info(public_key) do
       {:ok, node} ->
-        send_message(node, message, timeout)
+        send_message(node, message, opts)
 
       {:error, :not_found} ->
         {:error, :not_found}
     end
   end
 
-  def send_message(node, message, timeout) do
-    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
-    do_send_message(node, message, timeout)
+  def send_message(node, message, opts) do
+    opts =
+      Keyword.update(opts, :timeout, Message.get_timeout(message), fn
+        0 -> Message.get_timeout(message)
+        timeout -> timeout
+      end)
+
+    do_send_message(node, message, opts)
   end
 
-  defdelegate do_send_message(node, message, timeout), to: Client, as: :send_message
+  defdelegate do_send_message(node, message, opts), to: Client, as: :send_message
 
   @doc """
   Return the nearest storages nodes from the local node
@@ -615,14 +628,21 @@ defmodule Archethic.P2P do
   @doc """
   Send multiple message at once for the given nodes.
   """
-  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
-  def broadcast_message(nodes, message) do
-    Task.Supervisor.start_child(TaskSupervisor, fn -> do_broadcast_message(nodes, message) end)
+  @spec broadcast_message(
+          list(Node.t()),
+          Message.request(),
+          opts :: [timeout: timeout(), trace: binary()]
+        ) :: :ok
+  def broadcast_message(nodes, message, opts \\ []) do
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      do_broadcast_message(nodes, message, opts)
+    end)
+
     :ok
   end
 
-  defp do_broadcast_message(nodes, message) do
-    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
+  defp do_broadcast_message(nodes, message, opts) do
+    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message, opts),
       ordered: false,
       on_timeout: :kill_task,
       timeout: Message.get_timeout(message) + 2000
@@ -777,7 +797,7 @@ defmodule Archethic.P2P do
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
         group,
-        &send_message(&1, message, timeout),
+        &send_message(&1, message, timeout: timeout),
         ordered: false,
         on_timeout: :kill_task,
         timeout: timeout + 2000

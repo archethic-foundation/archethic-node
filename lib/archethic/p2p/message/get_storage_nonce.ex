@@ -5,6 +5,7 @@ defmodule Archethic.P2P.Message.GetStorageNonce do
   This message is used during the node bootstrapping
   """
 
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.EncryptedStorageNonce
   alias Archethic.Crypto
   alias Archethic.Utils
@@ -33,7 +34,7 @@ defmodule Archethic.P2P.Message.GetStorageNonce do
     <<public_key::binary>>
   end
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: EncryptedStorageNonce.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: EncryptedStorageNonce.t()
   def process(%__MODULE__{public_key: public_key}, _) do
     %EncryptedStorageNonce{
       digest: Crypto.encrypt_storage_nonce(public_key)

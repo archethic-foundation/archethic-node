@@ -136,7 +136,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
         case P2P.send_message(
                node,
                %GetDashboardData{since: since},
-               @timeout_seconds * 1000
+               timeout: @timeout_seconds * 1000
              ) do
           {:ok, %DashboardData{buckets: buckets}} ->
             remote_buckets = prefix_buckets(first_public_key, buckets)

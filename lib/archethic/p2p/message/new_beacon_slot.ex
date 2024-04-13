@@ -11,6 +11,7 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.Utils
@@ -21,10 +22,10 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
           slot: Slot.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t() | Error.t()
   def process(
         %__MODULE__{slot: slot = %Slot{subset: subset, slot_time: slot_time}},
-        node_public_key
+        %{sender_public_key: node_public_key}
       ) do
     summary_time = BeaconChain.next_summary_date(slot_time)
     node_list = P2P.authorized_and_available_nodes(summary_time, true)

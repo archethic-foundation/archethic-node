@@ -11,9 +11,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.ActionWithTransaction
-  alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -61,7 +61,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     }
   end
 
-  @spec process(t(), Crypto.key()) :: SmartContractCallValidation.t()
+  @spec process(t(), Message.metadata()) :: SmartContractCallValidation.t()
   def process(
         msg = %__MODULE__{
           recipient: %Recipient{address: recipient_address},

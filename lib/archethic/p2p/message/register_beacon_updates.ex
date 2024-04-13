@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.RegisterBeaconUpdates do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.BeaconChain
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
 
   @enforce_keys [:node_public_key, :subset]
@@ -16,7 +17,7 @@ defmodule Archethic.P2P.Message.RegisterBeaconUpdates do
           subset: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: Ok.t()
   def process(%__MODULE__{node_public_key: node_public_key, subset: subset}, _) do
     BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
     %Ok{}

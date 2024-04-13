@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.GetTransactionInputs do
   alias Archethic.Crypto
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.VersionedTransactionInput
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -18,7 +19,7 @@ defmodule Archethic.P2P.Message.GetTransactionInputs do
           limit: non_neg_integer()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: TransactionInputList.t()
+  @spec process(__MODULE__.t(), Message.metadata()) :: TransactionInputList.t()
   def process(%__MODULE__{address: address, offset: offset, limit: limit}, _) do
     {inputs, more?, offset} =
       address

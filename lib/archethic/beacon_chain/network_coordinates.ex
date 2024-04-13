@@ -276,7 +276,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       TaskSupervisor,
       beacon_nodes,
       fn node ->
-        P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, timeout)
+        P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, timeout: timeout)
       end,
       timeout: timeout + 1_000,
       ordered: false,

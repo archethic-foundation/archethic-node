@@ -45,7 +45,7 @@ defmodule Archethic.BeaconChain.Subset.P2PSampling do
   defp do_sample_p2p_view(node = %Node{}, timeout) do
     start_time = System.monotonic_time(:millisecond)
 
-    case P2P.send_message(node, %Ping{}, timeout) do
+    case P2P.send_message(node, %Ping{}, timeout: timeout) do
       {:ok, %Ok{}} ->
         end_time = System.monotonic_time(:millisecond)
         end_time - start_time

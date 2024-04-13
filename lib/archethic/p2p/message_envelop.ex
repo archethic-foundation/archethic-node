@@ -9,7 +9,8 @@ defmodule Archethic.P2P.MessageEnvelop do
     :message,
     :sender_public_key,
     :signature,
-    :decrypted_raw_message
+    :decrypted_raw_message,
+    trace: ""
   ]
 
   alias Archethic.Crypto
@@ -21,7 +22,8 @@ defmodule Archethic.P2P.MessageEnvelop do
           message_id: non_neg_integer(),
           sender_public_key: Crypto.key(),
           signature: binary(),
-          decrypted_raw_message: binary() | nil
+          decrypted_raw_message: binary() | nil,
+          trace: binary()
         }
 
   @doc """
@@ -32,15 +34,16 @@ defmodule Archethic.P2P.MessageEnvelop do
         message_id: message_id,
         sender_public_key: sender_public_key,
         message: message,
-        signature: signature
+        signature: signature,
+        trace: trace
       }) do
     encoded_message =
       message
       |> Message.encode()
       |> Utils.wrap_binary()
 
-    <<message_id::32, 0::8, sender_public_key::binary, byte_size(signature)::8, signature::binary,
-      encoded_message::binary>>
+    <<message_id::32, 0::8, sender_public_key::binary, byte_size(trace)::8, trace::binary,
+      byte_size(signature)::8, signature::binary, encoded_message::binary>>
   end
 
   @doc """
@@ -52,7 +55,8 @@ defmodule Archethic.P2P.MessageEnvelop do
           message_id: message_id,
           sender_public_key: sender_public_key,
           message: message,
-          signature: signature
+          signature: signature,
+          trace: trace
         },
         recipient_public_key
       )
@@ -63,8 +67,8 @@ defmodule Archethic.P2P.MessageEnvelop do
       |> Utils.wrap_binary()
       |> Crypto.ec_encrypt(recipient_public_key)
 
-    <<message_id::32, 1::8, sender_public_key::binary, byte_size(signature)::8, signature::binary,
-      encrypted_message::binary>>
+    <<message_id::32, 1::8, sender_public_key::binary, byte_size(trace)::8, trace::binary,
+      byte_size(signature)::8, signature::binary, encrypted_message::binary>>
   end
 
   @doc """
@@ -76,8 +80,8 @@ defmodule Archethic.P2P.MessageEnvelop do
   def decode(<<message_id::32, 0::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<public_key::binary-size(key_size), signature_size::8,
-      signature::binary-size(signature_size), message::bitstring>> = rest
+    <<public_key::binary-size(key_size), trace_size::8, trace::binary-size(trace_size),
+      signature_size::8, signature::binary-size(signature_size), message::bitstring>> = rest
 
     {data, _} = Message.decode(message)
 
@@ -88,15 +92,17 @@ defmodule Archethic.P2P.MessageEnvelop do
       message: data,
       sender_public_key: sender_public_key,
       signature: signature,
-      decrypted_raw_message: message
+      decrypted_raw_message: message,
+      trace: trace
     }
   end
 
   def decode(<<message_id::32, 1::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<public_key::binary-size(key_size), signature_size::8,
-      signature::binary-size(signature_size), encrypted_message::bitstring>> = rest
+    <<public_key::binary-size(key_size), trace_size::8, trace::binary-size(trace_size),
+      signature_size::8, signature::binary-size(signature_size),
+      encrypted_message::bitstring>> = rest
 
     message = Crypto.ec_decrypt_with_first_node_key!(encrypted_message)
 
@@ -109,7 +115,8 @@ defmodule Archethic.P2P.MessageEnvelop do
       message: data,
       sender_public_key: sender_public_key,
       signature: signature,
-      decrypted_raw_message: message
+      decrypted_raw_message: message,
+      trace: trace
     }
   end
 
@@ -122,8 +129,9 @@ defmodule Archethic.P2P.MessageEnvelop do
   def decode_raw_message(<<message_id::32, _::8, curve_id::8, _origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<_public_key::binary-size(key_size), signature_size::8,
-      _signature::binary-size(signature_size), encrypted_message::bitstring>> = rest
+    <<_public_key::binary-size(key_size), trace_size::8, _trace::binary-size(trace_size),
+      signature_size::8, _signature::binary-size(signature_size),
+      encrypted_message::bitstring>> = rest
 
     {message_id, encrypted_message}
   end

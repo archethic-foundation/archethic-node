@@ -13,6 +13,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   If the atomic commitment is not reached, it starts the malicious detection to ban the dishonest nodes
   """
 
+  require OpenTelemetry.Tracer
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.Crypto
@@ -54,6 +55,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.Utils
 
   require Logger
+  require OpenTelemetry.Tracer
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn 1
@@ -173,12 +175,24 @@ defmodule Archethic.Mining.DistributedWorkflow do
     node_public_key = Keyword.get(opts, :node_public_key)
     timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
     contract_context = Keyword.get(opts, :contract_context)
+    %{trace: trace} = Keyword.get(opts, :request_metadata, %{trace: ""})
+
+    Utils.extract_progagated_context(trace)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
+    )
+
+    mining_span_context = OpenTelemetry.Tracer.start_span("start mining")
+    OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
+    OpenTelemetry.Span.set_attribute(
+      mining_span_context,
+      "node",
+      node_public_key |> P2P.get_node_info!() |> Node.endpoint()
     )
 
     next_events = [
@@ -191,7 +205,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
      %{
        node_public_key: node_public_key,
        start_time: System.monotonic_time(),
-       timeout: timeout
+       timeout: timeout,
+       mining_span_context: mining_span_context
      }, next_events}
   end
 
@@ -199,7 +214,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :internal,
         {:start_mining, tx, welcome_node, validation_nodes, contract_context},
         :idle,
-        data
+        data = %{mining_span_context: mining_span_context}
       ) do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
@@ -211,7 +226,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
     {:ok, genesis_address} =
-      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+      OpenTelemetry.Tracer.with_span "fetch genesis address", %{links: [mining_span_context]} do
+        TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+      end
 
     genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
 
@@ -222,7 +239,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         authorized_nodes
       )
 
-    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
+    resolved_addresses =
+      OpenTelemetry.Tracer.with_span "resolve addresses" do
+        TransactionChain.resolve_transaction_addresses!(tx)
+      end
 
     io_storage_nodes =
       if Transaction.network_type?(tx.type) do
@@ -273,8 +293,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
       ) do
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
 
+    pending_validation =
+      OpenTelemetry.Tracer.with_span "pending validation" do
+        PendingTransactionValidation.validate(tx, validation_time)
+      end
+
     new_context =
-      case PendingTransactionValidation.validate(tx, validation_time) do
+      case pending_validation do
         :ok ->
           Logger.debug("Pending transaction valid",
             transaction_address: Base.encode16(tx.address),
@@ -342,13 +367,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
      io_storage_nodes_view} =
-      TransactionContext.get(
-        Transaction.previous_address(tx),
-        genesis_address,
-        Enum.map(chain_storage_nodes, & &1.first_public_key),
-        Enum.map(beacon_storage_nodes, & &1.first_public_key),
-        Enum.map(io_storage_nodes, & &1.first_public_key)
-      )
+      OpenTelemetry.Tracer.with_span "fetch context" do
+        TransactionContext.get(
+          Transaction.previous_address(tx),
+          genesis_address,
+          Enum.map(chain_storage_nodes, & &1.first_public_key),
+          Enum.map(beacon_storage_nodes, & &1.first_public_key),
+          Enum.map(io_storage_nodes, & &1.first_public_key)
+        )
+      end
 
     now = System.monotonic_time()
 
@@ -431,7 +458,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         node_public_key: node_public_key,
         context: context
       }) do
-    notify_transaction_context(context, node_public_key)
+    OpenTelemetry.Tracer.with_span "notify context" do
+      notify_transaction_context(context, node_public_key)
+    end
+
     :keep_state_and_data
   end
 
@@ -476,9 +506,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx
-            }
+            },
+          mining_span_context: mining_span_context
         }
       ) do
+    OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
     Logger.info("Aggregate mining context",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -553,11 +586,26 @@ defmodule Archethic.Mining.DistributedWorkflow do
       _ ->
         new_context =
           context
-          |> ValidationContext.create_validation_stamp()
+          |> then(fn context ->
+            OpenTelemetry.Tracer.with_span "create stamp" do
+              ValidationContext.create_validation_stamp(context)
+            end
+          end)
           |> ValidationContext.create_replication_tree()
 
+        request_cross_validation_context =
+          OpenTelemetry.Tracer.start_span("request cross validations")
+
+        OpenTelemetry.Tracer.set_current_span(request_cross_validation_context)
+
         request_cross_validations(new_context)
-        {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
+
+        new_data =
+          data
+          |> Map.put(:context, new_context)
+          |> Map.put(:request_cross_validation_context, request_cross_validation_context)
+
+        {:next_state, :wait_cross_validation_stamps, new_data}
     end
   end
 
@@ -571,9 +619,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx
-            }
+            },
+          mining_span_context: mining_span_context
         }
       ) do
+    OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
     Logger.info("Cross validation",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -585,9 +636,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
       |> ValidationContext.set_confirmed_validation_nodes(confirmed_cross_validation_nodes)
       |> ValidationContext.add_validation_stamp(validation_stamp)
       |> ValidationContext.add_replication_tree(replication_tree, node_public_key)
-      |> ValidationContext.cross_validate()
+      |> then(fn context ->
+        OpenTelemetry.Tracer.with_span "cross validation" do
+          ValidationContext.cross_validate(context)
+        end
+      end)
 
-    notify_cross_validation_stamp(new_context)
+    OpenTelemetry.Tracer.with_span "notify cross validation stamp" do
+      notify_cross_validation_stamp(new_context)
+    end
 
     confirmed_cross_validation_nodes =
       ValidationContext.get_confirmed_validation_nodes(new_context)
@@ -623,7 +680,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         :wait_cross_validation_stamps,
         data = %{
-          context: context = %ValidationContext{transaction: tx}
+          context: context = %ValidationContext{transaction: tx},
+          request_cross_validation_context: request_cross_validation_context,
+          mining_span_context: mining_span_context
         }
       ) do
     Logger.info("Add cross validation stamp",
@@ -634,6 +693,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
     new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
     if ValidationContext.enough_cross_validation_stamps?(new_context) do
+      OpenTelemetry.Tracer.end_span(request_cross_validation_context)
+      OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
       if ValidationContext.atomic_commitment?(new_context) do
         {:next_state, :replication, %{data | context: new_context}}
       else
@@ -698,9 +760,21 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: type
         )
 
+        request_replication_validation_span_context =
+          OpenTelemetry.Tracer.start_span("request replication validation")
+
+        OpenTelemetry.Tracer.set_current_span(request_replication_validation_span_context)
         new_context = request_replication_validation(context, node_public_key)
 
-        {:keep_state, %{data | context: new_context}}
+        new_data =
+          data
+          |> Map.put(:context, new_context)
+          |> Map.put(
+            :request_replication_validation_span_context,
+            request_replication_validation_span_context
+          )
+
+        {:keep_state, new_data}
 
       err ->
         Logger.info("Skipped replication because validation failed: #{inspect(err)}")
@@ -714,18 +788,39 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :cast,
         {:add_replication_validation, node_public_key},
         :replication,
-        data = %{context: context}
+        data = %{
+          context: context,
+          request_replication_validation_span_context:
+            request_replication_validation_span_context,
+          mining_span_context: mining_span_context
+        }
       ) do
     validation_nodes = ValidationContext.get_validation_nodes(context)
 
     if Utils.key_in_node_list?(validation_nodes, node_public_key) do
       new_context = ValidationContext.add_replication_validation(context, node_public_key)
 
-      if ValidationContext.enough_replication_validations?(new_context) do
-        request_replication(new_context)
-      end
+      request_replication_span_context =
+        if ValidationContext.enough_replication_validations?(new_context) do
+          OpenTelemetry.Tracer.end_span(request_replication_validation_span_context)
 
-      {:keep_state, %{data | context: new_context}}
+          OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
+          request_replication_span_context =
+            OpenTelemetry.Tracer.start_span("request_replication")
+
+          OpenTelemetry.Tracer.set_current_span(request_replication_span_context)
+
+          request_replication(new_context)
+          request_replication_span_context
+        end
+
+      new_data =
+        data
+        |> Map.put(:context, new_context)
+        |> Map.put(:request_replication_span_context, request_replication_span_context)
+
+      {:keep_state, new_data}
     else
       :keep_state_and_data
     end
@@ -742,9 +837,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
               transaction: %Transaction{address: address, type: type},
               validation_time: validation_time,
               genesis_address: genesis_address
-            }
+            },
+          request_replication_span_context: request_replication_span_context,
+          mining_span_context: mining_span_context
         }
       ) do
+    OpenTelemetry.Tracer.set_current_span(request_replication_span_context)
+
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
          validated_tx <- ValidationContext.get_validated_transaction(context),
@@ -760,6 +859,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
       new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
+        OpenTelemetry.Tracer.end_span(request_replication_span_context)
+        OpenTelemetry.Tracer.set_current_span(mining_span_context)
+
         duration = System.monotonic_time() - start_time
 
         # send the mining_completed event
@@ -806,26 +908,33 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
     tx_summary = TransactionSummary.from_transaction(validated_tx, genesis_address)
 
-    message =
-      ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{
-        transaction_summary: tx_summary,
-        confirmations: confirmations
-      })
+    OpenTelemetry.Tracer.with_span "notify attestation" do
+      trace = Archethic.Utils.inject_propagated_context()
 
-    beacon_storage_nodes = ValidationContext.get_beacon_replication_nodes(context)
+      message =
+        ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{
+          transaction_summary: tx_summary,
+          confirmations: confirmations
+        })
 
-    [welcome_node | beacon_storage_nodes]
-    |> P2P.distinct_nodes()
-    |> P2P.broadcast_message(message)
+      beacon_storage_nodes = ValidationContext.get_beacon_replication_nodes(context)
 
-    validated_tx = ValidationContext.get_validated_transaction(context)
+      [welcome_node | beacon_storage_nodes]
+      |> P2P.distinct_nodes()
+      |> P2P.broadcast_message(message, trace: trace)
 
-    context
-    |> ValidationContext.get_io_replication_nodes()
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: validated_tx,
-      genesis_address: genesis_address
-    })
+      validated_tx = ValidationContext.get_validated_transaction(context)
+
+      context
+      |> ValidationContext.get_io_replication_nodes()
+      |> P2P.broadcast_message(
+        %ReplicateTransaction{
+          transaction: validated_tx,
+          genesis_address: genesis_address
+        },
+        trace: trace
+      )
+    end
 
     :keep_state_and_data
   end
@@ -838,14 +947,20 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx
-            }
+            },
+          mining_span_context: mining_span_context
         }
       ) do
     unless Transaction.network_type?(tx.type) do
-      context
-      |> ValidationContext.get_confirmed_replication_nodes()
-      |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
+      OpenTelemetry.Tracer.with_span "notify previous chain" do
+        context
+        |> ValidationContext.get_confirmed_replication_nodes()
+        |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
+      end
     end
+
+    OpenTelemetry.Tracer.set_current_span(mining_span_context)
+    OpenTelemetry.Tracer.end_span(mining_span_context)
 
     :stop
   end
@@ -1031,15 +1146,19 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_address: Base.encode16(tx_address)
     )
 
-    P2P.send_message(coordinator_node, %AddMiningContext{
-      address: tx_address,
-      utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
-      validation_node_public_key: node_public_key,
-      previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
-      chain_storage_nodes_view: chain_storage_nodes_view,
-      beacon_storage_nodes_view: beacon_storage_nodes_view,
-      io_storage_nodes_view: io_storage_nodes_view
-    })
+    P2P.send_message(
+      coordinator_node,
+      %AddMiningContext{
+        address: tx_address,
+        utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
+        validation_node_public_key: node_public_key,
+        previous_storage_nodes_public_keys:
+          Enum.map(previous_storage_nodes, & &1.last_public_key),
+        chain_storage_nodes_view: chain_storage_nodes_view,
+        beacon_storage_nodes_view: beacon_storage_nodes_view,
+        io_storage_nodes_view: io_storage_nodes_view
+      }
+    )
   end
 
   defp request_cross_validations(
@@ -1122,11 +1241,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
       inputs: aggregated_utxos
     }
 
+    trace = Archethic.Utils.inject_propagated_context()
+
     results =
       Task.Supervisor.async_stream_nolink(
         Archethic.TaskSupervisor,
         storage_nodes,
-        &P2P.send_message(&1, message),
+        &P2P.send_message(&1, message, trace: trace),
         ordered: false,
         on_timeout: :kill_task,
         timeout: Message.get_timeout(message) + 2000,
@@ -1190,7 +1311,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
       genesis_address: genesis_address
     }
 
-    P2P.broadcast_message(storage_nodes, message)
+    P2P.broadcast_message(storage_nodes, message,
+      trace: Archethic.Utils.inject_propagated_context()
+    )
   end
 
   defp notify_error(reason, %{
