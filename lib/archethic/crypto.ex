@@ -660,7 +660,6 @@ defmodule Archethic.Crypto do
 
   Invalid message to decrypt or key return an error:
 
-      ```
       iex> cipher =
       ...>   <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41, 34,
       ...>     143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161, 195, 39, 117,
@@ -670,7 +669,6 @@ defmodule Archethic.Crypto do
       ...> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
       ...> Crypto.ec_decrypt!(cipher, pv)
       ** (RuntimeError) Decryption failed
-                                                                  ```
   """
   @spec ec_decrypt!(encoded_cipher :: binary(), private_key :: key()) :: binary()
   def ec_decrypt!(encoded_cipher, private_key)

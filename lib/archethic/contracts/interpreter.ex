@@ -181,16 +181,7 @@ defmodule Archethic.Contracts.Interpreter do
           })
 
         {maybe_next_tx, next_state} =
-          case version do
-            0 ->
-              {
-                Legacy.execute_trigger(trigger_code, constants, contract_tx),
-                State.empty()
-              }
-
-            _ ->
-              ActionInterpreter.execute(trigger_code, constants, contract_tx)
-          end
+          do_execute_trigger(version, trigger_code, constants, contract_tx)
 
         logs = Scope.read_global([:logs])
 
@@ -201,6 +192,17 @@ defmodule Archethic.Contracts.Interpreter do
       logs = Scope.read_global([:logs])
 
       {:error, err, __STACKTRACE__, logs}
+  end
+
+  defp do_execute_trigger(0, trigger_code, constants, contract_tx) do
+    {
+      Legacy.execute_trigger(trigger_code, constants, contract_tx),
+      State.empty()
+    }
+  end
+
+  defp do_execute_trigger(_, trigger_code, constants, contract_tx) do
+    ActionInterpreter.execute(trigger_code, constants, contract_tx)
   end
 
   @doc """

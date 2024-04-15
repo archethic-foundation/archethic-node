@@ -4,7 +4,8 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   """
 
   @type t :: %__MODULE__{
-          status: :ok | {:error, :transaction_not_exists | :invalid_execution},
+          status:
+            :ok | {:error, :transaction_not_exists | :invalid_execution | :insufficient_funds},
           fee: non_neg_integer()
         }
 
@@ -34,6 +35,7 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   defp serialize_status(:ok), do: 0
   defp serialize_status({:error, :transaction_not_exists}), do: 1
   defp serialize_status({:error, :invalid_execution}), do: 2
+  defp serialize_status({:error, :insufficient_funds}), do: 3
 
   @doc """
   Deserialize the encoded message
@@ -66,4 +68,5 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   defp deserialize_status(0), do: :ok
   defp deserialize_status(1), do: {:error, :transaction_not_exists}
   defp deserialize_status(2), do: {:error, :invalid_execution}
+  defp deserialize_status(3), do: {:error, :insufficient_funds}
 end
