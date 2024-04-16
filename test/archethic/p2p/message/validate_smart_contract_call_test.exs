@@ -18,6 +18,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -570,6 +571,149 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       end)
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
+
+      assert %SmartContractCallValidation{status: :ok} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{
+                   address: contract_address
+                 },
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(random_public_key())
+    end
+
+    test "should be able to transfer assets received from calls" do
+      start_supervised!(Archethic.Reward.MemTables.RewardTokens)
+
+      token_address = random_address()
+
+      contract_tx =
+        ~s"""
+        @version 1
+        condition triggered_by: transaction, as: []
+
+        actions triggered_by: transaction do
+          Contract.add_token_transfer to: "#{Base.encode16(random_address())}", amount: 5, token_address: "#{Base.encode16(token_address)}"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      incoming_tx =
+        TransactionFactory.create_valid_transaction([],
+          ledger: %TransactionData.Ledger{
+            token: %TransactionData.TokenLedger{
+              transfers: [
+                %TransactionData.TokenLedger.Transfer{
+                  to: contract_tx.address,
+                  amount: Utils.to_bigint(5),
+                  token_address: token_address
+                }
+              ]
+            }
+          }
+        )
+
+      contract_address = contract_tx.address
+      protocol_version = Mining.protocol_version()
+      now = DateTime.utc_now()
+
+      MockDB
+      |> expect(:get_transaction, fn
+        ^contract_address, _, _ -> {:ok, contract_tx}
+      end)
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetUnspentOutputs{address: ^contract_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 protocol_version: protocol_version,
+                 unspent_output: %UnspentOutput{
+                   from: random_address(),
+                   type: :UCO,
+                   amount: Utils.to_bigint(3),
+                   timestamp: now
+                 }
+               }
+             ],
+             more?: false,
+             offset: nil
+           }}
+      end)
+
+      assert %SmartContractCallValidation{status: :ok} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{
+                   address: contract_address
+                 },
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(random_public_key())
+    end
+
+    test "should be able to transfer assets minted" do
+      start_supervised!(Archethic.Reward.MemTables.RewardTokens)
+
+      contract_tx =
+        ~s"""
+        @version 1
+        condition triggered_by: transaction, as: []
+
+        actions triggered_by: transaction do
+          Contract.set_type("token")
+          token_definition = Json.to_string(
+            [
+              aeip: [8, 18, 19],
+              supply: Math.trunc(100 * 100_000_000),
+              type: "fungible",
+              symbol: "TK",
+              name: "TOKEN_NAME",
+              recipients: [
+                [to: "#{Base.encode16(random_address())}", amount: Math.trunc(100 * 100_000_000)]
+              ]
+
+            ]
+          )
+          Contract.set_content(token_definition)
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      contract_address = contract_tx.address
+      protocol_version = Mining.protocol_version()
+      now = DateTime.utc_now()
+
+      MockDB
+      |> expect(:get_transaction, fn
+        ^contract_address, _, _ -> {:ok, contract_tx}
+      end)
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetUnspentOutputs{address: ^contract_address}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 protocol_version: protocol_version,
+                 unspent_output: %UnspentOutput{
+                   from: random_address(),
+                   type: :UCO,
+                   amount: Utils.to_bigint(3),
+                   timestamp: now
+                 }
+               }
+             ],
+             more?: false,
+             offset: nil
+           }}
+      end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert %SmartContractCallValidation{status: :ok} =
                %ValidateSmartContractCall{
