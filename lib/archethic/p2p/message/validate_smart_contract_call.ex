@@ -22,6 +22,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -120,7 +121,14 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
            execute_trigger(trigger, contract, transaction, recipient, unspent_outputs, datetime) do
       fee = calculate_fee(execution_result, contract, datetime)
 
-      if enough_funds_to_send?(execution_result, unspent_outputs, fee) do
+      transfers_to_contract =
+        transaction
+        |> Transaction.get_movements()
+        |> Enum.filter(fn movement ->
+          TransactionChain.get_genesis_address(movement.to) == recipient_address
+        end)
+
+      if enough_funds_to_send?(execution_result, unspent_outputs, fee, transfers_to_contract) do
         %SmartContractCallValidation{
           status: :ok,
           fee: fee
@@ -199,29 +207,55 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp calculate_fee(_, _, _), do: 0
 
-  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, fee) do
+  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, fee, tx_movements) do
+    %{token: minted_tokens} =
+      tx
+      |> LedgerOperations.get_utxos_from_transaction(
+        DateTime.utc_now(),
+        Archethic.Mining.protocol_version()
+      )
+      |> VersionedUnspentOutput.unwrap_unspent_outputs()
+      |> UTXO.get_balance()
+
     %{uco: uco_balance, token: token_balances} = UTXO.get_balance(inputs)
+
+    movements_balances = get_movements_balance(tx_movements)
 
     tx
     |> Transaction.get_movements()
-    |> Enum.reduce(%{uco: fee}, fn
+    |> get_movements_balance(%{uco: fee})
+    |> Enum.all?(fn
+      {:uco, uco_to_spend} ->
+        uco_transferred = Map.get(movements_balances, :uco, 0)
+        uco_balance + uco_transferred >= uco_to_spend
+
+      {{:token, token}, amount} ->
+        token_transferred = Map.get(movements_balances, {:token, token}, 0)
+        token_minted = Map.get(minted_tokens, token, 0)
+        token_balance = Map.get(token_balances, token, 0)
+
+        token_balance + token_transferred + token_minted >= amount
+    end)
+  end
+
+  defp enough_funds_to_send?(%ActionWithoutTransaction{}, inputs, fee, tx_movements) do
+    uco_transferred =
+      case Enum.find(tx_movements, &(&1.type == :UCO)) do
+        nil -> 0
+        %TransactionMovement{amount: amount} -> amount
+      end
+
+    %{uco: uco_balance} = UTXO.get_balance(inputs)
+    uco_balance + uco_transferred >= fee
+  end
+
+  defp get_movements_balance(tx_movements, acc \\ %{}) do
+    Enum.reduce(tx_movements, acc, fn
       %TransactionMovement{type: :UCO, amount: amount}, acc ->
-        Map.update!(acc, :uco, &(&1 + amount))
+        Map.update(acc, :uco, amount, &(&1 + amount))
 
       %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
         Map.update(acc, {:token, {token_address, token_id}}, amount, &(amount + &1))
     end)
-    |> Enum.all?(fn
-      {:uco, uco_to_spend} ->
-        uco_balance >= uco_to_spend
-
-      {{:token, token}, amount} ->
-        Map.get(token_balances, token) >= amount
-    end)
-  end
-
-  defp enough_funds_to_send?(%ActionWithoutTransaction{}, inputs, fee) do
-    %{uco: uco_balance} = UTXO.get_balance(inputs)
-    uco_balance >= fee
   end
 end
