@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @enforce_keys [:recipient, :transaction, :timestamp]
   defstruct [:recipient, :transaction, :timestamp]
 
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.Context
@@ -117,10 +118,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
            execute_condition(trigger, contract, transaction, recipient, datetime, unspent_outputs),
          {:ok, execution_result} <-
            execute_trigger(trigger, contract, transaction, recipient, unspent_outputs, datetime) do
-      if enough_funds_to_send?(execution_result, unspent_outputs) do
+      fee = calculate_fee(execution_result, contract, datetime)
+
+      if enough_funds_to_send?(execution_result, unspent_outputs, fee) do
         %SmartContractCallValidation{
           status: :ok,
-          fee: calculate_fee(execution_result, contract, datetime)
+          fee: fee
         }
       else
         %SmartContractCallValidation{
@@ -196,26 +199,29 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp calculate_fee(_, _, _), do: 0
 
-  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs) do
+  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, fee) do
     %{uco: uco_balance, token: token_balances} = UTXO.get_balance(inputs)
 
     tx
     |> Transaction.get_movements()
-    |> Enum.reduce(%{}, fn
+    |> Enum.reduce(%{uco: fee}, fn
       %TransactionMovement{type: :UCO, amount: amount}, acc ->
-        Map.update(acc, :uco, amount, &(&1 + amount))
+        Map.update!(acc, :uco, &(&1 + amount))
 
       %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
         Map.update(acc, {:token, {token_address, token_id}}, amount, &(amount + &1))
     end)
     |> Enum.all?(fn
       {:uco, uco_to_spend} ->
-        uco_balance > uco_to_spend
+        uco_balance >= uco_to_spend
 
       {{:token, token}, amount} ->
-        Map.get(token_balances, token) > amount
+        Map.get(token_balances, token) >= amount
     end)
   end
 
-  defp enough_funds_to_send?(_, _), do: true
+  defp enough_funds_to_send?(%ActionWithoutTransaction{}, inputs, fee) do
+    %{uco: uco_balance} = UTXO.get_balance(inputs)
+    uco_balance >= fee
+  end
 end
