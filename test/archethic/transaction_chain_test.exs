@@ -1246,7 +1246,6 @@ defmodule Archethic.TransactionChainTest do
       [{paging_address, _}, _, {address3, _}] = chain_addresses
 
       MockDB
-      |> expect(:get_genesis_address, 0, fn _ -> :ok end)
       |> expect(:list_chain_addresses, 0, fn _ -> :ok end)
 
       assert {:ok, paging_address} ==

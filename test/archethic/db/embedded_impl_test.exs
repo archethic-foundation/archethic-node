@@ -1,5 +1,6 @@
 defmodule Archethic.DB.EmbeddedTest do
   use ArchethicCase, async: false
+  import Mock
 
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
@@ -347,6 +348,59 @@ defmodule Archethic.DB.EmbeddedTest do
                EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
                  paging_address: :crypto.strong_rand_bytes(32)
                )
+    end
+
+    test "should return entire chain if paging_address is the genesis (asc)" do
+      transactions =
+        Enum.map(1..5, fn i ->
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
+
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
+
+      last_address = List.last(transactions).address
+      genesis_address = Crypto.derive_address(List.first(transactions).previous_public_key)
+
+      with_mock(ChainIndex, get_genesis_address: fn ^last_address, _ -> genesis_address end) do
+        assert {page, false, nil} =
+                 EmbeddedImpl.get_transaction_chain(last_address, [],
+                   paging_address: genesis_address
+                 )
+
+        assert length(page) == 5
+      end
+    end
+
+    test "should return empty if paging_address is the genesis (desc)" do
+      transactions =
+        Enum.map(1..5, fn i ->
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
+
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
+
+      last_address = List.last(transactions).address
+      genesis_address = Crypto.derive_address(List.first(transactions).previous_public_key)
+
+      with_mock(ChainIndex, get_genesis_address: fn ^last_address, _ -> genesis_address end) do
+        assert {[], false, nil} =
+                 EmbeddedImpl.get_transaction_chain(last_address, [],
+                   order: :desc,
+                   paging_address: genesis_address
+                 )
+      end
     end
   end
 
