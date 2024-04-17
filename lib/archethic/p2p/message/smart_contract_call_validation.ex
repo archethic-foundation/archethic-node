@@ -12,6 +12,7 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   @type t :: %__MODULE__{
           status:
             :ok
+            | {:error, :timeout}
             | {:error, :transaction_not_exists}
             | {:error, :insufficient_funds}
             | {:error, :invalid_execution, Failure.t()}
@@ -50,6 +51,8 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   defp serialize_status({:error, :parsing_error, reason}),
     do: <<5::8, VarInt.from_value(byte_size(reason))::binary, reason::binary>>
 
+  defp serialize_status({:error, :timeout}), do: <<6::8>>
+
   @doc """
   Deserialize the encoded message
   """
@@ -86,4 +89,7 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
     <<reason::binary-size(reason_size), rest::bitstring>> = rest
     {{:error, :parsing_error, reason}, rest}
   end
+
+  defp deserialize_status(<<6::8, rest::bitstring>>),
+    do: {{:error, :timeout}, rest}
 end
