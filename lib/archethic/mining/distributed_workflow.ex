@@ -298,7 +298,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
       case role do
         :cross_validator ->
           [
-            {:next_event, :internal, :build_transaction_context}
+            {:next_event, :internal, :build_transaction_context},
+            {:next_event, :internal, :notify_context}
           ]
 
         :coordinator ->
