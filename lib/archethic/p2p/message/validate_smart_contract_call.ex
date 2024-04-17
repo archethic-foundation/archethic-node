@@ -128,7 +128,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
           TransactionChain.get_genesis_address(movement.to) == recipient_address
         end)
 
-      if enough_funds_to_send?(execution_result, unspent_outputs, fee, transfers_to_contract) do
+      if enough_funds_to_send?(execution_result, unspent_outputs, transfers_to_contract) do
         %SmartContractCallValidation{
           status: :ok,
           fee: fee
@@ -207,7 +207,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp calculate_fee(_, _, _), do: 0
 
-  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, fee, tx_movements) do
+  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, tx_movements) do
     %{token: minted_tokens} =
       tx
       |> LedgerOperations.get_utxos_from_transaction(
@@ -223,7 +223,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     tx
     |> Transaction.get_movements()
-    |> get_movements_balance(%{uco: fee})
+    |> get_movements_balance()
     |> Enum.all?(fn
       {:uco, uco_to_spend} ->
         uco_transferred = Map.get(movements_balances, :uco, 0)
@@ -238,19 +238,10 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     end)
   end
 
-  defp enough_funds_to_send?(%ActionWithoutTransaction{}, inputs, fee, tx_movements) do
-    uco_transferred =
-      case Enum.find(tx_movements, &(&1.type == :UCO)) do
-        nil -> 0
-        %TransactionMovement{amount: amount} -> amount
-      end
+  defp enough_funds_to_send?(%ActionWithoutTransaction{}, _inputs, _tx_movements), do: true
 
-    %{uco: uco_balance} = UTXO.get_balance(inputs)
-    uco_balance + uco_transferred >= fee
-  end
-
-  defp get_movements_balance(tx_movements, acc \\ %{}) do
-    Enum.reduce(tx_movements, acc, fn
+  defp get_movements_balance(tx_movements) do
+    Enum.reduce(tx_movements, %{}, fn
       %TransactionMovement{type: :UCO, amount: amount}, acc ->
         Map.update(acc, :uco, amount, &(&1 + amount))
 
