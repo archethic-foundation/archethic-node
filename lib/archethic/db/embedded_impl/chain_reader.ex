@@ -131,18 +131,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     filepath = ChainWriter.chain_path(db_path, genesis_address)
 
     if File.exists?(filepath) do
-      fd = File.open!(filepath, [:binary, :read])
-
       {transactions, more?, paging_address} =
-        case Keyword.get(opts, :order, :asc) do
-          :asc ->
-            process_get_chain(fd, fields, opts, db_path)
-
-          :desc ->
-            process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
-        end
-
-      File.close(fd)
+        get_chain(filepath, db_path, fields, genesis_address, opts)
 
       # we want different metrics for ASC and DESC
       :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
@@ -267,6 +257,35 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     File.close(fd)
 
     tx
+  end
+
+  defp get_chain(filepath, db_path, fields, genesis_address, opts) do
+    fd = File.open!(filepath, [:binary, :read])
+
+    {transactions, more?, paging_address} =
+      case Keyword.get(opts, :order, :asc) do
+        :asc ->
+          # if the paging_address=genesis_address,
+          # the same behaviour as no paging_address
+          opts =
+            case Keyword.get(opts, :paging_address) do
+              ^genesis_address -> Keyword.delete(opts, :paging_address)
+              _ -> opts
+            end
+
+          process_get_chain(fd, fields, opts, db_path)
+
+        :desc ->
+          # if the paging_address=genesis_address,
+          # we return empty
+          case Keyword.get(opts, :paging_address) do
+            ^genesis_address -> {[], false, nil}
+            _ -> process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+          end
+      end
+
+    File.close(fd)
+    {transactions, more?, paging_address}
   end
 
   defp process_get_chain(fd, fields, opts, db_path) do
