@@ -82,15 +82,24 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         },
         _
       ) do
-    # We use job cache to reduce the number of times the contract is executed by the same node
-    Archethic.Utils.JobCache.get!(
-      {:smart_contract_validation, recipient_address, tx_address,
-       DateTime.to_unix(timestamp, :millisecond)},
-      function: fn -> validate_smart_contract_call(msg) end,
-      timeout: 3_000,
-      # We set the maximum timeout for a transaction to be processed before the kill the cache
-      ttl: 60_000
-    )
+    try do
+      # We use job cache to reduce the number of times the contract is executed by the same node
+      Archethic.Utils.JobCache.get!(
+        {:smart_contract_validation, recipient_address, tx_address,
+         DateTime.to_unix(timestamp, :millisecond)},
+        function: fn -> validate_smart_contract_call(msg) end,
+        timeout: Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:timeout, 4_500),
+        # We set the maximum timeout for a transaction to be processed before the kill the cache
+        ttl: 60_000
+      )
+    catch
+      :exit, _ ->
+        %SmartContractCallValidation{
+          status: {:error, :timeout},
+          fee: 0,
+          last_chain_sync_date: DateTime.from_unix!(0)
+        }
+    end
   end
 
   defp validate_smart_contract_call(%__MODULE__{

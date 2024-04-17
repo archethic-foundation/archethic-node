@@ -94,8 +94,9 @@ defmodule Archethic.Mining.SmartContractValidation do
         %SmartContractCallValidation{status: {:error, :invalid_condition, _}} -> 2
         %SmartContractCallValidation{status: {:error, :invalid_execution, _}} -> 3
         %SmartContractCallValidation{status: {:error, :insufficient_funds}} -> 4
-        %SmartContractCallValidation{status: {:error, :parsing_error, _}} -> 5
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}} -> 6
+        %SmartContractCallValidation{status: {:error, :timeout}} -> 5
+        %SmartContractCallValidation{status: {:error, :parsing_error, _}} -> 6
+        %SmartContractCallValidation{status: {:error, :transaction_not_exists}} -> 7
       end)
       |> List.first()
     end

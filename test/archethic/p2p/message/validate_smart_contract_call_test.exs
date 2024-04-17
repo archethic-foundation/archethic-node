@@ -131,6 +131,38 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
+    test "should return a timeout" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction do
+          true
+        end
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      MockDB
+      |> expect(:get_transaction, fn _, _, _ ->
+        # timeout is set to 50ms
+        Process.sleep(1_000)
+        {:ok, tx}
+      end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
+
+      assert %SmartContractCallValidation{status: {:error, :timeout}} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: random_address()},
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(random_public_key())
+    end
+
     test "should validate smart contract call with named action and return valid message" do
       tx =
         ~s"""
