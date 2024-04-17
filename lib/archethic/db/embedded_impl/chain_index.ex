@@ -65,8 +65,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     |> Enum.reduce(<<>>, fn content, acc ->
       do_scan_summary_table(<<acc::bitstring, content::bitstring>>)
     end)
-
-    :ok
   rescue
     _ -> :ok
   end
