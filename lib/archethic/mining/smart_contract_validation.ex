@@ -127,6 +127,11 @@ defmodule Archethic.Mining.SmartContractValidation do
     {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
+  defp format_error_status({:error, :insufficient_funds}, data) do
+    data = Map.put(data, "message", "Contract has not enough funds to create the transaction")
+    {:error, Error.new(:invalid_recipients_execution, data)}
+  end
+
   defp format_error_status(
          {:error, :invalid_execution, %Failure{user_friendly_error: message, data: failure_data}},
          data
