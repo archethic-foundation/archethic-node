@@ -175,7 +175,7 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> DateTime.utc_now() end,
-        list_replications_attestations_from_current_slot: fn -> [] end
+        list_replications_attestations_from_current_summary: fn -> [] end
       ) do
         with_mock(TransactionHandler, [:passthrough], []) do
           assert :ok = SelfRepair.synchronize_current_summary()
@@ -218,7 +218,7 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> now end,
-        list_replications_attestations_from_current_slot: fn ->
+        list_replications_attestations_from_current_summary: fn ->
           [
             replication_attestation1,
             replication_attestation2,
@@ -270,7 +270,7 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> now end,
-        list_replications_attestations_from_current_slot: fn ->
+        list_replications_attestations_from_current_summary: fn ->
           [
             replication_attestation1
           ]

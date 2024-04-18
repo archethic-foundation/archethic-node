@@ -32,9 +32,7 @@ defmodule Archethic.P2p.Message.GetCurrentReplicationsAttestationsResponseTest d
           },
           confirmations: Enum.map(0..9, &{&1, "signature#{&1}"})
         }
-      ],
-      more?: true,
-      paging_address: random_address()
+      ]
     }
 
     assert {^msg, <<>>} =
@@ -43,9 +41,7 @@ defmodule Archethic.P2p.Message.GetCurrentReplicationsAttestationsResponseTest d
              |> GetCurrentReplicationsAttestationsResponse.deserialize()
 
     msg = %GetCurrentReplicationsAttestationsResponse{
-      replications_attestations: [],
-      more?: false,
-      paging_address: nil
+      replications_attestations: []
     }
 
     assert {^msg, <<>>} =

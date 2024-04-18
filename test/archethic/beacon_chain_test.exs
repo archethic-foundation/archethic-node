@@ -664,12 +664,12 @@ defmodule Archethic.BeaconChainTest do
     end
   end
 
-  describe "list_replications_attestations_from_current_slot/0" do
+  describe "list_replications_attestations_from_current_summary/0" do
     test "should return empty if there is nothing yet" do
-      assert [] = BeaconChain.list_replications_attestations_from_current_slot()
+      assert [] = BeaconChain.list_replications_attestations_from_current_summary()
     end
 
-    test "should return the attestations (1 page)" do
+    test "should return the attestations" do
       now = DateTime.utc_now()
 
       nodes = [
@@ -705,83 +705,12 @@ defmodule Archethic.BeaconChainTest do
       |> expect(:send_message, length(nodes), fn _, %GetCurrentReplicationsAttestations{}, _ ->
         {:ok,
          %GetCurrentReplicationsAttestationsResponse{
-           replications_attestations: replications_attestations,
-           more?: false,
-           paging_address: nil
+           replications_attestations: replications_attestations
          }}
       end)
 
       assert ^replications_attestations =
-               BeaconChain.list_replications_attestations_from_current_slot()
-    end
-
-    test "should return the attestations (2 pages)" do
-      now = DateTime.utc_now()
-
-      nodes = [
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          first_public_key: random_public_key(),
-          last_public_key: random_public_key(),
-          available?: true,
-          geo_patch: "AAA",
-          network_patch: "AAA",
-          authorized?: true,
-          authorization_date: now |> DateTime.add(-10)
-        },
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3001,
-          first_public_key: random_public_key(),
-          last_public_key: random_public_key(),
-          available?: true,
-          geo_patch: "BBB",
-          network_patch: "BBB",
-          authorized?: true,
-          authorization_date: now |> DateTime.add(-10)
-        }
-      ]
-
-      for node <- nodes, do: P2P.add_and_connect_node(node)
-
-      page1_replications_attestations = [
-        random_replication_attestation(now),
-        random_replication_attestation(now),
-        random_replication_attestation(now)
-      ]
-
-      page2_replications_attestations = [
-        random_replication_attestation(now),
-        random_replication_attestation(now)
-      ]
-
-      paging_address = random_address()
-
-      MockClient
-      |> expect(:send_message, length(nodes) * 2, fn
-        _, %GetCurrentReplicationsAttestations{paging_address: nil}, _ ->
-          {:ok,
-           %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: page1_replications_attestations,
-             more?: true,
-             paging_address: paging_address
-           }}
-
-        _, %GetCurrentReplicationsAttestations{paging_address: ^paging_address}, _ ->
-          {:ok,
-           %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: page2_replications_attestations,
-             more?: false,
-             paging_address: nil
-           }}
-      end)
-
-      expected_replications_attestations =
-        page1_replications_attestations ++ page2_replications_attestations
-
-      assert ^expected_replications_attestations =
-               BeaconChain.list_replications_attestations_from_current_slot()
+               BeaconChain.list_replications_attestations_from_current_summary()
     end
 
     test "should merge attestations when different" do
@@ -825,21 +754,19 @@ defmodule Archethic.BeaconChainTest do
         ^node1, %GetCurrentReplicationsAttestations{}, _ ->
           {:ok,
            %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: node1_replications_attestations,
-             more?: false,
-             paging_address: nil
+             replications_attestations: node1_replications_attestations
            }}
 
         ^node2, %GetCurrentReplicationsAttestations{}, _ ->
           {:ok,
            %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: node2_replications_attestations,
-             more?: false,
-             paging_address: nil
+             replications_attestations: node2_replications_attestations
            }}
       end)
 
-      replications_attestations = BeaconChain.list_replications_attestations_from_current_slot()
+      replications_attestations =
+        BeaconChain.list_replications_attestations_from_current_summary()
+
       assert 3 == length(replications_attestations)
       assert Enum.any?(replications_attestations, &(&1 == replication_attestation1))
       assert Enum.any?(replications_attestations, &(&1 == replication_attestation2))

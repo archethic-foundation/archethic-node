@@ -132,8 +132,7 @@ defmodule Archethic.BootstrapTest do
         _, %GetCurrentReplicationsAttestations{}, _ ->
           {:ok,
            %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: [],
-             more?: false
+             replications_attestations: []
            }}
       end)
 

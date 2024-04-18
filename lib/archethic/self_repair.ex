@@ -307,7 +307,7 @@ defmodule Archethic.SelfRepair do
       |> BeaconChain.next_summary_date()
       |> P2P.authorized_and_available_nodes(true)
 
-    BeaconChain.list_replications_attestations_from_current_slot()
+    BeaconChain.list_replications_attestations_from_current_summary()
     |> Sync.process_replications_attestations(download_nodes)
   end
 end

@@ -362,9 +362,9 @@ defmodule Archethic.BeaconChain do
   @doc """
   Return the replications attestation that were gathered since last
   """
-  @spec list_replications_attestations_from_current_slot(DateTime.t()) ::
+  @spec list_replications_attestations_from_current_summary(DateTime.t()) ::
           list(ReplicationAttestation.t())
-  def list_replications_attestations_from_current_slot(
+  def list_replications_attestations_from_current_summary(
         datetime = %DateTime{} \\ DateTime.utc_now()
       ) do
     get_next_summary_elected_subsets_by_nodes(datetime)
@@ -429,27 +429,13 @@ defmodule Archethic.BeaconChain do
     |> Enum.to_list()
   end
 
-  defp fetch_current_replications_attestations(node, subsets, paging_address \\ nil, acc \\ []) do
-    case P2P.send_message(node, %GetCurrentReplicationsAttestations{
-           subsets: subsets,
-           paging_address: paging_address
-         }) do
+  defp fetch_current_replications_attestations(node, subsets) do
+    case P2P.send_message(node, %GetCurrentReplicationsAttestations{subsets: subsets}) do
       {:ok,
        %GetCurrentReplicationsAttestationsResponse{
-         replications_attestations: replications_attestations,
-         more?: more?,
-         paging_address: paging_address
+         replications_attestations: replications_attestations
        }} ->
-        if more? do
-          fetch_current_replications_attestations(
-            node,
-            subsets,
-            paging_address,
-            acc ++ replications_attestations
-          )
-        else
-          {:ok, acc ++ replications_attestations}
-        end
+        {:ok, replications_attestations}
 
       _ ->
         :error
