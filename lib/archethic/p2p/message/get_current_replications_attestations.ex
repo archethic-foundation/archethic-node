@@ -8,8 +8,7 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestations do
   defstruct [:subsets]
 
   alias Archethic.Crypto
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain
   alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
 
   @type t :: %__MODULE__{subsets: list(binary())}
@@ -19,10 +18,7 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestations do
   def process(%__MODULE__{subsets: subsets}, _) do
     replications_attestations =
       Enum.flat_map(subsets, fn subset ->
-        %Slot{transaction_attestations: replication_attestations} =
-          Subset.get_current_slot(subset)
-
-        replication_attestations
+        BeaconChain.get_current_summary_replication_attestations(subset)
       end)
 
     %GetCurrentReplicationsAttestationsResponse{

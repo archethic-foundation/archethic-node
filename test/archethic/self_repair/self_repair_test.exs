@@ -175,10 +175,10 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> DateTime.utc_now() end,
-        list_replications_attestations_from_current_summary: fn -> [] end
+        fetch_current_summary_replication_attestations: fn -> [] end
       ) do
         with_mock(TransactionHandler, [:passthrough], []) do
-          assert :ok = SelfRepair.synchronize_current_summary()
+          assert 0 = SelfRepair.synchronize_current_summary()
 
           assert_not_called(TransactionHandler.download_transaction(:_, :_))
         end
@@ -218,7 +218,7 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> now end,
-        list_replications_attestations_from_current_summary: fn ->
+        fetch_current_summary_replication_attestations: fn ->
           [
             replication_attestation1,
             replication_attestation2,
@@ -230,7 +230,7 @@ defmodule Archethic.SelfRepairTest do
           download_transaction: fn _, _ -> :ok end,
           process_transaction: fn _, _, _ -> :ok end
         ) do
-          assert :ok = SelfRepair.synchronize_current_summary()
+          assert 3 = SelfRepair.synchronize_current_summary()
 
           assert_called(TransactionHandler.download_transaction(replication_attestation1, :_))
           assert_called(TransactionHandler.download_transaction(replication_attestation2, :_))
@@ -270,7 +270,7 @@ defmodule Archethic.SelfRepairTest do
 
       with_mock(BeaconChain, [:passthrough],
         next_summary_date: fn _ -> now end,
-        list_replications_attestations_from_current_summary: fn ->
+        fetch_current_summary_replication_attestations: fn ->
           [
             replication_attestation1
           ]
@@ -278,7 +278,7 @@ defmodule Archethic.SelfRepairTest do
       ) do
         with_mock(TransactionChain, [:passthrough], transaction_exists?: fn _ -> true end) do
           with_mock(TransactionHandler, [:passthrough], download_transaction: fn _, _ -> :ok end) do
-            assert :ok = SelfRepair.synchronize_current_summary()
+            assert 0 = SelfRepair.synchronize_current_summary()
 
             assert_not_called(
               TransactionHandler.download_transaction(replication_attestation1, :_)

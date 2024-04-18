@@ -664,9 +664,9 @@ defmodule Archethic.BeaconChainTest do
     end
   end
 
-  describe "list_replications_attestations_from_current_summary/0" do
+  describe "fetch_current_summary_replication_attestations/0" do
     test "should return empty if there is nothing yet" do
-      assert [] = BeaconChain.list_replications_attestations_from_current_summary()
+      assert [] = BeaconChain.fetch_current_summary_replication_attestations()
     end
 
     test "should return the attestations" do
@@ -710,7 +710,7 @@ defmodule Archethic.BeaconChainTest do
       end)
 
       assert ^replications_attestations =
-               BeaconChain.list_replications_attestations_from_current_summary()
+               BeaconChain.fetch_current_summary_replication_attestations()
     end
 
     test "should merge attestations when different" do
@@ -764,8 +764,7 @@ defmodule Archethic.BeaconChainTest do
            }}
       end)
 
-      replications_attestations =
-        BeaconChain.list_replications_attestations_from_current_summary()
+      replications_attestations = BeaconChain.fetch_current_summary_replication_attestations()
 
       assert 3 == length(replications_attestations)
       assert Enum.any?(replications_attestations, &(&1 == replication_attestation1))

@@ -246,10 +246,10 @@ defmodule Archethic.Bootstrap do
 
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
-    if P2P.authorized_node?(Crypto.first_node_public_key()) do
+    if P2P.authorized_and_available_node?() do
       Logger.info("Current summary synchronization started")
-      SelfRepair.synchronize_current_summary()
-      Logger.info("Current summary synchronization finished")
+      count = SelfRepair.synchronize_current_summary()
+      Logger.info("Current summary synchronization finished: #{count} synchronized")
     end
 
     Sync.publish_end_of_sync()
