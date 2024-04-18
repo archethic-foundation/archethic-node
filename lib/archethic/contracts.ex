@@ -288,11 +288,16 @@ defmodule Archethic.Contracts do
     end
   end
 
+  @doc """
+  Called by the telemetry poller
+  """
   def maximum_calls_in_queue() do
     genesis_addresses =
       Registry.select(Archethic.ContractRegistry, [
         {{:"$1", :_, :_}, [], [:"$1"]}
       ])
+
+    invalid_calls = :ets.info(:archethic_invalid_call) |> Keyword.get(:size)
 
     queued_calls =
       Task.Supervisor.async_stream_nolink(
@@ -315,8 +320,15 @@ defmodule Archethic.Contracts do
 
     :telemetry.execute(
       [:archethic, :contract],
-      %{queued_calls: queued_calls}
+      %{
+        queued_calls: queued_calls - invalid_calls,
+        invalid_calls: invalid_calls
+      }
     )
+  rescue
+    _ ->
+    # this will fail at startup because ContractRegistry does not exist yet
+    :ok
   end
 
   defp get_function_from_contract(%{functions: functions}, function_name, args_values) do
