@@ -92,6 +92,7 @@ defmodule Archethic.Telemetry do
         ]
       ),
       last_value("archethic.contract.queued_calls"),
+      last_value("archethic.contract.invalid_calls"),
       distribution("archethic.contract.parsing.duration",
         unit: {:native, :millisecond},
         measurement: :duration,
