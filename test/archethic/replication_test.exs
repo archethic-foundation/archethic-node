@@ -74,7 +74,9 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+
+    tx =
+      TransactionFactory.create_valid_transaction(unspent_outputs, type: :data, content: "content")
 
     MockClient
     |> stub(:send_message, fn

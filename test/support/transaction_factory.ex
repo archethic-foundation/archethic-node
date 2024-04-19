@@ -302,7 +302,7 @@ defmodule Archethic.TransactionFactory do
   end
 
   def create_transaction_with_invalid_fee(inputs \\ []) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    tx = Transaction.new(:data, %TransactionData{content: "content"}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     protocol_version = current_protocol_version()

@@ -190,7 +190,12 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
-      tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+      tx =
+        TransactionFactory.create_valid_transaction(unspent_outputs,
+          type: :data,
+          content: "content"
+        )
+
       genesis = Transaction.previous_address(tx)
 
       validation_context = %ValidationContext{

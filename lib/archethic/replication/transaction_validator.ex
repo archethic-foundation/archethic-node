@@ -23,9 +23,16 @@ defmodule Archethic.Replication.TransactionValidator do
   def validate(validation_context) do
     validation_context
     |> validate_consensus()
+    |> validate_pending_transaction()
     |> cross_validate()
     |> handle_cross_stamp_inconsistencies()
   end
+
+  defp validate_pending_transaction(context = %ValidationContext{mining_error: %Error{}}),
+    do: context
+
+  defp validate_pending_transaction(context),
+    do: ValidationContext.validate_pending_transaction(context)
 
   defp cross_validate(context = %ValidationContext{mining_error: %Error{}}), do: context
   defp cross_validate(context), do: ValidationContext.cross_validate(context)

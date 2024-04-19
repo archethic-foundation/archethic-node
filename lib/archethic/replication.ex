@@ -59,60 +59,51 @@ defmodule Archethic.Replication do
         contract_context,
         validation_inputs
       ) do
-    if TransactionChain.transaction_exists?(address) do
-      Logger.warning("Transaction already exists",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+    start_time = System.monotonic_time()
 
-      {:error, Error.new(:invalid_pending_transaction, "Transaction already exists")}
-    else
-      start_time = System.monotonic_time()
+    Logger.info("Replication validation started",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
 
-      Logger.info("Replication validation started",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+    {genesis_address, previous_tx, inputs, resolved_addresses} = fetch_context(tx)
 
-      {genesis_address, previous_tx, inputs, resolved_addresses} = fetch_context(tx)
+    validation_context = %ValidationContext{
+      transaction: tx,
+      resolved_addresses: resolved_addresses,
+      contract_context: contract_context,
+      aggregated_utxos: validation_inputs,
+      unspent_outputs: inputs,
+      validation_time: validation_time,
+      validation_stamp: validation_stamp,
+      previous_transaction: previous_tx,
+      genesis_address: genesis_address
+    }
 
-      validation_context = %ValidationContext{
-        transaction: tx,
-        resolved_addresses: resolved_addresses,
-        contract_context: contract_context,
-        aggregated_utxos: validation_inputs,
-        unspent_outputs: inputs,
-        validation_time: validation_time,
-        validation_stamp: validation_stamp,
-        previous_transaction: previous_tx,
-        genesis_address: genesis_address
-      }
+    case TransactionValidator.validate(validation_context) do
+      %ValidationContext{mining_error: nil} ->
+        Logger.info("Replication validation finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-      case TransactionValidator.validate(validation_context) do
-        %ValidationContext{mining_error: nil} ->
-          Logger.info("Replication validation finished",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
+        :telemetry.execute(
+          [:archethic, :replication, :validation],
+          %{
+            duration: System.monotonic_time() - start_time
+          },
+          %{role: :chain}
+        )
 
-          :telemetry.execute(
-            [:archethic, :replication, :validation],
-            %{
-              duration: System.monotonic_time() - start_time
-            },
-            %{role: :chain}
-          )
+      %ValidationContext{mining_error: error} ->
+        :ok = TransactionChain.write_ko_transaction(tx)
 
-        %ValidationContext{mining_error: error} ->
-          :ok = TransactionChain.write_ko_transaction(tx)
+        Logger.warning("Invalid transaction for replication - #{inspect(error)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-          Logger.warning("Invalid transaction for replication - #{inspect(error)}",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-
-          {:error, error}
-      end
+        {:error, error}
     end
   end
 
