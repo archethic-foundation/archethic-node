@@ -17,6 +17,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           | :proof_of_election
           | :transaction_fee
           | :transaction_movements
+          | :recipients
           | :unspent_outputs
           | :error
           | :protocol_version
@@ -130,6 +131,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:protocol_version), do: 9
   defp serialize_inconsistency(:consumed_inputs), do: 10
   defp serialize_inconsistency(:aggregated_utxos), do: 11
+  defp serialize_inconsistency(:recipients), do: 12
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -198,6 +200,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:protocol_version, rest}
   defp do_reduce_inconsistencies(<<10::8, rest::bitstring>>), do: {:consumed_inputs, rest}
   defp do_reduce_inconsistencies(<<11::8, rest::bitstring>>), do: {:aggregated_utxos, rest}
+  defp do_reduce_inconsistencies(<<12::8, rest::bitstring>>), do: {:recipients, rest}
 
   @spec cast(map()) :: t()
   def cast(stamp = %{}) do
