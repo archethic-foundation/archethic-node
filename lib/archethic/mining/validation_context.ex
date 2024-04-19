@@ -79,15 +79,16 @@ defmodule Archethic.Mining.ValidationContext do
           previous_transaction: nil | Transaction.t(),
           unspent_outputs: list(VersionedUnspentOutput.t()),
           resolved_addresses: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
-          welcome_node: Node.t(),
-          coordinator_node: Node.t(),
-          cross_validation_nodes: list(Node.t()),
+          welcome_node: nil | Node.t(),
+          coordinator_node: nil | Node.t(),
+          cross_validation_nodes: nil | list(Node.t()),
           previous_storage_nodes: list(Node.t()),
           chain_storage_nodes: list(Node.t()),
           beacon_storage_nodes: list(Node.t()),
           io_storage_nodes: list(Node.t()),
           cross_validation_nodes_confirmation: bitstring(),
           validation_stamp: nil | ValidationStamp.t(),
+          validation_time: DateTime.t(),
           full_replication_tree: %{
             chain: list(bitstring()),
             beacon: list(bitstring()),
@@ -104,7 +105,7 @@ defmodule Archethic.Mining.ValidationContext do
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
-          genesis_address: binary(),
+          genesis_address: nil | Crypto.prepended_hash(),
           aggregated_utxos: list(VersionedUnspentOutput.t()),
           mining_error: Error.t() | nil
         }
@@ -277,6 +278,15 @@ defmodule Archethic.Mining.ValidationContext do
   def add_validation_stamp(context = %__MODULE__{}, stamp = %ValidationStamp{}) do
     %{context | validation_stamp: stamp}
   end
+
+  @doc """
+  Set the mining error to the mining context
+  """
+  @spec set_mining_error(context :: t(), mining_error :: Error.t()) :: t()
+  def set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
+    do: %__MODULE__{context | mining_error: mining_error}
+
+  def set_mining_error(context, _), do: context
 
   @doc """
   Determines if the transaction is accepted into the network
@@ -750,11 +760,6 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp set_stamp_error(stamp, %__MODULE__{mining_error: error}),
     do: %ValidationStamp{stamp | error: Error.to_stamp_error(error)}
-
-  defp set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
-    do: %__MODULE__{context | mining_error: mining_error}
-
-  defp set_mining_error(context, _), do: context
 
   defp calculate_fee(
          tx,

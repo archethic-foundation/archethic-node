@@ -18,6 +18,7 @@ defmodule Archethic.Replication do
   alias Archethic.Election
   alias Archethic.Governance
   alias Archethic.Mining.Error
+  alias Archethic.Mining.ValidationContext
   alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.P2P.Message
@@ -50,7 +51,11 @@ defmodule Archethic.Replication do
           validation_inputs :: list(VersionedUnspentOutput.t())
         ) :: :ok | {:error, Error.t()}
   def validate_transaction(
-        tx = %Transaction{address: address, type: type},
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: validation_stamp = %ValidationStamp{timestamp: validation_time}
+        },
         contract_context,
         validation_inputs
       ) do
@@ -69,43 +74,44 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {genesis_address, previous_tx, inputs} = fetch_context(tx)
+      {genesis_address, previous_tx, inputs, resolved_addresses} = fetch_context(tx)
 
-      with :ok <- validate_validation_inputs(tx, validation_inputs, inputs),
-           :ok <-
-             TransactionValidator.validate(
-               tx,
-               previous_tx,
-               genesis_address,
-               validation_inputs,
-               contract_context
-             ) do
-        # Validate the transaction and check integrity from the previous transaction
+      validation_context = %ValidationContext{
+        transaction: tx,
+        resolved_addresses: resolved_addresses,
+        contract_context: contract_context,
+        aggregated_utxos: validation_inputs,
+        unspent_outputs: inputs,
+        validation_time: validation_time,
+        validation_stamp: validation_stamp,
+        previous_transaction: previous_tx,
+        genesis_address: genesis_address
+      }
 
-        Logger.info("Replication validation finished",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        :telemetry.execute(
-          [:archethic, :replication, :validation],
-          %{
-            duration: System.monotonic_time() - start_time
-          },
-          %{role: :chain}
-        )
-
-        :ok
-      else
-        {:error, reason} ->
-          :ok = TransactionChain.write_ko_transaction(tx)
-
-          Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
+      case TransactionValidator.validate(validation_context) do
+        %ValidationContext{mining_error: nil} ->
+          Logger.info("Replication validation finished",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )
 
-          {:error, reason}
+          :telemetry.execute(
+            [:archethic, :replication, :validation],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :chain}
+          )
+
+        %ValidationContext{mining_error: error} ->
+          :ok = TransactionChain.write_ko_transaction(tx)
+
+          Logger.warning("Invalid transaction for replication - #{inspect(error)}",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          {:error, error}
       end
     end
   end
@@ -206,7 +212,11 @@ defmodule Archethic.Replication do
           opts :: sync_options()
         ) :: :ok | {:error, Error.t()}
   def validate_and_store_transaction(
-        tx = %Transaction{address: address, type: type},
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
+        },
         genesis_address,
         opts \\ []
       )
@@ -233,8 +243,14 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      case TransactionValidator.validate(tx) do
-        :ok ->
+      context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: stamp,
+        validation_time: validation_time
+      }
+
+      case TransactionValidator.validate_consensus(context) do
+        %ValidationContext{mining_error: nil} ->
           :telemetry.execute(
             [:archethic, :replication, :validation],
             %{
@@ -247,15 +263,15 @@ defmodule Archethic.Replication do
             do: sync_transaction_chain(tx, genesis_address),
             else: synchronize_io_transaction(tx, genesis_address, opts)
 
-        {:error, reason} ->
+        %ValidationContext{mining_error: error} ->
           :ok = TransactionChain.write_ko_transaction(tx)
 
-          Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
+          Logger.warning("Invalid transaction for replication - #{inspect(error)}",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )
 
-          {:error, reason}
+          {:error, error}
       end
     end
   end
@@ -308,37 +324,27 @@ defmodule Archethic.Replication do
         TransactionContext.fetch_transaction(previous_address)
       end)
 
+    resolved_addresses_task =
+      Task.Supervisor.async(TaskSupervisor, fn ->
+        TransactionChain.resolve_transaction_addresses!(tx)
+      end)
+
     genesis_address = Task.await(genesis_task)
 
     unspent_outputs = fetch_unspent_outputs(tx, genesis_address)
-    previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
+
+    [previous_transaction, resolved_addresses] =
+      Task.await_many(
+        [previous_transaction_task, resolved_addresses_task],
+        Message.get_max_timeout() + 1000
+      )
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    {genesis_address, previous_transaction, unspent_outputs}
-  end
-
-  defp validate_validation_inputs(
-         %Transaction{address: address, type: type},
-         validation_inputs,
-         inputs
-       ) do
-    case Enum.reject(validation_inputs, &(&1 in inputs)) do
-      [] ->
-        :ok
-
-      inputs_not_found ->
-        Logger.error(
-          "Invalid validation inputs - inputs not found: #{inspect(inputs_not_found)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, Error.new(:consensus_not_reached, "Invalid validation inputs")}
-    end
+    {genesis_address, previous_transaction, unspent_outputs, resolved_addresses}
   end
 
   defp fetch_unspent_outputs(%Transaction{address: address, type: type}, genesis_address) do
