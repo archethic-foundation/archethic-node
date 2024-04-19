@@ -24,10 +24,16 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
   test "should replicate the transactions coming from sequential calls" do
     assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    with_mock(SelfRepair, replicate_transaction: fn _, _, _ -> :ok end) do
+    with_mock(SelfRepair,
+      replicate_transaction: fn _, _, _ ->
+        Process.sleep(10)
+        :ok
+      end
+    ) do
       :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
       :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])
       :ok = RepairWorker.repair_addresses("Alice1", "Alice4", ["Bob3"])
+
       assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
       Process.sleep(100)
