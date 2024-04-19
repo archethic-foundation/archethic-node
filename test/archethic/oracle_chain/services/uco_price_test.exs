@@ -34,7 +34,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert {:ok, %{"eur" => 0.20, "usd" => 0.12}} = UCOPrice.fetch()
     end
@@ -62,7 +62,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
     end
@@ -91,7 +91,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert {:ok, %{"eur" => 0.20, "usd" => 0.20}} = UCOPrice.fetch()
     end
@@ -119,7 +119,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert {:ok, %{"eur" => 0.25, "usd" => 0.25}} = UCOPrice.fetch()
     end
@@ -147,7 +147,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert {:error, "no data fetched from any service"} = UCOPrice.fetch()
     end
@@ -177,7 +177,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
@@ -205,7 +205,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
         mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      Process.sleep(1)
+      Process.sleep(10)
 
       refute UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
@@ -234,7 +234,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
     )
 
-    Process.sleep(1)
+    Process.sleep(10)
 
     {result, log} = with_log(fn -> UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25}) end)
     assert result == false
@@ -264,7 +264,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
     )
 
-    Process.sleep(1)
+    Process.sleep(10)
 
     assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
   end
