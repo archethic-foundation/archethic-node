@@ -138,6 +138,12 @@ defmodule Archethic.Mining.SmartContractValidation do
     {:error, Error.new(:invalid_recipients_execution, data)}
   end
 
+  defp format_error_status({:error, :timeout}, data) do
+    data = data |> Map.put("message", "Failed to validate call due to timeout")
+
+    {:error, Error.new(:invalid_recipients_execution, data)}
+  end
+
   defp format_error_status(
          {:error, :invalid_execution, %Failure{user_friendly_error: message, data: failure_data}},
          data
