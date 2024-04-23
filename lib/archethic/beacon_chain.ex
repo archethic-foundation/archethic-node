@@ -383,10 +383,7 @@ defmodule Archethic.BeaconChain do
     get_next_summary_elected_subsets_by_nodes(datetime)
     |> Task.async_stream(
       fn {node, subsets} ->
-        case fetch_current_summary_replications_attestations_from_node(node, subsets) do
-          {:ok, replications_attestations} -> replications_attestations
-          :error -> []
-        end
+        fetch_current_summary_replications_attestations_from_node(node, subsets)
       end,
       ordered: false,
       max_concurrency: 256
@@ -450,10 +447,10 @@ defmodule Archethic.BeaconChain do
        %GetCurrentReplicationsAttestationsResponse{
          replications_attestations: replications_attestations
        }} ->
-        {:ok, replications_attestations}
+        replications_attestations
 
       _ ->
-        :error
+        []
     end
   end
 
