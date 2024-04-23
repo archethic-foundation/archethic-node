@@ -383,10 +383,10 @@ defmodule Archethic.BeaconChain do
     get_next_summary_elected_subsets_by_nodes(datetime)
     |> Task.async_stream(
       fn {node, subsets} ->
-        {:ok, replications_attestations} =
-          fetch_current_summary_replications_attestations_from_node(node, subsets)
-
-        replications_attestations
+        case fetch_current_summary_replications_attestations_from_node(node, subsets) do
+          {:ok, replications_attestations} -> replications_attestations
+          :error -> []
+        end
       end,
       ordered: false,
       max_concurrency: 256
@@ -394,6 +394,7 @@ defmodule Archethic.BeaconChain do
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(fn {:ok, replications_attestations} -> replications_attestations end)
     |> then(&ReplicationAttestation.reduce_confirmations/1)
+    |> Enum.to_list()
   end
 
   defp get_next_summary_elected_subsets_by_nodes(datetime) do
