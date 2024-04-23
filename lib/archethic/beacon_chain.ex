@@ -217,9 +217,10 @@ defmodule Archethic.BeaconChain do
           list(ReplicationAttestation.t())
   def get_current_summary_replication_attestations(subset) do
     SummaryCache.stream_current_slots(subset)
-    |> Stream.flat_map(fn {%Slot{transaction_attestations: transaction_attestations}, _} ->
-      transaction_attestations
+    |> Stream.flat_map(fn {%Slot{transaction_attestations: replication_attestations}, _} ->
+      replication_attestations
     end)
+    |> ReplicationAttestation.reduce_confirmations()
     |> Enum.to_list()
   end
 
