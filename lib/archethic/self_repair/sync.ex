@@ -26,6 +26,7 @@ defmodule Archethic.SelfRepair.Sync do
   }
 
   alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
@@ -466,16 +467,25 @@ defmodule Archethic.SelfRepair.Sync do
     Task.Supervisor.async_stream(
       TaskSupervisor,
       attestations,
-      fn attestation ->
+      fn attestation = %ReplicationAttestation{
+           transaction_summary: %TransactionSummary{address: address}
+         } ->
+        # todo: parallelize downloads
         tx = TransactionHandler.download_transaction(attestation, download_nodes)
+
+        inputs =
+          TransactionChain.fetch_inputs(address, download_nodes)
+          |> Enum.map(& &1.input)
+
         consolidated_attestation = consolidate_recipients(attestation, tx)
-        {consolidated_attestation, tx}
+        {consolidated_attestation, tx, inputs}
       end,
       max_concurrency: System.schedulers_online() * 2,
       timeout: Message.get_max_timeout() + 2000
     )
-    |> Stream.each(fn {:ok, {attestation, tx}} ->
+    |> Stream.each(fn {:ok, {attestation, tx = %Transaction{address: address}, inputs}} ->
       :ok = TransactionHandler.process_transaction(attestation, tx, download_nodes)
+      :ok = TransactionChain.write_inputs(address, inputs)
     end)
     |> Stream.run()
   end
