@@ -303,6 +303,7 @@ defmodule Archethic.SelfRepair do
   @spec synchronize_current_summary() :: integer()
   def synchronize_current_summary() do
     BeaconChain.fetch_current_summary_replication_attestations()
-    |> Sync.process_replications_attestations(P2P.authorized_and_available_nodes())
+    |> Enum.to_list()
+    |> Sync.process_replication_attestations(P2P.authorized_and_available_nodes())
   end
 end

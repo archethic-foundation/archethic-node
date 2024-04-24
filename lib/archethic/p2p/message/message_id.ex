@@ -33,8 +33,8 @@ defmodule Archethic.P2P.MessageId do
     RegisterBeaconUpdates,
     GetGenesisAddress,
     GetCurrentSummaries,
-    GetCurrentReplicationsAttestations,
-    GetCurrentReplicationsAttestationsResponse,
+    GetCurrentReplicationAttestations,
+    GetCurrentReplicationAttestationsResponse,
     GetBeaconSummariesAggregate,
     NotifyPreviousChain,
     GetNextAddresses,
@@ -127,7 +127,7 @@ defmodule Archethic.P2P.MessageId do
     GetNetworkStats => 39,
     GetDashboardData => 40,
     UnlockChain => 41,
-    GetCurrentReplicationsAttestations => 42,
+    GetCurrentReplicationAttestations => 42,
 
     # Responses
     DashboardData => 225,
@@ -148,7 +148,7 @@ defmodule Archethic.P2P.MessageId do
     Summary => 240,
     LastTransactionAddress => 241,
     FirstPublicKey => 242,
-    GetCurrentReplicationsAttestationsResponse => 243,
+    GetCurrentReplicationAttestationsResponse => 243,
     TransactionInputList => 244,
     TransactionChainLength => 245,
     BootstrappingNodes => 246,

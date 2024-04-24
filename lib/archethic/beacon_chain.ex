@@ -27,8 +27,8 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.GetCurrentSummaries
-  alias Archethic.P2P.Message.GetCurrentReplicationsAttestations
-  alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
+  alias Archethic.P2P.Message.GetCurrentReplicationAttestations
+  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
@@ -214,14 +214,16 @@ defmodule Archethic.BeaconChain do
   Returns the current summary's replication attestations that current node have
   """
   @spec get_current_summary_replication_attestations(subset :: binary()) ::
-          list(ReplicationAttestation.t())
+          Enumerable.t() | list(ReplicationAttestation.t())
   def get_current_summary_replication_attestations(subset) do
+    %Slot{transaction_attestations: replication_attestations} = Subset.get_current_slot(subset)
+
     SummaryCache.stream_current_slots(subset)
     |> Stream.flat_map(fn {%Slot{transaction_attestations: replication_attestations}, _} ->
       replication_attestations
     end)
+    |> Stream.concat(replication_attestations)
     |> ReplicationAttestation.reduce_confirmations()
-    |> Enum.to_list()
   end
 
   @doc """
@@ -378,20 +380,19 @@ defmodule Archethic.BeaconChain do
   Unordered
   """
   @spec fetch_current_summary_replication_attestations(datetime :: DateTime.t()) ::
-          list(ReplicationAttestation.t())
+          Enumerable.t() | list(ReplicationAttestation.t())
   def fetch_current_summary_replication_attestations(datetime = %DateTime{} \\ DateTime.utc_now()) do
     get_next_summary_elected_subsets_by_nodes(datetime)
     |> Task.async_stream(
       fn {node, subsets} ->
-        fetch_current_summary_replications_attestations_from_node(node, subsets)
+        fetch_current_summary_replication_attestations_from_node(node, subsets)
       end,
       ordered: false,
       max_concurrency: 256
     )
     |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(fn {:ok, replications_attestations} -> replications_attestations end)
-    |> then(&ReplicationAttestation.reduce_confirmations/1)
-    |> Enum.to_list()
+    |> Stream.flat_map(fn {:ok, replication_attestations} -> replication_attestations end)
+    |> ReplicationAttestation.reduce_confirmations()
   end
 
   defp get_next_summary_elected_subsets_by_nodes(datetime) do
@@ -441,13 +442,13 @@ defmodule Archethic.BeaconChain do
     |> Enum.to_list()
   end
 
-  defp fetch_current_summary_replications_attestations_from_node(node, subsets) do
-    case P2P.send_message(node, %GetCurrentReplicationsAttestations{subsets: subsets}) do
+  defp fetch_current_summary_replication_attestations_from_node(node, subsets) do
+    case P2P.send_message(node, %GetCurrentReplicationAttestations{subsets: subsets}) do
       {:ok,
-       %GetCurrentReplicationsAttestationsResponse{
-         replications_attestations: replications_attestations
+       %GetCurrentReplicationAttestationsResponse{
+         replication_attestations: replication_attestations
        }} ->
-        replications_attestations
+        replication_attestations
 
       _ ->
         []

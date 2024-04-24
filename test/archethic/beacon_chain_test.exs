@@ -18,8 +18,8 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
-  alias Archethic.P2P.Message.GetCurrentReplicationsAttestations
-  alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
+  alias Archethic.P2P.Message.GetCurrentReplicationAttestations
+  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetCurrentSummaries
@@ -666,7 +666,9 @@ defmodule Archethic.BeaconChainTest do
 
   describe "fetch_current_summary_replication_attestations/0" do
     test "should return empty if there is nothing yet" do
-      assert [] = BeaconChain.fetch_current_summary_replication_attestations()
+      assert [] =
+               BeaconChain.fetch_current_summary_replication_attestations()
+               |> Enum.to_list()
     end
 
     test "should return the attestations" do
@@ -699,18 +701,19 @@ defmodule Archethic.BeaconChainTest do
 
       for node <- nodes, do: P2P.add_and_connect_node(node)
 
-      replications_attestations = [random_replication_attestation(now)]
+      replication_attestations = [random_replication_attestation(now)]
 
       MockClient
-      |> expect(:send_message, length(nodes), fn _, %GetCurrentReplicationsAttestations{}, _ ->
+      |> expect(:send_message, length(nodes), fn _, %GetCurrentReplicationAttestations{}, _ ->
         {:ok,
-         %GetCurrentReplicationsAttestationsResponse{
-           replications_attestations: replications_attestations
+         %GetCurrentReplicationAttestationsResponse{
+           replication_attestations: replication_attestations
          }}
       end)
 
-      assert ^replications_attestations =
+      assert ^replication_attestations =
                BeaconChain.fetch_current_summary_replication_attestations()
+               |> Enum.to_list()
     end
 
     test "should merge attestations when different" do
@@ -746,30 +749,32 @@ defmodule Archethic.BeaconChainTest do
       replication_attestation1 = random_replication_attestation(now)
       replication_attestation2 = random_replication_attestation(now)
       replication_attestation3 = random_replication_attestation(now)
-      node1_replications_attestations = [replication_attestation1, replication_attestation2]
-      node2_replications_attestations = [replication_attestation1, replication_attestation3]
+      node1_replication_attestations = [replication_attestation1, replication_attestation2]
+      node2_replication_attestations = [replication_attestation1, replication_attestation3]
 
       MockClient
       |> expect(:send_message, 2, fn
-        ^node1, %GetCurrentReplicationsAttestations{}, _ ->
+        ^node1, %GetCurrentReplicationAttestations{}, _ ->
           {:ok,
-           %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: node1_replications_attestations
+           %GetCurrentReplicationAttestationsResponse{
+             replication_attestations: node1_replication_attestations
            }}
 
-        ^node2, %GetCurrentReplicationsAttestations{}, _ ->
+        ^node2, %GetCurrentReplicationAttestations{}, _ ->
           {:ok,
-           %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: node2_replications_attestations
+           %GetCurrentReplicationAttestationsResponse{
+             replication_attestations: node2_replication_attestations
            }}
       end)
 
-      replications_attestations = BeaconChain.fetch_current_summary_replication_attestations()
+      replication_attestations =
+        BeaconChain.fetch_current_summary_replication_attestations()
+        |> Enum.to_list()
 
-      assert 3 == length(replications_attestations)
-      assert Enum.any?(replications_attestations, &(&1 == replication_attestation1))
-      assert Enum.any?(replications_attestations, &(&1 == replication_attestation2))
-      assert Enum.any?(replications_attestations, &(&1 == replication_attestation3))
+      assert 3 == length(replication_attestations)
+      assert Enum.any?(replication_attestations, &(&1 == replication_attestation1))
+      assert Enum.any?(replication_attestations, &(&1 == replication_attestation2))
+      assert Enum.any?(replication_attestations, &(&1 == replication_attestation3))
     end
   end
 

@@ -1,40 +1,39 @@
-defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse do
+defmodule Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse do
   @moduledoc """
-  The response message of GetCurrentReplicationsAttestations
+  The response message of GetCurrentReplicationAttestations
   """
 
-  @enforce_keys [:replications_attestations]
-  defstruct [:replications_attestations]
+  @enforce_keys [:replication_attestations]
+  defstruct [:replication_attestations]
 
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.Utils.VarInt
 
   @type t() :: %__MODULE__{
-          replications_attestations: list(ReplicationAttestation.t())
+          replication_attestations: list(ReplicationAttestation.t())
         }
 
   @spec serialize(message :: t()) :: bitstring()
-  def serialize(%__MODULE__{replications_attestations: replications_attestations}) do
-    replications_attestations_bin =
-      replications_attestations
+  def serialize(%__MODULE__{replication_attestations: replication_attestations}) do
+    replication_attestations_bin =
+      replication_attestations
       |> Enum.map(&ReplicationAttestation.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    encoded_replications_attestations_len =
-      length(replications_attestations) |> VarInt.from_value()
+    encoded_replication_attestations_len = length(replication_attestations) |> VarInt.from_value()
 
-    <<encoded_replications_attestations_len::binary, replications_attestations_bin::bitstring>>
+    <<encoded_replication_attestations_len::binary, replication_attestations_bin::bitstring>>
   end
 
   @spec deserialize(bin :: bitstring()) :: {t(), bitstring()}
   def deserialize(<<rest::bitstring>>) do
     {count, rest} = rest |> VarInt.get_value()
 
-    {replications_attestations, <<rest::bitstring>>} = deserialize_list(rest, count, [])
+    {replication_attestations, <<rest::bitstring>>} = deserialize_list(rest, count, [])
 
     {
       %__MODULE__{
-        replications_attestations: replications_attestations
+        replication_attestations: replication_attestations
       },
       rest
     }

@@ -294,7 +294,7 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    nb_transactions = process_replications_attestations(attestations, download_nodes)
+    nb_transactions = process_replication_attestations(attestations, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
@@ -348,14 +348,14 @@ defmodule Archethic.SelfRepair.Sync do
   @doc """
   Downloads and stores the transactions missed, returns the count of transactions synchronized
   """
-  @spec process_replications_attestations(
-          replications_attestations :: list(ReplicationAttestation.t()),
+  @spec process_replication_attestations(
+          replication_attestations :: list(ReplicationAttestation.t()),
           download_nodes :: list(Node.t())
         ) :: integer()
-  def process_replications_attestations(replications_attestations, download_nodes) do
+  def process_replication_attestations(replication_attestations, download_nodes) do
     nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
 
-    replications_attestations
+    replication_attestations
     |> adjust_attestations(download_nodes)
     |> Stream.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
     |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})

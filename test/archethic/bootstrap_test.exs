@@ -33,8 +33,8 @@ defmodule Archethic.BootstrapTest do
     TransactionChainLength,
     TransactionInputList,
     TransactionList,
-    GetCurrentReplicationsAttestations,
-    GetCurrentReplicationsAttestationsResponse
+    GetCurrentReplicationAttestations,
+    GetCurrentReplicationAttestationsResponse
   }
 
   alias Archethic.Replication
@@ -129,10 +129,10 @@ defmodule Archethic.BootstrapTest do
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
 
-        _, %GetCurrentReplicationsAttestations{}, _ ->
+        _, %GetCurrentReplicationAttestations{}, _ ->
           {:ok,
-           %GetCurrentReplicationsAttestationsResponse{
-             replications_attestations: []
+           %GetCurrentReplicationAttestationsResponse{
+             replication_attestations: []
            }}
       end)
 

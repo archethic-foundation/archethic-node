@@ -1,4 +1,4 @@
-defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestations do
+defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
   @moduledoc """
   A request to get the replication attestations of current summary
   The nodes receiving this must be elected to store the given subsets
@@ -10,30 +10,19 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationsAttestations do
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.Crypto
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.Subset
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.P2P.Message.GetCurrentReplicationsAttestationsResponse
+  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
 
   @type t :: %__MODULE__{subsets: list(binary())}
 
   @spec process(message :: __MODULE__.t(), sender_public_key :: Crypto.key()) ::
-          GetCurrentReplicationsAttestationsResponse.t()
+          GetCurrentReplicationAttestationsResponse.t()
   def process(%__MODULE__{subsets: subsets}, _) do
-    replications_attestations =
-      Enum.flat_map(subsets, fn subset ->
-        %Slot{transaction_attestations: replications_attestations} =
-          Subset.get_current_slot(subset)
-
-        [
-          replications_attestations,
-          BeaconChain.get_current_summary_replication_attestations(subset)
-        ]
-      end)
-      |> ReplicationAttestation.reduce_confirmations()
-      |> Enum.to_list()
-
-    %GetCurrentReplicationsAttestationsResponse{
-      replications_attestations: replications_attestations
+    %GetCurrentReplicationAttestationsResponse{
+      replication_attestations:
+        subsets
+        |> Stream.flat_map(&BeaconChain.get_current_summary_replication_attestations/1)
+        |> ReplicationAttestation.reduce_confirmations()
+        |> Enum.to_list()
     }
   end
 
