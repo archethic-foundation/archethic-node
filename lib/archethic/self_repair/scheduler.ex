@@ -153,7 +153,7 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, state}
   end
 
-  def code_change(1, state, _), do: {:ok, Map.delete(state, :interval)}
+  def code_change(_, state, _), do: {:ok, state}
 
   defp schedule_sync() do
     Process.send_after(self(), :sync, Utils.time_offset(get_interval()))

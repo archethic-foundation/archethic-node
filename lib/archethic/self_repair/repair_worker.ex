@@ -102,13 +102,6 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   def handle_info(_, data), do: {:noreply, data}
 
-  # add the genesis_address to the state
-  def code_change(1, state, _extra) do
-    [genesis_address] = Registry.keys(RepairRegistry, self())
-    state = Map.put(state, :genesis_address, genesis_address)
-    {:ok, state}
-  end
-
   def code_change(_version, state, _extra), do: {:ok, state}
 
   defp start_repair(

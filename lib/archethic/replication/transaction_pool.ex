@@ -80,16 +80,7 @@ defmodule Archethic.Replication.TransactionPool do
     end
   end
 
-  def code_change(1, state = %{transactions: transactions}, _extra) do
-    new_transactions_state =
-      transactions
-      |> Enum.map(fn {address, {transaction, expire_at}} ->
-        {address, {transaction, expire_at, []}}
-      end)
-      |> Enum.into(%{})
-
-    {:ok, Map.put(state, :transactions, new_transactions_state)}
-  end
+  def code_change(_, state, _), do: {:ok, state}
 
   def handle_info(:clean, state = %{clean_interval: clean_interval}) do
     clean_ref = Process.send_after(self(), :clean, clean_interval)

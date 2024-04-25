@@ -198,10 +198,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
     {:noreply, new_state, :hibernate}
   end
 
-  def code_change(1, state, _) do
-    :ets.delete(:archethic_slot_timer)
-    {:ok, Map.delete(state, :interval)}
-  end
+  def code_change(_, state, _), do: {:ok, state}
 
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval))

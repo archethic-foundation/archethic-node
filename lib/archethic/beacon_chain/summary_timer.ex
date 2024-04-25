@@ -163,10 +163,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
-  def code_change(1, state, _) do
-    :ets.delete(:archethic_summary_timer)
-    {:ok, Map.delete(state, :interval)}
-  end
+  def code_change(_, state, _), do: {:ok, state}
 
   defp schedule_next_summary_time(interval) do
     Process.send_after(self(), :next_summary_time, Utils.time_offset(interval))
