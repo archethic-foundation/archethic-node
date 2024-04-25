@@ -281,6 +281,13 @@ defmodule Archethic.SelfRepair do
             self_repair?: true
           )
 
+        # todo parallelize with fetch_tx
+        :ok =
+          TransactionChain.write_inputs(
+            address,
+            TransactionChain.fetch_inputs(address, storage_nodes)
+          )
+
         update_last_address(address, authorized_nodes)
       else
         Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)

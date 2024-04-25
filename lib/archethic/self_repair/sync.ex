@@ -473,9 +473,7 @@ defmodule Archethic.SelfRepair.Sync do
         # todo: parallelize downloads
         tx = TransactionHandler.download_transaction(attestation, download_nodes)
 
-        inputs =
-          TransactionChain.fetch_inputs(address, download_nodes)
-          |> Enum.map(& &1.input)
+        inputs = TransactionChain.fetch_inputs(address, download_nodes)
 
         consolidated_attestation = consolidate_recipients(attestation, tx)
         {consolidated_attestation, tx, inputs}

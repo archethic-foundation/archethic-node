@@ -623,7 +623,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       tx = TransactionFactory.create_valid_transaction()
       tx_address = tx.address
-      tx_summary = TransactionSummary.from_transaction(tx, random_address())
+      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
       MockClient
       |> expect(:send_message, fn ^node1, %GetTransaction{}, _ ->
@@ -650,7 +650,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       MockTransactionLedger
       |> expect(:write_inputs, fn ^tx_address, list ->
-        assert 1 = length(list)
+        assert 1 = Enum.count(list)
         :ok
       end)
 
