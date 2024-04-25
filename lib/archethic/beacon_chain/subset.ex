@@ -99,28 +99,6 @@ defmodule Archethic.BeaconChain.Subset do
      }}
   end
 
-  # update the TransactionSummary in memory
-  def code_change(1, state, _extra) do
-    state =
-      update_in(
-        state,
-        [Access.key!(:current_slot), Access.key!(:transaction_attestations)],
-        fn attestations ->
-          Enum.map(
-            attestations,
-            fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
-              %ReplicationAttestation{
-                attestation
-                | transaction_summary: Map.put(summary, :genesis_address, nil)
-              }
-            end
-          )
-        end
-      )
-
-    {:ok, state}
-  end
-
   def code_change(_, state, _extra), do: {:ok, state}
 
   def handle_call(:get_current_slot, _from, state = %{current_slot: current_slot}) do
