@@ -15,7 +15,9 @@ defmodule Archethic.Release.RestartTelemetry do
   defp add_telemetry_restart(instructions) do
     restart_instructions = [
       {:apply, {:supervisor, :terminate_child, [Telemetry, :prometheus_metrics]}},
-      {:apply, {:supervisor, :restart_child, [Telemetry, :prometheus_metrics]}}
+      {:apply, {:supervisor, :restart_child, [Telemetry, :prometheus_metrics]}},
+      {:apply, {:supervisor, :terminate_child, [Telemetry, :telemetry_poller]}},
+      {:apply, {:supervisor, :restart_child, [Telemetry, :telemetry_poller]}}
     ]
 
     instructions ++ restart_instructions
