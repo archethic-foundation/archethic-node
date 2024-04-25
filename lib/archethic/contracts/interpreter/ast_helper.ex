@@ -36,15 +36,15 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is a bool
 
     iex> ast = quote do: true
-    iex> ASTHelper.is_boolean?(ast)
+    ...> ASTHelper.is_boolean?(ast)
     true
 
     iex> ast = quote do: false
-    iex> ASTHelper.is_boolean?(ast)
+    ...> ASTHelper.is_boolean?(ast)
     true
 
     iex> ast = quote do: %{"sum" => 1, "product" => 10}
-    iex> ASTHelper.is_boolean?(ast)
+    ...> ASTHelper.is_boolean?(ast)
     false
   """
   @spec is_boolean?(Macro.t()) :: boolean()

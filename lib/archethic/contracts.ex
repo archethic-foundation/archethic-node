@@ -319,8 +319,8 @@ defmodule Archethic.Contracts do
     )
   rescue
     _ ->
-    # this will fail at startup because ContractRegistry does not exist yet
-    :ok
+      # this will fail at startup because ContractRegistry does not exist yet
+      :ok
   end
 
   defp get_function_from_contract(%{functions: functions}, function_name, args_values) do
