@@ -28,7 +28,7 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.GetCurrentSummaries
   alias Archethic.P2P.Message.GetCurrentReplicationAttestations
-  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
+  alias Archethic.P2P.Message.CurrentReplicationAttestations
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
@@ -445,7 +445,7 @@ defmodule Archethic.BeaconChain do
   defp fetch_current_summary_replication_attestations_from_node(node, subsets) do
     case P2P.send_message(node, %GetCurrentReplicationAttestations{subsets: subsets}) do
       {:ok,
-       %GetCurrentReplicationAttestationsResponse{
+       %CurrentReplicationAttestations{
          replication_attestations: replication_attestations
        }} ->
         replication_attestations

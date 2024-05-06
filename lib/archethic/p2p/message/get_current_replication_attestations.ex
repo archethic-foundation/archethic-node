@@ -7,17 +7,16 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
   @enforce_keys [:subsets]
   defstruct [:subsets]
 
-  alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.Crypto
   alias Archethic.BeaconChain
-  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
+  alias Archethic.Crypto
+  alias Archethic.P2P.Message.CurrentReplicationAttestations
 
   @type t :: %__MODULE__{subsets: list(binary())}
 
   @spec process(message :: __MODULE__.t(), sender_public_key :: Crypto.key()) ::
-          GetCurrentReplicationAttestationsResponse.t()
+          CurrentReplicationAttestations.t()
   def process(%__MODULE__{subsets: subsets}, _) do
-    %GetCurrentReplicationAttestationsResponse{
+    %CurrentReplicationAttestations{
       replication_attestations:
         subsets
         |> Stream.flat_map(&BeaconChain.get_current_summary_replication_attestations/1)

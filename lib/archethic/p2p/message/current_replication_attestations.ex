@@ -1,4 +1,4 @@
-defmodule Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse do
+defmodule Archethic.P2P.Message.CurrentReplicationAttestations do
   @moduledoc """
   The response message of GetCurrentReplicationAttestations
   """

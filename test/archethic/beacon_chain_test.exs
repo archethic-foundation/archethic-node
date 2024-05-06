@@ -19,7 +19,7 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetCurrentReplicationAttestations
-  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
+  alias Archethic.P2P.Message.CurrentReplicationAttestations
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetCurrentSummaries
@@ -706,7 +706,7 @@ defmodule Archethic.BeaconChainTest do
       MockClient
       |> expect(:send_message, length(nodes), fn _, %GetCurrentReplicationAttestations{}, _ ->
         {:ok,
-         %GetCurrentReplicationAttestationsResponse{
+         %CurrentReplicationAttestations{
            replication_attestations: replication_attestations
          }}
       end)
@@ -756,13 +756,13 @@ defmodule Archethic.BeaconChainTest do
       |> expect(:send_message, 2, fn
         ^node1, %GetCurrentReplicationAttestations{}, _ ->
           {:ok,
-           %GetCurrentReplicationAttestationsResponse{
+           %CurrentReplicationAttestations{
              replication_attestations: node1_replication_attestations
            }}
 
         ^node2, %GetCurrentReplicationAttestations{}, _ ->
           {:ok,
-           %GetCurrentReplicationAttestationsResponse{
+           %CurrentReplicationAttestations{
              replication_attestations: node2_replication_attestations
            }}
       end)

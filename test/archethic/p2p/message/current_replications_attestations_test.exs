@@ -1,14 +1,14 @@
-defmodule Archethic.P2p.Message.GetCurrentReplicationAttestationsResponseTest do
+defmodule Archethic.P2p.Message.CurrentReplicationAttestationsTest do
   @moduledoc false
   use ExUnit.Case
   import ArchethicCase
 
-  alias Archethic.P2P.Message.GetCurrentReplicationAttestationsResponse
+  alias Archethic.P2P.Message.CurrentReplicationAttestations
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.TransactionChain.TransactionSummary
 
   test "serialization/deserialization" do
-    msg = %GetCurrentReplicationAttestationsResponse{
+    msg = %CurrentReplicationAttestations{
       replication_attestations: [
         %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
@@ -37,16 +37,16 @@ defmodule Archethic.P2p.Message.GetCurrentReplicationAttestationsResponseTest do
 
     assert {^msg, <<>>} =
              msg
-             |> GetCurrentReplicationAttestationsResponse.serialize()
-             |> GetCurrentReplicationAttestationsResponse.deserialize()
+             |> CurrentReplicationAttestations.serialize()
+             |> CurrentReplicationAttestations.deserialize()
 
-    msg = %GetCurrentReplicationAttestationsResponse{
+    msg = %CurrentReplicationAttestations{
       replication_attestations: []
     }
 
     assert {^msg, <<>>} =
              msg
-             |> GetCurrentReplicationAttestationsResponse.serialize()
-             |> GetCurrentReplicationAttestationsResponse.deserialize()
+             |> CurrentReplicationAttestations.serialize()
+             |> CurrentReplicationAttestations.deserialize()
   end
 end
