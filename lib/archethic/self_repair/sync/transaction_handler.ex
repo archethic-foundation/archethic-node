@@ -20,6 +20,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   alias Archethic.Utils
 
@@ -69,17 +70,16 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   Download a transaction from closest storage nodes and ensure the transaction
   is the same than the one in the replication attestation
   """
-  @spec download_transaction(ReplicationAttestation.t(), list(Node.t())) ::
-          Transaction.t()
-  def download_transaction(
+  @spec download_transaction_data(
+          attestation :: ReplicationAttestation.t(),
+          download_nodes :: list(Node.t())
+        ) ::
+          {transaction :: Transaction.t(),
+           transaction_inputs :: list(VersionedTransactionInput.t())}
+  def download_transaction_data(
         %ReplicationAttestation{
           transaction_summary:
-            expected_summary = %TransactionSummary{
-              version: version,
-              address: address,
-              type: type,
-              genesis_address: genesis_address
-            }
+            expected_summary = %TransactionSummary{address: address, type: type}
         },
         node_list
       ) do
@@ -88,13 +88,51 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       transaction_type: type
     )
 
+    node_key = Crypto.first_node_public_key()
+
     storage_nodes =
       address
       |> Election.chain_storage_nodes_with_type(type, node_list)
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+      |> Enum.reject(&(&1.first_public_key == node_key))
 
-    timeout = Message.get_max_timeout()
+    node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
 
+    if Election.chain_storage_node?(address, type, node_key, node_list) do
+      [
+        Task.async(fn -> download_transaction(expected_summary, storage_nodes) end),
+        Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)
+      ]
+      |> Task.await_many(Message.get_max_timeout() + 100)
+      |> then(fn
+        [{:ok, tx}, inputs] ->
+          {tx, inputs}
+
+        [{_, reason}, _] ->
+          raise SelfRepair.Error,
+            function: "download_transaction_data",
+            message: "Cannot fetch the transaction to sync because of #{inspect(reason)}",
+            address: address
+      end)
+    else
+      {download_transaction(expected_summary, storage_nodes), []}
+    end
+  catch
+    # catch timeout of Task.await_many
+    :exit, _ ->
+      raise SelfRepair.Error,
+        function: "download_transaction_data",
+        message: "Cannot fetch the transaction to sync because of timeout",
+        address: address
+  end
+
+  defp download_transaction(
+         expected_summary = %TransactionSummary{
+           version: version,
+           address: address,
+           genesis_address: genesis_address
+         },
+         storage_nodes
+       ) do
     acceptance_resolver = fn tx = %Transaction{} ->
       # TODO:
       # we can add a verification to ensure the proof of integrity is the right one
@@ -106,24 +144,20 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       |> TransactionSummary.equals?(expected_summary)
     end
 
-    case TransactionChain.fetch_transaction(address, storage_nodes,
-           search_mode: :remote,
-           timeout: timeout,
-           acceptance_resolver: acceptance_resolver
-         ) do
-      {:ok, tx = %Transaction{}} ->
-        tx
-
-      {:error, reason} ->
-        raise SelfRepair.Error,
-          function: "download_transaction",
-          message: "Cannot fetch the transaction to sync because of #{inspect(reason)}",
-          address: address
-    end
+    TransactionChain.fetch_transaction(address, storage_nodes,
+      search_mode: :remote,
+      timeout: Message.get_max_timeout(),
+      acceptance_resolver: acceptance_resolver
+    )
   end
 
-  @spec process_transaction(ReplicationAttestation.t(), Transaction.t(), list(Node.t())) :: :ok
-  def process_transaction(
+  @spec process_transaction_data(
+          attestation :: ReplicationAttestation.t(),
+          transaction :: Transaction.t(),
+          inputs :: list(VersionedTransactionInput.t()),
+          download_nodes :: list(Node.t())
+        ) :: :ok
+  def process_transaction_data(
         attestation = %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
             genesis_address: genesis_address,
@@ -134,6 +168,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           address: address,
           type: type
         },
+        inputs,
         node_list
       ) do
     verify_transaction(attestation, tx)
@@ -149,6 +184,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           self_repair?: true,
           resolved_addresses: resolved_addresses
         )
+
+        TransactionChain.write_inputs(address, inputs)
 
       Election.chain_storage_node?(genesis_address, node_public_key, node_list) ->
         Replication.sync_transaction_chain(tx, genesis_address, node_list,

@@ -247,16 +247,24 @@ defmodule Archethic.SelfRepairTest do
         end
       ) do
         with_mock(TransactionHandler, [:passthrough],
-          download_transaction: fn _, _ ->
-            %Transaction{address: replication_attestation1.transaction_summary.address}
+          download_transaction_data: fn _, _, _, _ ->
+            {%Transaction{address: replication_attestation1.transaction_summary.address}, []}
           end,
-          process_transaction: fn _, _, _ -> :ok end
+          process_transaction_data: fn _, _, _, _, _ -> :ok end
         ) do
           assert 3 = SelfRepair.synchronize_current_summary()
 
-          assert_called(TransactionHandler.download_transaction(replication_attestation1, :_))
-          assert_called(TransactionHandler.download_transaction(replication_attestation2, :_))
-          assert_called(TransactionHandler.download_transaction(replication_attestation3, :_))
+          assert_called(
+            TransactionHandler.download_transaction_data(replication_attestation1, :_, :_, :_)
+          )
+
+          assert_called(
+            TransactionHandler.download_transaction_data(replication_attestation2, :_, :_, :_)
+          )
+
+          assert_called(
+            TransactionHandler.download_transaction_data(replication_attestation3, :_, :_, :_)
+          )
         end
       end
     end
@@ -300,14 +308,14 @@ defmodule Archethic.SelfRepairTest do
       ) do
         with_mock(TransactionChain, [:passthrough], transaction_exists?: fn _ -> true end) do
           with_mock(TransactionHandler, [:passthrough],
-            download_transaction: fn _, _ ->
-              %Transaction{address: replication_attestation1.transaction_summary.address}
+            download_transaction_data: fn _, _, _, _ ->
+              {%Transaction{address: replication_attestation1.transaction_summary.address}, []}
             end
           ) do
             assert 0 = SelfRepair.synchronize_current_summary()
 
             assert_not_called(
-              TransactionHandler.download_transaction(replication_attestation1, :_)
+              TransactionHandler.download_transaction_data(replication_attestation1, :_, :_, :_)
             )
           end
         end

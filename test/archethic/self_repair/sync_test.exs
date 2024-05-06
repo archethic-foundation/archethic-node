@@ -545,8 +545,8 @@ defmodule Archethic.SelfRepair.SyncTest do
         {P2P, [:passthrough], authorized_and_available_nodes: fn -> [past_node] end},
         {Election, [:passthrough], []},
         {TransactionHandler, [:passthrough],
-         download_transaction: fn _, _ -> transfer_tx end,
-         process_transaction: fn _, _, _ -> :ok end}
+         download_transaction_data: fn _, _, _, _ -> {transfer_tx, []} end,
+         process_transaction_data: fn _, _, _, _, _ -> :ok end}
       ]) do
         assert :ok = Sync.process_summary_aggregate(summary, current_nodes_view)
 
