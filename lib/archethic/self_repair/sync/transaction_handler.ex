@@ -100,22 +100,24 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     if Election.chain_storage_node?(address, type, node_key, node_list) do
       [
         Task.async(fn -> download_transaction(expected_summary, storage_nodes) end),
-        Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)
+        Task.async(fn ->
+          TransactionChain.fetch_inputs(address, storage_nodes) |> Enum.to_list()
+        end)
       ]
       |> Task.await_many(Message.get_max_timeout() + 100)
-      |> then(fn
-        [{:ok, tx}, inputs] ->
-          {tx, inputs}
-
-        [{_, reason}, _] ->
-          raise SelfRepair.Error,
-            function: "download_transaction_data",
-            message: "Cannot fetch the transaction to sync because of #{inspect(reason)}",
-            address: address
-      end)
     else
-      {download_transaction(expected_summary, storage_nodes), []}
+      [download_transaction(expected_summary, storage_nodes), []]
     end
+    |> then(fn
+      [{:ok, tx}, inputs] ->
+        {tx, inputs}
+
+      [{_, reason}, _] ->
+        raise SelfRepair.Error,
+          function: "download_transaction_data",
+          message: "Cannot fetch the transaction to sync because of #{inspect(reason)}",
+          address: address
+    end)
   catch
     # catch timeout of Task.await_many
     :exit, _ ->

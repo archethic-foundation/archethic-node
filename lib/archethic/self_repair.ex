@@ -259,21 +259,8 @@ defmodule Archethic.SelfRepair do
       |> BeaconChain.previous_summary_time()
       |> P2P.authorized_and_available_nodes(true)
 
-    timeout = Message.get_max_timeout()
-
-    acceptance_resolver = fn
-      %Transaction{address: ^address} -> true
-      _ -> false
-    end
-
     with false <- TransactionChain.transaction_exists?(address),
-         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
-         {:ok, tx} <-
-           TransactionChain.fetch_transaction(address, storage_nodes,
-             search_mode: :remote,
-             timeout: timeout,
-             acceptance_resolver: acceptance_resolver
-           ) do
+         {:ok, tx, inputs} <- fetch_transaction_data(address, authorized_nodes) do
       # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do
         :ok =
@@ -281,12 +268,7 @@ defmodule Archethic.SelfRepair do
             self_repair?: true
           )
 
-        # todo parallelize with fetch_tx
-        :ok =
-          TransactionChain.write_inputs(
-            address,
-            TransactionChain.fetch_inputs(address, storage_nodes)
-          )
+        :ok = TransactionChain.write_inputs(address, inputs)
 
         update_last_address(address, authorized_nodes)
       else
@@ -296,6 +278,36 @@ defmodule Archethic.SelfRepair do
       true -> {:error, :transaction_already_exists}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp fetch_transaction_data(address, authorized_nodes) do
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      %Transaction{address: ^address} -> true
+      _ -> false
+    end
+
+    storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
+
+    [
+      Task.async(fn ->
+        TransactionChain.fetch_transaction(address, storage_nodes,
+          search_mode: :remote,
+          timeout: timeout,
+          acceptance_resolver: acceptance_resolver
+        )
+      end),
+      Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)
+    ]
+    |> Task.await_many(timeout + 100)
+    |> then(fn
+      [{:ok, tx}, inputs] -> {:ok, tx, inputs}
+      [{_, reason}, _] -> {:error, reason}
+    end)
+  catch
+    # catch timeout of Task.await_many
+    :exit, _ -> {:error, :timeout}
   end
 
   @doc """
