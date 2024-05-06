@@ -21,7 +21,6 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
       replication_attestations:
         subsets
         |> Stream.flat_map(&BeaconChain.get_current_summary_replication_attestations/1)
-        |> ReplicationAttestation.reduce_confirmations()
         |> Enum.to_list()
     }
   end
