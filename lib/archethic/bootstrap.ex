@@ -13,7 +13,6 @@ defmodule Archethic.Bootstrap do
   alias Archethic.Replication
 
   alias Archethic.SelfRepair
-  alias Archethic.SelfRepair.NetworkChain
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -247,8 +246,11 @@ defmodule Archethic.Bootstrap do
 
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
-    Logger.info("Enforced Resync: Started!")
-    NetworkChain.synchronous_resync_many([:node, :oracle, :origin, :node_shared_secrets])
+    if P2P.authorized_and_available_node?() do
+      Logger.info("Current summary synchronization started")
+      count = SelfRepair.synchronize_current_summary()
+      Logger.info("Current summary synchronization finished: #{count} synchronized")
+    end
 
     Sync.publish_end_of_sync()
     SelfRepair.start_scheduler()

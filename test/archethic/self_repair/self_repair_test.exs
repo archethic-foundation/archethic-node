@@ -2,6 +2,9 @@ defmodule Archethic.SelfRepairTest do
   @moduledoc false
   use ArchethicCase
 
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -12,10 +15,12 @@ defmodule Archethic.SelfRepairTest do
 
   alias Archethic.Replication
   alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.Sync.TransactionHandler
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
   import ArchethicCase
@@ -152,5 +157,150 @@ defmodule Archethic.SelfRepairTest do
       assert {:error, :transaction_already_exists} =
                SelfRepair.replicate_transaction(address, false)
     end
+  end
+
+  describe "synchronize_current_summary/0" do
+    test "should be able to run when there's nothing to sync" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2001-01-01 00:00:00Z]
+      })
+
+      with_mock(BeaconChain, [:passthrough],
+        next_summary_date: fn _ -> DateTime.utc_now() end,
+        fetch_current_summary_replication_attestations: fn -> [] end
+      ) do
+        with_mock(TransactionHandler, [:passthrough], []) do
+          assert 0 = SelfRepair.synchronize_current_summary()
+
+          assert_not_called(TransactionHandler.download_transaction(:_, :_))
+        end
+      end
+    end
+
+    test "should resync missed transactions" do
+      now = DateTime.utc_now()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2001-01-01 00:00:00Z]
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2001-01-01 00:00:00Z]
+      })
+
+      replication_attestation1 = random_replication_attestation(now)
+      replication_attestation2 = random_replication_attestation(now)
+      replication_attestation3 = random_replication_attestation(now)
+
+      with_mock(BeaconChain, [:passthrough],
+        next_summary_date: fn _ -> now end,
+        fetch_current_summary_replication_attestations: fn ->
+          [
+            replication_attestation1,
+            replication_attestation2,
+            replication_attestation3
+          ]
+        end
+      ) do
+        with_mock(TransactionHandler, [:passthrough],
+          download_transaction: fn _, _ -> :ok end,
+          process_transaction: fn _, _, _ -> :ok end
+        ) do
+          assert 3 = SelfRepair.synchronize_current_summary()
+
+          assert_called(TransactionHandler.download_transaction(replication_attestation1, :_))
+          assert_called(TransactionHandler.download_transaction(replication_attestation2, :_))
+          assert_called(TransactionHandler.download_transaction(replication_attestation3, :_))
+        end
+      end
+    end
+
+    test "should not resync a transaction already existing" do
+      now = DateTime.utc_now()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2001-01-01 00:00:00Z]
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2001-01-01 00:00:00Z]
+      })
+
+      replication_attestation1 = random_replication_attestation(now)
+
+      with_mock(BeaconChain, [:passthrough],
+        next_summary_date: fn _ -> now end,
+        fetch_current_summary_replication_attestations: fn ->
+          [
+            replication_attestation1
+          ]
+        end
+      ) do
+        with_mock(TransactionChain, [:passthrough], transaction_exists?: fn _ -> true end) do
+          with_mock(TransactionHandler, [:passthrough], download_transaction: fn _, _ -> :ok end) do
+            assert 0 = SelfRepair.synchronize_current_summary()
+
+            assert_not_called(
+              TransactionHandler.download_transaction(replication_attestation1, :_)
+            )
+          end
+        end
+      end
+    end
+  end
+
+  defp random_replication_attestation(datetime) do
+    %ReplicationAttestation{
+      version: 2,
+      transaction_summary: %TransactionSummary{
+        address: random_address(),
+        type: :transfer,
+        timestamp: datetime,
+        fee: 10_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+        genesis_address: random_address()
+      },
+      confirmations: Enum.map(0..9, &{&1, "signature#{&1}"})
+    }
   end
 end

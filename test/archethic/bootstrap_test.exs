@@ -32,7 +32,9 @@ defmodule Archethic.BootstrapTest do
     Ok,
     TransactionChainLength,
     TransactionInputList,
-    TransactionList
+    TransactionList,
+    GetCurrentReplicationAttestations,
+    CurrentReplicationAttestations
   }
 
   alias Archethic.Replication
@@ -126,6 +128,12 @@ defmodule Archethic.BootstrapTest do
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetCurrentReplicationAttestations{}, _ ->
+          {:ok,
+           %CurrentReplicationAttestations{
+             replication_attestations: []
+           }}
       end)
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)

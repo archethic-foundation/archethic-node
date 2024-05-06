@@ -31,6 +31,8 @@ defmodule Archethic.P2P.Message do
     GetBeaconSummariesAggregate,
     GetBootstrappingNodes,
     GetCurrentSummaries,
+    GetCurrentReplicationAttestations,
+    CurrentReplicationAttestations,
     GetLastTransaction,
     GetLastTransactionAddress,
     GetNextAddresses,
@@ -118,6 +120,7 @@ defmodule Archethic.P2P.Message do
           | GetGenesisAddress.t()
           | ValidationError.t()
           | GetCurrentSummaries.t()
+          | GetCurrentReplicationAttestations.t()
           | GetBeaconSummariesAggregate.t()
           | NotifyPreviousChain.t()
           | ShardRepair.t()
@@ -158,6 +161,7 @@ defmodule Archethic.P2P.Message do
           | NetworkStats.t()
           | SmartContractCallValidation.t()
           | DashboardData.t()
+          | CurrentReplicationAttestations.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)

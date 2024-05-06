@@ -294,20 +294,12 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
-
-    attestations_to_sync =
-      attestations
-      |> adjust_attestations(download_nodes)
-      |> Stream.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
-      |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
-
-    synchronize_transactions(attestations_to_sync, download_nodes)
+    nb_transactions = process_replication_attestations(attestations, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
       %{duration: System.monotonic_time() - start_time},
-      %{nb_transactions: length(attestations_to_sync)}
+      %{nb_transactions: nb_transactions}
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
@@ -351,6 +343,26 @@ defmodule Archethic.SelfRepair.Sync do
 
     store_aggregate(aggregate, new_available_nodes)
     store_last_sync_date(summary_time)
+  end
+
+  @doc """
+  Downloads and stores the transactions missed, returns the count of transactions synchronized
+  """
+  @spec process_replication_attestations(
+          replication_attestations :: list(ReplicationAttestation.t()),
+          download_nodes :: list(Node.t())
+        ) :: integer()
+  def process_replication_attestations(replication_attestations, download_nodes) do
+    nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
+
+    replication_attestations
+    |> adjust_attestations(download_nodes)
+    |> Stream.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+    |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
+    |> then(fn filtered_attestations ->
+      synchronize_transactions(filtered_attestations, download_nodes)
+      length(filtered_attestations)
+    end)
   end
 
   # To avoid beacon chain database migration we have to support both summaries with genesis address and without
