@@ -2,6 +2,8 @@ defmodule Archethic.SelfRepairTest do
   @moduledoc false
   use ArchethicCase
 
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
 
@@ -99,13 +101,31 @@ defmodule Archethic.SelfRepairTest do
       tx = %Transaction{address: address} = TransactionFactory.create_valid_transaction()
       genesis_address = Transaction.previous_address(tx)
 
+      input1 = %VersionedTransactionInput{
+        protocol_version: Archethic.Mining.protocol_version(),
+        input: %TransactionInput{
+          from: random_address(),
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      }
+
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ -> {:ok, tx} end)
 
       with_mock(Replication, sync_transaction_chain: fn _, _, _, _ -> :ok end) do
-        assert :ok = SelfRepair.replicate_transaction(address, genesis_address, true)
+        with_mock(
+          TransactionChain,
+          [:passthrough],
+          fetch_inputs: fn _, _ -> [input1] end,
+          write_inputs: fn _, _ -> :ok end
+        ) do
+          assert :ok = SelfRepair.replicate_transaction(address, genesis_address, true)
 
-        assert_called(Replication.sync_transaction_chain(:_, genesis_address, :_, :_))
+          assert_called(TransactionChain.fetch_inputs(address, :_))
+          assert_called(TransactionChain.write_inputs(address, [input1]))
+          assert_called(Replication.sync_transaction_chain(:_, genesis_address, :_, :_))
+        end
       end
     end
 
@@ -227,7 +247,9 @@ defmodule Archethic.SelfRepairTest do
         end
       ) do
         with_mock(TransactionHandler, [:passthrough],
-          download_transaction: fn _, _ -> :ok end,
+          download_transaction: fn _, _ ->
+            %Transaction{address: replication_attestation1.transaction_summary.address}
+          end,
           process_transaction: fn _, _, _ -> :ok end
         ) do
           assert 3 = SelfRepair.synchronize_current_summary()
@@ -277,7 +299,11 @@ defmodule Archethic.SelfRepairTest do
         end
       ) do
         with_mock(TransactionChain, [:passthrough], transaction_exists?: fn _ -> true end) do
-          with_mock(TransactionHandler, [:passthrough], download_transaction: fn _, _ -> :ok end) do
+          with_mock(TransactionHandler, [:passthrough],
+            download_transaction: fn _, _ ->
+              %Transaction{address: replication_attestation1.transaction_summary.address}
+            end
+          ) do
             assert 0 = SelfRepair.synchronize_current_summary()
 
             assert_not_called(
