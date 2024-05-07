@@ -72,7 +72,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   """
   @spec download_transaction_data(
           attestation :: ReplicationAttestation.t(),
-          download_nodes :: list(Node.t())
+          download_nodes :: list(Node.t()),
+          node_key :: Crypto.key(),
+          previous_summary_time :: DateTime.t()
         ) ::
           {transaction :: Transaction.t(),
            transaction_inputs :: list(VersionedTransactionInput.t())}
@@ -81,18 +83,19 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           transaction_summary:
             expected_summary = %TransactionSummary{address: address, type: type}
         },
-        node_list
+        node_list,
+        node_key,
+        previous_summary_time
       ) do
     Logger.info("Synchronize missed transaction",
       transaction_address: Base.encode16(address),
       transaction_type: type
     )
 
-    node_key = Crypto.first_node_public_key()
-
     storage_nodes =
       address
       |> Election.chain_storage_nodes_with_type(type, node_list)
+      |> Election.get_synchronized_nodes_before(previous_summary_time)
       |> Enum.reject(&(&1.first_public_key == node_key))
 
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
@@ -157,7 +160,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           attestation :: ReplicationAttestation.t(),
           transaction :: Transaction.t(),
           inputs :: list(VersionedTransactionInput.t()),
-          download_nodes :: list(Node.t())
+          download_nodes :: list(Node.t()),
+          node_key :: Crypto.key()
         ) :: :ok
   def process_transaction_data(
         attestation = %ReplicationAttestation{
@@ -171,17 +175,17 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           type: type
         },
         inputs,
-        node_list
+        node_list,
+        node_key
       ) do
     verify_transaction(attestation, tx)
 
     resolved_addresses = get_resolved_addresses(attestation)
 
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
-    node_public_key = Crypto.first_node_public_key()
 
     cond do
-      Election.chain_storage_node?(address, type, node_public_key, node_list) ->
+      Election.chain_storage_node?(address, type, node_key, node_list) ->
         Replication.sync_transaction_chain(tx, genesis_address, node_list,
           self_repair?: true,
           resolved_addresses: resolved_addresses
@@ -189,13 +193,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
         TransactionChain.write_inputs(address, inputs)
 
-      Election.chain_storage_node?(genesis_address, node_public_key, node_list) ->
+      Election.chain_storage_node?(genesis_address, node_key, node_list) ->
         Replication.sync_transaction_chain(tx, genesis_address, node_list,
           self_repair?: true,
           resolved_addresses: resolved_addresses
         )
 
-      io_node?(movements_addresses, node_public_key, node_list) ->
+      io_node?(movements_addresses, node_key, node_list) ->
         Replication.synchronize_io_transaction(tx, genesis_address,
           self_repair?: true,
           resolved_addresses: resolved_addresses,

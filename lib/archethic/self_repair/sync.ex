@@ -464,11 +464,20 @@ defmodule Archethic.SelfRepair.Sync do
     Logger.info("Need to synchronize #{Enum.count(attestations)} transactions")
     Logger.debug("Transaction to sync #{inspect(attestations)}")
 
+    node_key = Crypto.first_node_public_key()
+    previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
     Task.Supervisor.async_stream(
       TaskSupervisor,
       attestations,
       fn attestation ->
-        {tx, inputs} = TransactionHandler.download_transaction_data(attestation, download_nodes)
+        {tx, inputs} =
+          TransactionHandler.download_transaction_data(
+            attestation,
+            download_nodes,
+            node_key,
+            previous_summary_time
+          )
 
         consolidated_attestation = consolidate_recipients(attestation, tx)
         {consolidated_attestation, tx, inputs}
@@ -477,7 +486,14 @@ defmodule Archethic.SelfRepair.Sync do
       timeout: Message.get_max_timeout() + 2000
     )
     |> Stream.each(fn {:ok, {attestation, tx, inputs}} ->
-      :ok = TransactionHandler.process_transaction_data(attestation, tx, inputs, download_nodes)
+      :ok =
+        TransactionHandler.process_transaction_data(
+          attestation,
+          tx,
+          inputs,
+          download_nodes,
+          node_key
+        )
     end)
     |> Stream.run()
   end
