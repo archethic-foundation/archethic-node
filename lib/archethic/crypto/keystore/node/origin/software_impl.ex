@@ -86,7 +86,12 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
         seed
 
       _ ->
-        seed = :crypto.strong_rand_bytes(32)
+        seed =
+          case System.get_env("ARCHETHIC_ORIGIN_SEED") do
+            nil -> :crypto.strong_rand_bytes(32)
+            value -> Base.decode16!(value)
+          end
+
         File.write!(origin_seed_filename(), seed)
         seed
     end

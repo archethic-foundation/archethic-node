@@ -91,30 +91,51 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
   interval: System.get_env("ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL", "0 0 0 * * * *")
 
 config :archethic, Archethic.Crypto,
+  # the public key of the certificate in hex minus the subject id (26 first bytes: 3059301306072A8648CE3D020106082A8648CE3D030107034200)
+  #
+  # certificate creation:
+  # openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem
+  # openssl ec -in private-key.pem -pubout -out public-key.pem
+  # openssl req -new -x509 -key private-key.pem -out cert.pem -days 360
+  #
+  # public-key.pem > sanitize (1line) > decode64 > encode16 > drop 26 first bytes
   root_ca_public_keys: [
     software:
       case System.get_env("ARCHETHIC_NETWORK_TYPE") do
         "testnet" ->
-          []
+          [
+            # secp256r1:
+            #   Base.decode16!(
+            #     "0488BA8DA36E0B7DD6B331F5A5BBBB79CFD92FECCD81C895973BC78C1CCDF9115C46AE92C74D180F8D8C1995046A86636D24C69EF7DBC2DC239369DF1DE04202FB"
+            #   )
+          ]
 
         _ ->
           [
             secp256r1:
-              System.get_env(
-                "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
-                "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+              Base.decode16!(
+                "043F2A2CF930CFDDBCD13BCEC3753089940DAE5ABC6D63BBB2643DB5DB9F746C373079264C91BC65055C4ADEEFF9E9F3668BCDCEDA15E3E9458A5AEEE8FFA7B5D1"
               )
-              |> Base.decode16!(case: :mixed)
           ]
       end,
-    tpm: [
-      secp256r1:
-        System.get_env(
-          "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
-          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
-        )
-        |> Base.decode16!(case: :mixed)
-    ]
+    tpm:
+      case System.get_env("ARCHETHIC_NETWORK_TYPE") do
+        "testnet" ->
+          [
+            # secp256r1:
+            #   Base.decode16!(
+            #     "0488BA8DA36E0B7DD6B331F5A5BBBB79CFD92FECCD81C895973BC78C1CCDF9115C46AE92C74D180F8D8C1995046A86636D24C69EF7DBC2DC239369DF1DE04202FB"
+            #   )
+          ]
+
+        _ ->
+          [
+            secp256r1:
+              Base.decode16!(
+                "043F2A2CF930CFDDBCD13BCEC3753089940DAE5ABC6D63BBB2643DB5DB9F746C373079264C91BC65055C4ADEEFF9E9F3668BCDCEDA15E3E9458A5AEEE8FFA7B5D1"
+              )
+          ]
+      end
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
