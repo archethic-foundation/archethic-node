@@ -25,6 +25,11 @@
     </div>
   </form>
 
+  <div class="my-4 is-size-4">Tests</div>
+  <button class="app-button shadow" disabled={@sending} phx-click="noop-tx">
+    Create a NO-OP node transaction
+  </button>
+
   <%= if @notification != "" do %>
     <div
       class={[

@@ -77,6 +77,11 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
     {:noreply, socket}
   end
 
+  def handle_event("noop-tx", _, socket) do
+    send_noop_transaction()
+    {:noreply, assign(socket, :sending, true)}
+  end
+
   def handle_event("validate", %{"reward_address" => reward_address}, socket) do
     with {:ok, reward_address_bin} <- Base.decode16(reward_address, case: :mixed),
          true <- Crypto.valid_address?(reward_address_bin) do
@@ -150,6 +155,40 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
             http_port,
             transport,
             next_reward_address,
+            Crypto.origin_node_public_key(),
+            Crypto.get_key_certificate(Crypto.origin_node_public_key())
+          )
+      })
+
+    TransactionSubscriber.register(tx.address, System.monotonic_time())
+
+    Archethic.send_new_transaction(tx, forward?: true)
+  end
+
+  defp send_noop_transaction() do
+    %Node{
+      ip: ip,
+      port: port,
+      http_port: http_port,
+      transport: transport,
+      reward_address: reward_address
+    } = P2P.get_node_info()
+
+    genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
+
+    {:ok, %Transaction{data: %TransactionData{code: code}}} =
+      TransactionChain.get_last_transaction(genesis_address, data: [:code])
+
+    tx =
+      Transaction.new(:node, %TransactionData{
+        code: code,
+        content:
+          Node.encode_transaction_content(
+            ip,
+            port,
+            http_port,
+            transport,
+            reward_address,
             Crypto.origin_node_public_key(),
             Crypto.get_key_certificate(Crypto.origin_node_public_key())
           )
