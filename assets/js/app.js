@@ -40,11 +40,11 @@ let scrollAt = () => {
 
 Hooks.CodeViewer = {
   mounted() {
-    hljs.highlightBlock(this.el);
+    hljs.highlightElement(this.el);
   },
 
   updated() {
-    hljs.highlightBlock(this.el);
+    hljs.highlightElement(this.el);
   },
 };
 
