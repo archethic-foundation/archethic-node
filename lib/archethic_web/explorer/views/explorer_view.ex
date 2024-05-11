@@ -42,6 +42,13 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     end
   end
 
+  def is_json_content?(content) do
+    case Jason.decode(content) do
+      {:ok, _} -> true
+      _ -> false
+    end
+  end
+
   def format_transaction_content(:node, content) do
     {:ok, ip, port, http_port, transport, reward_address, origin_public_key, key_certificate} =
       Node.decode_transaction_content(content)
@@ -207,17 +214,6 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     content
     |> get_origin_public_key_and_certificate()
     |> format_origin_content()
-  end
-
-  def format_transaction_content(:keychain, content) do
-    Jason.Formatter.pretty_print_to_iodata(content)
-  end
-
-  def format_transaction_content(:hosting, content) do
-    case Jason.decode(content) do
-      {:ok, _} -> Jason.Formatter.pretty_print_to_iodata(content)
-      _ -> content
-    end
   end
 
   def format_transaction_content(_, content) do
