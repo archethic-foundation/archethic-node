@@ -19,8 +19,36 @@ import { createWorldmap, updateWorldmap } from "./worldmap";
 
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
-import { html } from "diff2html";
-import hljs from "highlight.js";
+import { html as diff2html } from "diff2html";
+
+import hljs from "highlight.js/lib/core";
+import xml from "highlight.js/lib/languages/xml";
+import css from "highlight.js/lib/languages/css";
+import sass from "highlight.js/lib/languages/scss";
+import javascript from "highlight.js/lib/languages/javascript";
+import bash from "highlight.js/lib/languages/bash";
+import markdown from "highlight.js/lib/languages/markdown";
+import docker from "highlight.js/lib/languages/dockerfile";
+import elixir from "highlight.js/lib/languages/elixir";
+import c from "highlight.js/lib/languages/c";
+import erlang from "highlight.js/lib/languages/erlang";
+import json from "highlight.js/lib/languages/json";
+import yaml from "highlight.js/lib/languages/yaml";
+import plaintext from "highlight.js/lib/languages/plaintext";
+
+hljs.registerLanguage('html', xml);
+hljs.registerLanguage('css', css);
+hljs.registerLanguage('sass', sass);
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('markdown', markdown);
+hljs.registerLanguage('docker', docker);
+hljs.registerLanguage('elixir', elixir);
+hljs.registerLanguage('c', c);
+hljs.registerLanguage('erlang', erlang);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('yaml', yaml);
+hljs.registerLanguage('plaintext', plaintext);
 
 // add alpinejs
 import Alpine from "alpinejs";
@@ -187,7 +215,7 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)
 window.liveSocket = liveSocket;
 
-window.diff2html = html;
+window.diff2html = diff2html;
 
 // disable "confirm form resubmission" on back button click
 if (window.history.replaceState) {
