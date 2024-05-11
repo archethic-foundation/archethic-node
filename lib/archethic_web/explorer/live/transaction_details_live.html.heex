@@ -115,7 +115,7 @@
                   <div></div>
                 <% else %>
                   <div x-show="show" class="is-relative">
-                    <pre id="copy-code"><%= @transaction.data.code %></pre>
+                    <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
                   </div>
                 <% end %>
               </div>
@@ -144,7 +144,11 @@
                   <div></div>
                 <% else %>
                   <div x-show="show" class="is-relative">
-                    <pre id="copy-content"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                    <%= if is_json_content?(@transaction.data.content) do %>
+                      <pre id="copy-content" class="language-json" phx-hook="CodeViewer"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                    <% else %>
+                      <pre id="copy-content" class="language-plaintext" phx-hook="CodeViewer"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                    <% end %>
                   </div>
                 <% end %>
               </div>
