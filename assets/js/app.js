@@ -1,6 +1,3 @@
-// We need to import the CSS so that webpack will load it.
-// The MiniCssExtractPlugin is used to separate it out into
-// its own CSS file.
 import { } from "./ui";
 import {
   initBoxPlotTransactionsAvgDurationChart,
@@ -13,9 +10,6 @@ import {
   updateNodeTransactionsCountChart
 } from "./metric_config.js";
 import { createWorldmap, updateWorldmap } from "./worldmap";
-
-// webpack automatically bundles all modules in your
-// entry points. Those entry points can be configured
 
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
