@@ -30,7 +30,7 @@ defmodule ArchethicWeb.Explorer.CodeViewerLive do
      assign(socket, :details, %{
        filename: filename,
        content: file_content,
-       language: get_language(Path.extname(filename))
+       language: "language-" <> get_language(Path.extname(filename))
      })}
   end
 
@@ -64,9 +64,10 @@ defmodule ArchethicWeb.Explorer.CodeViewerLive do
   defp get_language(".ex"), do: "elixir"
   defp get_language(".exs"), do: "elixir"
   defp get_language(".eex"), do: "elixir"
-  defp get_language(".leex"), do: "elixir"
+  defp get_language(".heex"), do: "html"
   defp get_language(".c"), do: "c"
   defp get_language(".erl"), do: "erlang"
   defp get_language(".json"), do: "json"
-  defp get_language(_), do: ""
+  defp get_language(".yml"), do: "yaml"
+  defp get_language(_), do: "plaintext"
 end

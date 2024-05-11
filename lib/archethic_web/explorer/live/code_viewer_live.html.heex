@@ -112,10 +112,13 @@
       <div class="column">
         <%= if @details != nil do %>
           <div class="text_subtitle"><%= @details.filename %></div>
-          <pre style="width: 100%" phx-hook="CodeViewer" id="code_viewer">
-            <code class={@details.language}>
-                <%= @details.content %>
-            </code>
+          <pre
+            style="width: 100%"
+            class={@details.language}
+            phx-hook="CodeViewer"
+            id="code_viewer"
+          >
+            <%= @details.content %>
         </pre>
         <% end %>
       </div>
