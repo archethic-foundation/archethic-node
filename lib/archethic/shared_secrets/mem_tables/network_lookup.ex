@@ -116,10 +116,5 @@ defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
     public_key
   end
 
-  def code_change(1, state, _extra) do
-    :ets.delete(@table_name, :network_pool_address)
-    {:ok, state}
-  end
-
   def code_change(_, state, _extra), do: {:ok, state}
 end

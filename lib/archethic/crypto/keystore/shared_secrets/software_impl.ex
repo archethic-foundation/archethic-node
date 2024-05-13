@@ -58,23 +58,6 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   end
 
   @impl GenServer
-  def code_change(1, state, _extra) do
-    [reward_sign_fun] = :ets.take(@keystore_table, :network_pool_sign_fun)
-    [reward_public_key_fun] = :ets.take(@keystore_table, :network_pool_public_key_fun)
-    [reward_seed_wrap_fun] = :ets.take(@keystore_table, :network_pool_seed_wrap_fun)
-
-    :ets.insert(@keystore_table, {:reward_sign_fun, reward_sign_fun})
-    :ets.insert(@keystore_table, {:reward_public_key_fun, reward_public_key_fun})
-    :ets.insert(@keystore_table, {:reward_seed_wrap_fun, reward_seed_wrap_fun})
-
-    :node_shared_secrets
-    |> TransactionChain.list_addresses_by_type()
-    |> Stream.take(-2)
-    |> Enum.each(&load_node_shared_secrets_tx/1)
-
-    {:ok, state}
-  end
-
   # we store functions in the ETS table, so we need to reload them
   # every upgrade to avoid: "xxx is invalid, likely because it points to an old version of the code"
   def code_change(_, state, _extra) do

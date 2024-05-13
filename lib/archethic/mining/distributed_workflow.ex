@@ -1036,11 +1036,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
     {:keep_state_and_data, :postpone}
   end
 
-  def code_change(1, state, data, _extra) do
-    data = data |> Map.update!(:context, &Map.put(&1, :mining_error, nil))
-    {:ok, state, data}
-  end
-
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 
   defp notify_transaction_context(
