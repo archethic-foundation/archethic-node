@@ -180,7 +180,14 @@
                 <%= if state_utxo == nil do %>
                   <div></div>
                 <% else %>
-                  <pre x-show="show"><%= ArchethicWeb.Explorer.TransactionDetailsLive.print_state(state_utxo) %></pre>
+                  <pre
+                    id="contract-state"
+                    x-show="show"
+                    class="language-json"
+                    phx-hook="CodeViewer"
+                  > 
+                    <%= print_state(state_utxo) %>
+                  </pre>
                 <% end %>
               </div>
             </div>
@@ -434,7 +441,7 @@
               </div>
 
               <ul class="column">
-                <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
+                <%= for {{recipient, resolved_address}, index} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) |> Enum.with_index() do %>
                   <li class="columns is-multiline">
                     <div class="column is-narrow">
                       <span class="ae-label">To</span>
@@ -469,13 +476,14 @@
                       <% end %>
                     </div>
 
-                    <%= case Jason.encode(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]) do %>
-                      <% {:ok, str} -> %>
-                        <div class="column is-12" x-show="show">
-                          <pre> <%= raw(str) %> </pre>
-                        </div>
-                      <% _ -> %>
-                        <div></div>
+                    <%= if recipient.args != nil do %>
+                      <div class="column is-12" x-show="show">
+                        <pre id={"recipient-#{index}"} class="language-json" phx-hook="CodeViewer">
+                          <%= Jason.encode!(recipient.args, pretty: true) %>
+                        </pre>
+                      </div>
+                    <% else %>
+                      <div></div>
                     <% end %>
                   </li>
                 <% end %>
