@@ -745,6 +745,8 @@ defmodule Archethic.Crypto do
 
         {:ok, data}
     end
+  rescue
+    _ -> {:error, :decryption_failed}
   end
 
   @doc """
@@ -805,6 +807,8 @@ defmodule Archethic.Crypto do
 
         {:ok, data}
     end
+  rescue
+    _ -> {:error, :decryption_failed}
   end
 
   @doc """
@@ -837,6 +841,8 @@ defmodule Archethic.Crypto do
 
         {:ok, data}
     end
+  rescue
+    _ -> {:error, :decryption_failed}
   end
 
   @doc """

@@ -176,4 +176,22 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       assert_raise Library.Error, fn -> Crypto.hmac("data", "invalid", "key") end
     end
   end
+
+  describe "decrypt_with_storage_nonce" do
+    test "should raise when the ciphertext cannot be decrypted by the storage nonce" do
+      assert_raise Library.Error, fn -> Crypto.decrypt_with_storage_nonce("123456") end
+
+      {pub, _} = Archethic.Crypto.derive_keypair("other key", 0)
+      bad_ciphertext = Archethic.Crypto.ec_encrypt("hello", pub)
+
+      assert_raise Library.Error, fn -> Crypto.decrypt_with_storage_nonce(bad_ciphertext) end
+    end
+
+    test "should decrypt the ciphertext with storage nonce" do
+      ciphertext =
+        Archethic.Crypto.ec_encrypt("hello", Archethic.Crypto.storage_nonce_public_key())
+
+      assert "hello" = Crypto.decrypt_with_storage_nonce(ciphertext)
+    end
+  end
 end
