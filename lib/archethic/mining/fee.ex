@@ -209,4 +209,45 @@ defmodule Archethic.Mining.Fee do
   end
 
   defp cost_per_recipients(_, _, _protocol_version), do: 0
+
+  @doc """
+  Determines if a fee's variation is accepted according to 3% of slippage
+
+  A special case is defined if the actual is 0, the expected should be 0 as well
+
+  ## Examples
+
+      iex> Fee.valid_variation?(0, 0)
+      true
+
+      iex> Fee.valid_variation?(0, 10)
+      false
+
+      iex> Fee.valid_variation?(100, 102)
+      true
+
+      iex> Fee.valid_variation?(98, 100)
+      true
+
+      iex> Fee.valid_variation?(100, 90)
+      false
+  """
+  @spec valid_variation?(non_neg_integer(), non_neg_integer()) :: boolean()
+  def valid_variation?(0, expected_fee), do: expected_fee == 0
+  def valid_variation?(actual_fee, 0), do: actual_fee == 0
+
+  def valid_variation?(actual_fee, expected_fee) do
+    percentage_difference =
+      actual_fee
+      |> Decimal.sub(expected_fee)
+      |> Decimal.abs()
+      |> Decimal.div(
+        actual_fee
+        |> Decimal.add(expected_fee)
+        |> Decimal.div(2)
+      )
+      |> Decimal.to_float()
+
+    percentage_difference < 0.03
+  end
 end

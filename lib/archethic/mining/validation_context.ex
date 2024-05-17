@@ -48,6 +48,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Election
 
   alias Archethic.Mining
+  alias Archethic.Mining.Fee
   alias Archethic.Mining.Error
   alias Archethic.Mining.ProofOfWork
   alias Archethic.Mining.SmartContractValidation
@@ -1160,10 +1161,12 @@ defmodule Archethic.Mining.ValidationContext do
        do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
-         %ValidationStamp{ledger_operations: %LedgerOperations{fee: stamp_fee}},
+         %ValidationStamp{
+           ledger_operations: %LedgerOperations{fee: stamp_fee}
+         },
          expected_fee
        ) do
-    stamp_fee == expected_fee
+    Fee.valid_variation?(stamp_fee, expected_fee)
   end
 
   defp valid_stamp_error?(%ValidationStamp{error: nil}, %__MODULE__{mining_error: nil}), do: true
