@@ -1163,7 +1163,13 @@ defmodule Archethic.Mining.ValidationContext do
          %ValidationStamp{ledger_operations: %LedgerOperations{fee: stamp_fee}},
          expected_fee
        ) do
-    stamp_fee == expected_fee
+    deviation =
+      [Utils.from_bigint(stamp_fee), Utils.from_bigint(expected_fee)]
+      |> Utils.standard_deviation()
+      |> Float.round(3)
+
+    deviation_threshold = 0.01
+    deviation < deviation_threshold
   end
 
   defp valid_stamp_error?(%ValidationStamp{error: nil}, %__MODULE__{mining_error: nil}), do: true

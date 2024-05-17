@@ -33,6 +33,8 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   alias Archethic.TransactionFactory
 
+  alias Archethic.Utils
+
   import Mock
 
   doctest ValidationContext
@@ -297,6 +299,50 @@ defmodule Archethic.Mining.ValidationContextTest do
                validation_context
                |> ValidationContext.add_validation_stamp(
                  create_validation_stamp_with_invalid_transaction_fee(validation_context)
+               )
+               |> ValidationContext.cross_validate()
+    end
+
+    test "should not get inconsistency when the transaction fee derived by less than 0.01 UCO" do
+      validation_context = create_context()
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      expected_fee =
+        Fee.calculate(
+          validation_context.transaction,
+          nil,
+          0.07,
+          validation_context.validation_time,
+          nil,
+          0,
+          current_protocol_version()
+        )
+
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: []}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_fee(
+                   validation_context,
+                   expected_fee |> Utils.from_bigint() |> Kernel.-(0.01) |> Utils.to_bigint()
+                 )
+               )
+               |> ValidationContext.cross_validate()
+
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_fee(
+                   validation_context,
+                   expected_fee |> Utils.from_bigint() |> Kernel.+(0.02) |> Utils.to_bigint()
+                 )
                )
                |> ValidationContext.cross_validate()
     end
@@ -571,16 +617,19 @@ defmodule Archethic.Mining.ValidationContextTest do
     |> ValidationStamp.sign()
   end
 
-  defp create_validation_stamp_with_invalid_transaction_fee(%ValidationContext{
-         transaction: tx,
-         unspent_outputs: unspent_outputs,
-         validation_time: timestamp
-       }) do
+  defp create_validation_stamp_with_invalid_transaction_fee(
+         %ValidationContext{
+           transaction: tx,
+           unspent_outputs: unspent_outputs,
+           validation_time: timestamp
+         },
+         fee \\ 1
+       ) do
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{fee: 1}
+      %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
         timestamp,
