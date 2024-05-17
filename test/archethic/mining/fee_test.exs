@@ -16,6 +16,8 @@ defmodule Archethic.Mining.FeeTest do
 
   import ArchethicCase
 
+  doctest Fee
+
   describe "calculate/5" do
     setup do
       add_nodes(50)

@@ -8,6 +8,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.Election
   alias Archethic.Mining
   alias Archethic.Mining.Error
+  alias Archethic.Mining.Fee
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.OracleChain
   alias Archethic.P2P
@@ -273,7 +274,10 @@ defmodule Archethic.Replication.TransactionValidator do
          contract_context,
          encoded_state
        ) do
-    if fee == get_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state) do
+    expected_fee =
+      get_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state)
+
+    if Fee.valid_variation?(fee, expected_fee) do
       :ok
     else
       Logger.error(
