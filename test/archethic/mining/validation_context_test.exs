@@ -12,6 +12,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.OracleChain
+
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
@@ -32,6 +34,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionFactory
+
+  alias Archethic.Utils
 
   import Mock
 
@@ -297,6 +301,62 @@ defmodule Archethic.Mining.ValidationContextTest do
                validation_context
                |> ValidationContext.add_validation_stamp(
                  create_validation_stamp_with_invalid_transaction_fee(validation_context)
+               )
+               |> ValidationContext.cross_validate()
+    end
+
+    test "should not get inconsistency when the transaction fee derived by less than 3% of difference" do
+      validation_context = create_context()
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      expected_fee =
+        Fee.calculate(
+          validation_context.transaction,
+          nil,
+          0.07,
+          validation_context.validation_time,
+          nil,
+          0,
+          current_protocol_version()
+        )
+
+      acceptable_fee =  expected_fee
+      |> Decimal.new()
+      |> Decimal.mult(Decimal.from_float(1.02))
+      |> Decimal.to_float()
+      |> trunc()
+
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: []}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_fee(
+                   validation_context,
+                   acceptable_fee
+                 )
+               )
+               |> ValidationContext.cross_validate()
+
+      non_acceptable_fee =  expected_fee
+      |> Decimal.new()
+      |> Decimal.mult(Decimal.from_float(1.04))
+      |> Decimal.to_float()
+      |> trunc()
+
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_fee(
+                   validation_context,
+                   non_acceptable_fee
+                 )
                )
                |> ValidationContext.cross_validate()
     end
@@ -571,16 +631,19 @@ defmodule Archethic.Mining.ValidationContextTest do
     |> ValidationStamp.sign()
   end
 
-  defp create_validation_stamp_with_invalid_transaction_fee(%ValidationContext{
-         transaction: tx,
-         unspent_outputs: unspent_outputs,
-         validation_time: timestamp
-       }) do
+  defp create_validation_stamp_with_invalid_transaction_fee(
+         %ValidationContext{
+           transaction: tx,
+           unspent_outputs: unspent_outputs,
+           validation_time: timestamp
+         },
+         fee \\ 1
+       ) do
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{fee: 1}
+      %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
         timestamp,

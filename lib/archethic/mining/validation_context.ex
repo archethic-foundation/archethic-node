@@ -1160,10 +1160,27 @@ defmodule Archethic.Mining.ValidationContext do
        do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
-         %ValidationStamp{ledger_operations: %LedgerOperations{fee: stamp_fee}},
+         %ValidationStamp{
+           ledger_operations: %LedgerOperations{fee: stamp_fee}
+         },
          expected_fee
        ) do
-    stamp_fee == expected_fee
+    if stamp_fee == 0 do
+      expected_fee == 0
+    else
+      percentage_difference =
+        stamp_fee
+        |> Decimal.sub(expected_fee)
+        |> Decimal.abs()
+        |> Decimal.div(
+          stamp_fee
+          |> Decimal.add(expected_fee)
+          |> Decimal.div(2)
+        )
+        |> Decimal.to_float()
+
+      percentage_difference < 0.03
+    end
   end
 
   defp valid_stamp_error?(%ValidationStamp{error: nil}, %__MODULE__{mining_error: nil}), do: true
