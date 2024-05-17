@@ -1188,8 +1188,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         [%ReplicationError{error: error}] ->
           send(self(), {:replication_error, error})
 
-        _ ->
-          send(self(), {:replication_error, :invalid_atomic_commitment})
+        [] ->
+          error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
+          send(self(), {:replication_error, error})
       end
 
       context
