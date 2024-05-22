@@ -1,19 +1,17 @@
 import * as echarts from "echarts";
 
 const TITLE_STYLE = {
-  color: 'white',
+  color: "white",
   fontSize: 14,
 };
 const AXIS_STYLE = {
-  color: 'white',
+  color: "white",
   fontSize: 14,
 };
-const COLOR_PALETTE = [
-  "#CCA4FB"
-];
+const COLOR_PALETTE = ["#CCA4FB"];
 
 export function initBoxPlotTransactionsAvgDurationChart(el) {
-  let chart = echarts.init(el,);
+  let chart = echarts.init(el);
   chart.setOption({
     color: COLOR_PALETTE,
     grid: {
@@ -28,7 +26,7 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
       textStyle: TITLE_STYLE,
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: "axis",
     },
     xAxis: {
       type: "category",
@@ -39,24 +37,24 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
     yAxis: {
       type: "value",
       axisLabel: {
-        formatter: '{value} ms',
+        formatter: "{value} ms",
         textStyle: AXIS_STYLE,
       },
     },
     series: [
       {
-        type: 'boxplot',
+        type: "boxplot",
         itemStyle: {
-          color: COLOR_PALETTE[0]
+          color: COLOR_PALETTE[0],
         },
         tooltip: {
-          valueFormatter: value => {
-            if (value == 0) return "-"
+          valueFormatter: (value) => {
+            if (value == 0) return "-";
 
-            return Number.parseFloat(value).toFixed(1) + ' ms'
-          }
+            return Number.parseFloat(value).toFixed(1) + " ms";
+          },
         },
-      }
+      },
     ],
   });
 
@@ -66,8 +64,6 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
 
   return chart;
 }
-
-
 
 export function initNetworkTransactionsCountChart(el) {
   let chart = echarts.init(el);
@@ -85,7 +81,7 @@ export function initNetworkTransactionsCountChart(el) {
       textStyle: TITLE_STYLE,
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: "axis",
     },
     xAxis: {
       type: "category",
@@ -106,12 +102,12 @@ export function initNetworkTransactionsCountChart(el) {
         data: [],
         smooth: 0.2,
         tooltip: {
-          valueFormatter: value => {
-            const plural = value > 1 ? "s" : ""
-            return value + ' transaction' + plural
-          }
+          valueFormatter: (value) => {
+            const plural = value > 1 ? "s" : "";
+            return value + " transaction" + plural;
+          },
         },
-        showSymbol: false
+        showSymbol: false,
       },
     ],
   });
@@ -129,7 +125,7 @@ export function initNetworkTransactionsAvgDurationChart(el) {
     color: COLOR_PALETTE,
     legend: {
       bottom: 0,
-      type: 'scroll',
+      type: "scroll",
     },
     grid: {
       left: "10%",
@@ -143,35 +139,37 @@ export function initNetworkTransactionsAvgDurationChart(el) {
       textStyle: TITLE_STYLE,
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: "axis",
     },
     xAxis: {
       type: "category",
       axisLabel: {
-        textStyle: AXIS_STYLE
-      }
+        textStyle: AXIS_STYLE,
+      },
     },
     yAxis: {
       type: "value",
       axisLabel: {
-        formatter: '{value} ms',
+        formatter: "{value} ms",
         textStyle: AXIS_STYLE,
       },
     },
-    series: [{
-      type: "line",
-      areaStyle: {},
-      data: [],
-      smooth: 0.2,
-      showSymbol: false,
-      tooltip: {
-        valueFormatter: value => {
-          if (value == 0) return "-"
+    series: [
+      {
+        type: "line",
+        areaStyle: {},
+        data: [],
+        smooth: 0.2,
+        showSymbol: false,
+        tooltip: {
+          valueFormatter: (value) => {
+            if (value == 0) return "-";
 
-          return Number.parseFloat(value).toFixed(1) + ' ms'
-        }
+            return Number.parseFloat(value).toFixed(1) + " ms";
+          },
+        },
       },
-    },],
+    ],
   });
 
   window.addEventListener("resize", function () {
@@ -187,7 +185,7 @@ export function initNodeTransactionsCountChart(el) {
     color: COLOR_PALETTE,
     legend: {
       bottom: 0,
-      type: 'scroll',
+      type: "scroll",
     },
     grid: {
       left: "10%",
@@ -201,27 +199,29 @@ export function initNodeTransactionsCountChart(el) {
       textStyle: TITLE_STYLE,
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: "axis",
     },
     xAxis: {
       show: false,
-      type: "category"
+      type: "category",
     },
     yAxis: {
       type: "value",
       axisLabel: {
-        textStyle: AXIS_STYLE
+        textStyle: AXIS_STYLE,
       },
     },
-    series: [{
-      type: "bar",
-      tooltip: {
-        valueFormatter: value => {
-          const plural = value > 1 ? "s" : ""
-          return value + ' transaction' + plural
-        }
-      }
-    }]
+    series: [
+      {
+        type: "bar",
+        tooltip: {
+          valueFormatter: (value) => {
+            const plural = value > 1 ? "s" : "";
+            return value + " transaction" + plural;
+          },
+        },
+      },
+    ],
   });
 
   window.addEventListener("resize", function () {
@@ -235,13 +235,15 @@ export function updateBoxPlotTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
     darkMode: true,
     xAxis: {
-      data: Object.keys(stats)
-        .map(timestampToString)
+      data: Object.keys(stats).map(timestampToString),
     },
-    series: [{
-      data: Object.values(stats)
-        .map((durationsBucket) => durationsBucket.map((duration) => duration / 1000000))
-    }],
+    series: [
+      {
+        data: Object.values(stats).map((durationsBucket) =>
+          durationsBucket.map((duration) => duration / 1000000),
+        ),
+      },
+    ],
   });
 }
 
@@ -249,12 +251,13 @@ export function updateNetworkTransactionsCountChart(chart, stats) {
   chart.setOption({
     darkMode: true,
     xAxis: {
-      data: Object.keys(stats)
-        .map(timestampToString)
+      data: Object.keys(stats).map(timestampToString),
     },
-    series: [{
-      data: Object.values(stats)
-    }],
+    series: [
+      {
+        data: Object.values(stats),
+      },
+    ],
   });
 }
 
@@ -262,13 +265,15 @@ export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
     darkMode: true,
     xAxis: {
-      data: Object.keys(stats)
-        .map(timestampToString)
+      data: Object.keys(stats).map(timestampToString),
     },
-    series: [{
-      data: Object.values(stats)
-        .map((average_duration) => average_duration / 1_000_000)
-    }],
+    series: [
+      {
+        data: Object.values(stats).map(
+          (average_duration) => average_duration / 1_000_000,
+        ),
+      },
+    ],
   });
 }
 
@@ -276,23 +281,26 @@ export function updateNodeTransactionsCountChart(chart, stats) {
   chart.setOption({
     darkMode: true,
     xAxis: {
-      data: Object.keys(stats)
-        .map(format_public_key)
+      data: Object.keys(stats).map(format_public_key),
     },
-    series: [{
-      data: Object.values(stats)
-    }],
+    series: [
+      {
+        data: Object.values(stats),
+      },
+    ],
   });
 }
-
-
 
 function timestampToString(timestamp) {
   return dateToString(new Date(timestamp * 1000));
 }
 
 function dateToString(date) {
-  return String(date.getUTCHours()).padStart(2, '0') + ":" + String(date.getUTCMinutes()).padStart(2, '0');
+  return (
+    String(date.getUTCHours()).padStart(2, "0") +
+    ":" +
+    String(date.getUTCMinutes()).padStart(2, "0")
+  );
 }
 
 function format_public_key(public_key) {
