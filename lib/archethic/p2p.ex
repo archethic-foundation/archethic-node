@@ -103,6 +103,26 @@ defmodule Archethic.P2P do
   end
 
   @doc """
+  Called by the telemetry poller
+  """
+  def nodes_connected_count() do
+    nodes_connected =
+      authorized_and_available_nodes()
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+      |> Enum.filter(&node_connected?/1)
+      |> Enum.count()
+
+    :telemetry.execute(
+      [:archethic, :p2p],
+      %{nodes_connected: nodes_connected}
+    )
+  rescue
+    _ ->
+      # this will fail at startup because ETS table does not exist yet
+      :ok
+  end
+
+  @doc """
   List the nodes registered.
   """
   @spec list_nodes() :: list(Node.t())
