@@ -37,7 +37,7 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
     yAxis: {
       type: "value",
       axisLabel: {
-        formatter: "{value} ms",
+        formatter: (value) => value / 1000 + "s",
         textStyle: AXIS_STYLE,
       },
     },
@@ -150,7 +150,7 @@ export function initNetworkTransactionsAvgDurationChart(el) {
     yAxis: {
       type: "value",
       axisLabel: {
-        formatter: "{value} ms",
+        formatter: (value) => value / 1000 + "s",
         textStyle: AXIS_STYLE,
       },
     },
