@@ -116,7 +116,8 @@ defmodule Archethic.Contracts do
       )
     end
     |> cache_interpreter_execute(key,
-      timeout_err_msg: "Trigger's execution timed-out"
+      timeout_err_msg: "Trigger's execution timed-out",
+      cache?: Keyword.get(opts, :cache?, true)
     )
     |> cast_trigger_result(state, contract_tx)
   end
@@ -352,7 +353,8 @@ defmodule Archethic.Contracts do
           incoming_transaction :: Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           validation_time :: DateTime.t(),
-          inputs :: list(UnspentOutput.t())
+          inputs :: list(UnspentOutput.t()),
+          opts :: Keyword.t()
         ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
@@ -360,7 +362,8 @@ defmodule Archethic.Contracts do
         transaction = %Transaction{},
         maybe_recipient,
         datetime,
-        inputs
+        inputs,
+        opts \\ []
       ) do
     conditions
     |> Map.get(condition_key)
@@ -370,13 +373,14 @@ defmodule Archethic.Contracts do
       transaction,
       datetime,
       maybe_recipient,
-      inputs
+      inputs,
+      opts
     )
   end
 
-  defp do_execute_condition(nil, :inherit, _, _, _, _, _), do: {:ok, []}
+  defp do_execute_condition(nil, :inherit, _, _, _, _, _, _), do: {:ok, []}
 
-  defp do_execute_condition(nil, _, _, _, _, _, _) do
+  defp do_execute_condition(nil, _, _, _, _, _, _, _) do
     {:error,
      %Failure{
        error: :missing_condition,
@@ -396,7 +400,8 @@ defmodule Archethic.Contracts do
          transaction = %Transaction{address: tx_address},
          datetime,
          maybe_recipient,
-         inputs
+         inputs,
+         opts
        ) do
     named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
 
@@ -419,7 +424,8 @@ defmodule Archethic.Contracts do
         end
       end,
       key,
-      timeout_err_msg: "Condition's execution timed-out"
+      timeout_err_msg: "Condition's execution timed-out",
+      cache?: Keyword.get(opts, :cache?, true)
     )
   end
 
@@ -554,22 +560,26 @@ defmodule Archethic.Contracts do
   end
 
   defp cache_interpreter_execute(fun, key, opts) do
-    timeout = Keyword.get(opts, :timeout, 5_000)
+    if Keyword.get(opts, :cache?) do
+      timeout = Keyword.get(opts, :timeout, 5_000)
 
-    func = fn ->
-      try do
-        fun.()
-      rescue
-        err ->
-          # error from the code (ex: 1 + "abc")
-          {:error, err, __STACKTRACE__}
+      func = fn ->
+        try do
+          fun.()
+        rescue
+          err ->
+            # error from the code (ex: 1 + "abc")
+            {:error, err, __STACKTRACE__}
+        end
       end
-    end
 
-    # We set the maximum timeout for a transaction to be processed before the kill the cache
-    case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
-      {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
-      result -> result
+      # We set the maximum timeout for a transaction to be processed before the kill the cache
+      case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
+        {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
+        result -> result
+      end
+    else
+      fun.()
     end
   rescue
     _ ->
