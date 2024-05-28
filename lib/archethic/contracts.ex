@@ -95,19 +95,15 @@ defmodule Archethic.Contracts do
         _ -> opts
       end
 
-    key =
+    trigger_tx_address =
       case maybe_trigger_tx do
-        nil ->
-          time = Keyword.fetch!(opts, :time_now)
-          {:execute_trigger, trigger_type, contract_address, nil, time, inputs_digest(inputs)}
-
-        %Transaction{
-          address: trigger_tx_address,
-          validation_stamp: %ValidationStamp{timestamp: time}
-        } ->
-          {:execute_trigger, trigger_type, contract_address, trigger_tx_address, time,
-           inputs_digest(inputs)}
+        nil -> nil
+        %Transaction{address: addr} -> addr
       end
+
+    key =
+      {:execute_trigger, trigger_type, contract_address, trigger_tx_address,
+       Keyword.fetch!(opts, :time_now), inputs_digest(inputs)}
 
     fn ->
       Interpreter.execute_trigger(
