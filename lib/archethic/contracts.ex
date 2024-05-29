@@ -571,7 +571,7 @@ defmodule Archethic.Contracts do
     end
 
     result =
-      if Keyword.get(opts, :cache?) do
+      if Keyword.fetch!(opts, :cache?) do
         # We set the maximum timeout for a transaction to be processed before the kill the cache
         Utils.JobCache.get!(key,
           function: func,
