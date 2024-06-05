@@ -13,6 +13,7 @@ defmodule Archethic.Contracts.Conditions do
 
     defstruct [
       :address,
+      :genesis_address,
       :type,
       :content,
       :code,
@@ -27,6 +28,7 @@ defmodule Archethic.Contracts.Conditions do
 
     @type t :: %__MODULE__{
             address: binary() | Macro.t() | nil,
+            genesis_address: binary() | Macro.t() | nil,
             type: Transaction.transaction_type() | nil,
             content: binary() | Macro.t() | nil,
             code: binary() | Macro.t() | nil,
@@ -46,6 +48,7 @@ defmodule Archethic.Contracts.Conditions do
         args: [],
         subjects: %Subjects{
           address: nil,
+          genesis_address: nil,
           type: nil,
           content: nil,
           code: nil,

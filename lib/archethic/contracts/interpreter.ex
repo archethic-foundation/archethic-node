@@ -160,15 +160,20 @@ defmodule Archethic.Contracts.Interpreter do
 
         transaction_constant =
           case maybe_trigger_tx do
-            nil -> nil
+            nil ->
+              nil
+
             # :oracle & :transaction
-            trigger_tx -> Constants.from_transaction(trigger_tx, version)
+            trigger_tx ->
+              Constants.from_transaction(trigger_tx, version)
+              |> Constants.resolve_genesis_address()
           end
 
         contract_constants =
           contract_tx
           |> Constants.from_contract_transaction(version)
           |> Constants.set_balance(inputs)
+          |> Constants.resolve_genesis_address()
 
         constants =
           named_action_constants

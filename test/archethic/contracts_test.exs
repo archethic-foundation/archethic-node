@@ -1,5 +1,7 @@
 defmodule Archethic.ContractsTest do
   use ArchethicCase
+  import ArchethicCase
+  import Mox
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
@@ -8,6 +10,7 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.State
+  alias Archethic.Crypto
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -22,6 +25,40 @@ defmodule Archethic.ContractsTest do
   doctest Contracts
 
   describe "execute_condition/5 (inherit)" do
+    test "should be able to access genesis address of transactions" do
+      genesis_address = random_address()
+
+      code = """
+      @version 1
+      condition inherit do
+        one = previous.genesis_address == "#{Base.encode16(genesis_address)}"
+        two = next.genesis_address == "#{Base.encode16(genesis_address)}"
+        one && two
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_tx_previous_address = Crypto.derive_address(contract_tx.previous_public_key)
+      next_tx = ContractFactory.create_next_contract_tx(contract_tx)
+      next_tx_previous_address = Crypto.derive_address(next_tx.previous_public_key)
+
+      MockDB
+      |> expect(:find_genesis_address, 2, fn
+        ^next_tx_previous_address -> {:ok, genesis_address}
+        ^contract_tx_previous_address -> {:ok, genesis_address}
+      end)
+
+      assert {:ok, _} =
+               Contracts.execute_condition(
+                 :inherit,
+                 Contract.from_transaction!(contract_tx),
+                 next_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 []
+               )
+    end
+
     test "should return Rejected when the inherit constraints literal values are not respected" do
       code = """
       condition inherit: [
@@ -160,6 +197,44 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "execute_condition/5 (transaction)" do
+    test "should be able to read the genesis address" do
+      genesis_address1 = random_address()
+      genesis_address2 = random_address()
+
+      code = """
+        @version 1
+        condition triggered_by: transaction do
+          transaction.genesis_address == "#{Base.encode16(genesis_address1)}" && contract.genesis_address == "#{Base.encode16(genesis_address2)}"
+        end
+
+        actions triggered_by: transaction do
+          Contract.set_content "ok"
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_tx_previous_address = Crypto.derive_address(contract_tx.previous_public_key)
+
+      trigger_tx = TransactionFactory.create_valid_transaction()
+      trigger_tx_previous_address = Crypto.derive_address(trigger_tx.previous_public_key)
+
+      MockDB
+      |> expect(:find_genesis_address, 2, fn
+        ^trigger_tx_previous_address -> {:ok, genesis_address1}
+        ^contract_tx_previous_address -> {:ok, genesis_address2}
+      end)
+
+      assert {:ok, _} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 []
+               )
+    end
+
     test "should return Accepted if condition is empty" do
       code = """
         @version 1
@@ -576,6 +651,47 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "execute_trigger" do
+    test "should be able to read the genesis address" do
+      genesis_address1 = random_address()
+      genesis_address2 = random_address()
+
+      code = """
+        @version 1
+        condition triggered_by: transaction do
+          true
+        end
+
+        actions triggered_by: transaction do
+          if transaction.genesis_address == "#{Base.encode16(genesis_address1)}" do
+            if contract.genesis_address == "#{Base.encode16(genesis_address2)}" do
+              Contract.set_content "ok"
+            end
+          end
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_tx_previous_address = Crypto.derive_address(contract_tx.previous_public_key)
+
+      trigger_tx = TransactionFactory.create_valid_transaction()
+      trigger_tx_previous_address = Crypto.derive_address(trigger_tx.previous_public_key)
+
+      MockDB
+      |> expect(:find_genesis_address, 2, fn
+        ^trigger_tx_previous_address -> {:ok, genesis_address1}
+        ^contract_tx_previous_address -> {:ok, genesis_address2}
+      end)
+
+      assert {:ok, %ActionWithTransaction{}} =
+               Contracts.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 []
+               )
+    end
+
     test "should return the proper line in case of error" do
       code = """
         @version 1
@@ -731,6 +847,35 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "execute_function/3" do
+    test "should be able to access genesis_address" do
+      genesis_address = random_address()
+      genesis_address_hex = Base.encode16(genesis_address)
+
+      code = ~S"""
+      @version 1
+      export fun genesis() do
+        contract.genesis_address
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract_tx_previous_address = Crypto.derive_address(contract_tx.previous_public_key)
+      contract = Contract.from_transaction!(contract_tx)
+
+      MockDB
+      |> expect(:find_genesis_address, fn ^contract_tx_previous_address ->
+        {:ok, genesis_address}
+      end)
+
+      assert {:ok, ^genesis_address_hex, _} =
+               Contracts.execute_function(
+                 contract,
+                 "genesis",
+                 [],
+                 []
+               )
+    end
+
     test "should be able to throw in public function" do
       code = """
       @version 1
