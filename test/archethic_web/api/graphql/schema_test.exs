@@ -565,6 +565,9 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
       genesis_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
         {:ok, %GenesisAddress{address: genesis_addr, timestamp: DateTime.utc_now()}}

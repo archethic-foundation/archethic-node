@@ -219,6 +219,9 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
       b_address = Base.decode16!(address)
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn _, _, _ ->
         {:ok, %GenesisAddress{address: b_address, timestamp: DateTime.utc_now()}}

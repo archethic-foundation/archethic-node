@@ -83,6 +83,9 @@ defmodule Archethic.TransactionChainTest do
         authorization_date: ~U[2021-03-25 15:11:29Z]
       })
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address2}, _ ->
         {:ok, %GenesisAddress{address: genesis2, timestamp: DateTime.utc_now()}}
@@ -162,6 +165,9 @@ defmodule Archethic.TransactionChainTest do
         authorized?: true,
         authorization_date: ~U[2021-03-25 15:11:29Z]
       })
+
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address2}, _ ->
@@ -1190,6 +1196,9 @@ defmodule Archethic.TransactionChainTest do
     end
 
     test "should work when no conflict", %{nodes: nodes} do
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{address: "addr2"}, _ ->
@@ -1203,6 +1212,9 @@ defmodule Archethic.TransactionChainTest do
       node1 = Enum.at(nodes, 0)
       node2 = Enum.at(nodes, 1)
       node3 = Enum.at(nodes, 2)
+
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> stub(:send_message, fn

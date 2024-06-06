@@ -90,6 +90,12 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, ledger: ledger)
 
+      genesis_address = random_address()
+
+      # this mock is required to have the same genesis address on `next`  and `previous`
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
+
       assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  :inherit,
@@ -117,6 +123,12 @@ defmodule Archethic.ContractsTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hola")
+
+      genesis_address = random_address()
+
+      # this mock is required to have the same genesis address on `next`  and `previous`
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
 
       assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
@@ -161,6 +173,12 @@ defmodule Archethic.ContractsTest do
           type: :transfer
         )
 
+      genesis_address = random_address()
+
+      # this mock is required to have the same genesis address on `next`  and `previous`
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
+
       assert {:ok, _} =
                Contracts.execute_condition(
                  :inherit,
@@ -183,6 +201,12 @@ defmodule Archethic.ContractsTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hello")
+
+      genesis_address = random_address()
+
+      # this mock is required to have the same genesis address on `next`  and `previous`
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
 
       assert {:ok, _} =
                Contracts.execute_condition(

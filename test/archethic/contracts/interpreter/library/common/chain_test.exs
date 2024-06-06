@@ -80,6 +80,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       end
       """
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn
         _, %GetGenesisAddress{address: ^tx_address}, _ ->
@@ -280,6 +283,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
         {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
@@ -339,6 +345,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
     end
 
     test "should raise an error on network issue" do
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
         {:error, :network_issue}
@@ -354,6 +363,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
     test "should return uco balance" do
       address = random_address()
       genesis_address = random_address()
+
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
@@ -388,6 +400,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       fungible_token_address_hex = Base.encode16(fungible_token_address)
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
+
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> stub(:send_message, fn
@@ -450,6 +465,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
 
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address}, _ ->
         {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
@@ -509,6 +527,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       fungible_token_address_hex = Base.encode16(fungible_token_address)
       non_fungible_token_address = random_address()
       non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
+
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> stub(:send_message, fn
