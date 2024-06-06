@@ -585,14 +585,20 @@ defmodule Archethic.Crypto do
       40, 0, 68, 224, 177, 110, 180, 24>>
       ```
   """
-  @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
-  def ec_encrypt(message, <<curve_id::8, _::8, public_key::binary>> = _public_key)
+  @spec ec_encrypt(message :: binary(), public_key :: key(), random_seed :: binary() | :undefined) ::
+          binary()
+  def ec_encrypt(
+        message,
+        <<curve_id::8, _::8, public_key::binary>> = _public_key,
+        random_seed \\ :undefined
+      )
       when is_binary(message) do
     start_time = System.monotonic_time()
 
     curve = ID.to_curve(curve_id)
 
-    {ephemeral_public_key, ephemeral_private_key} = generate_ephemeral_encryption_keys(curve)
+    {ephemeral_public_key, ephemeral_private_key} =
+      generate_ephemeral_encryption_keys(curve, random_seed)
 
     # Derivate secret using ECDH with the given public key and the ephemeral private key
     shared_key =
@@ -618,8 +624,14 @@ defmodule Archethic.Crypto do
     <<ephemeral_public_key::binary, tag::binary, cipher::binary>>
   end
 
-  defp generate_ephemeral_encryption_keys(:ed25519), do: :crypto.generate_key(:ecdh, :x25519)
-  defp generate_ephemeral_encryption_keys(curve), do: :crypto.generate_key(:ecdh, curve)
+  defp generate_ephemeral_encryption_keys(:ed25519, random_seed),
+    do: generate_ephemeral_encryption_keys(:x25519, random_seed)
+
+  defp generate_ephemeral_encryption_keys(curve, :undefined),
+    do: :crypto.generate_key(:ecdh, curve)
+
+  defp generate_ephemeral_encryption_keys(curve, random_seed),
+    do: :crypto.generate_key(:ecdh, curve, :crypto.hash(:sha256, random_seed))
 
   defp derivate_secrets(dh_key) do
     pseudorandom_key = :crypto.hash(:sha256, dh_key)
