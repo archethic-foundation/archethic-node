@@ -80,6 +80,7 @@ defmodule Archethic.MixProject do
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
       {:doctest_formatter, "~> 0.2.1", runtime: false},
+      {:gnuplot, "~> 1.22", only: :test, runtime: false},
 
       # Security
       {:sobelow, "~> 0.11", runtime: false},
@@ -127,10 +128,11 @@ defmodule Archethic.MixProject do
       {:ex_abi, "0.6.1"},
 
       # Numbering
-      {:nx, "~> 0.5"},
+      {:nx, "~> 0.7"},
       {:exla, "~> 0.5"},
       {:ex_keccak, "0.7.1"},
-      {:ex_secp256k1, "~> 0.7.2"}
+      {:ex_secp256k1, "~> 0.7.2"},
+      {:nimble_csv, "~> 1.1", only: :test, runtime: false}
     ]
   end
 

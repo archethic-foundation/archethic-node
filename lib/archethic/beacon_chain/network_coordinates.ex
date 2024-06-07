@@ -45,53 +45,20 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   - symmetric (for all i and for all j M[i][j] = M[j][i])
   - all off-diagonal elements must be positive (i!=j)
 
-  In physics, the center of mass for a distribution of masses in the space is the unique point where
-  the weighted relative position of the distributed mass sums to zero. Here, the sum of vectors to
-  all nodes from the center of mass is zero (All the nodes being the unit of mass)
+  We use the multidimensional scaling  to transform the matrix into x, y coordinates from matrix factorization using
+  eigenvalues and eigenvectors to find their corresponding coordinates.
 
-  The distance between center of mass and each node is then reduced to this formula using law of cosine
-  and center of mass:
-  `$$ dic^2 =  {1\over n} \sum_{j=1}^{n} dij^2 - {1\over n^2}\sum_{j=2}^{n}\sum_{k=1}^{j-1} djk^2 $$`
-
-  Then using the laws of Cosine, we can compute a gram matrix which would help to plot the nodes in a 2D plan:
-  `$$ gij =  {1\over 2} (dic^2 + djc^2 - dij^2) $$`
-
-  Finally, because the nodes are in a 2D plan, we can factorize the gram matrix to get the eigenvalues and
-  eigenvectors to find their corresponding coordinates
-
-  ### Examples
-
-      iex> NetworkCoordinates.get_patch_from_latencies(
-      ...>   Nx.tensor(
-      ...>     [
-      ...>       [0, 100, 150],
-      ...>       [100, 0, 200],
-      ...>       [150, 200, 0]
-      ...>     ],
-      ...>     names: [:line, :column],
-      ...>     type: {:f, 64}
-      ...>   )
-      ...> )
-      [
-        "28",
-        "48",
-        "F8"
-      ]
+  Then we transform the coordinates into hexadecimal digits
   """
   @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(String.t())
-  def get_patch_from_latencies(matrix) do
+  def get_patch_from_latencies(matrix = %Nx.Tensor{}) do
     if Nx.size(matrix) > 1 do
       start_time = System.monotonic_time()
 
-      formated_matrix =
+      network_patches =
         matrix
-        |> Nx.as_type(:f64)
-        |> Nx.rename([:line, :column])
-
-      center_mass = compute_distance_from_center_mass(formated_matrix)
-      gram_matrix = get_gram_matrix(formated_matrix, center_mass)
-      {x, y} = get_coordinates(gram_matrix)
-      network_patches = get_patch_digits(x, y)
+        |> get_matrix_coordinates()
+        |> get_patch_digits()
 
       :telemetry.execute(
         [:archethic, :beacon_chain, :network_coordinates, :compute_patch],
@@ -107,99 +74,85 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     end
   end
 
-  defp compute_distance_from_center_mass(tensor) do
-    matrix_size = Nx.size(tensor[0])
+  @doc """
+  Computes the matrix coordinates from latency matrix between nodes
 
-    a =
-      tensor
-      |> Nx.pow(2)
-      |> Nx.sum(axes: [:column])
-      |> Nx.multiply(Nx.tensor(1.0 / matrix_size, type: {:f, 64}))
-
-    excluded_first_row_tensor = tensor[1..-1//1]
-
-    b =
-      1..(matrix_size - 1)
-      |> Enum.map(fn i ->
-        excluded_first_row_tensor
-        |> Nx.slice([i - 1, 0], [1, i])
-        |> Nx.pow(2)
-        |> Nx.sum()
-      end)
-      |> Nx.stack()
-      |> Nx.sum()
-      |> Nx.to_number()
-
-    b_prime = Nx.tensor(1.0 / (matrix_size * matrix_size) * b, type: {:f, 64})
-
-    Nx.subtract(a, b_prime)
+  It returns a new matrix will the x, y coordinates of each node's network coordinate
+  """
+  @spec get_matrix_coordinates(Nx.Tensor.t()) :: Nx.Tensor.t()
+  def get_matrix_coordinates(matrix = %Nx.Tensor{}) do
+    matrix
+    |> Nx.as_type(:f64)
+    |> matrix_multidimensional_scaling()
+    |> get_coordinates()
   end
 
-  defp get_gram_matrix(matrix_tensor, center_mass_tensor) do
-    matrix_size = Nx.size(center_mass_tensor)
+  defp matrix_multidimensional_scaling(matrix_tensor) do
+    matrix_size = Nx.size(matrix_tensor[0])
+    d_squared = Nx.pow(matrix_tensor, 2)
+
+    d_mean_squared = Nx.mean(d_squared)
+    # Get the mean of all the rows
+    di_mean = d_squared |> Nx.mean(axes: [1])
+    # Get the mean of all the columns
+    dj_mean = d_squared |> Nx.mean(axes: [0])
 
     Enum.map(0..(matrix_size - 1), fn i ->
-      dic = center_mass_tensor[i]
-
       Enum.map(0..(matrix_size - 1), fn j ->
-        djc = center_mass_tensor[j]
-        dij = matrix_tensor[i][j]
+        dij_squared = d_squared[i][j]
+        # Square the column's mean at i
+        di_mean_squared = di_mean[i]
+        # Square the row's mean at j
+        dj_mean_squared = dj_mean[j]
 
-        dic
-        |> Nx.pow(2)
-        |> Nx.add(Nx.pow(djc, 2))
-        |> Nx.subtract(Nx.pow(dij, 2))
-        |> Nx.multiply(Nx.tensor(0.5, type: {:f, 64}))
+        dij_squared
+        |> Nx.subtract(di_mean_squared)
+        |> Nx.subtract(dj_mean_squared)
+        |> Nx.add(d_mean_squared)
+        |> Nx.multiply(Nx.tensor(-0.5, type: {:f, 64}))
       end)
       |> Nx.stack()
     end)
     |> Nx.stack()
   end
 
-  defp get_coordinates(gram_matrix) do
-    matrix_size = Nx.size(gram_matrix[0])
-    {eigen_values, eigen_vectors} = Nx.LinAlg.eigh(gram_matrix)
+  defp get_coordinates(mds_matrix) do
+    {eigen_values, eigen_vectors} = Nx.LinAlg.eigh(mds_matrix)
 
-    [{e1, i1}, {e2, i2}] =
+    sorted_eigen_values =
       eigen_values
-      |> Nx.to_flat_list()
+      |> Nx.to_list()
       |> Enum.with_index()
-      |> Enum.sort_by(fn {i, _} -> i end, :desc)
+      |> Enum.sort_by(fn {val, _} -> val end, :desc)
+
+    top_eigen_values =
+      sorted_eigen_values
       |> Enum.take(2)
+      |> Enum.map(fn {val, _} -> val end)
+      |> Nx.tensor()
+      |> Nx.sqrt()
 
-    eigen_value1 = e1 |> Nx.sqrt()
-    eigen_value2 = e2 |> Nx.sqrt()
+    indexes = Enum.map(sorted_eigen_values, fn {_, index} -> index end)
 
-    eigen_vector1 = eigen_vectors[i1]
-    eigen_vector2 = eigen_vectors[i2]
+    top_eigen_vectors =
+      eigen_vectors
+      |> Nx.to_list()
+      |> Enum.map(fn row ->
+        # Take in the same order as eigen values
+        indexes
+        |> Enum.take(2)
+        |> Enum.map(&Enum.at(row, &1))
+      end)
+      |> Nx.tensor()
 
-    %{x: x, y: y} =
-      Enum.reduce(
-        0..(matrix_size - 1),
-        %{x: Nx.broadcast(0, {matrix_size}), y: Nx.broadcast(0, {matrix_size})},
-        fn i, acc ->
-          acc
-          |> Map.update!(:x, fn x ->
-            Nx.indexed_add(
-              x,
-              Nx.tensor([[i]]),
-              Nx.multiply(eigen_vector1[i], eigen_value1) |> Nx.reshape({1})
-            )
-          end)
-          |> Map.update!(:y, fn y ->
-            Nx.indexed_add(
-              y,
-              Nx.tensor([[i]]),
-              Nx.multiply(eigen_vector2[i], eigen_value2) |> Nx.reshape({1})
-            )
-          end)
-        end
-      )
-
-    {x, y}
+    Nx.multiply(top_eigen_vectors, top_eigen_values)
   end
 
-  defp get_patch_digits(x, y) do
+  defp get_patch_digits(coordinates_matrix) do
+    transposed_matrix = Nx.transpose(coordinates_matrix)
+    x = transposed_matrix[0]
+    y = transposed_matrix[1]
+
     max = Nx.max(Nx.abs(x), Nx.abs(y)) |> Nx.to_flat_list() |> Enum.max()
 
     v = 2.0 * max / 16.0
