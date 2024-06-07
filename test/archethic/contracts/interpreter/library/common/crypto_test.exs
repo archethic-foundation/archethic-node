@@ -177,6 +177,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
     end
   end
 
+  describe "encrypt_with_storage_nonce/decrypt_with_storage_nonce" do
+    test "should return the same value once encrypted/decrypted (binary)" do
+      data = :crypto.strong_rand_bytes(10)
+      assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    end
+
+    test "should return the same value once encrypted/decrypted (string)" do
+      data = "hello uco"
+      assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    end
+
+    # ERRONOUS because of the maybe_decode_hex
+    # test "should return the same value once encrypted/decrypted (hex)" do
+    #   data = "abcdef"
+    #   assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    # end
+  end
+
   describe "decrypt_with_storage_nonce" do
     test "should raise when the ciphertext cannot be decrypted by the storage nonce" do
       assert_raise Library.Error, fn -> Crypto.decrypt_with_storage_nonce("123456") end

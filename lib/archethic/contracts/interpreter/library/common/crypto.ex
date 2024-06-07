@@ -110,6 +110,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
     end
   end
 
+  @spec encrypt_with_storage_nonce(data :: binary()) :: binary()
+  def encrypt_with_storage_nonce(data) do
+    data
+    |> UtilsInterpreter.maybe_decode_hex()
+    |> Crypto.ec_encrypt_with_storage_nonce()
+  end
+
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:hash, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
@@ -139,6 +146,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
   end
 
   def check_types(:decrypt_with_storage_nonce, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:encrypt_with_storage_nonce, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
