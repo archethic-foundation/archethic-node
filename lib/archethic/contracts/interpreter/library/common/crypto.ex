@@ -110,6 +110,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
     end
   end
 
+  @doc """
+  This function uses the process dictionnary to have a fixed entropy.
+  This is required because the ec_encrypt would not be determinist without it.
+
+  Caller is supposed to pass the hash(contract_tx.private_key)
+  """
+  @spec encrypt(data :: binary(), public_key :: binary()) :: binary()
+  def encrypt(data, public_key) do
+    data = UtilsInterpreter.maybe_decode_hex(data)
+    public_key = UtilsInterpreter.maybe_decode_hex(public_key)
+
+    Archethic.Crypto.ec_encrypt(
+      data,
+      public_key,
+      :crypto.hash(:sha256, Process.get(:ephemeral_entropy_priv_key))
+    )
+  end
+
   @spec encrypt_with_storage_nonce(data :: binary()) :: binary()
   def encrypt_with_storage_nonce(data) do
     data
@@ -147,6 +165,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
 
   def check_types(:decrypt_with_storage_nonce, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:encrypt, [first, second]) do
+    (AST.is_binary?(first) || AST.is_variable_or_function_call?(first)) &&
+      (AST.is_binary?(second) || AST.is_variable_or_function_call?(second))
   end
 
   def check_types(:encrypt_with_storage_nonce, [first]) do
