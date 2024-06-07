@@ -15,13 +15,13 @@ defmodule CryptoTest do
   doctest Crypto
 
   test "giving a seed always result in the same result" do
-    random_seed = :crypto.strong_rand_bytes(32)
+    ephemeral_entropy_priv_key = :crypto.strong_rand_bytes(32)
     {pub, _} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
 
     assert Crypto.ec_encrypt("msg", pub) != Crypto.ec_encrypt("msg", pub)
 
-    assert Crypto.ec_encrypt("msg", pub, random_seed) ==
-             Crypto.ec_encrypt("msg", pub, random_seed)
+    assert Crypto.ec_encrypt("msg", pub, ephemeral_entropy_priv_key) ==
+             Crypto.ec_encrypt("msg", pub, ephemeral_entropy_priv_key)
   end
 
   property "symmetric aes encryption and decryption" do
@@ -45,14 +45,14 @@ defmodule CryptoTest do
     end
   end
 
-  property "symmetric EC encryption and decryption with ECDSA (with fixed random_seed)" do
+  property "symmetric EC encryption and decryption with ECDSA (with fixed ephemeral_entropy_priv_key)" do
     check all(
             seed <- StreamData.binary(length: 32),
             data <- StreamData.binary(min_length: 1),
-            random_seed <- StreamData.binary(length: 32)
+            ephemeral_entropy_priv_key <- StreamData.binary(length: 32)
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(seed, :secp256r1)
-      cipher = Crypto.ec_encrypt(data, pub, random_seed)
+      cipher = Crypto.ec_encrypt(data, pub, :crypto.hash(:sha256, ephemeral_entropy_priv_key))
       is_binary(cipher) and data == Crypto.ec_decrypt!(cipher, pv)
     end
   end
@@ -68,14 +68,14 @@ defmodule CryptoTest do
     end
   end
 
-  property "symmetric EC encryption and decryption with Ed25519 (with fixed random_seed)" do
+  property "symmetric EC encryption and decryption with Ed25519 (with fixed ephemeral_entropy_priv_key)" do
     check all(
             seed <- StreamData.binary(length: 32),
             data <- StreamData.binary(min_length: 1),
-            random_seed <- StreamData.binary(length: 32)
+            ephemeral_entropy_priv_key <- StreamData.binary(length: 32)
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(seed, :ed25519)
-      cipher = Crypto.ec_encrypt(data, pub, random_seed)
+      cipher = Crypto.ec_encrypt(data, pub, :crypto.hash(:sha256, ephemeral_entropy_priv_key))
       is_binary(cipher) and data == Crypto.ec_decrypt!(cipher, pv)
     end
   end
