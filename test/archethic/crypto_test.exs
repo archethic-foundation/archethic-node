@@ -14,6 +14,16 @@ defmodule CryptoTest do
 
   doctest Crypto
 
+  setup_all do
+    MockCrypto.SharedSecretsKeystore
+    |> stub(:get_storage_nonce, fn ->
+      {_, pv} = Crypto.generate_deterministic_keypair("nonce")
+      pv
+    end)
+
+    :ok
+  end
+
   test "giving a seed always result in the same result" do
     ephemeral_entropy_priv_key = :crypto.strong_rand_bytes(32)
     {pub, _} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
@@ -42,6 +52,14 @@ defmodule CryptoTest do
       {pub, pv} = Crypto.generate_deterministic_keypair(seed, :secp256r1)
       cipher = Crypto.ec_encrypt(data, pub)
       is_binary(cipher) and data == Crypto.ec_decrypt!(cipher, pv)
+    end
+  end
+
+  property "symmetric EC encryption and decryption with storage nonce" do
+    check all(data <- StreamData.binary(min_length: 1)) do
+      cipher = Crypto.ec_encrypt_with_storage_nonce(data)
+      assert is_binary(cipher)
+      assert {:ok, ^data} = Crypto.ec_decrypt_with_storage_nonce(cipher)
     end
   end
 

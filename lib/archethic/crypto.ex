@@ -328,6 +328,17 @@ defmodule Archethic.Crypto do
   end
 
   @doc """
+  Encrypt given data with the storage nonce public key.
+
+  More details at `ec_encrypt/3`
+  """
+  @spec ec_encrypt_with_storage_nonce(iodata()) :: binary()
+  def ec_encrypt_with_storage_nonce(data, ephemeral_entropy_priv_key \\ nil)
+      when is_bitstring(data) or is_list(data) do
+    ec_encrypt(data, storage_nonce_public_key(), ephemeral_entropy_priv_key)
+  end
+
+  @doc """
   Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES).
 
   More details at `ec_decrypt/2`
