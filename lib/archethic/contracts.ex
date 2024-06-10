@@ -560,26 +560,31 @@ defmodule Archethic.Contracts do
   end
 
   defp cache_interpreter_execute(fun, key, opts) do
-    if Keyword.get(opts, :cache?) do
-      timeout = Keyword.get(opts, :timeout, 5_000)
+    func = fn ->
+      try do
+        fun.()
+      rescue
+        err ->
+          # error or throw from the user's code (ex: 1 + "abc")
+          {:error, err, __STACKTRACE__}
+      end
+    end
 
-      func = fn ->
-        try do
-          fun.()
-        rescue
-          err ->
-            # error from the code (ex: 1 + "abc")
-            {:error, err, __STACKTRACE__}
-        end
+    result =
+      if Keyword.fetch!(opts, :cache?) do
+        # We set the maximum timeout for a transaction to be processed before the kill the cache
+        Utils.JobCache.get!(key,
+          function: func,
+          timeout: Keyword.get(opts, :timeout, 5_000),
+          ttl: 60_000
+        )
+      else
+        func.()
       end
 
-      # We set the maximum timeout for a transaction to be processed before the kill the cache
-      case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
-        {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
-        result -> result
-      end
-    else
-      fun.()
+    case result do
+      {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
+      result -> result
     end
   rescue
     _ ->

@@ -293,7 +293,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction()
 
-      assert {:error, %Failure{}} =
+      assert {:error, %Failure{user_friendly_error: "bad argument in arithmetic expression - L3"}} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -301,6 +301,55 @@ defmodule Archethic.ContractsTest do
                  nil,
                  DateTime.utc_now(),
                  []
+               )
+
+      assert {:error, %Failure{user_friendly_error: "bad argument in arithmetic expression - L3"}} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 [],
+                 cache?: false
+               )
+    end
+
+    test "should return Error if condition throws" do
+      code = """
+        @version 1
+        condition triggered_by: transaction do
+          throw code: 12, message: "oh no"
+        end
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      trigger_tx = TransactionFactory.create_valid_transaction()
+
+      assert {:error, %Failure{user_friendly_error: "oh no - L3"}} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 []
+               )
+
+      assert {:error, %Failure{user_friendly_error: "oh no - L3"}} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 [],
+                 cache?: false
                )
     end
 
@@ -600,6 +649,39 @@ defmodule Archethic.ContractsTest do
                  incoming_tx,
                  nil,
                  []
+               )
+    end
+
+    test "should return the proper error when there is a throw" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          throw code: 1, message: "nope"
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction()
+
+      assert {:error, %Failure{user_friendly_error: "nope - L4"}} =
+               Contracts.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 []
+               )
+
+      assert {:error, %Failure{user_friendly_error: "nope - L4"}} =
+               Contracts.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 [],
+                 cache?: false
                )
     end
 
