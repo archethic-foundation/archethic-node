@@ -18,7 +18,8 @@ defmodule Archethic.Telemetry do
 
   defp periodic_metrics do
     [
-      {Archethic.Contracts, :maximum_calls_in_queue, []}
+      {Archethic.Contracts, :maximum_calls_in_queue, []},
+      {Archethic.P2P, :nodes_connected_count, []}
     ]
   end
 
@@ -108,6 +109,7 @@ defmodule Archethic.Telemetry do
           buckets: [500, 700, 1000, 1500, 2000, 3000, 5000, 10000]
         ]
       ),
+      last_value("archethic.p2p.nodes_connected"),
       distribution("archethic.p2p.send_message.duration",
         unit: {:native, :millisecond},
         measurement: :duration,
