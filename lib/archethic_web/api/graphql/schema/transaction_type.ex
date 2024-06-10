@@ -4,6 +4,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   use Absinthe.Schema.Notation
 
   alias ArchethicWeb.API.GraphQL.Schema.Resolver
+  alias Archethic.Contracts.Contract.State
 
   alias Archethic.TransactionChain.Transaction
 
@@ -209,7 +210,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     [State] represents the smart contract state
   """
   scalar :state do
-    serialize(& &1)
+    serialize(&State.to_json/1)
   end
 
   @desc """

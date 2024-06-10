@@ -14,6 +14,14 @@ defmodule Archethic.Contracts.Contract.StateTest do
     end
   end
 
+  describe "format/1" do
+    test "should return a valid JSON prettified" do
+      state = complex_state()
+
+      assert {:ok, _} = State.format(state) |> Jason.decode()
+    end
+  end
+
   defp complex_state() do
     %{
       "foo" => "bar",

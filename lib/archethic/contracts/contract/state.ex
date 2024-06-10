@@ -29,4 +29,39 @@ defmodule Archethic.Contracts.Contract.State do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bitsting), do: TypedEncoding.deserialize(bitsting, :compact)
+
+  @doc """
+  Return a valid JSON of the given state
+  Handles the fact that keys can be non-string
+  """
+  @spec to_json(state :: t()) :: map()
+  def to_json(state) do
+    serialize_map_keys(state)
+  end
+
+  @doc """
+  Returns the state as a prettified JSON
+  Handles the fact that keys can be non-string
+  """
+  @spec format(state :: t()) :: String.t()
+  def format(state) do
+    Jason.encode!(to_json(state), pretty: true)
+  end
+
+  defp serialize_map_keys(map) when is_map(map) do
+    map
+    |> Enum.reduce(%{}, fn
+      {k, v}, acc when is_binary(k) ->
+        Map.put(acc, k, serialize_map_keys(v))
+
+      {k, v}, acc ->
+        Map.put(acc, Jason.encode!(k), serialize_map_keys(v))
+    end)
+  end
+
+  defp serialize_map_keys(list) when is_list(list) do
+    Enum.map(list, &serialize_map_keys/1)
+  end
+
+  defp serialize_map_keys(term), do: term
 end
