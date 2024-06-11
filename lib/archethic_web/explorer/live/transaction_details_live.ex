@@ -332,7 +332,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   def print_state(%UnspentOutput{encoded_payload: encoded_state}) do
-    encoded_state |> State.deserialize() |> elem(0) |> Jason.encode!(pretty: true)
+    encoded_state |> State.deserialize() |> elem(0) |> State.format()
   end
 
   defp similar?(
