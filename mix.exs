@@ -70,8 +70,8 @@ defmodule Archethic.MixProject do
 
       # Dev
       {:benchee, "~> 1.1"},
-      {:benchee_html, "~> 1.0", only: :dev},
-      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
+      {:benchee_html, "~> 1.0"},
+      {:ex_doc, "~> 0.29", runtime: false},
       {:git_hooks, "~> 0.7", runtime: false},
       {:credo, "~> 1.6", runtime: false},
       {:elixir_make, "~> 0.6", runtime: false},
@@ -80,6 +80,7 @@ defmodule Archethic.MixProject do
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
       {:doctest_formatter, "~> 0.2.1", runtime: false},
+      {:gnuplot, "~> 1.22", only: :test, runtime: false},
 
       # Security
       {:sobelow, "~> 0.11", runtime: false},
@@ -130,7 +131,8 @@ defmodule Archethic.MixProject do
       {:nx, "~> 0.5"},
       {:exla, "~> 0.5"},
       {:ex_keccak, "0.7.1"},
-      {:ex_secp256k1, "~> 0.7.2"}
+      {:ex_secp256k1, "~> 0.7.2"},
+      {:nimble_csv, "~> 1.1", only: :test, runtime: false}
     ]
   end
 
