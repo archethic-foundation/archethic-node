@@ -3,6 +3,8 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Helper functions to manipulate AST
   """
 
+  alias Archethic.Utils
+
   @doc """
   Return wether the given ast is a keyword list.
   Remember that we convert all keywords to maps in the prewalk.
@@ -62,20 +64,58 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_map?(_), do: false
 
   @doc """
-  Return wether the given ast is an integer
+  Return wether the given ast is a number
+  Every numbers are automatically converted to Decimal in the tokenization
 
-    iex> ast = quote do: 1
+    iex> ast = quote do: Decimal.new(1)
     ...> ASTHelper.is_number?(ast)
     true
 
-    iex> ast = quote do: 1.01
+    iex> ast = quote do: Decimal.new("1.01")
     ...> ASTHelper.is_number?(ast)
     true
+
+    iex> ast = quote do: 100_012_030
+    ...> ASTHelper.is_number?(ast)
+    true
+
+    iex> ast = quote do: []
+    ...> ASTHelper.is_number?(ast)
+    false
   """
   @spec is_number?(Macro.t()) :: boolean()
-  def is_number?(node) do
-    is_integer(node) || is_float(node)
+  def is_number?(num) when is_integer(num), do: true
+
+  def is_number?({{:., _, [{:__aliases__, _, [:Decimal]}, :new]}, _, [_]}) do
+    true
   end
+
+  def is_number?({:try, _, [[do: {_, _, [op, _, _]}, rescue: _]]}) when op in [:+, :-, :/, :*] do
+    true
+  end
+
+  def is_number?(_), do: false
+
+  @doc """
+  Extract the value of a Decimal.new()
+
+  Used when we pattern match @version and action/condition's datetime
+  """
+  @spec decimal_to_integer(Macro.t()) :: integer() | :error
+  def decimal_to_integer({{:., _, [{:__aliases__, _, [:Decimal]}, :new]}, _, [value]})
+      when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _ -> :error
+    end
+  end
+
+  def decimal_to_integer({{:., _, [{:__aliases__, _, [:Decimal]}, :new]}, _, [value]})
+      when is_integer(value) do
+    value
+  end
+
+  def decimal_to_integer(_), do: :error
 
   @doc ~S"""
   Return wether the given ast is an binary
@@ -113,7 +153,9 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   """
   @spec is_variable_or_function_call?(Macro.t()) :: boolean()
   def is_variable_or_function_call?(ast) do
-    is_variable?(ast) || is_function_call?(ast) || is_block?(ast)
+    # because numbers are Decimal struct, we need to exclude it
+    # (because it would be the same as is_function_call?)
+    not is_number?(ast) && (is_variable?(ast) || is_function_call?(ast) || is_block?(ast))
   end
 
   @doc """
@@ -206,22 +248,27 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
 
   ## Example
 
-    iex> ASTHelper.decimal_arithmetic(:+, 1, 2)
-    3
+    iex> ASTHelper.decimal_arithmetic(:+, Decimal.new(1), Decimal.new(2))
+    ...> |> Decimal.eq?(Decimal.new(3)
+    true
 
-    iex> ASTHelper.decimal_arithmetic(:+, 1.0, 2)
-    3.0
+    iex> ASTHelper.decimal_arithmetic(:+, Decimal.new("1.0"), Decimal.new(2))
+    ...> |> Decimal.eq?(Decimal.new(3)
+    true
 
-    iex> ASTHelper.decimal_arithmetic(:+, 1, 2.2)
-    3.2
+    iex> ASTHelper.decimal_arithmetic(:+, Decimal.new(1), Decimal.new("2.2"))
+    ...> |> Decimal.eq?(Decimal.new("3.2")
+    true
 
-    iex> ASTHelper.decimal_arithmetic(:/, 1, 2)
-    0.5
+    iex> ASTHelper.decimal_arithmetic(:/, Decimal.new(1), Decimal.new(2))
+    ...> |> Decimal.eq?(Decimal.new("0.5")
+    true
 
-    iex> ASTHelper.decimal_arithmetic(:*, 3, 4)
-    12
+    iex> ASTHelper.decimal_arithmetic(:*, Decimal.new(3), Decimal.new(4))
+    ...> |> Decimal.eq?(Decimal.new(12)
+    true
   """
-  @spec decimal_arithmetic(Macro.t(), number(), number()) :: float()
+  @spec decimal_arithmetic(Macro.t(), Decimal.t(), Decimal.t()) :: Decimal.t()
   def decimal_arithmetic(ast, lhs, rhs) do
     operation =
       case ast do
@@ -231,22 +278,9 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
         :- -> &Decimal.sub/2
       end
 
-    # If both operand are integer we return an integer if possible
-    # otherwise a float is returned
-
-    if is_integer(lhs) and is_integer(rhs) do
-      lhs = Decimal.new(lhs)
-      rhs = Decimal.new(rhs)
-
-      res = operation.(lhs, rhs) |> decimal_round()
-      if Decimal.integer?(res), do: Decimal.to_integer(res), else: Decimal.to_float(res)
-    else
-      # the `0.0 + x` is used to cast integers to floats
-      lhs = Decimal.from_float(0.0 + lhs)
-      rhs = Decimal.from_float(0.0 + rhs)
-
-      operation.(lhs, rhs) |> decimal_round() |> Decimal.to_float()
-    end
+    operation.(lhs, rhs)
+    |> decimal_round()
+    |> Utils.maybe_decimal_to_integer()
   end
 
   defp decimal_round(dec_num) do

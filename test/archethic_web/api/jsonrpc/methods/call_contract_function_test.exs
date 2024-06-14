@@ -280,7 +280,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         resolve_last: false
       }
 
-      assert {:ok, 21.0} == CallContractFunction.execute(params)
+      assert {:ok, r} = CallContractFunction.execute(params)
+      assert Decimal.eq?(r, 21)
     end
 
     test "should not be able to call a public function from a public function" do

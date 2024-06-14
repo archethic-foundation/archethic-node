@@ -1203,6 +1203,17 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                sanitize_parse_execute(code)
     end
 
+    test "floats are precise" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        Contract.set_content 67494440.78702811
+      end
+      """
+
+      assert {%Transaction{data: %TransactionData{content: "67494440.78702811"}}, _state} =
+               sanitize_parse_execute(code)
+    end
+
     test "maths are OK" do
       code = ~s"""
       actions triggered_by: transaction do

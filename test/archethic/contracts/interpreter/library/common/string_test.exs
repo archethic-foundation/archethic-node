@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
     end
 
     test "should parse float" do
-      assert String.to_number("14.1") == 14.1
+      assert String.to_number("14.1") == Decimal.new("14.1")
     end
 
     test "should return nil if not a number" do
@@ -47,14 +47,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
   describe "from_number/1" do
     test "should convert int" do
       assert String.from_number(14) == "14"
+      assert Decimal.new("14") |> String.from_number() == "14"
     end
 
     test "should convert float" do
-      assert String.from_number(14.1) == "14.1"
+      assert Decimal.new("14.1") |> String.from_number() == "14.1"
     end
 
     test "should display float as int if possible" do
-      assert String.from_number(14.0) == "14"
+      assert Decimal.new("14.0") |> String.from_number() == "14"
     end
   end
 

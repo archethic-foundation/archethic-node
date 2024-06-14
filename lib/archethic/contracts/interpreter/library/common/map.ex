@@ -17,7 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Map do
   defdelegate values(map), to: Map
 
   @spec size(map()) :: integer()
-  def size(map), do: map_size(map)
+  defdelegate size(map), to: Kernel, as: :map_size
 
   @spec get(map(), binary(), any()) :: any()
   defdelegate get(map, key, default \\ nil), to: Map

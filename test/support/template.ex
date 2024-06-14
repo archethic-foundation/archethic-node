@@ -301,7 +301,7 @@ defmodule ArchethicCase do
   end
 
   def sanitize_parse_execute(code, constants \\ %{}, functions \\ []) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
+    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code, check_legacy?: false),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code, functions) do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 

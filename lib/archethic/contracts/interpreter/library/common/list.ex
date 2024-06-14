@@ -2,19 +2,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  require Decimal
   alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
   use Tag
 
-  @spec at(list(), integer() | float()) :: any()
+  @spec at(list(), integer() | Decimal.t()) :: any()
   def at(list, idx) do
     cond do
       is_integer(idx) ->
         Enum.at(list, idx)
 
-      is_float(idx) && trunc(idx) == idx ->
-        Enum.at(list, trunc(idx))
+      Decimal.is_decimal(idx) && Decimal.integer?(idx) ->
+        Enum.at(list, Decimal.to_integer(idx))
 
       true ->
         raise %FunctionClauseError{

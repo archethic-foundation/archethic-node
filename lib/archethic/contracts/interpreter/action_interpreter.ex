@@ -114,7 +114,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
            {{:atom, "at"}, timestamp}
          ]
        )
-       when is_number(timestamp) do
+       when is_integer(timestamp) do
     case rem(timestamp, 60) do
       0 ->
         datetime = DateTime.from_unix!(timestamp)

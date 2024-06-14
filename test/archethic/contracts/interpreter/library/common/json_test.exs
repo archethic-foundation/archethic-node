@@ -19,11 +19,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
     test "should work with float" do
       code = ~S"""
       actions triggered_by: transaction do
+        Contract.set_content Json.to_string(0.1)
+      end
+      """
+
+      assert {%Transaction{data: %TransactionData{content: "0.1"}}, _state} =
+               sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
         Contract.set_content Json.to_string(1.0)
       end
       """
 
-      assert {%Transaction{data: %TransactionData{content: "1.0"}}, _state} =
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -127,6 +136,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       """
 
       assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
+    end
+
+    test "should work with floats" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        x = Json.parse("{ \"f\": 42.1}")
+        Contract.set_content x.f
+      end
+      """
+
+      assert {%Transaction{data: %TransactionData{content: "42.1"}}, _state} =
                sanitize_parse_execute(code)
     end
 

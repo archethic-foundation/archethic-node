@@ -10,9 +10,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
 
   @one Decimal.new(1)
 
-  @spec trunc(num :: number()) :: integer()
+  @spec trunc(num :: integer() | Decimal.t()) :: integer()
   def trunc(num) when is_integer(num), do: num
-  def trunc(num) when is_float(num), do: Kernel.trunc(num)
+  def trunc(num = %Decimal{}), do: Decimal.round(num) |> Decimal.to_integer()
 
   @doc """
   ##  Example

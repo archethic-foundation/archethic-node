@@ -65,13 +65,16 @@ defmodule Archethic.Contracts.Interpreter do
   @spec sanitize_code(binary(), list()) :: {:ok, Macro.t()} | {:error, any()}
   def sanitize_code(code, opts \\ []) when is_binary(code) do
     ignore_meta? = Keyword.get(opts, :ignore_meta?, false)
+    check_legacy? = Keyword.get(opts, :check_legacy?, true)
 
     opts = [static_atoms_encoder: &atom_encoder/2]
     charlist_code = code |> String.to_charlist()
 
     case :elixir.string_to_tokens(charlist_code, 1, 1, "nofile", opts) do
       {:ok, tokens} ->
-        transform_tokens(tokens, ignore_meta?) |> :elixir.tokens_to_quoted("nofile", opts)
+        tokens
+        |> transform_tokens(ignore_meta?, check_legacy? && legacy?(tokens))
+        |> :elixir.tokens_to_quoted("nofile", opts)
 
       error ->
         error
@@ -80,23 +83,46 @@ defmodule Archethic.Contracts.Interpreter do
     _ -> {:error, :invalid_syntax}
   end
 
-  defp transform_tokens(tokens, ignore_meta?) do
+  defp transform_tokens(tokens, _ignore_meta?, true), do: tokens
+
+  defp transform_tokens(tokens, ignore_meta?, false) do
     Enum.map(tokens, fn
       # Transform 0x to hex
       {:int, {line, column, _}, [?0, ?x | hex]} ->
         string_hex = hex |> List.to_string() |> String.upcase()
         meta = if ignore_meta?, do: {0, 0, nil}, else: {line, column, nil}
 
-        {:bin_string, meta, [string_hex]}
+        [{:bin_string, meta, [string_hex]}]
+
+      # Transform floats to decimal (we use the string representation, not the imprecise float)
+      {:flt, {line, column, _}, charlist} ->
+        {line, column} =
+          if ignore_meta? do
+            {0, 0}
+          else
+            {line, column}
+          end
+
+        {:ok, replacement_tokens} =
+          :elixir.string_to_tokens(
+            'Decimal.new("#{charlist}")',
+            line,
+            column,
+            "nofile",
+            []
+          )
+
+        replacement_tokens
 
       token ->
         if ignore_meta? do
           {_line, _colum, last} = elem(token, 1)
-          token |> Tuple.delete_at(1) |> Tuple.insert_at(1, {0, 0, last})
+          [token |> Tuple.delete_at(1) |> Tuple.insert_at(1, {0, 0, last})]
         else
-          token
+          [token]
         end
     end)
+    |> List.flatten()
   end
 
   @doc """
@@ -500,5 +526,17 @@ defmodule Archethic.Contracts.Interpreter do
         {:error, "missing 'condition triggered_by: transaction, on: #{action}/#{arity}' block"}
       end
     end
+  end
+
+  defp legacy?(tokens) do
+    # if it starts with an @ it's not a legacy contract
+    # eol = end of line
+    Enum.reduce_while(tokens, true, fn token, acc ->
+      case elem(token, 0) do
+        :eol -> {:cont, acc}
+        :at_op -> {:halt, false}
+        _ -> {:halt, true}
+      end
+    end)
   end
 end
