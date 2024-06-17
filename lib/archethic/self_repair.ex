@@ -55,7 +55,11 @@ defmodule Archethic.SelfRepair do
   @spec bootstrap_sync(download_nodes :: list(Node.t())) ::
           :ok | :error
   def bootstrap_sync(download_nodes) do
-    case sync_with_retry(download_nodes) do
+    sync_fn = fn ->
+      :ok = Sync.load_missed_transactions(last_sync_date(), download_nodes)
+    end
+
+    case sync_with_retry(sync_fn) do
       :ok ->
         # At the end of self repair, if a new beacon summary as been created
         # we run bootstrap_sync again until the last beacon summary is loaded
@@ -80,21 +84,21 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  defp sync_with_retry(download_nodes) do
+  defp sync_with_retry(sync_fn) do
     0..@max_retry_count
     |> Enum.reduce_while(:error, fn _, _ ->
       try do
         Process.flag(:trap_exit, true)
-        :ok = last_sync_date() |> Sync.load_missed_transactions(download_nodes)
-        {:halt, :ok}
+        res = sync_fn.()
+        {:halt, res}
       rescue
         error ->
-          Logger.error("Error during bootstrap self repair")
+          Logger.error("Error during self repair")
           Logger.error(Exception.format(:error, error, __STACKTRACE__))
           {:cont, :error}
       catch
         :exit, error ->
-          Logger.error("Error during bootstrap self repair")
+          Logger.error("Error during self repair")
           Logger.error(Exception.format(:error, error, __STACKTRACE__))
           {:cont, :error}
       end
@@ -321,8 +325,12 @@ defmodule Archethic.SelfRepair do
   """
   @spec synchronize_current_summary() :: integer()
   def synchronize_current_summary() do
-    BeaconChain.fetch_current_summary_replication_attestations()
-    |> Enum.to_list()
-    |> Sync.process_replication_attestations(P2P.authorized_and_available_nodes())
+    sync_fn = fn ->
+      BeaconChain.fetch_current_summary_replication_attestations()
+      |> Enum.to_list()
+      |> Sync.process_replication_attestations(P2P.authorized_and_available_nodes())
+    end
+
+    sync_with_retry(sync_fn)
   end
 end
