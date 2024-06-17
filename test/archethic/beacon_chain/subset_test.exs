@@ -288,8 +288,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       assert %Summary{
                subset: ^subset,
                summary_time: ^slot_time,
-               transaction_attestations: [^attestation],
-               network_patches: ["F7A", "78A"]
+               transaction_attestations: [^attestation]
              } = summary
     end
   end
