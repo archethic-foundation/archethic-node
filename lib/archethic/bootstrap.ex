@@ -24,7 +24,7 @@ defmodule Archethic.Bootstrap do
 
   require Logger
 
-  use Task
+  use Task, restart: :transient
 
   @doc """
   Start the bootstrapping as a task
