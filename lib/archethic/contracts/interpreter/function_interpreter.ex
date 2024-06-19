@@ -56,6 +56,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_values :: list()) ::
           result :: any()
   def execute(ast, constants, args_names \\ [], args_values \\ []) do
+    # we need to have a big precision to avoid rounding issue
+    Decimal.Context.set(%Decimal.Context{Decimal.Context.get() | rounding: :floor, precision: 100})
+
     Scope.execute(ast, constants, args_names, args_values)
   end
 

@@ -16,11 +16,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   @spec execute_condition(Macro.t() | ConditionsSubjects.t(), map()) ::
           {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
   def execute_condition(subjects = %ConditionsSubjects{}, constants = %{}) do
+    # we need to have a big precision to avoid rounding issue
+    Decimal.Context.set(%Decimal.Context{Decimal.Context.get() | rounding: :floor, precision: 100})
+
     # condition triggered_by: <trigger>, as: [ <field>: <expr> ]
     execute_condition_subjects(subjects, constants)
   end
 
   def execute_condition(ast, constants = %{}) do
+    # we need to have a big precision to avoid rounding issue
+    Decimal.Context.set(%Decimal.Context{Decimal.Context.get() | rounding: :floor, precision: 100})
+
     # condition triggered_by: <trigger> do <expr> end
     execute_condition_block(ast, constants)
   end

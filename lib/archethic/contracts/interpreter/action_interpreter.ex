@@ -48,6 +48,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   def execute(ast, constants, %Transaction{data: %TransactionData{code: code}}) do
     :ok = Macro.validate(ast)
 
+    # we need to have a big precision to avoid rounding issue
+    Decimal.Context.set(%Decimal.Context{Decimal.Context.get() | rounding: :floor, precision: 100})
+
     # initiate a transaction that will be used by the "Contract" module
     initial_next_tx = %Transaction{type: :contract, data: %TransactionData{code: code}}
 
