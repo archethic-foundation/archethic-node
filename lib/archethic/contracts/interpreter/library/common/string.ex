@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
 
   alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Utils
 
   use Tag
 
@@ -38,34 +39,26 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
     to: String,
     as: :downcase
 
-  @spec to_number(String.t()) :: integer() | float() | nil
+  @spec to_number(String.t()) :: integer() | Decimal.t() | nil
   def to_number(string) do
     try do
-      String.to_integer(string)
+      string
+      |> Decimal.new()
+      |> Utils.maybe_decimal_to_integer()
     rescue
-      _ ->
-        try do
-          String.to_float(string)
-        rescue
-          _ ->
-            nil
-        end
+      _ -> nil
     end
   end
 
-  @spec from_number(integer() | float()) :: String.t()
-  def from_number(int) when is_integer(int) do
-    Integer.to_string(int)
-  end
+  @spec from_number(integer() | Decimal.t()) :: String.t()
+  def from_number(num) when is_integer(num), do: Integer.to_string(num)
 
-  def from_number(float) when is_float(float) do
-    truncated = trunc(float)
-
-    # we display as an int if there is no decimals
-    if truncated == float do
-      Integer.to_string(truncated)
+  def from_number(num = %Decimal{}) do
+    if Decimal.integer?(num) do
+      # we display as an int if there is no decimals
+      num |> Decimal.to_integer() |> Integer.to_string()
     else
-      Float.to_string(float)
+      num |> Decimal.to_string()
     end
   end
 

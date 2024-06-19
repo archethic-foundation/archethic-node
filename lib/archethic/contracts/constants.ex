@@ -17,11 +17,10 @@ defmodule Archethic.Contracts.Constants do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.UTXO
-
   alias Archethic.Utils
+  alias Archethic.UTXO
 
   @doc """
   Same as from_transaction but remove the contract_seed from ownerships
@@ -149,35 +148,38 @@ defmodule Archethic.Contracts.Constants do
         end
     }
 
-    if contract_version == 0, do: map, else: cast_transaction_amount_to_float(map)
+    if contract_version == 0, do: map, else: cast_amounts_to_decimals(map)
   end
 
-  defp cast_transaction_amount_to_float(transaction) do
+  defp cast_amounts_to_decimals(transaction) do
     transaction
-    |> Map.update!("uco_transfers", &cast_uco_movements_to_float/1)
-    |> Map.update!("uco_movements", &cast_uco_movements_to_float/1)
-    |> Map.update!("token_transfers", &cast_token_movements_to_float/1)
-    |> Map.update!("token_movements", &cast_token_movements_to_float/1)
+    |> Map.update!("uco_transfers", &cast_uco_amounts/1)
+    |> Map.update!("uco_movements", &cast_uco_amounts/1)
+    |> Map.update!("token_transfers", &cast_token_amounts/1)
+    |> Map.update!("token_movements", &cast_token_amounts/1)
   end
 
-  defp cast_uco_movements_to_float(movements) do
+  defp cast_uco_amounts(movements) do
     movements
     |> Enum.map(fn {address, amount} ->
-      {address, Utils.from_bigint(amount)}
+      {address, amount |> Utils.bigint_to_decimal() |> Utils.maybe_decimal_to_integer()}
     end)
     |> Enum.into(%{})
   end
 
-  defp cast_token_movements_to_float(movements) do
+  defp cast_token_amounts(movements) do
     movements
     |> Enum.map(fn {address, token_transfer} ->
-      {address, Enum.map(token_transfer, &convert_token_transfer_amount_to_bigint/1)}
+      {address, Enum.map(token_transfer, &cast_token_amount/1)}
     end)
     |> Enum.into(%{})
   end
 
-  defp convert_token_transfer_amount_to_bigint(token_transfer) do
-    Map.update!(token_transfer, "amount", &Utils.from_bigint/1)
+  defp cast_token_amount(token_transfer) do
+    # FIXME: handles different decimals!
+    Map.update!(token_transfer, "amount", fn amount ->
+      amount |> Utils.bigint_to_decimal() |> Utils.maybe_decimal_to_integer()
+    end)
   end
 
   @doc """
@@ -190,10 +192,19 @@ defmodule Archethic.Contracts.Constants do
     tokens =
       Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
         key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
-        Map.put(acc, key, Utils.from_bigint(amount))
+
+        # FIXME: handle more decimals
+        Map.put(
+          acc,
+          key,
+          amount |> Utils.bigint_to_decimal() |> Utils.maybe_decimal_to_integer()
+        )
       end)
 
-    balance_constants = %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
+    balance_constants = %{
+      "uco" => uco_amount |> Utils.bigint_to_decimal() |> Utils.maybe_decimal_to_integer(),
+      "tokens" => tokens
+    }
 
     Map.put(constants, "balance", balance_constants)
   end

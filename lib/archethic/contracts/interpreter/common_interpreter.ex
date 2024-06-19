@@ -25,6 +25,17 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   # expressions
   def prewalk(node = {:+, _, _}, acc), do: {node, acc}
+
+  # negate (1 term) is different than subtract (2 term)
+  def prewalk(_node = {:-, meta, [term]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line) do
+        Decimal.negate(unquote(term))
+      end
+
+    {new_node, acc}
+  end
+
   def prewalk(node = {:-, _, _}, acc), do: {node, acc}
   def prewalk(node = {:/, _, _}, acc), do: {node, acc}
   def prewalk(node = {:*, _, _}, acc), do: {node, acc}
@@ -39,8 +50,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {:!, _, _}, acc), do: {node, acc}
   def prewalk(node = {:&&, _, _}, acc), do: {node, acc}
   def prewalk(node = {:||, _, _}, acc), do: {node, acc}
-
-  # ranges
   def prewalk(node = {:.., _, _}, acc), do: {node, acc}
 
   # enter block == new scope
@@ -270,7 +279,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     end
 
     if code == nil, do: throw({:error, node, "Throw must have a code"})
-    unless is_integer(code), do: throw({:error, node, "Throw code must be an integer"})
+    unless AST.is_number?(code), do: throw({:error, node, "Throw code must be an integer"})
     if message == nil, do: throw({:error, node, "Throw must have a message"})
     unless is_binary(message), do: throw({:error, node, "Throw message must be a string"})
 
@@ -427,7 +436,54 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       when ast in [:*, :/, :+, :-] do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        AST.decimal_arithmetic(unquote(ast), unquote(lhs), unquote(rhs))
+        try do
+          AST.decimal_arithmetic(
+            unquote(ast),
+            Decimal.new(unquote(lhs)),
+            Decimal.new(unquote(rhs))
+          )
+        rescue
+          err in Decimal.Error ->
+            case err.signal do
+              nil ->
+                raise "bad argument in arithmetic expression"
+
+              signal ->
+                raise Atom.to_string(signal)
+            end
+        end
+      end
+
+    {new_node, acc}
+  end
+
+  # compare first with Decimal then normal comparaison
+  def postwalk(_node = {:==, meta, [lhs, rhs]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line) do
+        try do
+          Decimal.eq?(unquote(lhs), unquote(rhs))
+        rescue
+          _ ->
+            unquote(lhs) == unquote(rhs)
+        end
+      end
+
+    {new_node, acc}
+  end
+
+  def postwalk(_node = {comp, meta, [lhs, rhs]}, acc) when comp in [:>, :<, :>=, :<=] do
+    results =
+      case comp do
+        :> -> [:gt]
+        :>= -> [:gt, :eq]
+        :< -> [:lt]
+        :<= -> [:lt, :eq]
+      end
+
+    new_node =
+      quote line: Keyword.fetch!(meta, :line) do
+        Decimal.compare(unquote(lhs), unquote(rhs)) in unquote(results)
       end
 
     {new_node, acc}

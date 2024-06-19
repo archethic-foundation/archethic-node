@@ -21,7 +21,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test_private", _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test_public", _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -49,7 +49,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test_private", ["arg1", "arg2"], _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -63,7 +63,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test_public", ["arg1", "arg2"], _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -77,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "Write contract functions are not allowed in custom functions"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
 
@@ -89,7 +89,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "Write contract functions are not allowed in custom functions"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -103,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "IO function calls not allowed in public functions"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -117,7 +117,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "IO function calls not allowed in public functions"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(
@@ -135,7 +135,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "IO function calls not allowed in public functions"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(
@@ -153,7 +153,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "Module Hello does not exists"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -167,7 +167,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, _, _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -181,7 +181,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test", [], _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
 
@@ -193,7 +193,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, _, _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
@@ -207,7 +207,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "The function hello/0 does not exist"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                |> FunctionInterpreter.parse(%{})
     end
@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, "test", _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(
@@ -239,7 +239,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "not allowed to call private function from a private function"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(
@@ -257,7 +257,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:error, _, "not allowed to call function from public function"} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(
@@ -275,7 +275,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert {:ok, _, _, _} =
                code
-               |> Interpreter.sanitize_code()
+               |> Interpreter.sanitize_code(check_legacy?: false)
                |> elem(1)
                # mark function as declared
                |> FunctionInterpreter.parse(FunctionKeys.new())
@@ -292,7 +292,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       {:ok, "hello", [], ast_hello} =
         fun1
-        |> Interpreter.sanitize_code()
+        |> Interpreter.sanitize_code(check_legacy?: false)
         |> elem(1)
         |> FunctionInterpreter.parse([])
 
@@ -304,7 +304,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       {:ok, "test", [], ast_test} =
         fun2
-        |> Interpreter.sanitize_code()
+        |> Interpreter.sanitize_code(check_legacy?: false)
         |> elem(1)
         # pass allowed function
         |> FunctionInterpreter.parse(
@@ -314,7 +314,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 
-      assert 4 = FunctionInterpreter.execute(ast_test, function_constant)
+      assert Decimal.eq?(4, FunctionInterpreter.execute(ast_test, function_constant))
     end
 
     test "should be able to execute function with arg" do
@@ -326,7 +326,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       {:ok, "test", ["var1"], ast_fun} =
         fun
-        |> Interpreter.sanitize_code()
+        |> Interpreter.sanitize_code(check_legacy?: false)
         |> elem(1)
         # pass allowed function
         |> FunctionInterpreter.parse([])
@@ -343,12 +343,15 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       {:ok, "test", ["var1", "var2"], ast_fun} =
         fun
-        |> Interpreter.sanitize_code()
+        |> Interpreter.sanitize_code(check_legacy?: false)
         |> elem(1)
         # pass allowed function
         |> FunctionInterpreter.parse([])
 
-      assert 12.0 == FunctionInterpreter.execute(ast_fun, %{}, ["var1", "var2"], [4, 8])
+      assert Decimal.eq?(
+               12,
+               FunctionInterpreter.execute(ast_fun, %{}, ["var1", "var2"], [4, 8])
+             )
     end
   end
 end

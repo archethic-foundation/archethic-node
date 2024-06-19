@@ -9,7 +9,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
-  alias Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Tag
 
@@ -33,16 +32,30 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
     to: TransactionStatements
 
   @tag [:write_contract]
-  @spec set_content(Transaction.t(), binary() | integer() | float()) :: Transaction.t()
+  @spec set_content(Transaction.t(), binary() | Decimal.t() | integer()) :: Transaction.t()
   def set_content(next_tx, content) when is_binary(content) do
     put_in(next_tx, [Access.key(:data), Access.key(:content)], content)
   end
 
-  def set_content(next_tx, content) when is_integer(content) or is_float(content) do
+  def set_content(next_tx, int) when is_integer(int) do
     put_in(
       next_tx,
       [Access.key(:data), Access.key(:content)],
-      Library.Common.String.from_number(content)
+      Integer.to_string(int)
+    )
+  end
+
+  def set_content(next_tx, decimal = %Decimal{}) do
+    put_in(
+      next_tx,
+      [Access.key(:data), Access.key(:content)],
+      case Utils.maybe_decimal_to_integer(decimal) do
+        int when is_integer(int) ->
+          Integer.to_string(int)
+
+        _ ->
+          Decimal.to_string(decimal, :normal)
+      end
     )
   end
 
@@ -95,7 +108,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   @tag [:write_contract]
   @spec add_uco_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_uco_transfer(next_tx, args) do
-    args = Map.update!(args, "amount", &Utils.to_bigint/1)
+    args =
+      Map.update!(args, "amount", fn amount ->
+        Decimal.new(amount) |> Decimal.mult(100_000_000) |> Decimal.to_integer()
+      end)
+
     TransactionStatements.add_uco_transfer(next_tx, Map.to_list(args))
   end
 
@@ -108,7 +125,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   @tag [:write_contract]
   @spec add_token_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_token_transfer(next_tx, args) do
-    args = Map.update!(args, "amount", &Utils.to_bigint/1)
+    # FIXME: handle more decimals
+    args =
+      args
+      |> Map.update!("amount", fn amount ->
+        Decimal.new(amount) |> Decimal.mult(100_000_000) |> Decimal.to_integer()
+      end)
+
     TransactionStatements.add_token_transfer(next_tx, Map.to_list(args))
   end
 

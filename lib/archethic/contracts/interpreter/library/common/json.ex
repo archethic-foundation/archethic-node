@@ -19,14 +19,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
     as: :json_path_match?
 
   @spec to_string(any()) :: String.t()
-  defdelegate to_string(term),
-    to: Jason,
-    as: :encode!
+  def to_string(term) do
+    term
+    |> decimals_to_numbers()
+    |> Jason.encode!()
+  end
 
   @spec parse(String.t()) :: any()
-  defdelegate parse(text),
-    to: Jason,
-    as: :decode!
+  def parse(text) do
+    text |> Jason.decode!() |> floats_to_decimals()
+  end
 
   @spec is_valid?(String.t()) :: boolean()
   def is_valid?(str) do
@@ -64,4 +66,45 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
   end
 
   def check_types(_, _), do: false
+
+  # this results in imprecision, only to be used with json which is also imprecise
+  defp decimals_to_numbers(decimal = %Decimal{}) do
+    if Decimal.integer?(decimal) do
+      Decimal.to_integer(decimal)
+    else
+      Decimal.to_float(decimal)
+    end
+  end
+
+  defp decimals_to_numbers(term) when is_list(term) do
+    Enum.map(term, &decimals_to_numbers/1)
+  end
+
+  defp decimals_to_numbers(term) when is_map(term) do
+    term
+    |> Enum.map(fn {key, value} ->
+      {key, decimals_to_numbers(value)}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp decimals_to_numbers(term), do: term
+
+  defp floats_to_decimals(flt) when is_float(flt) do
+    Decimal.from_float(flt)
+  end
+
+  defp floats_to_decimals(term) when is_list(term) do
+    Enum.map(term, &floats_to_decimals/1)
+  end
+
+  defp floats_to_decimals(term) when is_map(term) do
+    term
+    |> Enum.map(fn {key, value} ->
+      {key, floats_to_decimals(value)}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp floats_to_decimals(term), do: term
 end

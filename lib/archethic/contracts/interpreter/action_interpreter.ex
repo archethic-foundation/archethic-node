@@ -48,6 +48,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   def execute(ast, constants, %Transaction{data: %TransactionData{code: code}}) do
     :ok = Macro.validate(ast)
 
+    # we need to have a big precision to avoid rounding issue
+    Decimal.Context.set(%Decimal.Context{Decimal.Context.get() | rounding: :floor, precision: 100})
+
     # initiate a transaction that will be used by the "Contract" module
     initial_next_tx = %Transaction{type: :contract, data: %TransactionData{code: code}}
 
@@ -114,7 +117,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
            {{:atom, "at"}, timestamp}
          ]
        )
-       when is_number(timestamp) do
+       when is_integer(timestamp) do
     case rem(timestamp, 60) do
       0 ->
         datetime = DateTime.from_unix!(timestamp)

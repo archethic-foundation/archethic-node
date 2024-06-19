@@ -28,6 +28,48 @@ defmodule Archethic.Utils do
   @type bigint() :: integer()
 
   @doc """
+  Cast a bigint into an integer if possible, fallback to decimal
+
+  ## Examples
+
+    iex> Decimal.eq?(Utils.bigint_to_decimal(100_000_000), Decimal.new(1))
+    true
+
+    iex> Decimal.eq?(Utils.bigint_to_decimal(10_000_000), Decimal.new("0.1"))
+    true
+  """
+  @spec bigint_to_decimal(integer(), integer()) :: Decimal.t()
+  def bigint_to_decimal(bigint, exp \\ 8) do
+    Decimal.new(bigint)
+    |> Decimal.div(10 ** exp)
+  end
+
+  @doc """
+  Cast a number to an integer if possible, fallback to decimal
+
+  ## Examples
+
+    iex> Utils.maybe_decimal_to_integer(100_000_000)
+    100_000_000
+
+    iex> Utils.maybe_decimal_to_integer(Decimal.new(100_000_000))
+    100_000_000
+
+    iex> Decimal.eq?(Utils.maybe_decimal_to_integer(Decimal.new("0.1")), Decimal.new("0.1"))
+    true
+  """
+  @spec maybe_decimal_to_integer(integer() | Decimal.t()) :: integer() | Decimal.t()
+  def maybe_decimal_to_integer(number) do
+    decimal = Decimal.new(number)
+
+    if Decimal.integer?(decimal) do
+      Decimal.to_integer(decimal)
+    else
+      decimal
+    end
+  end
+
+  @doc """
   Convert a number to a bigint
   """
   @spec to_bigint(integer() | float()) :: bigint()

@@ -928,7 +928,7 @@ defmodule Archethic.ContractsTest do
 
       contract = Contract.from_transaction!(contract_tx)
 
-      assert {:ok, 5.0, _} =
+      assert {:ok, 5, _} =
                Contracts.execute_function(
                  contract,
                  "balance",
