@@ -328,6 +328,17 @@ defmodule Archethic.Crypto do
   end
 
   @doc """
+  Encrypt given data with the storage nonce public key.
+
+  More details at `ec_encrypt/3`
+  """
+  @spec ec_encrypt_with_storage_nonce(iodata()) :: binary()
+  def ec_encrypt_with_storage_nonce(data, ephemeral_entropy_priv_key \\ nil)
+      when is_bitstring(data) or is_list(data) do
+    ec_encrypt(data, storage_nonce_public_key(), ephemeral_entropy_priv_key)
+  end
+
+  @doc """
   Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES).
 
   More details at `ec_decrypt/2`
@@ -585,14 +596,24 @@ defmodule Archethic.Crypto do
       40, 0, 68, 224, 177, 110, 180, 24>>
       ```
   """
-  @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
-  def ec_encrypt(message, <<curve_id::8, _::8, public_key::binary>> = _public_key)
+  @spec ec_encrypt(
+          message :: binary(),
+          public_key :: key(),
+          ephemeral_entropy_priv_key :: binary() | nil
+        ) ::
+          binary()
+  def ec_encrypt(
+        message,
+        <<curve_id::8, _::8, public_key::binary>> = _public_key,
+        ephemeral_entropy_priv_key \\ nil
+      )
       when is_binary(message) do
     start_time = System.monotonic_time()
 
     curve = ID.to_curve(curve_id)
 
-    {ephemeral_public_key, ephemeral_private_key} = generate_ephemeral_encryption_keys(curve)
+    {ephemeral_public_key, ephemeral_private_key} =
+      generate_ephemeral_encryption_keys(curve, ephemeral_entropy_priv_key)
 
     # Derivate secret using ECDH with the given public key and the ephemeral private key
     shared_key =
@@ -618,8 +639,14 @@ defmodule Archethic.Crypto do
     <<ephemeral_public_key::binary, tag::binary, cipher::binary>>
   end
 
-  defp generate_ephemeral_encryption_keys(:ed25519), do: :crypto.generate_key(:ecdh, :x25519)
-  defp generate_ephemeral_encryption_keys(curve), do: :crypto.generate_key(:ecdh, curve)
+  defp generate_ephemeral_encryption_keys(:ed25519, ephemeral_entropy_priv_key),
+    do: generate_ephemeral_encryption_keys(:x25519, ephemeral_entropy_priv_key)
+
+  defp generate_ephemeral_encryption_keys(curve, nil),
+    do: :crypto.generate_key(:ecdh, curve)
+
+  defp generate_ephemeral_encryption_keys(curve, ephemeral_entropy_priv_key),
+    do: :crypto.generate_key(:ecdh, curve, ephemeral_entropy_priv_key)
 
   defp derivate_secrets(dh_key) do
     pseudorandom_key = :crypto.hash(:sha256, dh_key)
