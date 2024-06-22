@@ -239,6 +239,7 @@ defmodule Archethic.Contracts do
           contract_tx
           |> Constants.from_transaction(contract_version)
           |> Constants.set_balance(inputs)
+          |> Constants.resolve_genesis_address()
 
         constants = %{
           "contract" => contract_constants,
@@ -474,11 +475,13 @@ defmodule Archethic.Contracts do
       transaction
       |> Constants.from_transaction(contract_version)
       |> Constants.set_balance(new_inputs)
+      |> Constants.resolve_genesis_address()
 
     previous_contract_constants =
       contract_tx
       |> Constants.from_transaction(contract_version)
       |> Constants.set_balance(inputs)
+      |> Constants.resolve_genesis_address()
 
     %{
       "previous" => previous_contract_constants,
@@ -506,9 +509,12 @@ defmodule Archethic.Contracts do
       contract_tx
       |> Constants.from_transaction(contract_version)
       |> Constants.set_balance(inputs)
+      |> Constants.resolve_genesis_address()
 
     %{
-      "transaction" => Constants.from_transaction(transaction, contract_version),
+      "transaction" =>
+        Constants.from_transaction(transaction, contract_version)
+        |> Constants.resolve_genesis_address(),
       "contract" => contract_constants,
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,

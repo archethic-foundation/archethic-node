@@ -1,5 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
   use ArchethicCase
+  import ArchethicCase
+  import Mox
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts
@@ -148,6 +150,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           content: "konnichiwa",
           timestamp: datetime
         )
+
+      genesis_address = random_address()
+
+      # this mock is required to have the same genesis address on `next`  and `previous`
+      MockDB |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
 
       assert {:ok, _} =
                Contracts.execute_condition(

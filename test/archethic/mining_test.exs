@@ -99,6 +99,11 @@ defmodule Archethic.MiningTest do
 
       {ok_nodes, error_nodes} = Enum.split(storage_nodes, nb_ok_nodes)
 
+      genesis_address = Crypto.derive_address(tx.previous_public_key)
+
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:ok, genesis_address} end)
+
       Enum.each(ok_nodes, fn node ->
         MockClient
         |> expect(:send_message, fn ^node, ^message, _ -> {:ok, %Ok{}} end)
