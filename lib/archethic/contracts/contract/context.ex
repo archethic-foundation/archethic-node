@@ -220,6 +220,22 @@ defmodule Archethic.Contracts.Contract.Context do
       ...>   }
       ...> ])
       false
+
+      iex> %Context{
+      ...>   status: :tx_output,
+      ...>   trigger: {:datetime, 0},
+      ...>   timestamp: ~U[2024-02-02 10:04:10Z],
+      ...>   inputs: []
+      ...> }
+      ...> |> Context.valid_inputs?([
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :UCO, amount: 50_000_000}
+      ...>   },
+      ...>   %VersionedUnspentOutput{
+      ...>     unspent_output: %UnspentOutput{from: "@Bob3", type: :call, amount: 0}
+      ...>   }
+      ...> ])
+      true
   """
   @spec valid_inputs?(t() | nil, list(VersionedUnspentOutput.t())) :: boolean()
   def valid_inputs?(%__MODULE__{inputs: inputs = [_ | _]}, unspent_outputs = [_ | _]) do
@@ -230,7 +246,11 @@ defmodule Archethic.Contracts.Contract.Context do
     end)
   end
 
-  def valid_inputs?(%__MODULE__{inputs: []}, _unspent_outputs = [_ | _]), do: false
+  def valid_inputs?(%__MODULE__{inputs: []}, _unspent_outputs = []), do: true
+
+  def valid_inputs?(%__MODULE__{inputs: []}, unspent_outputs),
+    do: [] == filter_inputs(unspent_outputs)
+
   def valid_inputs?(%__MODULE__{inputs: [_ | _]}, _unspent_outputs = []), do: false
   def valid_inputs?(nil, _unspent_outputs), do: true
 
