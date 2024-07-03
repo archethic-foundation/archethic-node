@@ -80,6 +80,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
       when is_number(port) and port >= 0 and is_binary(reward_address) do
     origin_public_key = Crypto.origin_node_public_key()
     origin_public_key_certificate = Crypto.get_key_certificate(origin_public_key)
+    mining_public_key = Crypto.mining_node_public_key()
 
     Transaction.new(:node, %TransactionData{
       code: """
@@ -100,7 +101,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           transport,
           reward_address,
           origin_public_key,
-          origin_public_key_certificate
+          origin_public_key_certificate,
+          mining_public_key
         )
     })
   end

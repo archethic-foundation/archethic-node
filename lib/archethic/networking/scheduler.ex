@@ -103,6 +103,7 @@ defmodule Archethic.Networking.Scheduler do
          {:ok, %Transaction{data: %TransactionData{code: code}}} <-
            TransactionChain.get_last_transaction(genesis_address, data: [:code]) do
       origin_public_key = Crypto.origin_node_public_key()
+      mining_public_key = Crypto.mining_node_public_key()
       key_certificate = Crypto.get_key_certificate(origin_public_key)
 
       tx =
@@ -116,7 +117,8 @@ defmodule Archethic.Networking.Scheduler do
               transport,
               reward_address,
               origin_public_key,
-              key_certificate
+              key_certificate,
+              mining_public_key
             )
         })
 

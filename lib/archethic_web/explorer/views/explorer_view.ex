@@ -50,10 +50,10 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   end
 
   def format_transaction_content(:node, content) do
-    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, key_certificate} =
-      Node.decode_transaction_content(content)
+    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, key_certificate,
+     mining_public_key} = Node.decode_transaction_content(content)
 
-    """
+    content = """
     IP: #{:inet.ntoa(ip)}
     P2P Port: #{port}
     HTTP Port: #{http_port}
@@ -62,6 +62,14 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     Origin public key: #{Base.encode16(origin_public_key)}
     Key certificate: #{Base.encode16(key_certificate)}
     """
+
+    case mining_public_key do
+      nil ->
+        content
+
+      _ ->
+        content <> "Mining public key: #{Base.encode16(mining_public_key)}"
+    end
   end
 
   def format_transaction_content(:beacon, content) do

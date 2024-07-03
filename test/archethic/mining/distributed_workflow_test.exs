@@ -112,7 +112,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
               234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
             origin_public_key,
-            certificate
+            certificate,
+            Crypto.generate_random_keypair(:bls) |> elem(0)
           )
       })
 
