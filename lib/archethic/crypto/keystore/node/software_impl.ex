@@ -97,6 +97,20 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     dh_fun.(public_key, index)
   end
 
+  @impl NodeKeystore
+  @spec sign_with_mining_key(iodata()) :: binary()
+  def sign_with_mining_key(data) do
+    sign_fun = get_mining_sign_fun()
+    sign_fun.(data)
+  end
+
+  @impl NodeKeystore
+  @spec mining_public_key() :: binary()
+  def mining_public_key do
+    public_key_fun = get_mining_public_key_fun()
+    public_key_fun.()
+  end
+
   defp get_last_key_index do
     [{_, index}] = :ets.lookup(@keystore_table, :last_index)
     index
@@ -124,6 +138,16 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
 
   defp get_diffie_helmann_fun do
     [{_, fun}] = :ets.lookup(@keystore_table, :dh_fun)
+    fun
+  end
+
+  defp get_mining_sign_fun do
+    [{_, fun}] = :ets.lookup(@keystore_table, :sign_mining_fun)
+    fun
+  end
+
+  defp get_mining_public_key_fun do
+    [{_, fun}] = :ets.lookup(@keystore_table, :public_key_mining_fun)
     fun
   end
 
@@ -159,9 +183,21 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
       do_diffie_helmann(pv, public_key)
     end
 
+    sign_mining_fun = fn data ->
+      {_, pv} = Crypto.generate_deterministic_keypair(node_seed, :bls)
+      Crypto.sign(data, pv)
+    end
+
+    public_key_mining_fn = fn ->
+      {pub, _} = Crypto.generate_deterministic_keypair(node_seed, :bls)
+      pub
+    end
+
     :ets.insert(@keystore_table, {:sign_fun, sign_fun})
     :ets.insert(@keystore_table, {:public_key_fun, public_key_fun})
     :ets.insert(@keystore_table, {:dh_fun, dh_fun})
+    :ets.insert(@keystore_table, {:sign_mining_fun, sign_mining_fun})
+    :ets.insert(@keystore_table, {:public_key_mining_fun, public_key_mining_fn})
 
     unless File.exists?(Utils.mut_dir("crypto")) do
       File.mkdir_p!(Utils.mut_dir("crypto"))
