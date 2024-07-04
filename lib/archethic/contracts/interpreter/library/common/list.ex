@@ -70,6 +70,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
   defdelegate uniq(list),
     to: Enum
 
+  @spec set_at(list(), integer(), any()) :: list()
+  def set_at(list, index, value) do
+    List.update_at(list, index, fn _ -> value end)
+  end
+
+  @spec delete_at(list(), integer()) :: list()
+  defdelegate delete_at(list, index),
+    to: List
+
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:at, [first, second]) do
     (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
@@ -112,6 +121,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
 
   def check_types(:uniq, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:delete_at, [first, second]) do
+    (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
+      (AST.is_number?(second) || AST.is_variable_or_function_call?(second))
+  end
+
+  def check_types(:set_at, [first, second, _third]) do
+    (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
+      (AST.is_number?(second) || AST.is_variable_or_function_call?(second))
   end
 
   def check_types(_, _), do: false
