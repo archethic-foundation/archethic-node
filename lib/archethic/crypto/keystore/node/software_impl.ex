@@ -25,32 +25,32 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   @spec first_public_key() :: Crypto.key()
   def first_public_key do
-    public_key_fun = get_public_key_fun()
-    public_key_fun.(0)
+    {pub, _} = Crypto.derive_keypair(get_node_seed(), 0)
+    pub
   end
 
   @impl NodeKeystore
   @spec last_public_key() :: Crypto.key()
   def last_public_key do
     index = get_last_key_index()
-    public_key_fun = get_public_key_fun()
-    public_key_fun.(index)
+    {pub, _} = Crypto.derive_keypair(get_node_seed(), index)
+    pub
   end
 
   @impl NodeKeystore
   @spec next_public_key() :: Crypto.key()
   def next_public_key do
     index = get_next_key_index()
-    public_key_fun = get_public_key_fun()
-    public_key_fun.(index)
+    {pub, _} = Crypto.derive_keypair(get_node_seed(), index)
+    pub
   end
 
   @impl NodeKeystore
   @spec previous_public_key() :: Crypto.key()
   def previous_public_key do
     index = get_previous_key_index()
-    public_key_fun = get_public_key_fun()
-    public_key_fun.(index)
+    {pub, _} = Crypto.derive_keypair(get_node_seed(), index)
+    pub
   end
 
   @impl NodeKeystore
@@ -62,53 +62,53 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   @spec sign_with_first_key(iodata()) :: binary()
   def sign_with_first_key(data) do
-    sign_fun = get_sign_fun()
-    sign_fun.(data, 0)
+    {_, pv} = Crypto.derive_keypair(get_node_seed(), 0)
+    Crypto.sign(data, pv)
   end
 
   @impl NodeKeystore
   @spec sign_with_last_key(iodata()) :: binary()
   def sign_with_last_key(data) do
     index = get_last_key_index()
-    sign_fun = get_sign_fun()
-    sign_fun.(data, index)
+    {_, pv} = Crypto.derive_keypair(get_node_seed(), index)
+    Crypto.sign(data, pv)
   end
 
   @impl NodeKeystore
   @spec sign_with_previous_key(iodata()) :: binary()
   def sign_with_previous_key(data) do
     index = get_previous_key_index()
-    sign_fun = get_sign_fun()
-    sign_fun.(data, index)
+    {_, pv} = Crypto.derive_keypair(get_node_seed(), index)
+    Crypto.sign(data, pv)
   end
 
   @impl NodeKeystore
   @spec diffie_hellman_with_first_key(Crypto.key()) :: binary()
   def diffie_hellman_with_first_key(public_key) do
-    dh_fun = get_diffie_helmann_fun()
-    dh_fun.(public_key, 0)
+    {_, pv} = Crypto.derive_keypair(get_node_seed(), 0)
+    do_diffie_helmann(pv, public_key)
   end
 
   @impl NodeKeystore
   @spec diffie_hellman_with_last_key(Crypto.key()) :: binary()
   def diffie_hellman_with_last_key(public_key) do
     index = get_last_key_index()
-    dh_fun = get_diffie_helmann_fun()
-    dh_fun.(public_key, index)
+    {_, pv} = Crypto.derive_keypair(get_node_seed(), index)
+    do_diffie_helmann(pv, public_key)
   end
 
   @impl NodeKeystore
   @spec sign_with_mining_key(iodata()) :: binary()
   def sign_with_mining_key(data) do
-    sign_fun = get_mining_sign_fun()
-    sign_fun.(data)
+    {_, pv} = Crypto.generate_deterministic_keypair(get_node_seed(), :bls)
+    Crypto.sign(data, pv)
   end
 
   @impl NodeKeystore
   @spec mining_public_key() :: binary()
   def mining_public_key do
-    public_key_fun = get_mining_public_key_fun()
-    public_key_fun.()
+    {pub, _} = Crypto.generate_deterministic_keypair(get_node_seed(), :bls)
+    pub
   end
 
   defp get_last_key_index do
@@ -126,29 +126,9 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     index
   end
 
-  defp get_sign_fun do
-    [{_, fun}] = :ets.lookup(@keystore_table, :sign_fun)
-    fun
-  end
-
-  defp get_public_key_fun do
-    [{_, fun}] = :ets.lookup(@keystore_table, :public_key_fun)
-    fun
-  end
-
-  defp get_diffie_helmann_fun do
-    [{_, fun}] = :ets.lookup(@keystore_table, :dh_fun)
-    fun
-  end
-
-  defp get_mining_sign_fun do
-    [{_, fun}] = :ets.lookup(@keystore_table, :sign_mining_fun)
-    fun
-  end
-
-  defp get_mining_public_key_fun do
-    [{_, fun}] = :ets.lookup(@keystore_table, :public_key_mining_fun)
-    fun
+  defp get_node_seed do
+    [{_, node_seed}] = :ets.lookup(@keystore_table, :node_seed)
+    node_seed
   end
 
   defp do_diffie_helmann(<<curve_id::8, _origin_id::8, raw_pv::binary>>, public_key) do
@@ -165,39 +145,9 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl GenServer
   def init(_arg \\ []) do
     :ets.new(@keystore_table, [:set, :named_table, :protected, read_concurrency: true])
+
     node_seed = Origin.retrieve_node_seed()
-
-    # Use anynomous functions to hide the node seed from the processes or tables
-    sign_fun = fn data, index ->
-      {_, pv} = Crypto.derive_keypair(node_seed, index)
-      Crypto.sign(data, pv)
-    end
-
-    public_key_fun = fn index ->
-      {pub, _} = Crypto.derive_keypair(node_seed, index)
-      pub
-    end
-
-    dh_fun = fn public_key, index ->
-      {_, pv} = Crypto.derive_keypair(node_seed, index)
-      do_diffie_helmann(pv, public_key)
-    end
-
-    sign_mining_fun = fn data ->
-      {_, pv} = Crypto.generate_deterministic_keypair(node_seed, :bls)
-      Crypto.sign(data, pv)
-    end
-
-    public_key_mining_fn = fn ->
-      {pub, _} = Crypto.generate_deterministic_keypair(node_seed, :bls)
-      pub
-    end
-
-    :ets.insert(@keystore_table, {:sign_fun, sign_fun})
-    :ets.insert(@keystore_table, {:public_key_fun, public_key_fun})
-    :ets.insert(@keystore_table, {:dh_fun, dh_fun})
-    :ets.insert(@keystore_table, {:sign_mining_fun, sign_mining_fun})
-    :ets.insert(@keystore_table, {:public_key_mining_fun, public_key_mining_fn})
+    :ets.insert(@keystore_table, {:node_seed, node_seed})
 
     unless File.exists?(Utils.mut_dir("crypto")) do
       File.mkdir_p!(Utils.mut_dir("crypto"))
@@ -262,11 +212,14 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     :ets.insert(@keystore_table, {:previous_index, index + 1})
     :ets.insert(@keystore_table, {:next_index, index + 2})
 
-    public_key_fun = get_public_key_fun()
+    node_seed = get_node_seed()
+    {next_pub, _} = Crypto.derive_keypair(node_seed, index + 2)
+    {previous_pub, _} = Crypto.derive_keypair(node_seed, index + 1)
+    {last_pub, _} = Crypto.derive_keypair(node_seed, index)
 
-    Logger.info("Next public key will be #{Base.encode16(public_key_fun.(index + 2))}")
-    Logger.info("Previous public key will be #{Base.encode16(public_key_fun.(index + 1))}")
-    Logger.info("Publication/Last public key will be #{Base.encode16(public_key_fun.(index))}")
+    Logger.info("Next public key will be #{Base.encode16(next_pub)}")
+    Logger.info("Previous public key will be #{Base.encode16(previous_pub)}")
+    Logger.info("Publication/Last public key will be #{Base.encode16(last_pub)}")
 
     write_index(index + 1)
     {:reply, :ok, state}
@@ -276,5 +229,23 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   def handle_call({:set_index, index}, _from, state) do
     store_node_key_indexes(index)
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  # FIXME: use genserver message because ets table is protected
+  def handle_cast(:migrate_1_5_6, state) do
+    node_seed = Origin.retrieve_node_seed()
+    :ets.insert(@keystore_table, {:node_seed, node_seed})
+    :ets.delete(@keystore_table, :sign_fun)
+    :ets.delete(@keystore_table, :public_key_fun)
+    :ets.delete(@keystore_table, :dh_fun)
+
+    {:noreply, state}
+  end
+
+  # FIXME: to remove after 1.5.6
+  @doc false
+  def migrate_ets_table_1_5_6 do
+    GenServer.cast(__MODULE__, :migrate_1_5_6)
   end
 end
