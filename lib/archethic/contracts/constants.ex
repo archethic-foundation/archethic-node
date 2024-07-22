@@ -2,9 +2,11 @@ defmodule Archethic.Contracts.Constants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """
-
+  alias Archethic.Crypto
   alias Archethic.Contracts.Contract
-
+  alias Archethic.Election
+  alias Archethic.P2P
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -196,5 +198,22 @@ defmodule Archethic.Contracts.Constants do
     balance_constants = %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
 
     Map.put(constants, "balance", balance_constants)
+  end
+
+  @doc """
+  Add the genesis address of the transaction
+  """
+  @spec resolve_genesis_address(map()) :: map()
+  def resolve_genesis_address(constants) do
+    previous_address =
+      constants
+      |> Map.get("previous_public_key")
+      |> Base.decode16!()
+      |> Crypto.derive_address()
+
+    nodes = Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
+    {:ok, genesis_address} = TransactionChain.fetch_genesis_address(previous_address, nodes)
+
+    Map.put(constants, "genesis_address", Base.encode16(genesis_address))
   end
 end

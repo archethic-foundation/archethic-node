@@ -500,6 +500,9 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     address = "000077003155E556981870BAEA665910C98679AE501598D11640FE37F58F72B3F06F"
     b_address = Base.decode16!(address)
 
+    MockDB
+    |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
     MockClient
     |> expect(:send_message, fn _, _, _ ->
       {:ok, %GenesisAddress{address: b_address, timestamp: DateTime.utc_now()}}

@@ -562,6 +562,9 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now()
       })
 
+      MockDB
+      |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
       MockClient
       |> expect(:send_message, 1, fn _, %GetUnspentOutputs{}, _ ->
         {:ok,
@@ -647,6 +650,9 @@ defmodule ArchethicTest do
         authorized?: true,
         authorization_date: ~U[2020-01-01 10:00:00Z]
       })
+
+      MockDB
+      |> expect(:find_genesis_address, fn _ -> {:error, :not_found} end)
 
       MockClient
       |> stub(:send_message, fn
