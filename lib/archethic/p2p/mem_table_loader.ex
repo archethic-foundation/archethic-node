@@ -104,8 +104,8 @@ defmodule Archethic.P2P.MemTableLoader do
 
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
-    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate} =
-      Node.decode_transaction_content(content)
+    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate,
+     mining_public_key} = Node.decode_transaction_content(content)
 
     if first_node_change?(first_public_key, previous_public_key) do
       node = %Node{
@@ -119,7 +119,8 @@ defmodule Archethic.P2P.MemTableLoader do
         last_address: address,
         reward_address: reward_address,
         origin_public_key: origin_public_key,
-        last_update_date: timestamp
+        last_update_date: timestamp,
+        mining_public_key: mining_public_key
       }
 
       node
@@ -139,7 +140,8 @@ defmodule Archethic.P2P.MemTableLoader do
           last_address: address,
           reward_address: reward_address,
           origin_public_key: origin_public_key,
-          last_update_date: timestamp
+          last_update_date: timestamp,
+          mining_public_key: mining_public_key
       })
     end
 

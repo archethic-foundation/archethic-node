@@ -139,7 +139,7 @@ defmodule Archethic.Mining.ProofOfWork do
          }
        }) do
     {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key,
-     _origin_certificate} = Node.decode_transaction_content(content)
+     _origin_certificate, _mining_public_key} = Node.decode_transaction_content(content)
 
     [origin_public_key]
   end

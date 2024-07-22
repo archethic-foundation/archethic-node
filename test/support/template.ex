@@ -139,6 +139,14 @@ defmodule ArchethicCase do
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)
+    |> stub(:mining_public_key, fn ->
+      {pub, _} = Crypto.generate_deterministic_keypair("seed", :bls)
+      pub
+    end)
+    |> stub(:sign_with_mining_key, fn data ->
+      {_, pv} = Crypto.generate_deterministic_keypair("seed", :bls)
+      Crypto.sign(data, pv)
+    end)
 
     MockCrypto.SharedSecretsKeystore
     |> stub(:sign_with_node_shared_secrets_key, fn data ->

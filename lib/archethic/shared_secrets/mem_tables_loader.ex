@@ -60,8 +60,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
           content: content
         }
       }) do
-    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key, _cert} =
-      Node.decode_transaction_content(content)
+    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key, _cert,
+     _mining_public_key} = Node.decode_transaction_content(content)
 
     <<_::8, origin_id::8, _::binary>> = origin_public_key
 

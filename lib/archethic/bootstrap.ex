@@ -215,7 +215,7 @@ defmodule Archethic.Bootstrap do
           )
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate} = Node.decode_transaction_content(content)
+         _key_certificate, _mining_public_key} = Node.decode_transaction_content(content)
 
         update_node(
           ip,
@@ -286,7 +286,7 @@ defmodule Archethic.Bootstrap do
           TransactionChain.fetch_transaction(last_address, closest_bootstrapping_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate} = Node.decode_transaction_content(content)
+         _key_certificate, _mining_public_key} = Node.decode_transaction_content(content)
 
         last_reward_address
       else

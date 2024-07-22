@@ -314,7 +314,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          _
        ) do
-    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate} <-
+    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,
@@ -331,7 +331,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          {:conn, :ok} <-
            {:conn, valid_connection(ip, port, previous_public_key)},
          {:transfers, true} <-
-           {:transfers, Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address))} do
+           {:transfers, Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address))},
+         {:mining_public_key, true} <-
+           {:mining_public_key,
+            Crypto.valid_public_key?(mining_public_key) and
+              Crypto.get_public_key_curve(mining_public_key) == :bls} do
       :ok
     else
       :error ->
@@ -352,6 +356,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:transfers, false} ->
         {:error, "Invalid transfers, only mining rewards tokens are allowed"}
+
+      {:mining_public_key, false} ->
+        {:error, "Invalid mining public key"}
     end
   end
 

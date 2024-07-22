@@ -32,8 +32,10 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
                <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
              )
 
-    assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, _reward_address, _origin_public_key, _cert} =
-             Node.decode_transaction_content(content)
+    assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, _reward_address, _origin_public_key, _cert,
+            mining_public_key} = Node.decode_transaction_content(content)
+
+    assert Archethic.Crypto.mining_node_public_key() == mining_public_key
   end
 
   test "send_transaction/2 should send the transaction to a welcome node" do

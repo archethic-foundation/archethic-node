@@ -29,4 +29,7 @@ defmodule Archethic.Crypto.NodeKeystore do
 
   @spec sign_with_origin_key(iodata()) :: binary()
   defdelegate sign_with_origin_key(data), to: Origin
+
+  @callback sign_with_mining_key(iodata()) :: binary()
+  @callback mining_public_key() :: binary()
 end

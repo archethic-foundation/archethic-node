@@ -132,7 +132,8 @@ defmodule Archethic.MixProject do
       {:exla, "~> 0.5"},
       {:ex_keccak, "0.7.1"},
       {:ex_secp256k1, "~> 0.7.2"},
-      {:nimble_csv, "~> 1.1", only: :test, runtime: false}
+      {:nimble_csv, "~> 1.1", only: :test, runtime: false},
+      {:bls_ex, "~> 0.1"}
     ]
   end
 

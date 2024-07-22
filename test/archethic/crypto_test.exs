@@ -154,4 +154,14 @@ defmodule CryptoTest do
       assert_receive {:network_seed, ^network_seed}
     end
   end
+
+  test "aggregate_signatures/1 should produce a valid signature" do
+    {pub1, pv1} = Crypto.generate_deterministic_keypair("seed1", :bls)
+    {pub2, pv2} = Crypto.generate_deterministic_keypair("seed2", :bls)
+    sig1 = Crypto.sign("hello", pv1)
+    sig2 = Crypto.sign("hello", pv2)
+    aggregated_signature = Crypto.aggregate_signatures([sig1, sig2], [pub1, pub2])
+    aggregated_public_key = Crypto.aggregate_mining_public_keys([pub1, pub2])
+    assert Crypto.verify?(aggregated_signature, "hello", aggregated_public_key)
+  end
 end

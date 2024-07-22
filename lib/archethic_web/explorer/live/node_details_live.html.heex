@@ -61,6 +61,18 @@
           </p>
         </div>
 
+        <%= if @node.mining_public_key do %>
+          <div class="mb-3 py-3">
+            <p class="heading">Mining public key</p>
+            <p class="mono is-hidden-mobile">
+              <%= Base.encode16(@node.mining_public_key) %>
+            </p>
+            <p class="mono is-hidden-desktop">
+              <%= Base.encode16(:binary.part(@node.mining_public_key, 0, 13)) %>...
+            </p>
+          </div>
+        <% end %>
+
         <div class="columns">
           <div class="column">
             <p class="heading">IP</p>

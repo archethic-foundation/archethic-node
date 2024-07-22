@@ -18,6 +18,7 @@ defmodule Archethic.Crypto.ID do
   def from_curve(:ed25519), do: 0
   def from_curve(:secp256r1), do: 1
   def from_curve(:secp256k1), do: 2
+  def from_curve(:bls), do: 3
 
   @doc """
   Get a curve name from an curve ID
@@ -34,6 +35,7 @@ defmodule Archethic.Crypto.ID do
   def to_curve(0), do: :ed25519
   def to_curve(1), do: :secp256r1
   def to_curve(2), do: :secp256k1
+  def to_curve(3), do: :bls
 
   @doc """
   Get an identification from an hash algorithm

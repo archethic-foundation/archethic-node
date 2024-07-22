@@ -156,7 +156,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
             transport,
             next_reward_address,
             Crypto.origin_node_public_key(),
-            Crypto.get_key_certificate(Crypto.origin_node_public_key())
+            Crypto.get_key_certificate(Crypto.origin_node_public_key()),
+            Crypto.mining_node_public_key()
           )
       })
 
@@ -190,7 +191,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
             transport,
             reward_address,
             Crypto.origin_node_public_key(),
-            Crypto.get_key_certificate(Crypto.origin_node_public_key())
+            Crypto.get_key_certificate(Crypto.origin_node_public_key()),
+            Crypto.mining_node_public_key()
           )
       })
 
