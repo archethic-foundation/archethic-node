@@ -61,6 +61,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
     [element | list]
   end
 
+  @spec reverse(list()) :: list()
+  defdelegate reverse(list),
+    to: Enum
+
+  @spec sort(list()) :: list()
+  defdelegate sort(list),
+    to: Enum
+
   @spec sort_by(list(), String.t()) :: list()
   def sort_by(list, key) do
     Enum.sort_by(list, & &1[key])
@@ -111,6 +119,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
   end
 
   def check_types(:prepend, [first, _second]) do
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:sort, [first]) do
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:reverse, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
   end
 
