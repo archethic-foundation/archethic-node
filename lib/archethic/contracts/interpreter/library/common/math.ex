@@ -127,6 +127,38 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
     to_number(res, is_integer(num1) and is_integer(num2))
   end
 
+  @doc """
+
+  ## Example
+
+    iex> Math.bigint(49.85024327, 18)
+    49_850_243_270_000_000_000
+
+    iex> Math.bigint(1.994e-4, 18)
+    199_400_000_000_000
+
+    iex> Math.bigint(0.002, 18)
+    2_000_000_000_000_000
+
+    iex> Math.bigint(1.2390131, 18)
+    1_239_013_100_000_000_000
+
+    iex> Math.bigint(10, 18)
+    10_000_000_000_000_000_000
+
+    iex> Math.bigint(1, 8)
+    100_000_000
+
+  """
+  @spec bigint(num :: number(), decimals :: number()) :: number()
+  def bigint(num, decimals) do
+    num
+    |> to_string()
+    |> Decimal.new()
+    |> Decimal.mult(Decimal.new(10 ** decimals))
+    |> to_number(true)
+  end
+
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:trunc, [first]) do
     AST.is_number?(first) || AST.is_variable_or_function_call?(first)
@@ -142,6 +174,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
   end
 
   def check_types(:rem, [first, second]) do
+    (AST.is_number?(first) || AST.is_variable_or_function_call?(first)) &&
+      (AST.is_number?(second) || AST.is_variable_or_function_call?(second))
+  end
+
+  def check_types(:bigint, [first, second]) do
     (AST.is_number?(first) || AST.is_variable_or_function_call?(first)) &&
       (AST.is_number?(second) || AST.is_variable_or_function_call?(second))
   end
