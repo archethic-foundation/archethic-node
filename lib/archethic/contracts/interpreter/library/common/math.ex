@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
 
   alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Library
 
   use Tag
   import Bitwise
@@ -137,6 +138,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
     iex> Math.bigint(1.994e-4, 18)
     199_400_000_000_000
 
+    iex> Math.bigint(0.19941234, 18)
+    199_412_340_000_000_000
+
+    iex> Math.bigint(0.10000006, 18)
+    100_000_060_000_000_000
+
     iex> Math.bigint(0.002, 18)
     2_000_000_000_000_000
 
@@ -156,7 +163,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Math do
     |> to_string()
     |> Decimal.new()
     |> Decimal.mult(Decimal.new(10 ** decimals))
-    |> to_number(true)
+    |> then(fn dec ->
+      if Decimal.integer?(dec) do
+        Decimal.to_integer(dec)
+      else
+        raise Library.Error, message: "Number exceeds decimals"
+      end
+    end)
   end
 
   @spec check_types(atom(), list()) :: boolean()
