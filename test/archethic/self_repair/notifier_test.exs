@@ -170,7 +170,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     MockClient
     |> stub(:send_message, fn
-      node, %ShardRepair{first_address: "Alice1", storage_address: "Alice2"}, _ ->
+      node, %ShardRepair{genesis_address: "Alice1", storage_address: "Alice2"}, _ ->
         if Enum.member?(new_possible_nodes, node.first_public_key) do
           send(me, :new_node)
         end
