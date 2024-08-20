@@ -96,11 +96,8 @@ defmodule Archethic.SelfRepair.Notifier do
 
   defp network_chain?(address) do
     case TransactionChain.get_transaction(address, [:type]) do
-      {:ok, %Transaction{type: type}} ->
-        Transaction.network_type?(type)
-
-      _ ->
-        false
+      {:ok, %Transaction{type: type}} -> Transaction.network_type?(type)
+      _ -> false
     end
   end
 
@@ -133,7 +130,7 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.filter(&notify?(&1))
     |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
     |> map_last_addresses_for_node()
-    |> notify_nodes(address)
+    |> notify_nodes(genesis_address)
   end
 
   defp get_previous_election(
@@ -266,7 +263,7 @@ defmodule Archethic.SelfRepair.Notifier do
     )
   end
 
-  defp notify_nodes(acc, first_address) do
+  defp notify_nodes(acc, genesis_address) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       acc,
@@ -275,11 +272,11 @@ defmodule Archethic.SelfRepair.Notifier do
           "Send Shard Repair message to #{Base.encode16(node_first_public_key)}" <>
             "with storage_address #{if last_address, do: Base.encode16(last_address), else: nil}, " <>
             "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
-          address: Base.encode16(first_address)
+          address: Base.encode16(genesis_address)
         )
 
         P2P.send_message(node_first_public_key, %ShardRepair{
-          first_address: first_address,
+          genesis_address: genesis_address,
           storage_address: last_address,
           io_addresses: io_addresses
         })
