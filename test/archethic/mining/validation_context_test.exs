@@ -276,11 +276,14 @@ defmodule Archethic.Mining.ValidationContextTest do
       validation_context = create_context(timestamp)
 
       assert %ValidationContext{
-               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+               mining_error: %Archethic.Mining.Error{code: -31503},
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: []}
+               ]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
-                 create_validation_stamp(validation_context)
+                 create_validation_stamp_with_empty_proof_of_work(validation_context)
                )
                |> ValidationContext.cross_validate()
     end
@@ -592,6 +595,40 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
+    }
+    |> ValidationStamp.sign()
+  end
+
+  defp create_validation_stamp_with_empty_proof_of_work(%ValidationContext{
+         transaction: tx,
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
+       }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        timestamp,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
+    %ValidationStamp{
+      timestamp: timestamp,
+      proof_of_work: <<0::8, 0::8, 0::256>>,
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      ledger_operations: ledger_operations,
+      protocol_version: current_protocol_version(),
+      error: :invalid_origin_signature
     }
     |> ValidationStamp.sign()
   end
