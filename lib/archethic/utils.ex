@@ -1329,4 +1329,30 @@ defmodule Archethic.Utils do
 
     {Enum.reverse(items), more?, offset}
   end
+
+  @doc """
+  Replace bitstring by hex
+  """
+  @spec bin2hex(any()) :: any()
+  def bin2hex(data = %{__struct__: _}), do: data
+
+  def bin2hex(data) when is_map(data) do
+    Enum.reduce(data, %{}, fn {key, value}, acc ->
+      Map.put(acc, bin2hex(key), bin2hex(value))
+    end)
+  end
+
+  def bin2hex(data) when is_list(data) do
+    Enum.map(data, &bin2hex/1)
+  end
+
+  def bin2hex(data) when is_binary(data) do
+    if String.printable?(data) do
+      data
+    else
+      Base.encode16(data)
+    end
+  end
+
+  def bin2hex(data), do: data
 end
