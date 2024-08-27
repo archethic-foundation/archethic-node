@@ -115,7 +115,14 @@
                   <div></div>
                 <% else %>
                   <div x-show="show" class="is-relative">
-                    <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
+                    <%= if String.printable?(@transaction.data.code) do %>
+                      <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
+                    <% else %>
+                      <span id="copy-code" class="is-hidden">
+                        <%= Base.encode16(@transaction.data.code) %>
+                      </span>
+                      <pre id="wasm-spec" class="language-yaml" phx-hook="CodeViewer"><%= @wasm_spec %></pre>
+                    <% end %>
                   </div>
                 <% end %>
               </div>
@@ -185,7 +192,7 @@
                     x-show="show"
                     class="language-json"
                     phx-hook="CodeViewer"
-                  > 
+                  >
                     <%= print_state(state_utxo) %>
                   </pre>
                 <% end %>

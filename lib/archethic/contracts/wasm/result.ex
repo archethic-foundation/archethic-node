@@ -9,7 +9,6 @@ end
 defmodule Archethic.Contracts.WasmResult do
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.Wasm.ReadResult
-  alias Archethic.TransactionChain.Transaction
 
   def cast(result) when is_map_key(result, "state") or is_map_key(result, "transaction") do
     %UpdateResult{
@@ -25,20 +24,34 @@ defmodule Archethic.Contracts.WasmResult do
 
   defp cast_transaction(nil), do: nil
 
-  defp cast_transaction(
-         tx = %{
-           "type" => type,
-           "data" => %{}
-         }
-       ) do
-    tx_type =
+  defp cast_transaction(%{
+         "type" => type,
+         "data" => tx_data
+       }) do
+    atomized_tx_type =
       case type do
-        249 -> "contract"
-        253 -> "transfer"
-        250 -> "data"
-        251 -> "token"
+        249 -> :contract
+        253 -> :transfer
+        250 -> :data
+        251 -> :token
       end
 
-    Transaction.cast(Map.put(tx, "type", tx_type) |> Archethic.Utils.atomize_keys())
+    %{
+      type: atomized_tx_type,
+      data:
+        tx_data
+        |> Archethic.Utils.atomize_keys()
+        |> Archethic.Utils.hex2bin(
+          keys_to_base_decode: [
+            :address,
+            :to,
+            :token_address,
+            :secret,
+            :public_key,
+            :encrypted_secret_key,
+            :code
+          ]
+        )
+    }
   end
 end

@@ -1,5 +1,6 @@
 defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   @moduledoc false
+  alias Archethic.Contracts.WasmTrigger
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   use ArchethicWeb.Explorer, :live_view
 
@@ -106,6 +107,30 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         Transaction.previous_address(tx)
       end
 
+    wasm_spec =
+      unless String.printable?(tx.data.code) do
+        {:ok, pid} = Archethic.Contracts.WasmInstance.start_link(bytes: tx.data.code)
+        spec = Archethic.Contracts.WasmInstance.spec(pid)
+
+        """
+        type: "WebAssembly contract"
+
+        triggers:
+        #{Enum.map(triggers, fn %WasmTrigger{function_name: function, type: trigger} ->
+          stringified_trigger = case trigger do
+            {type, arg} -> "#{type} at #{arg}"
+            trigger -> trigger
+          end
+          " - action: #{function}\n   trigger: #{stringified_trigger}"
+        end) |> Enum.join("\n")}
+
+        public_functions:
+        #{Enum.map(public_functions, fn function -> " - #{function}" end) |> Enum.join("\n")}
+
+        byteCode: #{Base.encode16(tx.data.code)}
+        """
+      end
+
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
@@ -114,6 +139,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:inputs, [])
     |> assign(:token_properties, %{})
     |> assign(:linked_movements, [])
+    |> assign(:wasm_spec, wasm_spec)
   end
 
   defp async_assign_resolved_movements(%Transaction{

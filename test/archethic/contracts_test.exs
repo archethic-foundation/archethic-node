@@ -3,6 +3,7 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractV2
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -810,6 +811,29 @@ defmodule Archethic.ContractsTest do
                  []
                )
     end
+
+    test "should execute trigger for wasm contract" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = ContractV2.from_transaction!(contract_tx)
+      incoming_tx = TransactionFactory.create_valid_transaction()
+
+      {:ok, %ActionWithTransaction{encoded_state: encoded_state}} =
+        Contracts.execute_trigger(
+          {:transaction, "inc", nil},
+          contract,
+          incoming_tx,
+          %Recipient{
+            address: contract_tx.address,
+            action: "inc",
+            args: [%{value: 5}]
+          },
+          [],
+          []
+        )
+
+      assert {%{"counter" => 5}, ""} = State.deserialize(encoded_state)
+    end
   end
 
   describe "execute_function/3" do
@@ -940,6 +964,20 @@ defmodule Archethic.ContractsTest do
                      amount: 500_000_000
                    }
                  ]
+               )
+    end
+
+    test "should execute function for wasm contract" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = ContractV2.from_transaction!(contract_tx)
+
+      assert {:ok, 24, _} =
+               Contracts.execute_function(
+                 contract,
+                 "getFactorial",
+                 [%{from: 4}],
+                 []
                )
     end
   end

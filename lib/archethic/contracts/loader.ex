@@ -4,8 +4,11 @@ defmodule Archethic.Contracts.Loader do
   alias Archethic.ContractRegistry
   alias Archethic.ContractSupervisor
 
+  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractV2
   alias Archethic.Contracts.Worker
+  alias Archethic.Contracts.WorkerV2
 
   alias Archethic.Crypto
 
@@ -224,6 +227,13 @@ defmodule Archethic.Contracts.Loader do
   defp worker_exists?(genesis_address),
     do: Registry.lookup(ContractRegistry, genesis_address) != []
 
+  defp new_contract(genesis_address, contract = %{version: version}) when version >= 2 do
+    DynamicSupervisor.start_child(
+      ContractSupervisor,
+      {WorkerV2, contract: contract, genesis_address: genesis_address}
+    )
+  end
+
   defp new_contract(genesis_address, contract) do
     DynamicSupervisor.start_child(
       ContractSupervisor,
@@ -249,18 +259,31 @@ defmodule Archethic.Contracts.Loader do
     remove_invalid_input(genesis_address, consumed_inputs)
 
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),
-         {:ok, contract} <- Contract.from_transaction(tx),
-         true <- Contract.contains_trigger?(contract) do
-      if worker_exists?(genesis_address),
-        do: Worker.set_contract(genesis_address, contract, execute_contract?),
-        else: new_contract(genesis_address, contract)
+         {:ok, contract} <- Contracts.from_transaction(tx) do
+      case contract do
+        %{version: version} when version >= 2 ->
+          if ContractV2.contains_trigger?(contract) do
+            if worker_exists?(genesis_address),
+              do: WorkerV2.set_contract(genesis_address, contract, execute_contract?),
+              else: new_contract(genesis_address, contract)
+          else
+            stop_contract(genesis_address)
+          end
 
-      Logger.info("Smart contract loaded",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
-    else
-      _ -> stop_contract(genesis_address)
+        _ ->
+          if Contract.contains_trigger?(contract) do
+            if worker_exists?(genesis_address),
+              do: Worker.set_contract(genesis_address, contract, execute_contract?),
+              else: new_contract(genesis_address, contract)
+
+            Logger.info("Smart contract loaded",
+              transaction_address: Base.encode16(address),
+              transaction_type: type
+            )
+          else
+            stop_contract(genesis_address)
+          end
+      end
     end
   end
 

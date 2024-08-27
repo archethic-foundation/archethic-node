@@ -1355,4 +1355,24 @@ defmodule Archethic.Utils do
   end
 
   def bin2hex(data), do: data
+
+  def hex2bin(params, opts \\ [])
+
+  def hex2bin(params, opts) when is_map(params) do
+    keys_to_base_decode = Keyword.get(opts, :keys_to_base_decode, [])
+
+    params
+    |> Map.keys()
+    |> Enum.reduce(params, fn key, acc ->
+      if key in keys_to_base_decode and is_binary(Map.get(acc, key)) do
+        Map.update!(acc, key, &Base.decode16!(&1, case: :mixed))
+      else
+        Map.update!(acc, key, &hex2bin(&1, opts))
+      end
+    end)
+  end
+
+  def hex2bin(params, opts) when is_list(params), do: Enum.map(params, &hex2bin(&1, opts))
+
+  def hex2bin(params, _opts), do: params
 end
