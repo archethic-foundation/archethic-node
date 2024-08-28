@@ -20,8 +20,8 @@ defmodule Archethic.Contracts.WasmInstance do
     GenServer.call(pid, :spec)
   end
 
-  def upgrade(pid, opts) do
-    GenServer.call(pid, {:upgrade, opts})
+  def exported_functions(pid) do
+    GenServer.call(pid, :exported_functions)
   end
 
   def init(arg) do
@@ -59,6 +59,10 @@ defmodule Archethic.Contracts.WasmInstance do
     {:reply, spec, state}
   end
 
+  def handle_call(:exported_functions, _from, state = %{exported_functions: exported_functions}) do
+    {:reply, exported_functions, state}
+  end
+
   def handle_call(
         {:execute, function_name, arg, opts},
         _,
@@ -75,24 +79,5 @@ defmodule Archethic.Contracts.WasmInstance do
     WasmMemory.clear(io_mem_pid)
 
     {:reply, result, state}
-  end
-
-  def handle_call(
-        {:upgrade, opts},
-        _,
-        state = %{instance_pid: instance_pid, wasm_state: wasm_state, io_mem_pid: io_mem_pid}
-      ) do
-    with {:ok, new_state} <-
-           WasmModule.execute(
-             instance_pid,
-             io_mem_pid,
-             "onUpgrade",
-             Keyword.merge(opts, state: wasm_state)
-           ) do
-      {:reply, {:ok, new_state}, state}
-    else
-      {:error, _} = e ->
-        {:reply, e, state}
-    end
   end
 end

@@ -22,6 +22,7 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Wasm.ReadResult
   alias __MODULE__.Wasm.UpdateResult
 
+  alias Archethic
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -89,6 +90,79 @@ defmodule Archethic.Contracts do
         ) ::
           {:ok, ActionWithTransaction.t() | ActionWithoutTransaction.t()}
           | {:error, Failure.t()}
+
+  def execute_trigger(
+        trigger_type,
+        contract,
+        maybe_trigger_tx,
+        maybe_recipient,
+        inputs,
+        opts \\ []
+      )
+
+  def execute_trigger(
+        {:transaction, "upgrade", _},
+        contract = %{
+          version: version,
+          transaction: contract_tx,
+          state: state
+        },
+        trigger_tx,
+        %Recipient{args: arg},
+        _inputs,
+        _opts
+      )
+      when version >= 2 do
+    %ContractV2{instance: instance} = contract
+    %WasmSpec{upgrade_opts: upgrade_opts} = WasmInstance.spec(instance)
+
+    case upgrade_opts do
+      nil ->
+        {:error, :upgrade_not_supported}
+
+      %WasmSpec.UpgradeOpts{from: from} ->
+        {:ok, genesis_address} =
+          trigger_tx
+          |> Transaction.previous_address()
+          |> Archethic.fetch_genesis_address()
+
+        if genesis_address == from do
+          case Enum.at(arg, 0) do
+            %{"code" => new_code} ->
+              {:ok, new_instance} =
+                WasmInstance.start_link(bytes: Base.decode16!(new_code, case: :mixed))
+
+              upgrade_state =
+                if "onUpgrade" in WasmInstance.exported_functions(new_instance) do
+                  {:ok, %UpdateResult{state: migrated_state}} =
+                    WasmInstance.execute(new_instance, "onUpgrade", nil, state: state)
+
+                  migrated_state
+                else
+                  state
+                end
+
+              {:ok,
+               %UpdateResult{
+                 state: upgrade_state,
+                 transaction: %{
+                   type: :contract,
+                   data: %{
+                     code: new_code |> Base.decode16!(case: :mixed) |> :zlib.zip()
+                   }
+                 }
+               }}
+
+            _ ->
+              {:error, :invalid_upgrade_params}
+          end
+        else
+          {:error, :upgrade_not_authorized}
+        end
+    end
+    |> cast_trigger_result(state, contract_tx)
+  end
+
   def execute_trigger(
         trigger_type,
         contract = %{
@@ -99,7 +173,7 @@ defmodule Archethic.Contracts do
         maybe_trigger_tx,
         maybe_recipient,
         inputs,
-        opts \\ []
+        opts
       ) do
     # TODO: trigger_tx & recipient should be transformed into recipient here
     # TODO: rescue should be done in here as well

@@ -110,10 +110,17 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     wasm_spec =
       unless String.printable?(tx.data.code) do
         {:ok, pid} = Archethic.Contracts.WasmInstance.start_link(bytes: tx.data.code)
-        spec = Archethic.Contracts.WasmInstance.spec(pid)
+
+        %Archethic.Contracts.WasmSpec{
+          upgrade_opts: upgrade_opts,
+          public_functions: public_functions,
+          triggers: triggers
+        } = Archethic.Contracts.WasmInstance.spec(pid)
 
         """
         type: "WebAssembly contract"
+
+        upgradable: #{upgrade_opts != nil}
 
         triggers:
         #{Enum.map(triggers, fn %WasmTrigger{function_name: function, type: trigger} ->
