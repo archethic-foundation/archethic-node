@@ -54,7 +54,7 @@ defmodule Archethic.Contracts do
   @doc """
   Parse a smart contract code and return a contract struct
   """
-  @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
+  @spec parse(binary()) :: {:ok, Contract.t() | ContractV2.t()} | {:error, binary()}
   def parse(contract_code) do
     if String.printable?(contract_code) do
       Interpreter.parse(contract_code)
@@ -102,18 +102,16 @@ defmodule Archethic.Contracts do
 
   def execute_trigger(
         {:transaction, "upgrade", _},
-        contract = %{
-          version: version,
+        %ContractV2{
           transaction: contract_tx,
-          state: state
+          state: state,
+          instance: instance
         },
         trigger_tx,
         %Recipient{args: arg},
         _inputs,
         _opts
-      )
-      when version >= 2 do
-    %ContractV2{instance: instance} = contract
+      ) do
     %WasmSpec{upgrade_opts: upgrade_opts} = WasmInstance.spec(instance)
 
     case upgrade_opts do
@@ -166,7 +164,6 @@ defmodule Archethic.Contracts do
   def execute_trigger(
         trigger_type,
         contract = %{
-          version: version,
           transaction: contract_tx = %Transaction{address: contract_address},
           state: state
         },
@@ -198,47 +195,19 @@ defmodule Archethic.Contracts do
        Keyword.fetch!(opts, :time_now), inputs_digest(inputs)}
 
     fn ->
-      if version >= 2 do
-        %ContractV2{instance: instance} = contract
-        %WasmSpec{triggers: triggers} = WasmInstance.spec(instance)
+      case contract do
+        %ContractV2{} ->
+          exec_wasm(contract, trigger_type, maybe_trigger_tx, maybe_recipient, inputs, opts)
 
-        trigger =
-          Enum.find(triggers, fn %WasmTrigger{type: type, function_name: fn_name} ->
-            case trigger_type do
-              {:transaction, action_name, _} when action_name != nil ->
-                type == :transaction and fn_name == action_name
-
-              trigger ->
-                type == trigger
-            end
-          end)
-
-        if trigger != nil do
-          argument =
-            with %Recipient{args: args} <- maybe_recipient,
-                 arg when arg != nil <- Enum.at(args, 0) do
-              arg
-            else
-              _ ->
-                nil
-            end
-
-          WasmInstance.execute(instance, trigger.function_name, argument,
-            transaction: maybe_trigger_tx,
-            state: state
+        _ ->
+          Interpreter.execute_trigger(
+            trigger_type,
+            contract,
+            maybe_trigger_tx,
+            maybe_recipient,
+            inputs,
+            opts
           )
-        else
-          {:error, :trigger_not_exists}
-        end
-      else
-        Interpreter.execute_trigger(
-          trigger_type,
-          contract,
-          maybe_trigger_tx,
-          maybe_recipient,
-          inputs,
-          opts
-        )
       end
     end
     |> cache_interpreter_execute(key,
@@ -246,6 +215,46 @@ defmodule Archethic.Contracts do
       cache?: Keyword.get(opts, :cache?, true)
     )
     |> cast_trigger_result(state, contract_tx)
+  end
+
+  defp exec_wasm(
+         %ContractV2{instance: instance, state: state},
+         trigger_type,
+         maybe_trigger_tx,
+         maybe_recipient,
+         _inputs,
+         _opts
+       ) do
+    %WasmSpec{triggers: triggers} = WasmInstance.spec(instance)
+
+    trigger =
+      Enum.find(triggers, fn %WasmTrigger{type: type, function_name: fn_name} ->
+        case trigger_type do
+          {:transaction, action_name, _} when action_name != nil ->
+            type == :transaction and fn_name == action_name
+
+          trigger ->
+            type == trigger
+        end
+      end)
+
+    if trigger != nil do
+      argument =
+        with %Recipient{args: args} <- maybe_recipient,
+             arg when arg != nil <- Enum.at(args, 0) do
+          arg
+        else
+          _ ->
+            nil
+        end
+
+      WasmInstance.execute(instance, trigger.function_name, argument,
+        transaction: maybe_trigger_tx,
+        state: state
+      )
+    else
+      {:error, :trigger_not_exists}
+    end
   end
 
   defp time_now({:transaction, _, _}, %Transaction{
@@ -386,16 +395,14 @@ defmodule Archethic.Contracts do
           {:ok, value :: any(), logs :: list(String.t())}
           | {:error, Failure.t()}
   def execute_function(
-        contract = %{
-          version: contract_version
+        %ContractV2{
+          instance: instance,
+          state: state
         },
         function_name,
         args_values,
         _inputs
-      )
-      when contract_version >= 2 do
-    %ContractV2{instance: instance, state: state} = contract
-
+      ) do
     %WasmSpec{public_functions: functions} = WasmInstance.spec(instance)
 
     if function_name in functions do
@@ -665,7 +672,8 @@ defmodule Archethic.Contracts do
   @doc """
   Returns a contract instance from a transaction
   """
-  @spec from_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  @spec from_transaction(Transaction.t()) ::
+          {:ok, Contract.t() | ContractV2.t()} | {:error, String.t()}
   def from_transaction(tx) do
     case Contract.from_transaction(tx) do
       {:ok, contract} ->

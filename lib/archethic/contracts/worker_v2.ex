@@ -326,17 +326,17 @@ defmodule Archethic.Contracts.WorkerV2 do
     trigger = ContractV2.get_trigger_for_recipient(recipient)
     unspent_outputs = fetch_unspent_outputs(genesis_address)
 
-    with :ok <-
-           execute_contract(
-             contract,
-             trigger,
-             trigger_tx,
-             recipient,
-             genesis_address,
-             unspent_outputs
-           ) do
-      {:ok, Map.put(data, :last_call_processed, from)}
-    else
+    case execute_contract(
+           contract,
+           trigger,
+           trigger_tx,
+           recipient,
+           genesis_address,
+           unspent_outputs
+         ) do
+      :ok ->
+        {:ok, Map.put(data, :last_call_processed, from)}
+
       _ ->
         Loader.invalidate_call(genesis_address, contract_address, from)
         {:error, data}

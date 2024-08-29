@@ -164,8 +164,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp validate_contract_ownership(contract = %{version: version}, ownerships)
-       when version >= 2 do
+  defp validate_contract_ownership(contract = %ContractV2{}, ownerships) do
     if ContractV2.contains_trigger?(contract) do
       ensure_ownership_in_contract(ownerships)
     else
@@ -173,7 +172,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp validate_contract_ownership(contract, ownerships) do
+  defp validate_contract_ownership(contract = %Contract{}, ownerships) do
     if Contract.contains_trigger?(contract) do
       ensure_ownership_in_contract(ownerships)
     else

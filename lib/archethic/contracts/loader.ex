@@ -261,7 +261,7 @@ defmodule Archethic.Contracts.Loader do
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),
          {:ok, contract} <- Contracts.from_transaction(tx) do
       case contract do
-        %{version: version} when version >= 2 ->
+        %ContractV2{} ->
           if ContractV2.contains_trigger?(contract) do
             if worker_exists?(genesis_address),
               do: WorkerV2.set_contract(genesis_address, contract, execute_contract?),
