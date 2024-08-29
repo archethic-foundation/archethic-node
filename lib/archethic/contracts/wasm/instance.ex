@@ -32,27 +32,70 @@ defmodule Archethic.Contracts.WasmInstance do
     {:ok, instance_pid} = WasmModule.get_instance(bytes, io_mem_pid)
 
     {:ok, %ReadResult{value: spec}} = WasmModule.execute(instance_pid, io_mem_pid, "spec")
+    wasm_spec = WasmSpec.cast(spec)
 
     exported_functions = WasmModule.list_exported_functions(instance_pid)
 
-    wasm_state =
-      if "init" in exported_functions do
-        {:ok, %ReadResult{value: initialized_state}} =
-          WasmModule.execute(instance_pid, io_mem_pid, "init", transaction: transaction)
+    with :ok <- validate_existing_spec_functions(wasm_spec, exported_functions),
+         :ok <- validate_referenced_exported_functions(wasm_spec, exported_functions) do
+      wasm_state =
+        if "init" in exported_functions do
+          {:ok, %ReadResult{value: initialized_state}} =
+            WasmModule.execute(instance_pid, io_mem_pid, "init", transaction: transaction)
 
-        initialized_state
-      else
-        %{}
-      end
+          initialized_state
+        else
+          %{}
+        end
 
-    {:ok,
-     %{
-       instance_pid: instance_pid,
-       spec: WasmSpec.cast(spec),
-       exported_functions: exported_functions,
-       wasm_state: wasm_state,
-       io_mem_pid: io_mem_pid
-     }}
+      {:ok,
+       %{
+         instance_pid: instance_pid,
+         spec: wasm_spec,
+         exported_functions: exported_functions,
+         wasm_state: wasm_state,
+         io_mem_pid: io_mem_pid
+       }}
+    end
+  end
+
+  defp validate_existing_spec_functions(
+         %WasmSpec{triggers: triggers, public_functions: public_functions},
+         exported_functions
+       ) do
+    spec_functions = Enum.map(triggers, & &1.function_name) ++ public_functions
+
+    case spec_functions
+         |> MapSet.new()
+         |> MapSet.difference(MapSet.new(exported_functions))
+         |> MapSet.to_list() do
+      [] ->
+        :ok
+
+      difference ->
+        {:error,
+         "Contract doesn't have functions: #{Enum.join(difference, ",")} as mentioned in the spec"}
+    end
+  end
+
+  defp validate_referenced_exported_functions(
+         %WasmSpec{triggers: triggers, public_functions: public_functions},
+         exported_functions
+       ) do
+    spec_functions = Enum.map(triggers, & &1.function_name) ++ public_functions
+    reservedFunctions = ["spec", "init", "onUpgrade"]
+
+    case exported_functions
+         |> MapSet.new()
+         |> MapSet.difference(MapSet.new(spec_functions))
+         |> MapSet.reject(&(&1 in reservedFunctions))
+         |> MapSet.to_list() do
+      [] ->
+        :ok
+
+      difference ->
+        {:error, "Spec doesn't reference the functions: #{Enum.join(difference, ",")}"}
+    end
   end
 
   def handle_call(:spec, _from, state = %{spec: spec}) do
