@@ -1,4 +1,9 @@
 defmodule Archethic.Contracts.WasmTrigger do
+  @moduledoc false
+  @type t :: %__MODULE__{
+          function_name: String.t(),
+          type: :transaction | {:datetime, DateTime.t()} | {:interval, String.t()} | :oracle
+        }
   defstruct [:function_name, :type]
 
   def cast({function_name, %{"type" => 0}}),

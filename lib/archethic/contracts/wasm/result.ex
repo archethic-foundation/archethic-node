@@ -1,12 +1,22 @@
 defmodule Archethic.Contracts.Wasm.UpdateResult do
+  @moduledoc false
+  @type t :: %__MODULE__{
+          state: map(),
+          transaction: map()
+        }
   defstruct [:state, :transaction]
 end
 
 defmodule Archethic.Contracts.Wasm.ReadResult do
+  @moduledoc false
+  @type t :: %__MODULE__{
+          value: any()
+        }
   defstruct [:value]
 end
 
 defmodule Archethic.Contracts.WasmResult do
+  @moduledoc false
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.Wasm.ReadResult
 

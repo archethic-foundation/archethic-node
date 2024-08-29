@@ -1,4 +1,5 @@
 defmodule Archethic.Contracts.WasmModule do
+  @moduledoc false
   alias Archethic.Contracts.WasmResult
   alias Archethic.Contracts.WasmSpec
   alias Archethic.Contracts.Wasm.ReadResult
@@ -51,7 +52,7 @@ defmodule Archethic.Contracts.WasmModule do
   end
 
   @spec execute(instance :: pid(), io_mem_pid :: pid(), functionName :: String.t(), opts()) ::
-          {:ok, ReadResult.t() | UpdateResult.t(), consumed_gas :: pos_integer()}
+          {:ok, ReadResult.t() | UpdateResult.t()}
           | {:ok, WasmSpec.t()}
           | {:error, :function_not_exists}
           | {:error, {:invalid_output, nil}}
@@ -87,15 +88,16 @@ defmodule Archethic.Contracts.WasmModule do
           nil ->
             {:error, e}
 
-          customError ->
-            {:error, customError}
+          custom_error ->
+            {:error, custom_error}
         end
     end
   end
 
   defp imports(io_mem_pid) do
     log = fn _, offset, length ->
-      WasmMemory.read(io_mem_pid, offset, length) |> IO.inspect(label: "log wasm")
+      log_msg = WasmMemory.read(io_mem_pid, offset, length)
+      IO.puts("WASM log => #{log_msg}")
     end
 
     store_u8 = fn _, offset, value ->

@@ -1,6 +1,14 @@
 defmodule Archethic.Contracts.WasmSpec do
+  @moduledoc false
+
   alias Archethic.Contracts.WasmTrigger
 
+  @type t :: %__MODULE__{
+          version: pos_integer(),
+          triggers: list(WasmTrigger.t()),
+          public_functions: list(String.t()),
+          upgrade_opts: nil | __MODULE__.UpgradeOpts.t()
+        }
   defstruct [:version, triggers: [], public_functions: [], upgrade_opts: nil]
 
   def cast(%{
@@ -18,6 +26,11 @@ defmodule Archethic.Contracts.WasmSpec do
   end
 
   defmodule UpgradeOpts do
+    @moduledoc false
+
+    @type t :: %__MODULE__{
+            from: binary()
+          }
     defstruct [:from]
 
     def cast(%{"from" => from}) do

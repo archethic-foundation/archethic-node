@@ -1,5 +1,8 @@
 defmodule Archethic.Contracts.WasmMemory do
+  @moduledoc false
   use GenServer
+
+  @vsn 1
 
   def start_link() do
     GenServer.start_link(__MODULE__, [])
@@ -85,8 +88,8 @@ defmodule Archethic.Contracts.WasmMemory do
   end
 
   def handle_cast({:set_error, offset, length}, state = %{output_buffer: output_buffer}) do
-    errorPayload = :erlang.binary_part(output_buffer, offset, length)
-    err = Jason.decode!(errorPayload)
+    err_payload = :erlang.binary_part(output_buffer, offset, length)
+    err = Jason.decode!(err_payload)
     {:noreply, Map.put(state, :error, err)}
   end
 

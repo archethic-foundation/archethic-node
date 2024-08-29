@@ -1,16 +1,24 @@
 defmodule Archethic.Contracts.WasmInstance do
+  @moduledoc false
   use GenServer
+
+  @vsn 1
 
   alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.WasmMemory
   alias Archethic.Contracts.WasmSpec
   alias Archethic.Contracts.Wasm.ReadResult
+  alias Archethic.Contracts.Wasm.UpdateResult
 
-  @spec start_link(list()) :: GenServer.on_start()
+  @reserved_functions ["spec", "init", "onUpgrade"]
+
+  @spec start_link(bytes: binary(), transaction: nil | map()) :: GenServer.on_start()
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg)
   end
 
+  @spec execute(pid(), String.t(), nil | map(), [state: map(), transaction: map()] | nil) ::
+          {:ok, ReadResult.t() | UpdateResult.t()} | {:error, any()}
   def execute(pid, function_name, arg, opts) do
     GenServer.call(pid, {:execute, function_name, arg, opts})
   end
@@ -20,6 +28,7 @@ defmodule Archethic.Contracts.WasmInstance do
     GenServer.call(pid, :spec)
   end
 
+  @spec exported_functions(pid) :: list(String.t())
   def exported_functions(pid) do
     GenServer.call(pid, :exported_functions)
   end
@@ -83,12 +92,11 @@ defmodule Archethic.Contracts.WasmInstance do
          exported_functions
        ) do
     spec_functions = Enum.map(triggers, & &1.function_name) ++ public_functions
-    reservedFunctions = ["spec", "init", "onUpgrade"]
 
     case exported_functions
          |> MapSet.new()
          |> MapSet.difference(MapSet.new(spec_functions))
-         |> MapSet.reject(&(&1 in reservedFunctions))
+         |> MapSet.reject(&(&1 in @reserved_functions))
          |> MapSet.to_list() do
       [] ->
         :ok
