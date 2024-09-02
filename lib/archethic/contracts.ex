@@ -252,11 +252,9 @@ defmodule Archethic.Contracts do
         instance,
         trigger.function_name,
         argument,
-        [
-          transaction: maybe_trigger_tx,
-          state: state,
-          balance: UTXO.get_balance(inputs)
-        ]
+        transaction: maybe_trigger_tx,
+        state: state,
+        balance: UTXO.get_balance(inputs)
       )
     else
       {:error, :trigger_not_exists}

@@ -22,6 +22,8 @@ defmodule Archethic.ContractsTest do
 
   doctest Contracts
 
+  import Mox
+
   describe "execute_condition/5 (inherit)" do
     test "should return Rejected when the inherit constraints literal values are not respected" do
       code = """
@@ -833,6 +835,35 @@ defmodule Archethic.ContractsTest do
         )
 
       assert {%{"counter" => 5}, ""} = State.deserialize(encoded_state)
+    end
+
+    test "should execute trigger for wasm contract with some IO mocks" do
+      address = ArchethicCase.random_address()
+
+      MockWasmIO
+      |> expect(:get_balance, fn ^address ->
+        %{uco: 500_000_000, token: %{}}
+      end)
+
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = ContractV2.from_transaction!(contract_tx)
+      incoming_tx = TransactionFactory.create_valid_transaction()
+
+      {:ok, %ActionWithTransaction{next_tx: next_tx}} =
+        Contracts.execute_trigger(
+          {:transaction, "printBalance", nil},
+          contract,
+          incoming_tx,
+          %Recipient{
+            address: contract_tx.address,
+            action: "printBalance",
+            args: [%{address: Base.encode16(address)}]
+          },
+          []
+        )
+
+      assert next_tx.data.content == "UCO: 500000000"
     end
   end
 

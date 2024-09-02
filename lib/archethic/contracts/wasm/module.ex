@@ -134,6 +134,39 @@ defmodule Archethic.Contracts.WasmModule do
 
     set_error = fn _, offset, length -> WasmMemory.set_error(io_mem_pid, offset, length) end
 
+    get_balance = fn _, offset, length ->
+      address = WasmMemory.read(io_mem_pid, offset, length)
+
+      %{uco: uco, token: token_balance} = WasmIO.get_balance(address)
+
+      encoded_balance =
+        %{
+          uco: uco,
+          token:
+            Enum.map(token_balance, fn {{address, token_id}, amount} ->
+              %{
+                tokenAddress: address,
+                tokenId: token_id,
+                amount: amount
+              }
+            end)
+        }
+        |> Jason.encode!()
+
+      size = byte_size(encoded_balance)
+
+      offset = WasmMemory.alloc(io_mem_pid, size)
+
+      encoded_balance
+      |> :erlang.binary_to_list()
+      |> Enum.with_index()
+      |> Enum.each(fn {byte, i} ->
+        WasmMemory.store_u8(io_mem_pid, offset + i, byte)
+      end)
+
+      combine_number(offset, size)
+    end
+
     %{
       "archethic/env" => %{
         log: {:fn, [:i64, :i64], [], log},
@@ -143,6 +176,9 @@ defmodule Archethic.Contracts.WasmModule do
         input_size: {:fn, [], [:i64], input_size},
         set_output: {:fn, [:i64, :i64], [], set_output},
         set_error: {:fn, [:i64, :i64], [], set_error}
+      },
+      "archethic/IO" => %{
+        get_balance: {:fn, [:i64, :i64], [:i64], get_balance}
       }
     }
   end
@@ -172,4 +208,15 @@ defmodule Archethic.Contracts.WasmModule do
     |> put_in([:data, :code], "")
     |> Utils.bin2hex()
   end
+
+  defp combine_number(a, b) do
+    a <<< 32 ||| b
+  end
+
+  #  defp decombine_number(n) do
+  #   a = n >>> 32
+  #   u32_mask = 2 ** 32 - 1
+  #   b = n &&& u32_mask
+  #   {a, b}
+  # end
 end
