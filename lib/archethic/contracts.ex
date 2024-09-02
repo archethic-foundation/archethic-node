@@ -222,7 +222,7 @@ defmodule Archethic.Contracts do
          trigger_type,
          maybe_trigger_tx,
          maybe_recipient,
-         _inputs,
+         inputs,
          _opts
        ) do
     %WasmSpec{triggers: triggers} = WasmInstance.spec(instance)
@@ -248,9 +248,15 @@ defmodule Archethic.Contracts do
             nil
         end
 
-      WasmInstance.execute(instance, trigger.function_name, argument,
-        transaction: maybe_trigger_tx,
-        state: state
+      WasmInstance.execute(
+        instance,
+        trigger.function_name,
+        argument,
+        [
+          transaction: maybe_trigger_tx,
+          state: state,
+          balance: UTXO.get_balance(inputs)
+        ]
       )
     else
       {:error, :trigger_not_exists}
@@ -401,13 +407,16 @@ defmodule Archethic.Contracts do
         },
         function_name,
         args_values,
-        _inputs
+        inputs
       ) do
     %WasmSpec{public_functions: functions} = WasmInstance.spec(instance)
 
     if function_name in functions do
       {:ok, %ReadResult{value: value}} =
-        WasmInstance.execute(instance, function_name, Enum.at(args_values, 0), state: state)
+        WasmInstance.execute(instance, function_name, Enum.at(args_values, 0),
+          state: state,
+          balance: UTXO.get_balance(inputs)
+        )
 
       {:ok, value, []}
     else

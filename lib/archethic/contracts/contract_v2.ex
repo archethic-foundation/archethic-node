@@ -68,8 +68,8 @@ defmodule Archethic.Contracts.ContractV2 do
 
         {:ok, contract}
 
-      {:error, reason} ->
-        {:error, Atom.to_string(reason)}
+      {:error, _} = e ->
+        e
     end
   end
 

@@ -46,17 +46,9 @@ defmodule Archethic.Contracts.WasmInstance do
     exported_functions = WasmModule.list_exported_functions(instance_pid)
 
     with :ok <- validate_existing_spec_functions(wasm_spec, exported_functions),
-         :ok <- validate_referenced_exported_functions(wasm_spec, exported_functions) do
-      wasm_state =
-        if "init" in exported_functions do
-          {:ok, %ReadResult{value: initialized_state}} =
-            WasmModule.execute(instance_pid, io_mem_pid, "init", transaction: transaction)
-
-          initialized_state
-        else
-          %{}
-        end
-
+         :ok <- validate_referenced_exported_functions(wasm_spec, exported_functions),
+         {:ok, wasm_state} <-
+           init_state(instance_pid, io_mem_pid, exported_functions, transaction: transaction) do
       {:ok,
        %{
          instance_pid: instance_pid,
@@ -65,6 +57,20 @@ defmodule Archethic.Contracts.WasmInstance do
          wasm_state: wasm_state,
          io_mem_pid: io_mem_pid
        }}
+    end
+  end
+
+  defp init_state(instance_pid, io_mem_pid, exported_functions, opts) do
+    if "init" in exported_functions do
+      case WasmModule.execute(instance_pid, io_mem_pid, "init", opts) do
+        {:ok, %ReadResult{value: initialized_state}} ->
+          {:ok, initialized_state}
+
+        {:error, _} = e ->
+          e
+      end
+    else
+      {:ok, %{}}
     end
   end
 
@@ -126,8 +132,6 @@ defmodule Archethic.Contracts.WasmInstance do
         function_name,
         Keyword.merge([state: wasm_state, arguments: arg], opts)
       )
-
-    WasmMemory.clear(io_mem_pid)
 
     {:reply, result, state}
   end

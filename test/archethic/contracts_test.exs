@@ -980,5 +980,25 @@ defmodule Archethic.ContractsTest do
                  []
                )
     end
+
+    test "should execute function for wasm contract with inputs" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = ContractV2.from_transaction!(contract_tx)
+
+      assert {:ok, "UCO: 500000000", _} =
+               Contracts.execute_function(
+                 contract,
+                 "currentBalance",
+                 [],
+                 [
+                   %UnspentOutput{
+                     from: ArchethicCase.random_address(),
+                     amount: 500_000_000,
+                     type: :UCO
+                   }
+                 ]
+               )
+    end
   end
 end

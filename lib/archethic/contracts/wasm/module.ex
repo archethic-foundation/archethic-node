@@ -5,15 +5,26 @@ defmodule Archethic.Contracts.WasmModule do
   alias Archethic.Contracts.Wasm.ReadResult
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.WasmMemory
+  alias Archethic.Contracts.WasmIO
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
+
+  import Bitwise
 
   @type opts :: [
           now: DateTime.t(),
           state: map(),
           transaction: map(),
-          fuel: pos_integer()
+          balance: %{
+            uco: pos_integer(),
+            tokens:
+              list(%{
+                token_address: String.t(),
+                token_id: pos_integer(),
+                amount: pos_integer()
+              })
+          }
         ]
 
   @spec get_instance(bytes :: binary(), io_mem_pid :: pid(), opts()) :: GenServer.on_start()
@@ -65,10 +76,12 @@ defmodule Archethic.Contracts.WasmModule do
           opts
           |> Keyword.get(:transaction)
           |> cast_transaction(),
-        arguments: Keyword.get(opts, :arguments)
+        arguments: Keyword.get(opts, :arguments),
+        balance: Keyword.get(opts, :balance, %{uco: 0, tokens: []})
       }
       |> Jason.encode!()
 
+    WasmMemory.clear(io_mem_pid)
     WasmMemory.set_input(io_mem_pid, input)
 
     with :ok <- check_function_existance(instance_pid, function_name),
@@ -104,8 +117,9 @@ defmodule Archethic.Contracts.WasmModule do
       WasmMemory.store_u8(io_mem_pid, offset, value)
     end
 
-    input_load_u8 = fn _, offset ->
-      WasmMemory.input_load_u8(io_mem_pid, offset)
+    load_u8 = fn _, offset ->
+      <<byte::8>> = WasmMemory.read(io_mem_pid, offset, 1)
+      byte
     end
 
     input_size = fn _ -> WasmMemory.input_size(io_mem_pid) end
@@ -125,7 +139,7 @@ defmodule Archethic.Contracts.WasmModule do
         log: {:fn, [:i64, :i64], [], log},
         alloc: {:fn, [:i64], [:i64], alloc},
         store_u8: {:fn, [:i64, :i32], [], store_u8},
-        input_load_u8: {:fn, [:i64], [:i32], input_load_u8},
+        load_u8: {:fn, [:i64], [:i32], load_u8},
         input_size: {:fn, [], [:i64], input_size},
         set_output: {:fn, [:i64, :i64], [], set_output},
         set_error: {:fn, [:i64, :i64], [], set_error}
