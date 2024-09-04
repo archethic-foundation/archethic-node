@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.WasmInstance do
   alias Archethic.Contracts.Wasm.ReadResult
   alias Archethic.Contracts.Wasm.UpdateResult
 
-  @reserved_functions ["spec", "init", "onUpgrade"]
+  @reserved_functions ["spec", "onInit", "onUpgrade"]
 
   @spec start_link(bytes: binary(), transaction: nil | map()) :: GenServer.on_start()
   def start_link(arg) do
@@ -62,7 +62,7 @@ defmodule Archethic.Contracts.WasmInstance do
 
   defp init_state(instance_pid, io_mem_pid, exported_functions, opts) do
     if "init" in exported_functions do
-      case WasmModule.execute(instance_pid, io_mem_pid, "init", opts) do
+      case WasmModule.execute(instance_pid, io_mem_pid, "onInit", opts) do
         {:ok, %ReadResult{value: initialized_state}} ->
           {:ok, initialized_state}
 
