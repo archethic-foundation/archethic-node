@@ -1,11 +1,17 @@
 defmodule Archethic.Contracts.WasmTrigger do
-  @moduledoc false
-  @type t :: %__MODULE__{
+  @moduledoc """
+  Represents a trigger for a WASM Smart contract
+  """
+  @type t() :: %__MODULE__{
           function_name: String.t(),
           type: :transaction | {:datetime, DateTime.t()} | {:interval, String.t()} | :oracle
         }
   defstruct [:function_name, :type]
 
+  @doc """
+  Cast a json trigger into a struct
+  """
+  @spec cast({String.t(), %{String.t() => any}}) :: t()
   def cast({function_name, %{"type" => 0}}),
     do: %__MODULE__{type: :transaction, function_name: function_name}
 

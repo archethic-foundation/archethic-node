@@ -12,6 +12,8 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.Contracts.Worker
 
   alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -56,6 +58,9 @@ defmodule Archethic.Contracts.WorkerTest do
 
     MockDB
     |> stub(:chain_size, fn _ -> 1 end)
+
+    MockClient
+    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ -> {:ok, %UnspentOutputList{unspent_outputs: []}} end)
 
     transaction_seed = :crypto.strong_rand_bytes(32)
 

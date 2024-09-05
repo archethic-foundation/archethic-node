@@ -5,14 +5,22 @@ defmodule Archethic.Contracts.WasmModule do
   alias Archethic.Contracts.Wasm.ReadResult
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.WasmMemory
-  alias Archethic.Contracts.WasmIO
+  alias Archethic.Contracts.WasmImports
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
 
-  import Bitwise
+  @reserved_functions ["spec", "onInit", "onUpgrade"]
 
-  @type opts :: [
+  defstruct [:module, :store, :spec]
+
+  @type t() :: %__MODULE__{
+          module: Wasmex.Module.t(),
+          store: Wasmex.StoreOrCaller.t(),
+          spec: WasmSpec.t() | nil
+        }
+
+  @type execution_opts :: [
           now: DateTime.t(),
           state: map(),
           transaction: map(),
@@ -27,13 +35,13 @@ defmodule Archethic.Contracts.WasmModule do
           }
         ]
 
-  @spec get_instance(bytes :: binary(), io_mem_pid :: pid(), opts()) :: GenServer.on_start()
-  def get_instance(bytes, io_mem_pid, opts \\ []) do
-    engine_config =
-      %Wasmex.EngineConfig{}
-      |> Wasmex.EngineConfig.consume_fuel(true)
-
-    {:ok, engine} = Wasmex.Engine.new(engine_config)
+  @doc """
+  Parse wasm module and perform some checks
+  """
+  @spec parse(bytes :: binary()) :: {:ok, t()} | {:error, any()}
+  def parse(bytes) when is_binary(bytes) do
+    {:ok, engine} =
+      Wasmex.Engine.new(Wasmex.EngineConfig.consume_fuel(%Wasmex.EngineConfig{}, true))
 
     {:ok, store} =
       Wasmex.Store.new(
@@ -42,33 +50,131 @@ defmodule Archethic.Contracts.WasmModule do
       )
 
     # TODO: define a minimum limit
-    initial_gas_alloc = Keyword.get(opts, :fuel, 100_000_000)
+    initial_gas_alloc = 100_000_000
 
-    # # Add fuel max limit
-    Wasmex.StoreOrCaller.add_fuel(store, initial_gas_alloc)
+    # Add fuel max limit
+    Wasmex.StoreOrCaller.set_fuel(store, initial_gas_alloc)
 
-    {:ok, module} = Wasmex.Module.compile(store, bytes)
-
-    Wasmex.start_link(%{store: store, module: module, imports: imports(io_mem_pid)})
+    with {:ok, module} <- Wasmex.Module.compile(store, bytes),
+         wrap_module = %__MODULE__{module: module, store: store},
+         :ok <- check_module_imports(wrap_module),
+         :ok <- check_module_exports(wrap_module),
+         {:ok, spec} <- check_spec_exports(wrap_module) do
+      {:ok, %{wrap_module | spec: spec}}
+    end
   end
 
-  @spec list_exported_functions(instance_pid :: pid()) :: list(String.t())
-  def list_exported_functions(instance_pid) do
-    {:ok, module} = Wasmex.module(instance_pid)
+  defp check_module_imports(%__MODULE__{module: module}) do
+    required_imports =
+      [
+        "archethic/env::alloc",
+        "archethic/env::input_size",
+        "archethic/env::load_u8",
+        "archethic/env::set_error",
+        "archethic/env::set_output",
+        "archethic/env::store_u8"
+      ]
+      |> MapSet.new()
 
+    allowed_imports =
+      [
+        "archethic/env::log",
+        "archethic/IO::get_balance"
+      ]
+      |> MapSet.new()
+
+    imported_functions =
+      module
+      |> Wasmex.Module.imports()
+      |> Enum.flat_map(fn {namespace, functions} ->
+        Enum.map(functions, fn {fun_name, _} -> "#{namespace}::#{fun_name}" end)
+      end)
+      |> MapSet.new()
+
+    if MapSet.subset?(required_imports, imported_functions) and
+         MapSet.subset?(MapSet.difference(imported_functions, required_imports), allowed_imports) do
+      :ok
+    else
+      {:error, "wasm's module imported functions are not the expected ones"}
+    end
+  end
+
+  defp check_module_exports(%__MODULE__{module: module}) do
+    exported_functions = exported_functions(module)
+
+    if Map.has_key?(exported_functions, "spec") do
+      if Enum.all?(exported_functions, &match?({_, {:fn, [], []}}, &1)) do
+        :ok
+      else
+        {:error, "exported function shouldn't have input/output variables"}
+      end
+    else
+      {:error, "wasm's module doesn't expose spec function"}
+    end
+  end
+
+  defp check_spec_exports(module) do
+    exported_functions = list_exported_functions_name(module)
+
+    with {:ok, %ReadResult{value: result}} <- execute(module, "spec"),
+         spec = WasmSpec.cast(result),
+         spec_functions = WasmSpec.function_names(spec),
+         :ok <- validate_existing_spec_functions(spec_functions, exported_functions),
+         :ok <- validate_exported_functions_in_spec(spec_functions, exported_functions) do
+      {:ok, spec}
+    end
+  end
+
+  defp validate_existing_spec_functions(spec_functions, exported_functions) do
+    case spec_functions
+         |> MapSet.new()
+         |> MapSet.difference(MapSet.new(exported_functions))
+         |> MapSet.to_list() do
+      [] ->
+        :ok
+
+      difference ->
+        {:error,
+         "Contract doesn't have functions: #{Enum.join(difference, ",")} as mentioned in the spec"}
+    end
+  end
+
+  defp validate_exported_functions_in_spec(
+         spec_functions,
+         exported_functions
+       ) do
+    case exported_functions
+         |> MapSet.new()
+         |> MapSet.difference(MapSet.new(spec_functions))
+         |> MapSet.reject(&(&1 in @reserved_functions))
+         |> MapSet.to_list() do
+      [] ->
+        :ok
+
+      difference ->
+        {:error, "Spec doesn't reference the functions: #{Enum.join(difference, ",")}"}
+    end
+  end
+
+  @spec list_exported_functions_name(t()) :: list(String.t())
+  def list_exported_functions_name(%__MODULE__{module: module}) do
     module
-    |> Wasmex.Module.exports()
-    |> Enum.filter(&match?({_, {:fn, _, _}}, &1))
+    |> exported_functions()
     |> Enum.map(fn {name, _} -> name end)
   end
 
-  @spec execute(instance :: pid(), io_mem_pid :: pid(), functionName :: String.t(), opts()) ::
+  defp exported_functions(module) do
+    module
+    |> Wasmex.Module.exports()
+    |> Enum.filter(&match?({_, {:fn, _, _}}, &1))
+    |> Enum.into(%{})
+  end
+
+  @spec execute(module :: t(), functionName :: binary(), opts :: execution_opts()) ::
           {:ok, ReadResult.t() | UpdateResult.t()}
-          | {:ok, WasmSpec.t()}
-          | {:error, :function_not_exists}
-          | {:error, {:invalid_output, nil}}
           | {:error, any()}
-  def execute(instance_pid, io_mem_pid, function_name, opts \\ []) do
+  def execute(%__MODULE__{module: module, store: store}, function_name, opts \\ [])
+      when is_binary(function_name) do
     input =
       %{
         state: Keyword.get(opts, :state, %{}),
@@ -81,114 +187,54 @@ defmodule Archethic.Contracts.WasmModule do
       }
       |> Jason.encode!()
 
-    WasmMemory.clear(io_mem_pid)
+    {:ok, io_mem_pid} = WasmMemory.start_link()
     WasmMemory.set_input(io_mem_pid, input)
 
-    with :ok <- check_function_existance(instance_pid, function_name),
-         {:ok, response} <-
-           Wasmex.call_function(instance_pid, function_name, []) do
-      case response do
-        [code] when code > 0 ->
-          {:error, "Unknown error"}
-
-        _ ->
-          output = WasmMemory.get_output(io_mem_pid)
-          cast_output(output)
-      end
+    with {:ok, instance_pid} <-
+           Wasmex.start_link(%{module: module, store: store, imports: imports(io_mem_pid)}),
+         {:ok, _} <- Wasmex.call_function(instance_pid, function_name, []) do
+      output = WasmMemory.get_output(io_mem_pid)
+      cast_output(output)
     else
-      {:error, e} ->
+      {:error, _} = e ->
         case WasmMemory.get_error(io_mem_pid) do
           nil ->
-            {:error, e}
+            e
 
           custom_error ->
-            {:error, custom_error}
+            {:error, Jason.decode!(custom_error)}
         end
     end
   end
 
   defp imports(io_mem_pid) do
-    log = fn _, offset, length ->
-      log_msg = WasmMemory.read(io_mem_pid, offset, length)
-      IO.puts("WASM log => #{log_msg}")
-    end
-
-    store_u8 = fn _, offset, value ->
-      WasmMemory.store_u8(io_mem_pid, offset, value)
-    end
-
-    load_u8 = fn _, offset ->
-      <<byte::8>> = WasmMemory.read(io_mem_pid, offset, 1)
-      byte
-    end
-
-    input_size = fn _ -> WasmMemory.input_size(io_mem_pid) end
-
-    alloc = fn _, size ->
-      WasmMemory.alloc(io_mem_pid, size)
-    end
-
-    set_output = fn _, offset, length ->
-      WasmMemory.set_output(io_mem_pid, offset, length)
-    end
-
-    set_error = fn _, offset, length -> WasmMemory.set_error(io_mem_pid, offset, length) end
-
-    get_balance = fn _, offset, length ->
-      address = WasmMemory.read(io_mem_pid, offset, length)
-
-      %{uco: uco, token: token_balance} = WasmIO.get_balance(address)
-
-      encoded_balance =
-        %{
-          uco: uco,
-          token:
-            Enum.map(token_balance, fn {{address, token_id}, amount} ->
-              %{
-                tokenAddress: address,
-                tokenId: token_id,
-                amount: amount
-              }
-            end)
-        }
-        |> Jason.encode!()
-
-      size = byte_size(encoded_balance)
-
-      offset = WasmMemory.alloc(io_mem_pid, size)
-
-      encoded_balance
-      |> :erlang.binary_to_list()
-      |> Enum.with_index()
-      |> Enum.each(fn {byte, i} ->
-        WasmMemory.store_u8(io_mem_pid, offset + i, byte)
-      end)
-
-      combine_number(offset, size)
-    end
-
     %{
       "archethic/env" => %{
-        log: {:fn, [:i64, :i64], [], log},
-        alloc: {:fn, [:i64], [:i64], alloc},
-        store_u8: {:fn, [:i64, :i32], [], store_u8},
-        load_u8: {:fn, [:i64], [:i32], load_u8},
-        input_size: {:fn, [], [:i64], input_size},
-        set_output: {:fn, [:i64, :i64], [], set_output},
-        set_error: {:fn, [:i64, :i64], [], set_error}
+        log:
+          {:fn, [:i64, :i64], [],
+           fn _context, offset, length -> WasmImports.log(offset, length, io_mem_pid) end},
+        alloc:
+          {:fn, [:i64], [:i64], fn _context, size -> WasmImports.alloc(size, io_mem_pid) end},
+        input_size: {:fn, [], [:i64], fn _context -> WasmImports.input_size(io_mem_pid) end},
+        load_u8:
+          {:fn, [:i64], [:i32],
+           fn _context, offset -> WasmImports.load_u8(offset, io_mem_pid) end},
+        set_output:
+          {:fn, [:i64, :i64], [],
+           fn _context, offset, length -> WasmImports.set_output(offset, length, io_mem_pid) end},
+        set_error:
+          {:fn, [:i64, :i64], [],
+           fn _context, offset, length -> WasmImports.set_error(offset, length, io_mem_pid) end},
+        store_u8:
+          {:fn, [:i64, :i32], [],
+           fn _context, offset, value -> WasmImports.store_u8(offset, value, io_mem_pid) end}
       },
       "archethic/IO" => %{
-        get_balance: {:fn, [:i64, :i64], [:i64], get_balance}
+        get_balance:
+          {:fn, [:i64, :i64], [:i64],
+           fn _context, offset, length -> WasmImports.get_balance(offset, length, io_mem_pid) end}
       }
     }
-  end
-
-  defp check_function_existance(instance_pid, function_name) do
-    if Wasmex.function_exists(instance_pid, function_name) do
-      :ok
-    else
-      {:error, :function_not_exists}
-    end
   end
 
   defp cast_output(nil), do: {:error, {:invalid_output, nil}}
@@ -208,15 +254,4 @@ defmodule Archethic.Contracts.WasmModule do
     |> put_in([:data, :code], "")
     |> Utils.bin2hex()
   end
-
-  defp combine_number(a, b) do
-    a <<< 32 ||| b
-  end
-
-  #  defp decombine_number(n) do
-  #   a = n >>> 32
-  #   u32_mask = 2 ** 32 - 1
-  #   b = n &&& u32_mask
-  #   {a, b}
-  # end
 end

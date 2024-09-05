@@ -1,6 +1,5 @@
 defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   @moduledoc false
-  alias Archethic.Contracts.WasmTrigger
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   use ArchethicWeb.Explorer, :live_view
 
@@ -29,6 +28,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias ArchethicWeb.Explorer.Components.UnspentOutputList
   alias ArchethicWeb.Explorer.Components.Amount
   import ArchethicWeb.Explorer.ExplorerView
+
+  alias Archethic.Contracts
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
 
   def mount(_params, _session, socket) do
     uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
@@ -108,12 +111,12 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
       end
 
     wasm_spec =
-      unless String.printable?(tx.data.code) do
-        {:ok, pid} = Archethic.Contracts.WasmInstance.start_link(bytes: tx.data.code)
+      case Contracts.parse!(tx.data.code) do
+        %WasmContract{module: %WasmModule{spec: spec}} ->
+          spec
 
-        pid
-        |> Archethic.Contracts.WasmInstance.spec()
-        |> wasm_spec_to_string(tx)
+        _ ->
+          nil
       end
 
     socket
@@ -125,46 +128,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:token_properties, %{})
     |> assign(:linked_movements, [])
     |> assign(:wasm_spec, wasm_spec)
-  end
-
-  defp wasm_spec_to_string(
-         %Archethic.Contracts.WasmSpec{
-           version: version,
-           upgrade_opts: upgrade_opts,
-           public_functions: public_functions,
-           triggers: triggers
-         },
-         tx
-       ) do
-    upgrade_spec =
-      if upgrade_opts != nil do
-        """
-        - enabled: true
-        - allow_update_from: #{Base.encode16(upgrade_opts.from)}
-        """
-      else
-        """
-        - enabled: false
-        """
-      end
-
-    """
-    type: "WebAssembly contract"
-    version: #{version}
-    upgrade:
-    #{upgrade_spec}
-    triggers:
-    #{Enum.map_join(triggers, "\n", fn %WasmTrigger{function_name: function, type: trigger} ->
-      stringified_trigger = case trigger do
-        {type, arg} -> "#{type} at #{arg}"
-        trigger -> trigger
-      end
-      " - action: #{function}\n   trigger: #{stringified_trigger}"
-    end)}
-    public_functions:
-    #{Enum.map_join(public_functions, "\n", fn function -> " - #{function}" end)}
-    byteCode: #{Base.encode16(tx.data.code)}
-    """
   end
 
   defp async_assign_resolved_movements(%Transaction{

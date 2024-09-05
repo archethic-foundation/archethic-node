@@ -102,7 +102,7 @@ defmodule Archethic.Contracts.ContractTest do
 
       assert {:ok,
               signed_tx = %Transaction{previous_public_key: ^pub, previous_signature: signature}} =
-               Contract.sign_next_transaction(contract, next_tx, 1)
+               Contracts.sign_next_transaction(contract, next_tx, 1)
 
       tx_payload =
         Transaction.extract_for_previous_signature(signed_tx) |> Transaction.serialize(:extended)
@@ -140,7 +140,7 @@ defmodule Archethic.Contracts.ContractTest do
       assert %Transaction{data: %TransactionData{ownerships: []}} = next_tx
 
       assert {:ok, %Transaction{data: %TransactionData{ownerships: [new_ownership]}}} =
-               Contract.sign_next_transaction(contract, next_tx, 1)
+               Contracts.sign_next_transaction(contract, next_tx, 1)
 
       assert new_ownership != ownerships
       assert Ownership.authorized_public_key?(new_ownership, storage_nonce_public_key)

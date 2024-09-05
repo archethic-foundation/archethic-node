@@ -1,5 +1,7 @@
 defmodule Archethic.Contracts.WasmSpec do
-  @moduledoc false
+  @moduledoc """
+  Represents a WASM Smart Contract Specification
+  """
 
   alias Archethic.Contracts.WasmTrigger
 
@@ -11,6 +13,10 @@ defmodule Archethic.Contracts.WasmSpec do
         }
   defstruct [:version, triggers: [], public_functions: [], upgrade_opts: nil]
 
+  @doc """
+  Cast a json spec into a struct
+  """
+  @spec cast(map()) :: t()
   def cast(%{
         "version" => version,
         "triggers" => triggers,
@@ -23,6 +29,10 @@ defmodule Archethic.Contracts.WasmSpec do
       public_functions: public_functions,
       upgrade_opts: __MODULE__.UpgradeOpts.cast(upgrade_opts)
     }
+  end
+
+  def function_names(%__MODULE__{triggers: triggers, public_functions: public_functions}) do
+    Enum.map(triggers, & &1.function_name) ++ public_functions
   end
 
   defmodule UpgradeOpts do

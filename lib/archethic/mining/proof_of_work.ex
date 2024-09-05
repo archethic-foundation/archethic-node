@@ -124,6 +124,8 @@ defmodule Archethic.Mining.ProofOfWork do
       when family != :all ->
         SharedSecrets.list_origin_public_keys(family)
 
+      # TODO: support WasmContract inherit conditions
+
       _ ->
         do_list_origin_public_keys_candidates(tx)
     end

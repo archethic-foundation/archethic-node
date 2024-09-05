@@ -6,7 +6,11 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractV2
+
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
+  alias Archethic.Contracts.Wasm.ReadResult
+
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
@@ -208,8 +212,8 @@ defmodule Archethic.Mining.SmartContractValidation do
     {:ok, contract} = Contracts.from_transaction(prev_tx)
 
     case contract do
-      %{version: version} when version >= 2 ->
-        if ContractV2.contains_trigger?(contract),
+      %WasmContract{} ->
+        if WasmContract.contains_trigger?(contract),
           do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
           else: {:ok, nil}
 
@@ -220,7 +224,32 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
-  def validate_contract_execution(_, _, _, _, _), do: {:ok, nil}
+  def validate_contract_execution(
+        _contract_context,
+        nil,
+        _genesis_address,
+        next_tx = %Transaction{data: %TransactionData{code: code}},
+        _chain_unspent_outputs
+      )
+      when code != "" do
+    with {:ok, %WasmContract{module: module}} <- Contracts.from_transaction(next_tx),
+         {:ok, %ReadResult{value: state}} when is_map(state) <-
+           WasmModule.execute(module, "onInit", transaction: next_tx),
+         false <- State.empty?(state) do
+      {:ok, State.serialize(state)}
+    else
+      _ -> {:ok, nil}
+    end
+  end
+
+  def validate_contract_execution(
+        _contract_context,
+        _prev_tx,
+        _genesis_address,
+        _next_tx,
+        _chain_unspent_outputs
+      ),
+      do: {:ok, nil}
 
   @doc """
   Validate contract inherit constraint
@@ -413,7 +442,7 @@ defmodule Archethic.Mining.SmartContractValidation do
          _status = :tx_output
        ) do
     same_payload? =
-      next_tx |> Contract.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
+      next_tx |> Contracts.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
 
     if same_payload? do
       {:ok, encoded_state}

@@ -121,7 +121,7 @@
                       <span id="copy-code" class="is-hidden">
                         <%= Base.encode16(@transaction.data.code) %>
                       </span>
-                      <pre id="wasm-spec" class="language-yaml" phx-hook="CodeViewer"><%= @wasm_spec %></pre>
+                      <pre id="wasm-spec" class="language-yaml" phx-hook="CodeViewer"><%= format_wasm_spec(@wasm_spec) %></pre>
                     <% end %>
                   </div>
                 <% end %>

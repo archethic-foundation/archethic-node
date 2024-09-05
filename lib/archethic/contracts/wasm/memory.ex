@@ -1,5 +1,8 @@
 defmodule Archethic.Contracts.WasmMemory do
-  @moduledoc false
+  @moduledoc """
+  Represents the WASM's shared memory used to perform I/O for the WebAssembly module
+  """
+
   use GenServer
 
   @vsn 1
@@ -8,44 +11,76 @@ defmodule Archethic.Contracts.WasmMemory do
     GenServer.start_link(__MODULE__, [])
   end
 
-  def set_input(pid, input) do
-    GenServer.cast(pid, {:set_input, input})
+  @doc """
+  Set the input in the shared memory to be retrieved later
+  """
+  @spec set_input(GenServer.server(), binary()) :: :ok
+  def set_input(server, input) do
+    GenServer.cast(server, {:set_input, input})
   end
 
-  def input_size(pid) do
-    GenServer.call(pid, :input_size)
+  @doc """
+  Returns the size of the input stored in the memory state
+  """
+  @spec input_size(GenServer.server()) :: pos_integer()
+  def input_size(server) do
+    GenServer.call(server, :input_size)
   end
 
-  def alloc(pid, size) do
-    GenServer.call(pid, {:alloc, size})
+  @doc """
+  Extends the shared memory and return the offset of the allocation
+  """
+  @spec alloc(GenServer.server(), size :: pos_integer()) :: offset :: pos_integer()
+  def alloc(server, size) do
+    GenServer.call(server, {:alloc, size})
   end
 
-  def store_u8(pid, offset, data) do
-    GenServer.cast(pid, {:store_u8, offset, data})
+  @doc """
+  Store the data in shared memory at the offset's position
+  """
+  @spec store_u8(GenServer.server(), offset :: pos_integer(), data :: pos_integer()) :: :ok
+  def store_u8(server, offset, data) do
+    GenServer.cast(server, {:store_u8, offset, data})
   end
 
-  def set_output(pid, offset, length) do
-    GenServer.cast(pid, {:set_output, offset, length})
+  @doc """
+  Set the output read from the offset of the shared memory to be used later
+  """
+  @spec set_output(GenServer.server(), offset :: pos_integer(), length :: pos_integer()) :: :ok
+  def set_output(server, offset, length) do
+    GenServer.cast(server, {:set_output, offset, length})
   end
 
-  def get_output(pid) do
-    GenServer.call(pid, :get_output)
+  @doc """
+  Retrieve the output registed by `set_output/3`
+  """
+  @spec get_output(GenServer.server()) :: binary() | nil
+  def get_output(server) do
+    GenServer.call(server, :get_output)
   end
 
-  def set_error(pid, offset, length) do
-    GenServer.cast(pid, {:set_error, offset, length})
+  @doc """
+  Set the error read from the offset of the shared memory to be used later
+  """
+  @spec set_error(GenServer.server(), offset :: pos_integer(), length :: pos_integer()) :: :ok
+  def set_error(server, offset, length) do
+    GenServer.cast(server, {:set_error, offset, length})
   end
 
-  def get_error(pid) do
-    GenServer.call(pid, :get_error)
+  @doc """
+  Retrieve the error registed by `set_output/3`
+  """
+  @spec get_error(GenServer.server()) :: binary() | nil
+  def get_error(server) do
+    GenServer.call(server, :get_error)
   end
 
-  def read(pid, offset, length) do
-    GenServer.call(pid, {:read, offset, length})
-  end
-
-  def clear(pid) do
-    GenServer.call(pid, :clear)
+  @doc """
+  Read the memory at the given offset for the given length
+  """
+  @spec read(GenServer.server(), offset :: pos_integer(), length :: pos_integer()) :: binary()
+  def read(server, offset, length) do
+    GenServer.call(server, {:read, offset, length})
   end
 
   def init(_) do
@@ -89,8 +124,7 @@ defmodule Archethic.Contracts.WasmMemory do
 
   def handle_cast({:set_error, offset, length}, state = %{buffer: buffer}) do
     err_payload = :erlang.binary_part(buffer, offset, length)
-    err = Jason.decode!(err_payload)
-    {:noreply, Map.put(state, :error, err)}
+    {:noreply, Map.put(state, :error, err_payload)}
   end
 
   def handle_call(
@@ -118,14 +152,5 @@ defmodule Archethic.Contracts.WasmMemory do
 
   def handle_call({:read, offset, length}, _from, state = %{buffer: buffer}) do
     {:reply, :erlang.binary_part(buffer, offset, length), state}
-  end
-
-  def handle_call(:clear, _, _state) do
-    {:reply, :ok,
-     %{
-       input: <<>>,
-       buffer: <<>>,
-       buffer_offset: 0
-     }}
   end
 end

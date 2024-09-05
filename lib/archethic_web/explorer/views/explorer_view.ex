@@ -245,4 +245,40 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   end
 
   def burning_address, do: LedgerOperations.burning_address()
+
+  def format_wasm_spec(%Archethic.Contracts.WasmSpec{
+        version: version,
+        upgrade_opts: upgrade_opts,
+        public_functions: public_functions,
+        triggers: triggers
+      }) do
+    upgrade_spec =
+      if upgrade_opts != nil do
+        """
+        - enabled: true
+        - allow_update_from: #{Base.encode16(upgrade_opts.from)}
+        """
+      else
+        """
+        - enabled: false
+        """
+      end
+
+    """
+    type: "WebAssembly contract"
+    version: #{version}
+    upgrade:
+    #{upgrade_spec}
+    triggers:
+    #{Enum.map_join(triggers, "\n", fn %Archethic.Contracts.WasmTrigger{function_name: function, type: trigger} ->
+      stringified_trigger = case trigger do
+        {type, arg} -> "#{type} at #{arg}"
+        trigger -> trigger
+      end
+      " - action: #{function}\n   trigger: #{stringified_trigger}"
+    end)}
+    public_functions:
+    #{Enum.map_join(public_functions, "\n", fn function -> " - #{function}" end)}
+    """
+  end
 end

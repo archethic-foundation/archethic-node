@@ -1,6 +1,6 @@
-defmodule Archethic.Contracts.ContractV2 do
+defmodule Archethic.Contracts.WasmContract do
   @moduledoc """
-  Represents a smart contract
+  Represents a smart contract using WebAssembly
   """
 
   alias Archethic.Contracts.Contract.State
@@ -13,13 +13,13 @@ defmodule Archethic.Contracts.ContractV2 do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
-  alias Archethic.Contracts.WasmInstance
+  alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.WasmSpec
 
   require Logger
 
   defstruct version: 2,
-            instance: nil,
+            module: nil,
             state: %{},
             transaction: %Transaction{}
 
@@ -39,7 +39,7 @@ defmodule Archethic.Contracts.ContractV2 do
 
   @type t() :: %__MODULE__{
           version: integer(),
-          instance: pid(),
+          module: WasmModule.t(),
           state: State.t(),
           transaction: Transaction.t()
         }
@@ -49,8 +49,13 @@ defmodule Archethic.Contracts.ContractV2 do
   """
   @spec from_transaction!(Transaction.t()) :: t()
   def from_transaction!(tx) do
-    {:ok, contract} = from_transaction(tx)
-    contract
+    case from_transaction(tx) do
+      {:ok, contract} ->
+        contract
+
+      {:error, reason} ->
+        raise reason
+    end
   end
 
   @doc """
@@ -58,18 +63,18 @@ defmodule Archethic.Contracts.ContractV2 do
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
   def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
-    case WasmInstance.start_link(bytes: code, transaction: tx) do
-      {:ok, instance_pid} ->
+    case WasmModule.parse(code) do
+      {:ok, module} ->
         contract = %__MODULE__{
-          instance: instance_pid,
+          module: module,
           state: get_state_from_tx(tx),
           transaction: tx
         }
 
         {:ok, contract}
 
-      {:error, _} = e ->
-        e
+      {:error, reason} ->
+        {:error, "#{inspect(reason)}"}
     end
   end
 
@@ -88,14 +93,14 @@ defmodule Archethic.Contracts.ContractV2 do
     end
   end
 
+  defp get_state_from_tx(_), do: State.empty()
+
   @doc """
   Return true if the contract contains at least one trigger
   """
   @spec contains_trigger?(contract :: t()) :: boolean()
-  def contains_trigger?(%__MODULE__{instance: instance}) do
-    %WasmSpec{triggers: triggers} = WasmInstance.spec(instance)
-    length(triggers) > 0
-  end
+  def contains_trigger?(%__MODULE__{module: %WasmModule{spec: %WasmSpec{triggers: triggers}}}),
+    do: length(triggers) > 0
 
   @doc """
   Return the args names for this recipient or nil

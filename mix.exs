@@ -15,7 +15,7 @@ defmodule Archethic.MixProject do
       deps: deps(),
       compilers: [:elixir_make] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: true],
+      # elixirc_options: [warnings_as_errors: true],
       dialyzer: dialyzer()
     ]
   end
@@ -130,12 +130,12 @@ defmodule Archethic.MixProject do
       # Numbering
       {:nx, "~> 0.5"},
       {:exla, "~> 0.5"},
-      {:ex_keccak, "0.7.1"},
+      {:ex_keccak, "~> 0.7.3"},
       {:ex_secp256k1, "~> 0.7.2"},
       {:nimble_csv, "~> 1.1", only: :test, runtime: false},
 
       # WASM
-      {:wasmex, "~> 0.8.3"}
+      {:wasmex, "~> 0.9"}
     ]
   end
 

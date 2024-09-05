@@ -1,5 +1,7 @@
 defmodule Archethic.Contracts.Wasm.UpdateResult do
-  @moduledoc false
+  @moduledoc """
+  Represents a result which mutate the transaction or state
+  """
   @type t :: %__MODULE__{
           state: map(),
           transaction: map()
@@ -8,7 +10,9 @@ defmodule Archethic.Contracts.Wasm.UpdateResult do
 end
 
 defmodule Archethic.Contracts.Wasm.ReadResult do
-  @moduledoc false
+  @moduledoc """
+  Represents a result which doesn't mutate
+  """
   @type t :: %__MODULE__{
           value: any()
         }
@@ -16,10 +20,16 @@ defmodule Archethic.Contracts.Wasm.ReadResult do
 end
 
 defmodule Archethic.Contracts.WasmResult do
-  @moduledoc false
+  @moduledoc """
+  Represents a WebAssembly module return
+  """
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.Wasm.ReadResult
 
+  @doc """
+  Cast JSON WebAssembly result in `UpdateResult` or `ReadResult`
+  """
+  @spec cast(map()) :: UpdateResult.t() | ReadResult.t()
   def cast(result) when is_map_key(result, "state") or is_map_key(result, "transaction") do
     %UpdateResult{
       state: Map.get(result, "state") |> cast_state(),

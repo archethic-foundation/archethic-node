@@ -2,8 +2,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractV2
 
   alias Archethic.Crypto
 
@@ -164,16 +162,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp validate_contract_ownership(contract = %ContractV2{}, ownerships) do
-    if ContractV2.contains_trigger?(contract) do
-      ensure_ownership_in_contract(ownerships)
-    else
-      :ok
-    end
-  end
-
-  defp validate_contract_ownership(contract = %Contract{}, ownerships) do
-    if Contract.contains_trigger?(contract) do
+  defp validate_contract_ownership(contract, ownerships) do
+    if Contracts.contains_trigger?(contract) do
       ensure_ownership_in_contract(ownerships)
     else
       :ok

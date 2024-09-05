@@ -3,7 +3,7 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractV2
+  alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -817,7 +817,7 @@ defmodule Archethic.ContractsTest do
     test "should execute trigger for wasm contract" do
       bytes = File.read!("test/support/contract.wasm")
       contract_tx = ContractFactory.create_valid_contract_tx(bytes)
-      contract = ContractV2.from_transaction!(contract_tx)
+      contract = WasmContract.from_transaction!(contract_tx)
       incoming_tx = TransactionFactory.create_valid_transaction()
 
       {:ok, %ActionWithTransaction{encoded_state: encoded_state}} =
@@ -847,7 +847,7 @@ defmodule Archethic.ContractsTest do
 
       bytes = File.read!("test/support/contract.wasm")
       contract_tx = ContractFactory.create_valid_contract_tx(bytes)
-      contract = ContractV2.from_transaction!(contract_tx)
+      contract = WasmContract.from_transaction!(contract_tx)
       incoming_tx = TransactionFactory.create_valid_transaction()
 
       {:ok, %ActionWithTransaction{next_tx: next_tx}} =
@@ -1001,7 +1001,7 @@ defmodule Archethic.ContractsTest do
     test "should execute function for wasm contract" do
       bytes = File.read!("test/support/contract.wasm")
       contract_tx = ContractFactory.create_valid_contract_tx(bytes)
-      contract = ContractV2.from_transaction!(contract_tx)
+      contract = WasmContract.from_transaction!(contract_tx)
 
       assert {:ok, 24, _} =
                Contracts.execute_function(
@@ -1015,7 +1015,7 @@ defmodule Archethic.ContractsTest do
     test "should execute function for wasm contract with inputs" do
       bytes = File.read!("test/support/contract.wasm")
       contract_tx = ContractFactory.create_valid_contract_tx(bytes)
-      contract = ContractV2.from_transaction!(contract_tx)
+      contract = WasmContract.from_transaction!(contract_tx)
 
       assert {:ok, "UCO: 500000000", _} =
                Contracts.execute_function(
