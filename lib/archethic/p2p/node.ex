@@ -302,10 +302,9 @@ defmodule Archethic.P2P.Node do
       Utils.deserialize_public_key(rest)
 
     {mining_public_key, rest} =
-      try do
-        Utils.deserialize_public_key(rest)
-      rescue
-        _ -> {nil, rest}
+      case rest do
+        <<1::8, rest::bitstring>> -> Utils.deserialize_public_key(rest)
+        <<0::8, rest::bitstring>> -> {nil, rest}
       end
 
     {
