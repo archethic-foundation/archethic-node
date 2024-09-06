@@ -278,13 +278,19 @@ defmodule Archethic.P2P.Node do
 
     avg_bin = trunc(average_availability * 100)
 
+    mining_public_key_bin =
+      case mining_public_key do
+        nil -> ""
+        _ -> mining_public_key
+      end
+
     <<ip_bin::binary-size(4), port::16, http_port::16, serialize_transport(transport)::8,
       geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
       DateTime.to_unix(enrollment_date)::32, available_bin::1, synced_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
       reward_address::binary, last_address::binary, origin_public_key::binary,
       DateTime.to_unix(last_update_date)::32, DateTime.to_unix(availability_update)::32,
-      mining_public_key::binary>>
+      mining_public_key_bin::binary>>
   end
 
   defp serialize_transport(MockTransport), do: 0
@@ -317,7 +323,12 @@ defmodule Archethic.P2P.Node do
     {origin_public_key, <<last_update_date::32, availability_update::32, rest::bitstring>>} =
       Utils.deserialize_public_key(rest)
 
-    {mining_public_key, rest} = Utils.deserialize_public_key(rest)
+    {mining_public_key, rest} =
+      try do
+        Utils.deserialize_public_key(rest)
+      rescue
+        _ -> {nil, rest}
+      end
 
     {
       %__MODULE__{
