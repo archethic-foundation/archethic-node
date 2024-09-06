@@ -33,28 +33,8 @@ defmodule Archethic.P2P.NodeTest do
              |> Node.deserialize()
   end
 
-  describe "encode/decode node transaction content" do
-    test "should work without mining public key" do
-      reward_address = ArchethicCase.random_address()
-      origin_public_key = ArchethicCase.random_public_key()
-      certificate = ""
-
-      assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, ^reward_address, ^origin_public_key,
-              ^certificate,
-              nil} =
-               Node.encode_transaction_content(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 reward_address,
-                 origin_public_key,
-                 certificate
-               )
-               |> Node.decode_transaction_content()
-    end
-
-    test "should work with mining public key" do
+  describe "encode/decode " do
+    test "should encode & decode node transaction content" do
       reward_address = ArchethicCase.random_address()
       origin_public_key = ArchethicCase.random_public_key()
       certificate = ""

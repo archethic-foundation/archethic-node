@@ -99,30 +99,9 @@ defmodule Archethic.P2P.Node do
         key_certificate,
         mining_public_key
       ) do
-    <<encode_transaction_content(
-        {ip1, ip2, ip3, ip4},
-        port,
-        http_port,
-        transport,
-        reward_address,
-        origin_public_key,
-        key_certificate
-      )::binary, mining_public_key::binary>>
-  end
-
-  @doc false
-  def encode_transaction_content(
-        {ip1, ip2, ip3, ip4},
-        port,
-        http_port,
-        transport,
-        reward_address,
-        origin_public_key,
-        key_certificate
-      ) do
     <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
       reward_address::binary, origin_public_key::binary, byte_size(key_certificate)::16,
-      key_certificate::binary>>
+      key_certificate::binary, mining_public_key::binary>>
   end
 
   @type t() :: %__MODULE__{
