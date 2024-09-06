@@ -393,11 +393,11 @@ defmodule Archethic.Crypto do
   end
 
   defp do_generate_deterministic_keypair(:bls, origin, seed) do
-    extended_seed = :crypto.hash(:sha512, seed)
+    private_key = :crypto.hash(:sha512, seed)
 
     keypair = {
-      BlsEx.get_public_key(extended_seed),
-      extended_seed
+      BlsEx.get_public_key(private_key),
+      private_key
     }
 
     ID.prepend_keypair(keypair, :bls, origin)
