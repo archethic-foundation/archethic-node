@@ -2,7 +2,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
 
   alias Archethic.Crypto
 
@@ -164,15 +163,21 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp validate_contract_ownership(contract, ownerships) do
-    with true <- Contract.contains_trigger?(contract),
-         false <-
-           Enum.any?(
-             ownerships,
-             &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
-           ) do
-      {:error, "Requires storage nonce public key as authorized public keys"}
+    if Contracts.contains_trigger?(contract) do
+      ensure_ownership_in_contract(ownerships)
     else
-      _ -> :ok
+      :ok
+    end
+  end
+
+  defp ensure_ownership_in_contract(ownerships) do
+    if Enum.any?(
+         ownerships,
+         &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
+       ) do
+      :ok
+    else
+      {:error, "Requires storage nonce public key as authorized public keys"}
     end
   end
 

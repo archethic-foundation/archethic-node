@@ -6,6 +6,11 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
+
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
+  alias Archethic.Contracts.Wasm.ReadResult
+
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
@@ -203,12 +208,48 @@ defmodule Archethic.Mining.SmartContractValidation do
       )
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
-    if prev_tx |> Contract.from_transaction!() |> Contract.contains_trigger?(),
-      do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
-      else: {:ok, nil}
+
+    {:ok, contract} = Contracts.from_transaction(prev_tx)
+
+    case contract do
+      %WasmContract{} ->
+        if WasmContract.contains_trigger?(contract),
+          do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
+          else: {:ok, nil}
+
+      _ ->
+        if Contract.contains_trigger?(contract),
+          do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
+          else: {:ok, nil}
+    end
   end
 
-  def validate_contract_execution(_, _, _, _, _), do: {:ok, nil}
+  def validate_contract_execution(
+        _contract_context,
+        nil,
+        _genesis_address,
+        next_tx = %Transaction{data: %TransactionData{code: code}},
+        _chain_unspent_outputs
+      )
+      when code != "" do
+    with {:ok, %WasmContract{module: module}} <- Contracts.from_transaction(next_tx),
+         {:ok, %ReadResult{value: state}} when is_map(state) <-
+           WasmModule.execute(module, "onInit", transaction: next_tx),
+         false <- State.empty?(state) do
+      {:ok, State.serialize(state)}
+    else
+      _ -> {:ok, nil}
+    end
+  end
+
+  def validate_contract_execution(
+        _contract_context,
+        _prev_tx,
+        _genesis_address,
+        _next_tx,
+        _chain_unspent_outputs
+      ),
+      do: {:ok, nil}
 
   @doc """
   Validate contract inherit constraint
@@ -224,9 +265,11 @@ defmodule Archethic.Mining.SmartContractValidation do
         contract_inputs
       )
       when code != "" do
+    {:ok, contract} = Contracts.from_transaction(prev_tx)
+
     case Contracts.execute_condition(
            :inherit,
-           Contract.from_transaction!(prev_tx),
+           contract,
            next_tx,
            nil,
            validation_time,
@@ -352,7 +395,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   end
 
   defp parse_contract(prev_tx) do
-    case Contract.from_transaction(prev_tx) do
+    case Contracts.from_transaction(prev_tx) do
       {:ok, contract} ->
         {:ok, contract}
 
@@ -399,7 +442,7 @@ defmodule Archethic.Mining.SmartContractValidation do
          _status = :tx_output
        ) do
     same_payload? =
-      next_tx |> Contract.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
+      next_tx |> Contracts.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
 
     if same_payload? do
       {:ok, encoded_state}

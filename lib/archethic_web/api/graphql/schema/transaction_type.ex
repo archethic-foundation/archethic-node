@@ -56,7 +56,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   """
   object :data do
     field(:ledger, :ledger)
-    field(:code, :string)
+    field(:code, :content)
     field(:content, :content)
     field(:ownerships, list_of(:ownership))
     field(:recipients, list_of(:address))

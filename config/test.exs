@@ -212,3 +212,5 @@ config :archethic, Archethic.Contracts.Interpreter.Library.Common.HttpImpl,
 
 config :archethic, Archethic.P2P.Message.GetUnspentOutputs, threshold: 1_000
 config :archethic, Archethic.P2P.Message.ValidateSmartContractCall, timeout: 50
+
+config :archethic, Archethic.Contracts.WasmIO, MockWasmIO

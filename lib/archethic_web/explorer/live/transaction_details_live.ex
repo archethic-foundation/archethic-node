@@ -29,6 +29,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias ArchethicWeb.Explorer.Components.Amount
   import ArchethicWeb.Explorer.ExplorerView
 
+  alias Archethic.Contracts
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
+
   def mount(_params, _session, socket) do
     uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
@@ -106,6 +110,15 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         Transaction.previous_address(tx)
       end
 
+    wasm_spec =
+      case Contracts.parse!(tx.data.code) do
+        %WasmContract{module: %WasmModule{spec: spec}} ->
+          spec
+
+        _ ->
+          nil
+      end
+
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
@@ -114,6 +127,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:inputs, [])
     |> assign(:token_properties, %{})
     |> assign(:linked_movements, [])
+    |> assign(:wasm_spec, wasm_spec)
   end
 
   defp async_assign_resolved_movements(%Transaction{

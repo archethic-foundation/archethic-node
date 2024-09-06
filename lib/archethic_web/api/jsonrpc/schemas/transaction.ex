@@ -23,7 +23,8 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     :encrypted_secret_key,
     :origin_signature,
     :previous_public_key,
-    :previous_signature
+    :previous_signature,
+    :code
   ]
 
   @doc """
@@ -104,7 +105,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
 
     params
     |> Utils.atomize_keys(to_snake_case?: true)
-    |> decode_hex()
+    |> Utils.hex2bin(keys_to_base_decode: @keys_to_base_decode)
     |> format_ownerships()
     |> put_original_recipients_args(original_recipients)
     |> Transaction.cast()
@@ -142,22 +143,6 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
       end)
     end)
   end
-
-  defp decode_hex(params) when is_map(params) do
-    params
-    |> Map.keys()
-    |> Enum.reduce(params, fn
-      key, acc when key in @keys_to_base_decode ->
-        Map.update!(acc, key, &Base.decode16!(&1, case: :mixed))
-
-      key, acc ->
-        Map.update!(acc, key, &decode_hex/1)
-    end)
-  end
-
-  defp decode_hex(params) when is_list(params), do: Enum.map(params, &decode_hex/1)
-
-  defp decode_hex(params), do: params
 
   defp format_ownerships(params) do
     update_in(params, [:data, :ownerships], fn

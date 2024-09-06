@@ -231,7 +231,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
        ) do
     index = TransactionChain.get_size(contract_address)
 
-    case Contract.sign_next_transaction(contract, next_tx, index) do
+    case Contracts.sign_next_transaction(contract, next_tx, index) do
       {:ok, tx} ->
         previous_usd_price =
           timestamp

@@ -39,3 +39,5 @@ Mox.defmock(MockNATDiscovery, for: Archethic.Networking.IPLookup.Impl)
 Mox.defmock(MockUCOPrice, for: Archethic.OracleChain.Services.Impl)
 Mox.defmock(MockUCOProvider1, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 Mox.defmock(MockUCOProvider2, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
+
+Mox.defmock(MockWasmIO, for: Archethic.Contracts.WasmIO)

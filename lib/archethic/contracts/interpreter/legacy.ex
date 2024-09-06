@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
 
+  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
@@ -607,7 +608,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
          }
        ) do
     %Transaction{data: %TransactionData{ownerships: previous_ownerships}} =
-      Contract.remove_seed_ownership!(prev_tx)
+      Contracts.remove_seed_ownership!(prev_tx)
 
     put_in(
       acc,

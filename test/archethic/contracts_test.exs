@@ -3,6 +3,7 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -20,6 +21,8 @@ defmodule Archethic.ContractsTest do
   @moduletag capture_log: true
 
   doctest Contracts
+
+  import Mox
 
   describe "execute_condition/5 (inherit)" do
     test "should return Rejected when the inherit constraints literal values are not respected" do
@@ -810,6 +813,58 @@ defmodule Archethic.ContractsTest do
                  []
                )
     end
+
+    test "should execute trigger for wasm contract" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = WasmContract.from_transaction!(contract_tx)
+      incoming_tx = TransactionFactory.create_valid_transaction()
+
+      {:ok, %ActionWithTransaction{encoded_state: encoded_state}} =
+        Contracts.execute_trigger(
+          {:transaction, "inc", nil},
+          contract,
+          incoming_tx,
+          %Recipient{
+            address: contract_tx.address,
+            action: "inc",
+            args: [%{value: 5}]
+          },
+          [],
+          []
+        )
+
+      assert {%{"counter" => 5}, ""} = State.deserialize(encoded_state)
+    end
+
+    test "should execute trigger for wasm contract with some IO mocks" do
+      address = ArchethicCase.random_address()
+
+      MockWasmIO
+      |> expect(:get_balance, fn ^address ->
+        %{uco: 500_000_000, token: %{}}
+      end)
+
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = WasmContract.from_transaction!(contract_tx)
+      incoming_tx = TransactionFactory.create_valid_transaction()
+
+      {:ok, %ActionWithTransaction{next_tx: next_tx}} =
+        Contracts.execute_trigger(
+          {:transaction, "printBalance", nil},
+          contract,
+          incoming_tx,
+          %Recipient{
+            address: contract_tx.address,
+            action: "printBalance",
+            args: [%{address: Base.encode16(address)}]
+          },
+          []
+        )
+
+      assert next_tx.data.content == "UCO: 500000000"
+    end
   end
 
   describe "execute_function/3" do
@@ -938,6 +993,40 @@ defmodule Archethic.ContractsTest do
                      from: ArchethicCase.random_address(),
                      type: :UCO,
                      amount: 500_000_000
+                   }
+                 ]
+               )
+    end
+
+    test "should execute function for wasm contract" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = WasmContract.from_transaction!(contract_tx)
+
+      assert {:ok, 24, _} =
+               Contracts.execute_function(
+                 contract,
+                 "getFactorial",
+                 [%{from: 4}],
+                 []
+               )
+    end
+
+    test "should execute function for wasm contract with inputs" do
+      bytes = File.read!("test/support/contract.wasm")
+      contract_tx = ContractFactory.create_valid_contract_tx(bytes)
+      contract = WasmContract.from_transaction!(contract_tx)
+
+      assert {:ok, "UCO: 500000000", _} =
+               Contracts.execute_function(
+                 contract,
+                 "currentBalance",
+                 [],
+                 [
+                   %UnspentOutput{
+                     from: ArchethicCase.random_address(),
+                     amount: 500_000_000,
+                     type: :UCO
                    }
                  ]
                )

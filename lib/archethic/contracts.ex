@@ -4,6 +4,7 @@ defmodule Archethic.Contracts do
   Each smart contract is register and supervised as long running process to interact with later on.
   """
 
+  alias Archethic.Contracts.WasmTrigger
   alias __MODULE__.Conditions
   alias __MODULE__.Constants
   alias __MODULE__.Contract
@@ -15,6 +16,14 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Interpreter
   alias __MODULE__.Interpreter.Library
   alias __MODULE__.Loader
+
+  alias __MODULE__.WasmContract
+  alias __MODULE__.WasmModule
+  alias __MODULE__.WasmSpec
+  alias __MODULE__.Wasm.ReadResult
+  alias __MODULE__.Wasm.UpdateResult
+
+  alias Archethic
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -23,6 +32,7 @@ defmodule Archethic.Contracts do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.Utils
   alias Archethic.UTXO
 
@@ -46,25 +56,38 @@ defmodule Archethic.Contracts do
   @doc """
   Parse a smart contract code and return a contract struct
   """
-  @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
-  defdelegate parse(contract_code),
-    to: Interpreter
+  @spec parse(binary()) :: {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
+  def parse(contract_code) do
+    if String.printable?(contract_code) do
+      Interpreter.parse(contract_code)
+    else
+      case WasmModule.parse(contract_code) do
+        {:ok, module} ->
+          {:ok, %WasmContract{module: module}}
+
+        {:error, reason} ->
+          {:error, "#{inspect(reason)}"}
+      end
+    end
+  end
 
   @doc """
   Same a `parse/1` but raise if the contract is not valid
   """
-  @spec parse!(binary()) :: Contract.t()
+  @spec parse!(binary()) :: Contract.t() | WasmContract.t()
   def parse!(contract_code) when is_binary(contract_code) do
-    {:ok, contract} = parse(contract_code)
-    contract
+    case parse(contract_code) do
+      {:ok, contract} -> contract
+      {:error, reason} -> raise reason
+    end
   end
 
   @doc """
   Execute the contract trigger.
   """
   @spec execute_trigger(
-          trigger :: Contract.trigger_type(),
-          contract :: Contract.t(),
+          trigger :: Contract.trigger_type() | WasmContract.trigger_type(),
+          contract :: Contract.t() | WasmContract.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           inputs :: list(UnspentOutput.t()),
@@ -74,14 +97,81 @@ defmodule Archethic.Contracts do
           | {:error, Failure.t()}
   def execute_trigger(
         trigger_type,
-        contract = %Contract{
+        contract,
+        maybe_trigger_tx,
+        maybe_recipient,
+        inputs,
+        opts \\ []
+      )
+
+  def execute_trigger(
+        {:transaction, "upgrade", _},
+        %WasmContract{
+          transaction: contract_tx,
+          state: state,
+          module: %WasmModule{spec: %WasmSpec{upgrade_opts: upgrade_opts}}
+        },
+        trigger_tx,
+        %Recipient{args: arg},
+        _inputs,
+        _opts
+      ) do
+    case upgrade_opts do
+      nil ->
+        {:error, :upgrade_not_supported}
+
+      %WasmSpec.UpgradeOpts{from: from} ->
+        {:ok, genesis_address} =
+          trigger_tx
+          |> Transaction.previous_address()
+          |> Archethic.fetch_genesis_address()
+
+        if genesis_address == from do
+          case Enum.at(arg, 0) do
+            %{"code" => new_code} ->
+              {:ok, new_module} = WasmModule.parse(Base.decode16!(new_code, case: :mixed))
+
+              upgrade_state =
+                if "onUpgrade" in WasmModule.list_exported_functions_name(new_module) do
+                  {:ok, %UpdateResult{state: migrated_state}} =
+                    WasmModule.execute(new_module, "onUpgrade", state: state)
+
+                  migrated_state
+                else
+                  state
+                end
+
+              {:ok,
+               %UpdateResult{
+                 state: upgrade_state,
+                 transaction: %{
+                   type: :contract,
+                   data: %{
+                     code: new_code |> Base.decode16!(case: :mixed) |> :zlib.zip()
+                   }
+                 }
+               }}
+
+            _ ->
+              {:error, :invalid_upgrade_params}
+          end
+        else
+          {:error, :upgrade_not_authorized}
+        end
+    end
+    |> cast_trigger_result(state, contract_tx)
+  end
+
+  def execute_trigger(
+        trigger_type,
+        contract = %{
           transaction: contract_tx = %Transaction{address: contract_address},
           state: state
         },
         maybe_trigger_tx,
         maybe_recipient,
         inputs,
-        opts \\ []
+        opts
       ) do
     # TODO: trigger_tx & recipient should be transformed into recipient here
     # TODO: rescue should be done in here as well
@@ -106,20 +196,71 @@ defmodule Archethic.Contracts do
        Keyword.fetch!(opts, :time_now), inputs_digest(inputs)}
 
     fn ->
-      Interpreter.execute_trigger(
-        trigger_type,
-        contract,
-        maybe_trigger_tx,
-        maybe_recipient,
-        inputs,
-        opts
-      )
+      case contract do
+        %WasmContract{} ->
+          exec_wasm(contract, trigger_type, maybe_trigger_tx, maybe_recipient, inputs, opts)
+
+        _ ->
+          Interpreter.execute_trigger(
+            trigger_type,
+            contract,
+            maybe_trigger_tx,
+            maybe_recipient,
+            inputs,
+            opts
+          )
+      end
     end
     |> cache_interpreter_execute(key,
       timeout_err_msg: "Trigger's execution timed-out",
       cache?: Keyword.get(opts, :cache?, true)
     )
     |> cast_trigger_result(state, contract_tx)
+  end
+
+  defp exec_wasm(
+         %WasmContract{
+           state: state,
+           module: module = %WasmModule{spec: %WasmSpec{triggers: triggers}}
+         },
+         trigger_type,
+         maybe_trigger_tx,
+         maybe_recipient,
+         inputs,
+         _opts
+       ) do
+    trigger =
+      Enum.find(triggers, fn %WasmTrigger{type: type, function_name: fn_name} ->
+        case trigger_type do
+          {:transaction, action_name, _} when action_name != nil ->
+            type == :transaction and fn_name == action_name
+
+          trigger ->
+            type == trigger
+        end
+      end)
+
+    if trigger != nil do
+      argument =
+        with %Recipient{args: args} <- maybe_recipient,
+             arg when arg != nil <- Enum.at(args, 0) do
+          arg
+        else
+          _ ->
+            nil
+        end
+
+      WasmModule.execute(
+        module,
+        trigger.function_name,
+        transaction: maybe_trigger_tx,
+        state: state,
+        balance: UTXO.get_balance(inputs),
+        arguments: argument
+      )
+    else
+      {:error, :trigger_not_exists}
+    end
   end
 
   defp time_now({:transaction, _, _}, %Transaction{
@@ -162,6 +303,46 @@ defmodule Archethic.Contracts do
     end
   end
 
+  defp cast_trigger_result(
+         {:ok, %UpdateResult{transaction: next_tx, state: next_state}},
+         prev_state,
+         contract_tx = %Transaction{data: %TransactionData{code: code}}
+       ) do
+    next_tx =
+      if next_tx != nil do
+        if next_tx.data.code == nil do
+          next_tx
+          |> put_in([Access.key(:data, %{}), :code], :zlib.zip(code))
+          |> Transaction.cast()
+        else
+          Transaction.cast(next_tx)
+        end
+      end
+
+    if State.empty?(next_state) do
+      cast_valid_trigger_result({:ok, next_tx, next_state, []}, prev_state, contract_tx, nil)
+    else
+      encoded_state = State.serialize(next_state)
+
+      if State.valid_size?(encoded_state) do
+        cast_valid_trigger_result(
+          {:ok, next_tx, next_state, []},
+          prev_state,
+          contract_tx,
+          encoded_state
+        )
+      else
+        {:error,
+         %Failure{
+           logs: [],
+           error: :state_exceed_threshold,
+           stacktrace: [],
+           user_friendly_error: "Execution was successful but the state exceed the threshold"
+         }}
+      end
+    end
+  end
+
   defp cast_trigger_result(err = {:error, %Failure{}}, _, _), do: err
 
   defp cast_trigger_result({:error, :trigger_not_exists}, _, _) do
@@ -176,6 +357,16 @@ defmodule Archethic.Contracts do
 
   defp cast_trigger_result({:error, err, stacktrace, _logs}, _, _) do
     {:error, raise_to_failure(err, stacktrace)}
+  end
+
+  defp cast_trigger_result({:error, reason}, _, _) do
+    {:error,
+     %Failure{
+       error: "invalid execution",
+       user_friendly_error: reason,
+       stacktrace: [],
+       logs: []
+     }}
   end
 
   # No output transaction, no state update
@@ -202,13 +393,42 @@ defmodule Archethic.Contracts do
   Execute contract's function
   """
   @spec execute_function(
-          contract :: Contract.t(),
+          contract :: Contract.t() | WasmContract.t(),
           function_name :: String.t(),
           args_values :: list(),
           inputs :: list(UnspentOutput.t())
         ) ::
           {:ok, value :: any(), logs :: list(String.t())}
           | {:error, Failure.t()}
+  def execute_function(
+        %WasmContract{
+          module: module = %WasmModule{spec: %WasmSpec{public_functions: functions}},
+          state: state
+        },
+        function_name,
+        args_values,
+        inputs
+      ) do
+    if function_name in functions do
+      {:ok, %ReadResult{value: value}} =
+        WasmModule.execute(module, function_name,
+          state: state,
+          balance: UTXO.get_balance(inputs),
+          arguments: Enum.at(args_values, 0)
+        )
+
+      {:ok, value, []}
+    else
+      {:error,
+       %Failure{
+         error: "invalid execution",
+         user_friendly_error: "#{function_name} is not exposed as public function",
+         stacktrace: [],
+         logs: []
+       }}
+    end
+  end
+
   def execute_function(
         contract = %Contract{
           transaction: contract_tx,
@@ -349,7 +569,7 @@ defmodule Archethic.Contracts do
   """
   @spec execute_condition(
           condition_type :: Contract.condition_type(),
-          contract :: Contract.t(),
+          contract :: Contract.t() | WasmContract.t(),
           incoming_transaction :: Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           validation_time :: DateTime.t(),
@@ -358,12 +578,33 @@ defmodule Archethic.Contracts do
         ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
+        contract,
+        transaction,
+        maybe_recipient,
+        datetime,
+        inputs,
+        opts \\ []
+      )
+
+  def execute_condition(
+        _condition_key,
+        _contract = %WasmContract{},
+        _transaction = %Transaction{},
+        _maybe_recipient,
+        _datetime,
+        _inputs,
+        _opts
+      ),
+      do: {:ok, []}
+
+  def execute_condition(
+        condition_key,
         contract = %Contract{conditions: conditions},
         transaction = %Transaction{},
         maybe_recipient,
         datetime,
         inputs,
-        opts \\ []
+        opts
       ) do
     conditions
     |> Map.get(condition_key)
@@ -438,8 +679,20 @@ defmodule Archethic.Contracts do
   @doc """
   Returns a contract instance from a transaction
   """
-  @spec from_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
-  defdelegate from_transaction(tx), to: Contract, as: :from_transaction
+  @spec from_transaction(Transaction.t()) ::
+          {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
+  def from_transaction(tx) do
+    case Contract.from_transaction(tx) do
+      {:ok, contract} ->
+        {:ok, contract}
+
+      {:error, _} = e ->
+        case WasmContract.from_transaction(tx) do
+          {:ok, contract} -> {:ok, contract}
+          {:error, _} -> e
+        end
+    end
+  end
 
   defp get_condition_constants(
          :inherit,
@@ -603,5 +856,115 @@ defmodule Archethic.Contracts do
     end)
     |> :erlang.list_to_binary()
     |> then(fn binary -> :crypto.hash(:sha256, binary) end)
+  end
+
+  @doc """
+  Add seed ownership to transaction (on contract version != 0)
+  Sign a next transaction in the contract chain
+  """
+  @spec sign_next_transaction(
+          contract :: Contract.t() | WasmContract.t(),
+          next_tx :: Transaction.t(),
+          index :: non_neg_integer()
+        ) :: {:ok, Transaction.t()} | {:error, :decryption_failed}
+  def sign_next_transaction(
+        %{
+          transaction:
+            prev_tx = %Transaction{previous_public_key: previous_public_key, address: address}
+        },
+        %Transaction{type: next_type, data: next_data},
+        index
+      ) do
+    case get_contract_seed(prev_tx) do
+      {:ok, contract_seed} ->
+        ownership = create_new_seed_ownership(contract_seed)
+        next_data = Map.update(next_data, :ownerships, [ownership], &[ownership | &1])
+
+        signed_tx =
+          Transaction.new(
+            next_type,
+            next_data,
+            contract_seed,
+            index,
+            Crypto.get_public_key_curve(previous_public_key),
+            Crypto.get_public_key_origin(previous_public_key)
+          )
+
+        {:ok, signed_tx}
+
+      error ->
+        Logger.debug("Cannot decrypt the transaction seed", contract: Base.encode16(address))
+        error
+    end
+  end
+
+  defp create_new_seed_ownership(seed) do
+    storage_nonce_pub_key = Crypto.storage_nonce_public_key()
+
+    aes_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt(seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, storage_nonce_pub_key)
+
+    %Ownership{secret: secret, authorized_keys: %{storage_nonce_pub_key => encrypted_key}}
+  end
+
+  @doc """
+  Remove the seed ownership of a contract transaction
+  """
+  @spec remove_seed_ownership(tx :: Transaction.t()) :: Transaction.t()
+  def remove_seed_ownership(tx) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    update_in(tx, [Access.key!(:data), Access.key!(:ownerships)], fn ownerships ->
+      case Enum.find_index(
+             ownerships,
+             &Ownership.authorized_public_key?(&1, storage_nonce_public_key)
+           ) do
+        nil -> ownerships
+        index -> List.delete_at(ownerships, index)
+      end
+    end)
+  end
+
+  @doc """
+  Same as remove_seed_ownership but raise if no ownership matches contract seed
+  """
+  @spec remove_seed_ownership!(tx :: Transaction.t()) :: Transaction.t()
+  def remove_seed_ownership!(tx) do
+    case remove_seed_ownership(tx) do
+      ^tx -> raise "Contract does not have seed ownership"
+      tx -> tx
+    end
+  end
+
+  @doc """
+  Determines if a contract has any triggers
+  """
+  @spec contains_trigger?(Contract.t() | WasmContract.t()) :: boolean()
+  def contains_trigger?(contract = %Contract{}), do: Contract.contains_trigger?(contract)
+  def contains_trigger?(contract = %WasmContract{}), do: WasmContract.contains_trigger?(contract)
+
+  def get_seed_ownership(
+        %Transaction{data: %TransactionData{ownerships: ownerships}},
+        storage_nonce_public_key
+      ) do
+    Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+  end
+
+  @doc """
+  Try to find the contract's seed in the transaction's ownerships
+  """
+  @spec get_contract_seed(Transaction.t()) :: {:ok, binary()} | {:error, :decryption_failed}
+  def get_contract_seed(tx) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    ownership = %Ownership{secret: secret} = get_seed_ownership(tx, storage_nonce_public_key)
+
+    encrypted_key = Ownership.get_encrypted_key(ownership, storage_nonce_public_key)
+
+    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
+      {:ok, aes_key} -> Crypto.aes_decrypt(secret, aes_key)
+      {:error, :decryption_failed} -> {:error, :decryption_failed}
+    end
   end
 end
