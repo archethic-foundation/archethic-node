@@ -258,10 +258,9 @@ defmodule Archethic.P2P.Node do
     avg_bin = trunc(average_availability * 100)
 
     mining_public_key_bin =
-      case mining_public_key do
-        nil -> ""
-        _ -> mining_public_key
-      end
+      if is_nil(mining_public_key),
+        do: <<0::8>>,
+        else: <<1::8, mining_public_key::binary>>
 
     <<ip_bin::binary-size(4), port::16, http_port::16, serialize_transport(transport)::8,
       geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
