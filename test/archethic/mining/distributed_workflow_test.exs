@@ -1058,16 +1058,13 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     end
 
     test "should not replicate if there is a validation error", %{tx: tx} do
-      validation_context = create_context(tx)
-
       error = Error.new(:invalid_pending_transaction, "Transactiion already exists")
+
+      validation_context = %ValidationContext{create_context(tx) | mining_error: error}
       validation_stamp = create_validation_stamp(validation_context)
       validation_stamp = %ValidationStamp{validation_stamp | error: Error.to_stamp_error(error)}
 
-      context =
-        validation_context
-        |> ValidationContext.add_validation_stamp(validation_stamp)
-        |> ValidationContext.set_mining_error(error)
+      context = validation_context |> ValidationContext.add_validation_stamp(validation_stamp)
 
       me = self()
 

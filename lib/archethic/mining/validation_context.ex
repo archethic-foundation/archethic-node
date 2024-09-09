@@ -50,6 +50,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.Mining.Error
+  alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.ProofOfWork
   alias Archethic.Mining.SmartContractValidation
 
@@ -147,15 +148,6 @@ defmodule Archethic.Mining.ValidationContext do
       attrs
     )
   end
-
-  @doc """
-  Set the mining error. If one is already set, keeps the existing one
-  """
-  @spec set_mining_error(context :: t(), mining_error :: Error.t()) :: t()
-  def set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
-    do: %__MODULE__{context | mining_error: mining_error}
-
-  def set_mining_error(context, _), do: context
 
   @doc """
   Determine if the enough context has been retrieved
@@ -284,6 +276,42 @@ defmodule Archethic.Mining.ValidationContext do
   @spec add_validation_stamp(t(), ValidationStamp.t()) :: t()
   def add_validation_stamp(context = %__MODULE__{}, stamp = %ValidationStamp{}) do
     %{context | validation_stamp: stamp}
+  end
+
+  @doc """
+  Determines if the transaction is accepted into the network
+  """
+  @spec validate_pending_transaction(context :: t()) :: t()
+  def validate_pending_transaction(
+        context = %__MODULE__{
+          transaction: tx = %Transaction{type: type},
+          validation_time: validation_time
+        }
+      ) do
+    start = System.monotonic_time()
+
+    with :ok <- PendingTransactionValidation.validate_previous_public_key(tx),
+         :ok <- PendingTransactionValidation.validate_previous_signature(tx),
+         :ok <- PendingTransactionValidation.validate_size(tx),
+         :ok <- PendingTransactionValidation.validate_contract(tx),
+         :ok <- PendingTransactionValidation.validate_ownerships(tx),
+         :ok <- PendingTransactionValidation.validate_non_fungible_token_transfer(tx),
+         :ok <- PendingTransactionValidation.validate_token_transaction(tx),
+         :ok <- PendingTransactionValidation.validate_type_rules(tx, validation_time),
+         :ok <- PendingTransactionValidation.validate_network_chain(tx),
+         :ok <- PendingTransactionValidation.validate_not_exists(tx) do
+      :telemetry.execute(
+        [:archethic, :mining, :pending_transaction_validation],
+        %{duration: System.monotonic_time() - start},
+        %{transaction_type: type}
+      )
+
+      context
+    else
+      {:error, reason} ->
+        error = Error.new(:invalid_pending_transaction, reason)
+        %__MODULE__{context | mining_error: error}
+    end
   end
 
   @doc """
@@ -722,6 +750,11 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp set_stamp_error(stamp, %__MODULE__{mining_error: error}),
     do: %ValidationStamp{stamp | error: Error.to_stamp_error(error)}
+
+  defp set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
+    do: %__MODULE__{context | mining_error: mining_error}
+
+  defp set_mining_error(context, _), do: context
 
   defp calculate_fee(
          tx,
