@@ -548,7 +548,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118, 139, 7,
             48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
           origin_public_key,
-          certificate
+          certificate,
+          Crypto.generate_random_keypair(:bls) |> elem(0)
         )
 
       tx = TransactionFactory.create_non_valided_transaction(type: :node, content: content)
@@ -581,7 +582,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118, 139, 7,
             48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
           <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          certificate
+          certificate,
+          Crypto.generate_random_keypair(:bls) |> elem(0)
         )
 
       tx =

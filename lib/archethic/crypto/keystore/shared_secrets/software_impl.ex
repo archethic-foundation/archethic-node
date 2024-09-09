@@ -57,18 +57,6 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     {:ok, %{}}
   end
 
-  @impl GenServer
-  # we store functions in the ETS table, so we need to reload them
-  # every upgrade to avoid: "xxx is invalid, likely because it points to an old version of the code"
-  def code_change(_, state, _extra) do
-    :node_shared_secrets
-    |> TransactionChain.list_addresses_by_type()
-    |> Stream.take(-2)
-    |> Enum.each(&load_node_shared_secrets_tx/1)
-
-    {:ok, state}
-  end
-
   defp load_storage_nonce do
     case DB.get_bootstrap_info("storage_nonce") do
       nil ->
@@ -113,65 +101,72 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   @impl SharedSecretsKeystore
   def sign_with_node_shared_secrets_key(data) do
+    [{_, transaction_seed}] = :ets.lookup(@keystore_table, :transaction_seed)
     [{_, index}] = :ets.lookup(@keystore_table, :shared_secrets_index)
-    sign_with_node_shared_secrets_key(data, index)
+    {_, pv} = Crypto.derive_keypair(transaction_seed, index)
+    Crypto.sign(data, pv)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_node_shared_secrets_key(data, index) do
-    [{_, sign_fun}] = :ets.lookup(@keystore_table, :transaction_sign_fun)
-    sign_fun.(data, index)
+    [{_, transaction_seed}] = :ets.lookup(@keystore_table, :transaction_seed)
+    {_, pv} = Crypto.derive_keypair(transaction_seed, index)
+    Crypto.sign(data, pv)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_reward_key(data) do
+    [{_, reward_seed}] = :ets.lookup(@keystore_table, :reward_seed)
     [{_, index}] = :ets.lookup(@keystore_table, :reward_index)
-    sign_with_reward_key(data, index)
+    {_, pv} = Crypto.derive_keypair(reward_seed, index)
+    Crypto.sign(data, pv)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_reward_key(data, index) do
-    [{_, sign_fun}] = :ets.lookup(@keystore_table, :reward_sign_fun)
-    sign_fun.(data, index)
+    [{_, reward_seed}] = :ets.lookup(@keystore_table, :reward_seed)
+    {_, pv} = Crypto.derive_keypair(reward_seed, index)
+    Crypto.sign(data, pv)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_daily_nonce_key(data, timestamp) do
     timestamp = DateTime.to_unix(timestamp)
 
-    sign_fun =
-      case :ets.lookup(@daily_keys, timestamp) do
-        [{_, sign_fun}] ->
-          sign_fun
+    case :ets.lookup(@daily_keys, timestamp) do
+      [{_, daily_nonce_seed}] ->
+        {_, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+        Crypto.sign(data, pv)
 
-        [] ->
-          timestamp = :ets.prev(@daily_keys, timestamp)
-          [{_, sign_fun}] = :ets.lookup(@daily_keys, timestamp)
-          sign_fun
-      end
-
-    sign_fun.(data)
+      [] ->
+        timestamp = :ets.prev(@daily_keys, timestamp)
+        [{_, seed}] = :ets.lookup(@daily_keys, timestamp)
+        {_, pv} = Crypto.generate_deterministic_keypair(seed)
+        Crypto.sign(data, pv)
+    end
   end
 
   @impl SharedSecretsKeystore
   def node_shared_secrets_public_key(index) do
-    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :transaction_public_key_fun)
-    public_key_fun.(index)
+    [{_, transaction_seed}] = :ets.lookup(@keystore_table, :transaction_seed)
+    {pub, _} = Crypto.derive_keypair(transaction_seed, index)
+    pub
   end
 
   @impl SharedSecretsKeystore
   def reward_public_key(index) do
-    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :reward_public_key_fun)
-    public_key_fun.(index)
+    [{_, reward_seed}] = :ets.lookup(@keystore_table, :reward_seed)
+    {pub, _} = Crypto.derive_keypair(reward_seed, index)
+    pub
   end
 
   @impl SharedSecretsKeystore
   def wrap_secrets(secret_key) do
-    [{_, transaction_seed_wrap_fun}] = :ets.lookup(@keystore_table, :transaction_seed_wrap_fun)
-    [{_, reward_seed_wrap_fun}] = :ets.lookup(@keystore_table, :reward_seed_wrap_fun)
+    [{_, transaction_seed}] = :ets.lookup(@keystore_table, :transaction_seed)
+    [{_, reward_seed}] = :ets.lookup(@keystore_table, :reward_seed)
 
-    encrypted_transaction_seed = transaction_seed_wrap_fun.(secret_key)
-    encrypted_reward_seed = reward_seed_wrap_fun.(secret_key)
+    encrypted_transaction_seed = Crypto.aes_encrypt(transaction_seed, secret_key)
+    encrypted_reward_seed = Crypto.aes_encrypt(reward_seed, secret_key)
 
     {encrypted_transaction_seed, encrypted_reward_seed}
   end
@@ -224,50 +219,11 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
          {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
          {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
          {:ok, reward_seed} <- Crypto.aes_decrypt(enc_reward_seed, aes_key) do
-      sign_daily_nonce_fun = fn data ->
-        {pub, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
-        Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
-
-        Crypto.sign(data, pv)
-      end
-
-      transaction_sign_fun = fn data, index ->
-        {_, pv} = Crypto.derive_keypair(transaction_seed, index)
-        Crypto.sign(data, pv)
-      end
-
-      reward_sign_fun = fn data, index ->
-        {_, pv} = Crypto.derive_keypair(reward_seed, index)
-        Crypto.sign(data, pv)
-      end
-
-      transaction_public_key_fun = fn index ->
-        {pub, _} = Crypto.derive_keypair(transaction_seed, index)
-        pub
-      end
-
-      reward_public_key_fun = fn index ->
-        {pub, _} = Crypto.derive_keypair(reward_seed, index)
-        pub
-      end
-
-      transaction_seed_wrap_fun = fn secret_key ->
-        Crypto.aes_encrypt(transaction_seed, secret_key)
-      end
-
-      reward_seed_wrap_fun = fn secret_key ->
-        Crypto.aes_encrypt(reward_seed, secret_key)
-      end
-
-      :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), sign_daily_nonce_fun})
+      :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), daily_nonce_seed})
       remove_older_daily_keys(DateTime.to_unix(timestamp))
 
-      :ets.insert(@keystore_table, {:transaction_sign_fun, transaction_sign_fun})
-      :ets.insert(@keystore_table, {:reward_sign_fun, reward_sign_fun})
-      :ets.insert(@keystore_table, {:transaction_public_key_fun, transaction_public_key_fun})
-      :ets.insert(@keystore_table, {:reward_public_key_fun, reward_public_key_fun})
-      :ets.insert(@keystore_table, {:transaction_seed_wrap_fun, transaction_seed_wrap_fun})
-      :ets.insert(@keystore_table, {:reward_seed_wrap_fun, reward_seed_wrap_fun})
+      :ets.insert(@keystore_table, {:transaction_seed, transaction_seed})
+      :ets.insert(@keystore_table, {:reward_seed, reward_seed})
 
       :ok
     end
@@ -280,7 +236,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
       prev_unix_timestamp ->
         # generate match pattern
-        # :ets.fun2ms(fn {key, _sign_function} -> key < prev_unix_timestamp end)
+        # :ets.fun2ms(fn {key, _} -> key < prev_unix_timestamp end)
 
         match_pattern = [
           {{:"$1", :_}, [{:<, :"$1", prev_unix_timestamp}], [true]}
@@ -309,5 +265,24 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   def get_storage_nonce do
     [{_, nonce}] = :ets.lookup(@keystore_table, :storage_nonce)
     nonce
+  end
+
+  @impl GenServer
+  def code_change(_old_vsn, state, _extra), do: {:ok, state}
+
+  # FIXME: to remove after 1.5.9
+  @doc false
+  def migrate_ets_table_1_5_9 do
+    :node_shared_secrets
+    |> TransactionChain.list_addresses_by_type()
+    |> Stream.take(-2)
+    |> Enum.each(&load_node_shared_secrets_tx/1)
+
+    :ets.delete(@keystore_table, :transaction_sign_fun)
+    :ets.delete(@keystore_table, :reward_sign_fun)
+    :ets.delete(@keystore_table, :transaction_public_key_fun)
+    :ets.delete(@keystore_table, :reward_public_key_fun)
+    :ets.delete(@keystore_table, :transaction_seed_wrap_fun)
+    :ets.delete(@keystore_table, :reward_seed_wrap_fun)
   end
 end

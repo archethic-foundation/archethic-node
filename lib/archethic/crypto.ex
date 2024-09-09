@@ -46,7 +46,7 @@ defmodule Archethic.Crypto do
   @typedoc """
   List of the supported elliptic curves
   """
-  @type supported_curve :: :ed25519 | ECDSA.curve()
+  @type supported_curve :: :ed25519 | ECDSA.curve() | :bls
 
   @typedoc """
   List of the supported key origins
@@ -392,6 +392,17 @@ defmodule Archethic.Crypto do
     |> ID.prepend_keypair(:ed25519, origin)
   end
 
+  defp do_generate_deterministic_keypair(:bls, origin, seed) do
+    private_key = :crypto.hash(:sha512, seed)
+
+    keypair = {
+      BlsEx.get_public_key(private_key),
+      private_key
+    }
+
+    ID.prepend_keypair(keypair, :bls, origin)
+  end
+
   defp do_generate_deterministic_keypair(curve, origin, seed) do
     curve
     |> ECDSA.generate_keypair(seed)
@@ -431,6 +442,7 @@ defmodule Archethic.Crypto do
   end
 
   defp do_sign(:ed25519, data, key), do: Ed25519.sign(key, data)
+  defp do_sign(:bls, data, key), do: BlsEx.sign(key, data)
   defp do_sign(curve, data, key), do: ECDSA.sign(curve, key, data)
 
   @doc """
@@ -564,6 +576,7 @@ defmodule Archethic.Crypto do
   end
 
   defp do_verify?(:ed25519, key, data, sig), do: Ed25519.verify?(key, data, sig)
+  defp do_verify?(:bls, key, data, sig), do: BlsEx.verify_signature(key, data, sig)
   defp do_verify?(curve, key, data, sig), do: ECDSA.verify?(curve, key, data, sig)
 
   @doc """
@@ -1007,6 +1020,11 @@ defmodule Archethic.Crypto do
     |> ID.prepend_curve(curve_type)
   end
 
+  @type key_size :: ed25519_key_size | ecdsa_key_size | bls_key_size
+  @type ed25519_key_size :: 32
+  @type ecdsa_key_size :: 65
+  @type bls_key_size :: 48
+
   @doc """
   Return the size of key using the curve id
 
@@ -1021,18 +1039,20 @@ defmodule Archethic.Crypto do
       iex> Crypto.key_size(ID.from_curve(:secp256k1))
       65
   """
-  @spec key_size(curve_id :: 0 | 1 | 2) :: 32 | 65
+  @spec key_size(curve_id :: 0 | 1 | 2 | 3) :: key_size()
   def key_size(0), do: 32
   def key_size(1), do: 65
   def key_size(2), do: 65
+  def key_size(3), do: 48
 
   @doc """
   Determine if a public key is valid
   """
   @spec valid_public_key?(binary()) :: boolean()
-  def valid_public_key?(<<0::8, _::8, _::binary-size(32)>>), do: true
-  def valid_public_key?(<<1::8, _::8, _::binary-size(65)>>), do: true
-  def valid_public_key?(<<2::8, _::8, _::binary-size(65)>>), do: true
+  def valid_public_key?(<<curve::8, _::8, public_key::binary>>) when curve in [0, 1, 2, 3] do
+    byte_size(public_key) == key_size(curve)
+  end
+
   def valid_public_key?(_), do: false
 
   @doc """
@@ -1392,4 +1412,44 @@ defmodule Archethic.Crypto do
   def list_supported_hash_functions(), do: @supported_hashes
   @string_hashes Enum.map(@supported_hashes, &Atom.to_string/1)
   def list_supported_hash_functions(:string), do: @string_hashes
+
+  @doc """
+  Retrieve the node's mining public key
+  """
+  @spec mining_node_public_key() :: key()
+  defdelegate mining_node_public_key, to: NodeKeystore, as: :mining_public_key
+
+  @doc """
+  Sign a message using the node's mining key
+  """
+  @spec sign_with_mining_node_key(data :: iodata()) :: signature :: binary()
+  def sign_with_mining_node_key(data) do
+    data
+    |> Utils.wrap_binary()
+    |> NodeKeystore.sign_with_mining_key()
+  end
+
+  @doc """
+  Aggregate a list of BLS signatures with the associated public keys
+
+  The signatures and public keys order must be the same
+  """
+  @spec aggregate_signatures(signatures :: list(binary()), public_keys :: list(key())) :: binary()
+  def aggregate_signatures(signatures, public_keys) do
+    BlsEx.aggregate_signatures(
+      signatures,
+      Enum.map(public_keys, fn <<_::8, _::8, public_key::binary>> -> public_key end)
+    )
+  end
+
+  @doc """
+  Aggregate a list of mining BLS public keys into a single one
+  """
+  @spec aggregate_mining_public_keys(list(key())) :: key()
+  def aggregate_mining_public_keys(public_keys) do
+    public_keys
+    |> Enum.map(fn <<_::8, _::8, public_key::binary>> -> public_key end)
+    |> BlsEx.aggregate_public_keys()
+    |> ID.prepend_key(:bls)
+  end
 end
