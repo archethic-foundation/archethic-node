@@ -488,9 +488,9 @@ defmodule Archethic.P2P.MemTable do
     end
   end
 
-  # FIXME: to remove after 1.5.6
+  # FIXME: to remove after 1.5.9
   @doc false
-  def migrate_ets_table_1_5_6 do
+  def migrate_ets_table_1_5_9 do
     # Inject the mining public key as nil awaiting the migration scripts to be executed
     ms = [
       {{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8", :"$9", :"$10", :"$11", :"$12",

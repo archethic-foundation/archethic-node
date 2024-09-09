@@ -233,7 +233,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
 
   @impl GenServer
   # FIXME: use genserver message because ets table is protected
-  def handle_cast(:migrate_1_5_6, state) do
+  def handle_cast(:migrate_1_5_9, state) do
     node_seed = Origin.retrieve_node_seed()
     :ets.insert(@keystore_table, {:node_seed, node_seed})
     :ets.delete(@keystore_table, :sign_fun)
@@ -243,9 +243,9 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     {:noreply, state}
   end
 
-  # FIXME: to remove after 1.5.6
+  # FIXME: to remove after 1.5.9
   @doc false
-  def migrate_ets_table_1_5_6 do
-    GenServer.cast(__MODULE__, :migrate_1_5_6)
+  def migrate_ets_table_1_5_9 do
+    GenServer.cast(__MODULE__, :migrate_1_5_9)
   end
 end

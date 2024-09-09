@@ -270,9 +270,9 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @impl GenServer
   def code_change(_old_vsn, state, _extra), do: {:ok, state}
 
-  # FIXME: to remove after 1.5.6
+  # FIXME: to remove after 1.5.9
   @doc false
-  def migrate_ets_table_1_5_6 do
+  def migrate_ets_table_1_5_9 do
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
     |> Stream.take(-2)
