@@ -6,12 +6,12 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.Election
 
   alias Archethic.Mining.Fee
+  alias Archethic.Mining.LedgerValidation
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -98,12 +98,13 @@ defmodule Archethic.TransactionFactory do
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     poi =
       case prev_tx do
@@ -156,12 +157,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -200,12 +202,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -247,12 +250,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -287,12 +291,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: 1_000_000_000}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: 1_000_000_000}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -330,12 +335,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -390,12 +396,13 @@ defmodule Archethic.TransactionFactory do
     encoded_state = nil
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(inputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{

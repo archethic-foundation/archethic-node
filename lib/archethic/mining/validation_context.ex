@@ -50,6 +50,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.Mining.Error
+  alias Archethic.Mining.LedgerValidation
   alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.ProofOfWork
   alias Archethic.Mining.SmartContractValidation
@@ -799,12 +800,12 @@ defmodule Archethic.Mining.ValidationContext do
     protocol_version = Mining.protocol_version()
 
     ops =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(unspent_outputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, validation_time, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, validation_time, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(
         address,
         validation_time,
         encoded_state,
@@ -812,11 +813,12 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     case ops do
-      %LedgerOperations{sufficient_funds?: false} ->
-        {set_mining_error(context, Error.new(:insufficient_funds)), ops}
+      %LedgerValidation{sufficient_funds?: false} ->
+        {set_mining_error(context, Error.new(:insufficient_funds)),
+         LedgerValidation.to_ledger_operations(ops)}
 
       _ ->
-        {context, ops}
+        {context, LedgerValidation.to_ledger_operations(ops)}
     end
   end
 
@@ -1243,8 +1245,9 @@ defmodule Archethic.Mining.ValidationContext do
     movements = Transaction.get_movements(tx)
 
     %LedgerOperations{transaction_movements: resolved_movements} =
-      %LedgerOperations{}
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
+      %LedgerValidation{}
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.to_ledger_operations()
 
     length(resolved_movements) == length(transaction_movements) and
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
@@ -1260,9 +1263,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{
-             unspent_outputs: next_unspent_outputs
-           }
+           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
          },
          %LedgerOperations{unspent_outputs: expected_unspent_outputs}
        ) do

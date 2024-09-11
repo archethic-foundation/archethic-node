@@ -9,13 +9,14 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
   alias Archethic.BeaconChain.Summary
 
+  alias Archethic.Mining.LedgerValidation
+
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.NodeRenewal
 
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.Utils
 
@@ -252,5 +253,5 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     {family, key, key_certificate}
   end
 
-  def burning_address, do: LedgerOperations.burning_address()
+  def burning_address, do: LedgerValidation.burning_address()
 end

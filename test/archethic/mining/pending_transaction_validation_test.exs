@@ -1060,7 +1060,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
-      assert {:ok, 8} = PendingTransactionValidation.validate_token_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
     end
 
     test "should return ok with a token creation with allow_mint flag" do
@@ -1076,7 +1076,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
-      assert {:ok, 8} = PendingTransactionValidation.validate_token_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
     end
 
     test "should return ok with a valid token resupply" do
@@ -1111,7 +1111,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_genesis_address: fn _, _ -> {:ok, genesis_address} end,
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
-        assert {:ok, 7} = PendingTransactionValidation.validate_token_transaction(tx)
+        assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end

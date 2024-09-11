@@ -5,7 +5,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
   """
 
   alias Archethic.Crypto
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.Mining.LedgerValidation
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -332,7 +332,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
       token: %TokenLedger{
         transfers: [
           %TokenTransfer{
-            to: LedgerOperations.burning_address(),
+            to: LedgerValidation.burning_address(),
             amount: lp_token_amount * @unit_uco,
             token_address: lp_token_address,
             token_id: 0
@@ -798,7 +798,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
       name: "aeSwap LP Token",
       allow_mint: true,
       properties: %{token1_address: token1_address, token2_address: token2_address},
-      recipients: [%{to: LedgerOperations.burning_address(), amount: 10}]
+      recipients: [%{to: LedgerValidation.burning_address(), amount: 10}]
     }
     |> Jason.encode!()
   end

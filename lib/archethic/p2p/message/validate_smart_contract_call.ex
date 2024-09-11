@@ -17,12 +17,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Mining
+  alias Archethic.Mining.LedgerValidation
   alias Archethic.OracleChain
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -278,12 +278,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     protocol_version = Mining.protocol_version()
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
-    %LedgerOperations{sufficient_funds?: sufficient_funds?} =
-      %LedgerOperations{fee: 0}
-      |> LedgerOperations.filter_usable_inputs(inputs, nil)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
-      |> LedgerOperations.validate_sufficient_funds()
+    %LedgerValidation{sufficient_funds?: sufficient_funds?} =
+      %LedgerValidation{fee: 0}
+      |> LedgerValidation.filter_usable_inputs(inputs, nil)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.validate_sufficient_funds()
 
     sufficient_funds?
   end

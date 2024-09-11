@@ -18,6 +18,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.Mining.DistributedWorkflow, as: Workflow
   alias Archethic.Mining.Error
   alias Archethic.Mining.Fee
+  alias Archethic.Mining.LedgerValidation
   alias Archethic.Mining.ValidationContext
 
   alias Archethic.P2P
@@ -46,7 +47,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -1353,12 +1353,13 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.filter_usable_inputs(unspent_outputs, contract_context)
-      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerOperations.validate_sufficient_funds()
-      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
       timestamp: timestamp,

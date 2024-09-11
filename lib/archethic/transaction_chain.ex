@@ -16,6 +16,8 @@ defmodule Archethic.TransactionChain do
 
   alias Archethic.Election
 
+  alias Archethic.Mining.LedgerValidation
+
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Node
@@ -54,7 +56,6 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
 
-  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.VersionedTransactionInput
@@ -909,7 +910,7 @@ defmodule Archethic.TransactionChain do
           data: %TransactionData{recipients: recipients}
         }
       ) do
-    burning_address = LedgerOperations.burning_address()
+    burning_address = LedgerValidation.burning_address()
 
     recipient_addresses = Enum.map(recipients, & &1.address)
 
