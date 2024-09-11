@@ -118,10 +118,9 @@
                     <%= if String.printable?(@transaction.data.code) do %>
                       <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
                     <% else %>
-                      <span id="copy-code" class="is-hidden">
+                      <span id="copy-code">
                         <%= Base.encode16(@transaction.data.code) %>
                       </span>
-                      <pre id="wasm-spec" class="language-yaml" phx-hook="CodeViewer"><%= format_wasm_spec(@wasm_spec) %></pre>
                     <% end %>
                   </div>
                 <% end %>

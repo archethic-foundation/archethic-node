@@ -4,7 +4,6 @@ defmodule Archethic.Contracts do
   Each smart contract is register and supervised as long running process to interact with later on.
   """
 
-  alias Archethic.Contracts.WasmTrigger
   alias __MODULE__.Conditions
   alias __MODULE__.Constants
   alias __MODULE__.Contract
@@ -57,14 +56,14 @@ defmodule Archethic.Contracts do
   Parse a smart contract code and return a contract struct
   """
   @spec parse(binary()) :: {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
-  def parse(contract_code) do
+  def parse(contract_code, tx_content \\ "") do
     if String.printable?(contract_code) do
       Interpreter.parse(contract_code)
     else
-      case WasmModule.parse(contract_code) do
-        {:ok, module} ->
-          {:ok, %WasmContract{module: module}}
-
+      with {:ok, json} <- Jason.decode(tx_content),
+           {:ok, module} <- WasmModule.parse(contract_code, WasmSpec.from_manifest(json)) do
+        {:ok, %WasmContract{module: module}}
+      else
         {:error, reason} ->
           {:error, "#{inspect(reason)}"}
       end
@@ -128,8 +127,9 @@ defmodule Archethic.Contracts do
 
         if genesis_address == from do
           case Enum.at(arg, 0) do
-            %{"code" => new_code} ->
-              {:ok, new_module} = WasmModule.parse(Base.decode16!(new_code, case: :mixed))
+            %{"code" => new_code, "manifest" => manifest} ->
+              spec = manifest |> Jason.decode!() |> WasmSpec.from_manifest()
+              {:ok, new_module} = WasmModule.parse(Base.decode16!(new_code, case: :mixed), spec)
 
               upgrade_state =
                 if "onUpgrade" in WasmModule.list_exported_functions_name(new_module) do
@@ -230,7 +230,7 @@ defmodule Archethic.Contracts do
          _opts
        ) do
     trigger =
-      Enum.find(triggers, fn %WasmTrigger{type: type, function_name: fn_name} ->
+      Enum.find(triggers, fn %WasmSpec.Trigger{type: type, name: fn_name} ->
         case trigger_type do
           {:transaction, action_name, _} when action_name != nil ->
             type == :transaction and fn_name == action_name
@@ -241,18 +241,25 @@ defmodule Archethic.Contracts do
       end)
 
     if trigger != nil do
-      argument =
-        with %Recipient{args: args} <- maybe_recipient,
-             arg when arg != nil <- Enum.at(args, 0) do
-          arg
-        else
-          _ ->
-            nil
-        end
+
+      argument = case maybe_recipient do
+        %Recipient{args: args = [_|_]} ->
+          case Enum.at(args, 0) do
+            arg when is_map(arg) -> arg
+            _ ->
+              %WasmSpec.Trigger{input: input} = trigger
+
+              input
+              |> Map.keys()
+              |> Enum.with_index()
+              |> Enum.reduce(%{}, fn {key, index}, acc -> Map.put(acc, key, Enum.at(args, index)) end)
+          end
+        _ -> nil
+      end
 
       WasmModule.execute(
         module,
-        trigger.function_name,
+        trigger.name,
         transaction: maybe_trigger_tx,
         state: state,
         balance: UTXO.get_balance(inputs),
@@ -409,23 +416,43 @@ defmodule Archethic.Contracts do
         args_values,
         inputs
       ) do
-    if function_name in functions do
-      {:ok, %ReadResult{value: value}} =
-        WasmModule.execute(module, function_name,
-          state: state,
-          balance: UTXO.get_balance(inputs),
-          arguments: Enum.at(args_values, 0)
-        )
+    case Enum.find(functions, &(&1.name == function_name)) do
+      nil ->
+        {:error,
+         %Failure{
+           error: "invalid execution",
+           user_friendly_error: "#{function_name} is not exposed as public function",
+           stacktrace: [],
+           logs: []
+         }}
 
-      {:ok, value, []}
-    else
-      {:error,
-       %Failure{
-         error: "invalid execution",
-         user_friendly_error: "#{function_name} is not exposed as public function",
-         stacktrace: [],
-         logs: []
-       }}
+      %WasmSpec.Function{input: input} ->
+        arguments =
+          if length(args_values) > 0 do
+            case Enum.at(args_values, 0) do
+              arg when is_map(arg) ->
+                arg
+
+              _ ->
+                input
+                |> Map.keys()
+                |> Enum.with_index()
+                |> Enum.reduce(%{}, fn {key, index}, acc ->
+                  Map.put(acc, key, Enum.at(args_values, index))
+                end)
+            end
+          else
+            nil
+          end
+
+        {:ok, %ReadResult{value: value}} =
+          WasmModule.execute(module, function_name,
+            state: state,
+            balance: UTXO.get_balance(inputs),
+            arguments: arguments
+          )
+
+        {:ok, value, []}
     end
   end
 

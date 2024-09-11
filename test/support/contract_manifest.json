@@ -1,0 +1,55 @@
+{
+  "abi": {
+    "state": {
+      "counter": "i32"
+    },
+    "functions": {
+      "inc": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "value": "u32"
+        }
+      },
+      "printBalance": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "address": "string"
+        }
+      },
+      "tick": {
+        "type": "action",
+        "triggerType": "interval",
+        "triggerArgument": "*/5 * * * *",
+        "input": {}
+      },
+      "incAndSetJSONContent": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "value": "u32",
+          "data": "Map"
+        }
+      },
+      "sendUCO": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "to": "string",
+          "amount": "u64"
+        }
+      },
+      "currentBalance": {
+        "type": "publicFunction",
+        "input": {}
+      },
+      "getFactorial": {
+        "type": "publicFunction",
+        "input": {
+          "from": "u64"
+        }
+      }
+    }
+  }
+}

@@ -60,7 +60,9 @@ defmodule Archethic.Contracts.WorkerTest do
     |> stub(:chain_size, fn _ -> 1 end)
 
     MockClient
-    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ -> {:ok, %UnspentOutputList{unspent_outputs: []}} end)
+    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ ->
+      {:ok, %UnspentOutputList{unspent_outputs: []}}
+    end)
 
     transaction_seed = :crypto.strong_rand_bytes(32)
 

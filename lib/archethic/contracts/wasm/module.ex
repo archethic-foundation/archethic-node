@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.WasmModule do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
 
-  @reserved_functions ["spec", "onInit", "onUpgrade"]
+  @reserved_functions ["onInit", "onUpgrade"]
 
   defstruct [:module, :store, :spec]
 
@@ -38,8 +38,8 @@ defmodule Archethic.Contracts.WasmModule do
   @doc """
   Parse wasm module and perform some checks
   """
-  @spec parse(bytes :: binary()) :: {:ok, t()} | {:error, any()}
-  def parse(bytes) when is_binary(bytes) do
+  @spec parse(bytes :: binary(), spec :: WasmSpec.t()) :: {:ok, t()} | {:error, any()}
+  def parse(bytes, spec = %WasmSpec{}) when is_binary(bytes) do
     {:ok, engine} =
       Wasmex.Engine.new(Wasmex.EngineConfig.consume_fuel(%Wasmex.EngineConfig{}, true))
 
@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.WasmModule do
          wrap_module = %__MODULE__{module: module, store: store},
          :ok <- check_module_imports(wrap_module),
          :ok <- check_module_exports(wrap_module),
-         {:ok, spec} <- check_spec_exports(wrap_module) do
+         :ok <- check_spec_exports(wrap_module, spec) do
       {:ok, %{wrap_module | spec: spec}}
     end
   end
@@ -102,26 +102,19 @@ defmodule Archethic.Contracts.WasmModule do
   defp check_module_exports(%__MODULE__{module: module}) do
     exported_functions = exported_functions(module)
 
-    if Map.has_key?(exported_functions, "spec") do
-      if Enum.all?(exported_functions, &match?({_, {:fn, [], []}}, &1)) do
-        :ok
-      else
-        {:error, "exported function shouldn't have input/output variables"}
-      end
+    if Enum.all?(exported_functions, &match?({_, {:fn, [], []}}, &1)) do
+      :ok
     else
-      {:error, "wasm's module doesn't expose spec function"}
+      {:error, "exported function shouldn't have input/output variables"}
     end
   end
 
-  defp check_spec_exports(module) do
+  defp check_spec_exports(module, spec) do
     exported_functions = list_exported_functions_name(module)
+    spec_functions = WasmSpec.function_names(spec)
 
-    with {:ok, %ReadResult{value: result}} <- execute(module, "spec"),
-         spec = WasmSpec.cast(result),
-         spec_functions = WasmSpec.function_names(spec),
-         :ok <- validate_existing_spec_functions(spec_functions, exported_functions),
-         :ok <- validate_exported_functions_in_spec(spec_functions, exported_functions) do
-      {:ok, spec}
+    with :ok <- validate_existing_spec_functions(spec_functions, exported_functions) do
+      validate_exported_functions_in_spec(spec_functions, exported_functions)
     end
   end
 
