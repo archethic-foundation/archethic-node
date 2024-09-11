@@ -666,7 +666,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
 
       assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
-      assert :ok = PendingTransactionValidation.validate_network_transaction_chain(tx)
+      assert :ok = PendingTransactionValidation.validate_network_chain(tx)
 
       tx =
         TransactionFactory.create_non_valided_transaction(
@@ -677,7 +677,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
-      assert :ok = PendingTransactionValidation.validate_network_transaction_chain(tx)
+      assert :ok = PendingTransactionValidation.validate_network_chain(tx)
 
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end

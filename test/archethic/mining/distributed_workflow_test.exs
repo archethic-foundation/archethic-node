@@ -1344,22 +1344,21 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
+    contract_context = nil
+    encoded_state = nil
 
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
       %LedgerOperations{fee: fee}
-      |> LedgerOperations.consume_inputs(
-        tx.address,
-        timestamp,
-        unspent_outputs,
-        movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
-      )
-      |> elem(1)
+      |> LedgerOperations.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerOperations.validate_sufficient_funds()
+      |> LedgerOperations.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
 
     %ValidationStamp{
       timestamp: timestamp,

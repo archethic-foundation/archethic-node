@@ -798,29 +798,25 @@ defmodule Archethic.Mining.ValidationContext do
     movements = Transaction.get_movements(tx)
     protocol_version = Mining.protocol_version()
 
-    ops = %LedgerOperations{fee: fee}
+    ops =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerOperations.mint_token_utxos(tx, validation_time, protocol_version)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerOperations.validate_sufficient_funds()
+      |> LedgerOperations.consume_inputs(
+        address,
+        validation_time,
+        encoded_state,
+        contract_context
+      )
 
-    case LedgerOperations.consume_inputs(
-           ops,
-           address,
-           validation_time |> DateTime.truncate(:millisecond),
-           unspent_outputs,
-           movements,
-           LedgerOperations.get_utxos_from_transaction(tx, validation_time, protocol_version),
-           encoded_state,
-           contract_context
-         ) do
-      {:ok, ops} ->
-        new_ops =
-          LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
+    case ops do
+      %LedgerOperations{sufficient_funds?: false} ->
+        {set_mining_error(context, Error.new(:insufficient_funds)), ops}
 
-        {context, new_ops}
-
-      {:error, :insufficient_funds} ->
-        new_ops =
-          LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
-
-        {set_mining_error(context, Error.new(:insufficient_funds)), new_ops}
+      _ ->
+        {context, ops}
     end
   end
 

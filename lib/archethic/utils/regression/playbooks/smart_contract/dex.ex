@@ -98,7 +98,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
     nb_add_liquidity = nb_triggers - nb_remove_liquidity
 
     add_liquidity_opts_list =
-      Enum.map(1..nb_remove_liquidity, fn _ -> add_liquidity_opts(seeds, 10, 10) end)
+      Enum.map(1..nb_add_liquidity, fn _ -> add_liquidity_opts(seeds, 10, 10) end)
 
     seeds
     |> Map.update!(:triggers_seeds, &Enum.take(&1, nb_remove_liquidity))

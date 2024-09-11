@@ -24,13 +24,13 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
-  alias Archethic.UTXO
 
   @type t :: %__MODULE__{
           recipient: Recipient.t(),
@@ -143,16 +143,18 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
                  unspent_outputs,
                  datetime
                ),
+             {:ok, execution_result} <- sign_next_transaction(contract, execution_result),
              :ok <-
                validate_enough_funds(
                  transaction,
                  recipient_address,
                  execution_result,
-                 unspent_outputs
+                 unspent_outputs,
+                 timestamp
                ) do
           %SmartContractCallValidation{
             status: :ok,
-            fee: calculate_fee(execution_result, contract, datetime),
+            fee: calculate_fee(execution_result, datetime),
             last_chain_sync_date: timestamp
           }
         else
@@ -211,84 +213,80 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     end
   end
 
-  defp validate_enough_funds(transaction, recipient_address, execution_result, unspent_outputs) do
-    transfers_to_contract =
+  defp sign_next_transaction(
+         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         res = %ActionWithTransaction{next_tx: next_tx}
+       ) do
+    index = TransactionChain.get_size(contract_address)
+
+    case Contract.sign_next_transaction(contract, next_tx, index) do
+      {:ok, tx} -> {:ok, %ActionWithTransaction{res | next_tx: tx}}
+      _ -> {:error, :parsing_error, "Unable to sign contract transaction"}
+    end
+  end
+
+  defp sign_next_transaction(_contract, res), do: {:ok, res}
+
+  defp validate_enough_funds(
+         transaction = %Transaction{address: from},
+         recipient_address,
+         execution_result,
+         unspent_outputs,
+         timestamp
+       ) do
+    protocol_version = Mining.protocol_version()
+
+    unspent_outputs =
       transaction
       |> Transaction.get_movements()
       |> Enum.filter(fn movement ->
         TransactionChain.get_genesis_address(movement.to) == recipient_address
       end)
+      |> Enum.map(fn %TransactionMovement{type: type, amount: amount} ->
+        %UnspentOutput{from: from, amount: amount, type: type, timestamp: timestamp}
+      end)
+      |> Enum.concat(unspent_outputs)
+      |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
 
-    if enough_funds_to_send?(execution_result, unspent_outputs, transfers_to_contract),
+    if enough_funds_to_send?(execution_result, unspent_outputs, timestamp),
       do: :ok,
       else: {:error, :insufficient_funds}
   end
 
   defp calculate_fee(
          %ActionWithTransaction{next_tx: next_tx, encoded_state: encoded_state},
-         contract = %Contract{transaction: %Transaction{address: contract_address}},
          timestamp
        ) do
-    index = TransactionChain.get_size(contract_address)
+    previous_usd_price =
+      timestamp
+      |> OracleChain.get_last_scheduling_date()
+      |> OracleChain.get_uco_price()
+      |> Keyword.fetch!(:usd)
 
-    case Contract.sign_next_transaction(contract, next_tx, index) do
-      {:ok, tx} ->
-        previous_usd_price =
-          timestamp
-          |> OracleChain.get_last_scheduling_date()
-          |> OracleChain.get_uco_price()
-          |> Keyword.fetch!(:usd)
-
-        # Here we use a nil contract_context as we return the fees the user has to pay for the contract
-        Mining.get_transaction_fee(tx, nil, previous_usd_price, timestamp, encoded_state)
-
-      _ ->
-        0
-    end
+    # Here we use a nil contract_context as we return the fees the user has to pay for the contract
+    Mining.get_transaction_fee(next_tx, nil, previous_usd_price, timestamp, encoded_state)
   end
 
-  defp calculate_fee(_, _, _), do: 0
+  defp calculate_fee(_, _), do: 0
 
-  defp enough_funds_to_send?(%ActionWithTransaction{next_tx: tx}, inputs, tx_movements) do
-    %{token: minted_tokens} =
-      tx
-      |> LedgerOperations.get_utxos_from_transaction(
-        DateTime.utc_now(),
-        Archethic.Mining.protocol_version()
-      )
-      |> VersionedUnspentOutput.unwrap_unspent_outputs()
-      |> UTXO.get_balance()
+  defp enough_funds_to_send?(
+         %ActionWithTransaction{next_tx: tx = %Transaction{type: tx_type}},
+         inputs,
+         timestamp
+       ) do
+    movements = Transaction.get_movements(tx)
+    protocol_version = Mining.protocol_version()
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
-    %{uco: uco_balance, token: token_balances} = UTXO.get_balance(inputs)
+    %LedgerOperations{sufficient_funds?: sufficient_funds?} =
+      %LedgerOperations{fee: 0}
+      |> LedgerOperations.filter_usable_inputs(inputs, nil)
+      |> LedgerOperations.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerOperations.validate_sufficient_funds()
 
-    movements_balances = get_movements_balance(tx_movements)
-
-    tx
-    |> Transaction.get_movements()
-    |> get_movements_balance()
-    |> Enum.all?(fn
-      {:uco, uco_to_spend} ->
-        uco_transferred = Map.get(movements_balances, :uco, 0)
-        uco_balance + uco_transferred >= uco_to_spend
-
-      {{:token, token}, amount} ->
-        token_transferred = Map.get(movements_balances, {:token, token}, 0)
-        token_minted = Map.get(minted_tokens, token, 0)
-        token_balance = Map.get(token_balances, token, 0)
-
-        token_balance + token_transferred + token_minted >= amount
-    end)
+    sufficient_funds?
   end
 
   defp enough_funds_to_send?(%ActionWithoutTransaction{}, _inputs, _tx_movements), do: true
-
-  defp get_movements_balance(tx_movements) do
-    Enum.reduce(tx_movements, %{}, fn
-      %TransactionMovement{type: :UCO, amount: amount}, acc ->
-        Map.update(acc, :uco, amount, &(&1 + amount))
-
-      %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
-        Map.update(acc, {:token, {token_address, token_id}}, amount, &(amount + &1))
-    end)
-  end
 end

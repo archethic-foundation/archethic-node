@@ -8,7 +8,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defstruct transaction_movements: [],
             unspent_outputs: [],
             fee: 0,
-            consumed_inputs: []
+            consumed_inputs: [],
+            inputs: [],
+            minted_utxos: [],
+            sufficient_funds?: false,
+            balances: %{uco: 0, token: %{}},
+            amount_to_spend: %{uco: 0, token: %{}}
 
   alias Archethic.Contracts.Contract.Context, as: ContractContext
   alias Archethic.Contracts.Contract.State
@@ -37,7 +42,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           fee: non_neg_integer(),
-          consumed_inputs: list(VersionedUnspentOutput.t())
+          consumed_inputs: list(VersionedUnspentOutput.t()),
+          inputs: list(VersionedUnspentOutput.t()),
+          minted_utxos: list(VersionedUnspentOutput.t()),
+          sufficient_funds?: boolean(),
+          balances: %{uco: non_neg_integer(), token: map()},
+          amount_to_spend: %{uco: non_neg_integer(), token: map()}
         }
 
   @burning_address <<0::8, 0::8, 0::256>>
@@ -48,50 +58,66 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec burning_address() :: Crypto.versioned_hash()
   def burning_address, do: @burning_address
 
-  @doc ~S"""
+  @doc """
+  Filter inputs that can be used in this transaction 
+  """
+  @spec filter_usable_inputs(
+          ops :: t(),
+          inputs :: list(VersionedUnspentOutput.t()),
+          contract_context :: ContractContext.t() | nil
+        ) :: t()
+  def filter_usable_inputs(ops, inputs, nil), do: %__MODULE__{ops | inputs: inputs}
+
+  def filter_usable_inputs(ops, inputs, contract_context),
+    do: %__MODULE__{ops | inputs: ContractContext.ledger_inputs(contract_context, inputs)}
+
+  @doc """
   Build some ledger operations from a specific transaction
   """
-  @spec get_utxos_from_transaction(
+  @spec mint_token_utxos(
+          ops :: t(),
           tx :: Transaction.t(),
           validation_time :: DateTime.t(),
           protocol_version :: non_neg_integer()
-        ) :: list(VersionedUnspentOutput.t())
-  def get_utxos_from_transaction(
-        %Transaction{
-          address: address,
-          type: type,
-          data: %TransactionData{content: content}
-        },
+        ) :: t()
+  def mint_token_utxos(
+        ops,
+        %Transaction{address: address, type: type, data: %TransactionData{content: content}},
         timestamp,
         protocol_version
       )
       when type in [:token, :mint_rewards] and not is_nil(timestamp) do
     case Jason.decode(content) do
       {:ok, json} ->
-        json
-        |> get_token_utxos(address, timestamp)
-        |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
+        minted_utxos =
+          json
+          |> create_token_utxos(address, timestamp)
+          |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
+
+        %__MODULE__{ops | minted_utxos: minted_utxos}
 
       _ ->
-        []
+        ops
     end
   end
 
-  def get_utxos_from_transaction(%Transaction{}, _timestamp, _), do: []
+  def mint_token_utxos(ops, _, _, _), do: ops
 
-  defp get_token_utxos(
-         %{"token_reference" => token_ref, "supply" => supply},
+  defp create_token_utxos(
+         spec = %{"token_reference" => token_ref, "supply" => supply},
          address,
          timestamp
        )
        when is_binary(token_ref) and is_integer(supply) do
+    decimals = Map.get(spec, "decimals", 8)
+
     case Base.decode16(token_ref, case: :mixed) do
       {:ok, token_address} ->
         [
           %UnspentOutput{
             from: address,
             amount: supply,
-            type: {:token, token_address, 0},
+            type: get_token_type(token_address, 0, decimals),
             timestamp: timestamp
           }
         ]
@@ -101,23 +127,25 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp get_token_utxos(
-         %{"type" => "fungible", "supply" => supply},
+  defp create_token_utxos(
+         spec = %{"type" => "fungible", "supply" => supply},
          address,
          timestamp
        ) do
+    decimals = Map.get(spec, "decimals", 8)
+
     [
       %UnspentOutput{
         from: address,
         amount: supply,
-        type: {:token, address, 0},
+        type: get_token_type(address, 0, decimals),
         timestamp: timestamp
       }
     ]
   end
 
-  defp get_token_utxos(
-         %{
+  defp create_token_utxos(
+         spec = %{
            "type" => "non-fungible",
            "supply" => supply,
            "collection" => collection
@@ -125,6 +153,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          address,
          timestamp
        ) do
+    decimals = Map.get(spec, "decimals", 8)
+
     if length(collection) == supply / @unit_uco do
       collection
       |> Enum.with_index()
@@ -134,7 +164,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         %UnspentOutput{
           from: address,
           amount: 1 * @unit_uco,
-          type: {:token, address, token_id},
+          type: get_token_type(address, token_id, decimals),
           timestamp: timestamp
         }
       end)
@@ -143,22 +173,76 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp get_token_utxos(
-         %{"type" => "non-fungible", "supply" => @unit_uco},
+  defp create_token_utxos(
+         spec = %{"type" => "non-fungible", "supply" => @unit_uco},
          address,
          timestamp
        ) do
+    decimals = Map.get(spec, "decimals", 8)
+
     [
       %UnspentOutput{
         from: address,
         amount: 1 * @unit_uco,
-        type: {:token, address, 1},
+        type: get_token_type(address, 1, decimals),
         timestamp: timestamp
       }
     ]
   end
 
-  defp get_token_utxos(_, _, _), do: []
+  defp create_token_utxos(_, _, _), do: []
+
+  defp get_token_type(token_address, token_id, 8), do: {:token, token_address, token_id}
+
+  defp get_token_type(token_address, token_id, token_decimals),
+    do: {:token, token_address, token_id, token_decimals}
+
+  @doc """
+  Build the resolved view of the movement, with the resolved address
+  and convert MUCO movement to UCO movement
+  """
+  @spec build_resolved_movements(
+          ops :: t(),
+          movements :: list(TransactionMovement.t()),
+          resolved_addresses :: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
+          tx_type :: Transaction.transaction_type()
+        ) :: t()
+  def build_resolved_movements(ops, movements, resolved_addresses, tx_type) do
+    resolved_movements =
+      movements
+      |> TransactionMovement.resolve_addresses(resolved_addresses)
+      |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
+      |> TransactionMovement.aggregate()
+
+    %__MODULE__{ops | transaction_movements: resolved_movements}
+  end
+
+  @doc """
+  Determine if the transaction has enough funds for it's movements
+  """
+  @spec validate_sufficient_funds(ops :: t()) :: t()
+  def validate_sufficient_funds(
+        ops = %__MODULE__{
+          fee: fee,
+          inputs: inputs,
+          minted_utxos: minted_utxos,
+          transaction_movements: movements
+        }
+      ) do
+    balances =
+      %{uco: uco_balance, token: tokens_balance} = ledger_balances(inputs ++ minted_utxos)
+
+    amount_to_spend =
+      %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
+
+    %__MODULE__{
+      ops
+      | sufficient_funds?:
+          sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend),
+        balances: balances,
+        amount_to_spend: amount_to_spend
+    }
+  end
 
   defp total_to_spend(fee, movements) do
     Enum.reduce(movements, %{uco: fee, token: %{}}, fn
@@ -218,85 +302,69 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   Also return a boolean indicating if there was sufficient funds
   """
   @spec consume_inputs(
-          ledger_operations :: t(),
+          ops :: t(),
           change_address :: binary(),
           timestamp :: DateTime.t(),
-          inputs :: list(VersionedUnspentOutput.t()),
-          movements :: list(TransactionMovement.t()),
-          token_to_mint :: list(VersionedUnspentOutput.t()),
           encoded_state :: State.encoded() | nil,
           contract_context :: ContractContext.t() | nil
-        ) :: {:ok, ledger_operations :: t()} | {:error, :insufficient_funds}
+        ) :: t()
+  def consumed_inputs(ops = %__MODULE__{sufficient_funds?: false}), do: ops
+
   def consume_inputs(
-        ops = %__MODULE__{fee: fee},
+        ops = %__MODULE__{
+          inputs: inputs,
+          minted_utxos: minted_utxos,
+          balances: %{uco: uco_balance, token: tokens_balance},
+          amount_to_spend: %{uco: uco_to_spend, token: tokens_to_spend}
+        },
         change_address,
         timestamp = %DateTime{},
-        chain_inputs \\ [],
-        movements \\ [],
-        tokens_to_mint \\ [],
         encoded_state \\ nil,
         contract_context \\ nil
       ) do
-    ledger_inputs =
-      case contract_context do
-        nil ->
-          chain_inputs
-
-        context = %ContractContext{} ->
-          ContractContext.ledger_inputs(context, chain_inputs)
-      end
-
     # Since AEIP-19 we can consume from minted tokens
     # Sort inputs, to have consistent results across all nodes
     consolidated_inputs =
-      Enum.sort(tokens_to_mint ++ ledger_inputs, {:asc, VersionedUnspentOutput})
-      |> Enum.map(fn
-        utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^change_address}} ->
-          # As the minted tokens are used internally during transaction's validation
-          # and doesn't not exists outside, we use the burning address
-          # to identify inputs coming from the token's minting.
-          put_in(utxo, [Access.key!(:unspent_output), Access.key!(:from)], burning_address())
-
-        utxo ->
-          utxo
+      minted_utxos
+      |> Enum.map(fn utxo ->
+        # As the minted tokens are used internally during transaction's validation
+        # and doesn't not exists outside, we use the burning address
+        # to identify inputs coming from the token's minting.
+        put_in(utxo, [Access.key!(:unspent_output), Access.key!(:from)], burning_address())
       end)
+      |> Enum.concat(inputs)
+      |> Enum.sort({:asc, VersionedUnspentOutput})
 
-    %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
-    %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
+    versioned_consumed_utxos =
+      get_inputs_to_consume(
+        consolidated_inputs,
+        uco_to_spend,
+        tokens_to_spend,
+        uco_balance,
+        tokens_balance,
+        contract_context
+      )
 
-    if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
-      versioned_consumed_utxos =
-        get_inputs_to_consume(
-          consolidated_inputs,
-          uco_to_spend,
-          tokens_to_spend,
-          uco_balance,
-          tokens_balance,
-          contract_context
-        )
+    consumed_utxos = VersionedUnspentOutput.unwrap_unspent_outputs(versioned_consumed_utxos)
+    minted_utxos = VersionedUnspentOutput.unwrap_unspent_outputs(minted_utxos)
 
-      consumed_utxos = VersionedUnspentOutput.unwrap_unspent_outputs(versioned_consumed_utxos)
-      tokens_to_mint = VersionedUnspentOutput.unwrap_unspent_outputs(tokens_to_mint)
+    new_unspent_outputs =
+      tokens_utxos(
+        tokens_to_spend,
+        consumed_utxos,
+        minted_utxos,
+        change_address,
+        timestamp
+      )
+      |> add_uco_utxo(consumed_utxos, uco_to_spend, change_address, timestamp)
+      |> Enum.filter(&(&1.amount > 0))
+      |> add_state_utxo(encoded_state, change_address, timestamp)
 
-      new_unspent_outputs =
-        tokens_utxos(
-          tokens_to_spend,
-          consumed_utxos,
-          tokens_to_mint,
-          change_address,
-          timestamp
-        )
-        |> add_uco_utxo(consumed_utxos, uco_to_spend, change_address, timestamp)
-        |> Enum.filter(&(&1.amount > 0))
-        |> add_state_utxo(encoded_state, change_address, timestamp)
-
-      {:ok,
-       ops
-       |> Map.put(:unspent_outputs, new_unspent_outputs)
-       |> Map.put(:consumed_inputs, versioned_consumed_utxos)}
-    else
-      {:error, :insufficient_funds}
-    end
+    %__MODULE__{
+      ops
+      | unspent_outputs: new_unspent_outputs,
+        consumed_inputs: versioned_consumed_utxos
+    }
   end
 
   defp tokens_utxos(
@@ -438,26 +506,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
 
     [new_utxo | utxos]
-  end
-
-  @doc """
-  Build the resolved view of the movement, with the resolved address
-  and convert MUCO movement to UCO movement
-  """
-  @spec build_resolved_movements(
-          ops :: t(),
-          movements :: list(TransactionMovement.t()),
-          resolved_addresses :: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
-          tx_type :: Transaction.transaction_type()
-        ) :: t()
-  def build_resolved_movements(ops, movements, resolved_addresses, tx_type) do
-    resolved_movements =
-      movements
-      |> TransactionMovement.resolve_addresses(resolved_addresses)
-      |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
-      |> TransactionMovement.aggregate()
-
-    %__MODULE__{ops | transaction_movements: resolved_movements}
   end
 
   @doc """
