@@ -114,11 +114,9 @@ defmodule Archethic.Mining.ProofOfWork do
   Smart contract code can defined which family to use (like security level)
   """
   @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
-  def list_origin_public_keys_candidates(
-        tx = %Transaction{data: %TransactionData{code: code, content: content}}
-      )
+  def list_origin_public_keys_candidates(tx = %Transaction{data: %TransactionData{code: code}})
       when code != "" do
-    case Contracts.parse(code, content) do
+    case Contracts.parse(code) do
       {:ok,
        %Contract{
          conditions: %{inherit: %Conditions{subjects: %ConditionsSubjects{origin_family: family}}}

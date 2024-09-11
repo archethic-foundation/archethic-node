@@ -56,17 +56,13 @@ defmodule Archethic.Contracts do
   Parse a smart contract code and return a contract struct
   """
   @spec parse(binary()) :: {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
-  def parse(contract_code, tx_content \\ "") do
-    if String.printable?(contract_code) do
-      Interpreter.parse(contract_code)
-    else
-      with {:ok, json} <- Jason.decode(tx_content),
-           {:ok, module} <- WasmModule.parse(contract_code, WasmSpec.from_manifest(json)) do
-        {:ok, %WasmContract{module: module}}
-      else
-        {:error, reason} ->
-          {:error, "#{inspect(reason)}"}
-      end
+  def parse(contract_code) do
+    case Jason.decode(contract_code) do
+      {:ok, contract_json} ->
+        WasmContract.parse(contract_json)
+
+      _ ->
+        Interpreter.parse(contract_code)
     end
   end
 
@@ -241,21 +237,27 @@ defmodule Archethic.Contracts do
       end)
 
     if trigger != nil do
+      argument =
+        case maybe_recipient do
+          %Recipient{args: args = [_ | _]} ->
+            case Enum.at(args, 0) do
+              arg when is_map(arg) ->
+                arg
 
-      argument = case maybe_recipient do
-        %Recipient{args: args = [_|_]} ->
-          case Enum.at(args, 0) do
-            arg when is_map(arg) -> arg
-            _ ->
-              %WasmSpec.Trigger{input: input} = trigger
+              _ ->
+                %WasmSpec.Trigger{input: input} = trigger
 
-              input
-              |> Map.keys()
-              |> Enum.with_index()
-              |> Enum.reduce(%{}, fn {key, index}, acc -> Map.put(acc, key, Enum.at(args, index)) end)
-          end
-        _ -> nil
-      end
+                input
+                |> Map.keys()
+                |> Enum.with_index()
+                |> Enum.reduce(%{}, fn {key, index}, acc ->
+                  Map.put(acc, key, Enum.at(args, index))
+                end)
+            end
+
+          _ ->
+            nil
+        end
 
       WasmModule.execute(
         module,

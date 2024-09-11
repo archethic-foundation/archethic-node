@@ -115,12 +115,11 @@
                   <div></div>
                 <% else %>
                   <div x-show="show" class="is-relative">
-                    <%= if String.printable?(@transaction.data.code) do %>
-                      <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
-                    <% else %>
-                      <span id="copy-code">
-                        <%= Base.encode16(@transaction.data.code) %>
-                      </span>
+                    <%= case Jason.decode(@transaction.data.code) do %>
+                      <% {:ok, json} -> %>
+                        <pre id="copy-code" class="language-json" phx-hook="CodeViewer"><%= Jason.encode!(json, pretty: true)  %></pre>
+                      <% _ -> %>
+                        <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
                     <% end %>
                   </div>
                 <% end %>

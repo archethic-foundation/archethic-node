@@ -45,9 +45,13 @@ defmodule Archethic.TransactionChain.TransactionData do
     :zlib.unzip(code)
   end
 
-  @spec code_size_valid?(String.t()) :: bool()
-  def code_size_valid?(code) do
-    compress_code(code) |> byte_size() < @code_max_size
+  @spec code_size_valid?(code :: binary(), compressed :: boolean()) :: boolean()
+  def code_size_valid?(code, compressed? \\ true) do
+    if compressed? do
+      code |> byte_size() < @code_max_size
+    else
+      compress_code(code) |> byte_size() < @code_max_size
+    end
   end
 
   @doc """

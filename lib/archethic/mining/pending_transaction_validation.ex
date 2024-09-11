@@ -141,10 +141,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp validate_contract(%Transaction{
-         data: %TransactionData{code: code, content: content, ownerships: ownerships}
+         data: %TransactionData{code: code, ownerships: ownerships}
        }) do
     with :ok <- validate_code_size(code),
-         {:ok, contract} <- parse_contract(code, content) do
+         {:ok, contract} <- parse_contract(code) do
       validate_contract_ownership(contract, ownerships)
     end
   end
@@ -155,8 +155,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       else: {:error, "Invalid transaction, code exceed max size"}
   end
 
-  defp parse_contract(code, content) do
-    case Contracts.parse(code, content) do
+  defp parse_contract(code) do
+    case Contracts.parse(code) do
       {:ok, contract} -> {:ok, contract}
       {:error, reason} -> {:error, "Smart contract invalid #{inspect(reason)}"}
     end

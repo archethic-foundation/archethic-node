@@ -57,23 +57,45 @@ defmodule Archethic.Contracts.WasmContract do
   end
 
   @doc """
+  Parse smart contract json block and return a contract struct
+  """
+  @spec parse(contract_json :: binary() | map()) :: {:ok, t()} | {:error, String.t()}
+  def parse(contract_json) when is_binary(contract_json) do
+    case Jason.decode(contract_json) do
+      {:ok, contract_json} -> parse(contract_json)
+      {:error, reason} -> {:error, "#{inspect(reason)}"}
+    end
+  end
+
+  def parse(%{"manifest" => manifest, "bytecode" => bytecode}) do
+    with {:ok, bytes} <- Base.decode16(bytecode, case: :mixed),
+         spec = WasmSpec.from_manifest(manifest),
+         uncompressed_bytes = :zlib.unzip(bytes),
+         {:ok, module} <- WasmModule.parse(uncompressed_bytes, spec) do
+      {:ok,
+       %__MODULE__{
+         module: module
+       }}
+    else
+      :error ->
+        {:error, "Invalid Smart Contract JSON"}
+
+      {:error, reason} ->
+        {:error, "#{inspect(reason)}"}
+    end
+  end
+
+  @doc """
   Create a contract from a transaction
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
-  def from_transaction(tx = %Transaction{data: %TransactionData{code: code, content: content}}) do
-    with {:ok, manifest_json} <- Jason.decode(content),
-         spec = WasmSpec.from_manifest(manifest_json),
-         {:ok, module} <- WasmModule.parse(code, spec) do
-      contract = %__MODULE__{
-        module: module,
-        state: get_state_from_tx(tx),
-        transaction: tx
-      }
+  def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
+    case parse(code) do
+      {:ok, contract} ->
+        {:ok, %{contract | state: get_state_from_tx(tx), transaction: tx}}
 
-      {:ok, contract}
-    else
-      {:error, reason} ->
-        {:error, "#{inspect(reason)}"}
+      {:error, _} = e ->
+        e
     end
   end
 

@@ -25,13 +25,22 @@ defmodule Archethic.Contracts.WasmSpec do
     version = Map.get(manifest, "version", 1)
     upgrade_opts = Map.get(manifest, "upgrade_opts")
 
-    Enum.reduce(functions, %__MODULE__{version: version, upgrade_opts: upgrade_opts, triggers: [], public_functions: []}, fn
-      {name, function_abi = %{"type" => "action"}}, acc ->
-        Map.update!(acc, :triggers, &[Trigger.cast(name, function_abi) | &1])
+    Enum.reduce(
+      functions,
+      %__MODULE__{
+        version: version,
+        upgrade_opts: upgrade_opts,
+        triggers: [],
+        public_functions: []
+      },
+      fn
+        {name, function_abi = %{"type" => "action"}}, acc ->
+          Map.update!(acc, :triggers, &[Trigger.cast(name, function_abi) | &1])
 
-      {name, function_abi = %{"type" => "publicFunction"}}, acc ->
-        Map.update!(acc, :public_functions, &[Function.cast(name, function_abi) | &1])
-    end)
+        {name, function_abi = %{"type" => "publicFunction"}}, acc ->
+          Map.update!(acc, :public_functions, &[Function.cast(name, function_abi) | &1])
+      end
+    )
   end
 
   @doc """

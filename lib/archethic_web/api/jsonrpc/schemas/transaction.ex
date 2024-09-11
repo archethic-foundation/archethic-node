@@ -23,8 +23,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     :encrypted_secret_key,
     :origin_signature,
     :previous_public_key,
-    :previous_signature,
-    :code
+    :previous_signature
   ]
 
   @doc """
@@ -52,7 +51,16 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         :ok
 
       code ->
-        if TransactionData.code_size_valid?(code) do
+        valid_size? =
+          case Jason.decode(code) do
+            {:ok, %{"bytecode" => bytecode}} ->
+              TransactionData.code_size_valid?(Base.decode16!(bytecode, case: :mixed))
+
+            _ ->
+              TransactionData.code_size_valid?(code)
+          end
+
+        if valid_size? do
           :ok
         else
           {:error,

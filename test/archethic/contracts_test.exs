@@ -817,7 +817,15 @@ defmodule Archethic.ContractsTest do
     test "should execute trigger for wasm contract" do
       bytes = File.read!("test/support/contract.wasm")
       manifest = File.read!("test/support/contract_manifest.json")
-      contract_tx = ContractFactory.create_valid_contract_tx(bytes, content: manifest)
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
       contract = WasmContract.from_transaction!(contract_tx)
       incoming_tx = TransactionFactory.create_valid_transaction()
 
@@ -841,7 +849,15 @@ defmodule Archethic.ContractsTest do
     test "should execute trigger for wasm contract with no object rpc call params" do
       bytes = File.read!("test/support/contract.wasm")
       manifest = File.read!("test/support/contract_manifest.json")
-      contract_tx = ContractFactory.create_valid_contract_tx(bytes, content: manifest)
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
       contract = WasmContract.from_transaction!(contract_tx)
       incoming_tx = TransactionFactory.create_valid_transaction()
 
@@ -872,7 +888,15 @@ defmodule Archethic.ContractsTest do
 
       bytes = File.read!("test/support/contract.wasm")
       manifest = File.read!("test/support/contract_manifest.json")
-      contract_tx = ContractFactory.create_valid_contract_tx(bytes, content: manifest)
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
       contract = WasmContract.from_transaction!(contract_tx)
       incoming_tx = TransactionFactory.create_valid_transaction()
 
@@ -1027,7 +1051,15 @@ defmodule Archethic.ContractsTest do
     test "should execute function for wasm contract" do
       bytes = File.read!("test/support/contract.wasm")
       manifest = File.read!("test/support/contract_manifest.json")
-      contract_tx = ContractFactory.create_valid_contract_tx(bytes, content: manifest)
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
       contract = WasmContract.from_transaction!(contract_tx)
 
       assert {:ok, 24, _} =
@@ -1065,7 +1097,15 @@ defmodule Archethic.ContractsTest do
     test "should execute function for wasm contract with inputs" do
       bytes = File.read!("test/support/contract.wasm")
       manifest = File.read!("test/support/contract_manifest.json")
-      contract_tx = ContractFactory.create_valid_contract_tx(bytes, content: manifest)
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
       contract = WasmContract.from_transaction!(contract_tx)
 
       assert {:ok, "UCO: 500000000", _} =
