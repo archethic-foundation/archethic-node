@@ -20,6 +20,7 @@ defmodule ArchethicCase do
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
   alias Archethic.P2P.MemTable, as: P2PMemTable
+  alias Archethic.P2P.Node
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Interpreter
@@ -277,6 +278,33 @@ defmodule ArchethicCase do
     on_exit(:unpersist_data, fn ->
       :persistent_term.put(nss_key, nil)
     end)
+  end
+
+  def new_node(opts \\ []) do
+    %Node{
+      first_public_key: Keyword.get(opts, :first_public_key, Crypto.first_node_public_key()),
+      last_public_key: Keyword.get(opts, :last_public_key, Crypto.last_node_public_key()),
+      mining_public_key: Keyword.get(opts, :mining_public_key, Crypto.mining_node_public_key()),
+      last_address: Keyword.get(opts, :last_address, random_address()),
+      reward_address: Keyword.get(opts, :reward_address, random_address()),
+      ip: Keyword.get(opts, :ip, {127, 0, 0, 1}),
+      port: Keyword.get(opts, :port, 3000),
+      http_port: Keyword.get(opts, :http_port, 4000),
+      geo_patch: Keyword.get(opts, :geo_patch, "AAA"),
+      network_patch: Keyword.get(opts, :network_patch, "AAA"),
+      enrollment_date:
+        Keyword.get(opts, :enrollment_date, DateTime.utc_now() |> DateTime.add(-1, :hour)),
+      available?: Keyword.get(opts, :available?, true),
+      synced?: Keyword.get(opts, :synced?, true),
+      average_availability: Keyword.get(opts, :average_availability, 1.0),
+      authorized?: Keyword.get(opts, :authorized?, true),
+      authorization_date:
+        Keyword.get(opts, :authorization_date, DateTime.utc_now() |> DateTime.add(-1, :hour)),
+      transport: Keyword.get(opts, :transport, :tcp),
+      origin_public_key: Keyword.get(opts, :origin_public_key, Crypto.origin_node_public_key()),
+      last_update_date: Keyword.get(opts, :last_update_date, ~U[2019-07-14 00:00:00Z]),
+      availability_update: Keyword.get(opts, :availability_update, ~U[2008-10-31 00:00:00Z])
+    }
   end
 
   def random_address() do
