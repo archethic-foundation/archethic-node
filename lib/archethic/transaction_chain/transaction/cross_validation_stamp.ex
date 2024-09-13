@@ -48,9 +48,13 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
 
     signature =
       [raw_stamp, marshal_inconsistencies(inconsistencies)]
-      |> Crypto.sign_with_last_node_key()
+      |> Crypto.sign_with_mining_node_key()
 
-    %{cross_stamp | node_public_key: Crypto.last_node_public_key(), signature: signature}
+    %__MODULE__{
+      cross_stamp
+      | node_public_key: Crypto.mining_node_public_key(),
+        signature: signature
+    }
   end
 
   @doc """

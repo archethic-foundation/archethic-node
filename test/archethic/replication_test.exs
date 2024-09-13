@@ -50,19 +50,7 @@ defmodule Archethic.ReplicationTest do
   end
 
   test "validate_transaction without contract_context" do
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      authorized?: true,
-      last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
+    P2P.add_and_connect_node(new_node())
 
     unspent_outputs = [
       %UnspentOutput{
@@ -104,19 +92,7 @@ defmodule Archethic.ReplicationTest do
   end
 
   test "validate_transaction with a state" do
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      authorized?: true,
-      last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
+    P2P.add_and_connect_node(new_node())
 
     unspent_outputs = [
       %UnspentOutput{
@@ -217,40 +193,25 @@ defmodule Archethic.ReplicationTest do
   defp p2p_context do
     SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
 
-    welcome_node = %Node{
-      first_public_key: "key1",
-      last_public_key: "key1",
-      available?: true,
-      geo_patch: "BBB",
-      network_patch: "BBB",
-      enrollment_date: DateTime.utc_now(),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    }
+    welcome_node =
+      new_node(
+        first_public_key: "key1",
+        last_public_key: "key1",
+        mining_public_key: "key1",
+        geo_patch: "BBB",
+        network_patch: "BBB"
+      )
 
-    coordinator_node = %Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.add(DateTime.utc_now(), -1),
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      enrollment_date: DateTime.add(DateTime.utc_now(), -1),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    }
+    coordinator_node = new_node()
 
     storage_nodes = [
-      %Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+      new_node(
         first_public_key: "key3",
         last_public_key: "key3",
-        available?: true,
+        mining_public_key: "key3",
         geo_patch: "BBB",
-        network_patch: "BBB",
-        authorization_date: DateTime.add(DateTime.utc_now(), -1),
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
+        network_patch: "BBB"
+      )
     ]
 
     Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
@@ -270,14 +231,14 @@ defmodule Archethic.ReplicationTest do
       me = self()
 
       Enum.each(0..50, fn i ->
-        P2P.add_and_connect_node(%Node{
-          first_public_key: "key-#{i}",
-          last_public_key: "key-#{i}",
-          geo_patch: "#{Integer.to_string(i, 16)}A",
-          available?: true,
-          authorized?: true,
-          authorization_date: DateTime.utc_now()
-        })
+        P2P.add_and_connect_node(
+          new_node(
+            first_public_key: "key-#{i}",
+            last_public_key: "key-#{i}",
+            mining_public_key: "key-#{i}",
+            geo_patch: "#{Integer.to_string(i, 16)}A"
+          )
+        )
       end)
 
       previous_public_key = "previous_public_key"

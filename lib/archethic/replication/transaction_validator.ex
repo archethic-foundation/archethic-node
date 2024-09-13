@@ -1,7 +1,6 @@
 defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
-  alias Archethic.DB
   alias Archethic.Election
   alias Archethic.Mining.Error
   alias Archethic.Mining.ValidationContext
@@ -174,14 +173,10 @@ defmodule Archethic.Replication.TransactionValidator do
             storage_nodes,
             Election.get_validation_constraints()
           )
-          # Update node last public key with the one at transaction date
-          |> Enum.map(fn node = %Node{first_public_key: public_key} ->
-            %Node{node | last_public_key: DB.get_last_chain_public_key(public_key, tx_timestamp)}
-          end)
 
         validation_nodes_public_key =
-          Enum.map(validation_nodes, fn %Node{last_public_key: last_public_key} ->
-            [last_public_key]
+          Enum.map(validation_nodes, fn %Node{mining_public_key: mining_public_key} ->
+            [mining_public_key]
           end)
 
         if Transaction.valid_stamps_signature?(tx, validation_nodes_public_key) do
@@ -192,7 +187,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
           coordinator_node =
             Enum.find(validation_nodes, fn
-              %Node{last_public_key: ^coordinator_key} -> true
+              %Node{mining_public_key: ^coordinator_key} -> true
               _ -> false
             end)
 

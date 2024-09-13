@@ -21,7 +21,6 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.GenesisAddress
-  alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -37,18 +36,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({BeaconSummaryTimer, interval: "0 * * * * *"})
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.first_node_public_key(),
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      reward_address: :crypto.strong_rand_bytes(32)
-    })
+    P2P.add_and_connect_node(new_node())
 
     unspent_outputs = [
       %VersionedUnspentOutput{

@@ -26,6 +26,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
@@ -588,17 +589,14 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end
 
     test "should handle the transaction and replicate it on attestation V1" do
-      P2P.add_and_connect_node(%Node{
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        authorized?: true,
-        available?: true,
-        authorization_date: ~U[2022-01-01 00:00:00.000Z],
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        reward_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: ~U[2022-01-01 00:00:00.000Z]
-      })
+      P2P.add_and_connect_node(
+        new_node(
+          authorization_date: ~U[2022-01-01 00:00:00.000Z],
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          enrollment_date: ~U[2022-01-01 00:00:00.000Z]
+        )
+      )
 
       me = self()
 
@@ -612,9 +610,32 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       ]
 
       tx =
+        %Transaction{validation_stamp: stamp} =
         TransactionFactory.create_valid_transaction(inputs,
           timestamp: ~U[2022-01-02 00:00:00.000Z]
         )
+        |> Map.update!(:validation_stamp, fn stamp ->
+          sig =
+            stamp
+            |> Map.put(:signature, nil)
+            |> ValidationStamp.serialize()
+            |> Crypto.sign_with_last_node_key()
+
+          Map.put(stamp, :signature, sig)
+        end)
+
+      tx =
+        Map.update!(tx, :cross_validation_stamps, fn cross_stamps ->
+          signature =
+            [stamp |> ValidationStamp.serialize(), ""] |> Crypto.sign_with_last_node_key()
+
+          key = Crypto.last_node_public_key()
+
+          Enum.map(
+            cross_stamps,
+            &(Map.put(&1, :signature, signature) |> Map.put(:node_public_key, key))
+          )
+        end)
 
       MockDB
       |> stub(:write_transaction, fn ^tx, _ ->

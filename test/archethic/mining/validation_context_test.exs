@@ -453,54 +453,15 @@ defmodule Archethic.Mining.ValidationContextTest do
   end
 
   defp create_context(validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)) do
-    welcome_node = %Node{
-      last_public_key: "key1",
-      first_public_key: "key1",
-      geo_patch: "AAA",
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      reward_address: :crypto.strong_rand_bytes(32),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    }
+    welcome_node =
+      new_node(last_public_key: "key1", first_public_key: "key1", mining_public_key: "key1")
 
-    coordinator_node = %Node{
-      first_public_key: Crypto.last_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      geo_patch: "AAA",
-      ip: {127, 0, 0, 1},
-      port: 3001,
-      reward_address: :crypto.strong_rand_bytes(32),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    }
+    coordinator_node = new_node(port: 3001)
 
     previous_storage_nodes =
       cross_validation_nodes = [
-        %Node{
-          first_public_key: "key2",
-          last_public_key: "key2",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        },
-        %Node{
-          first_public_key: "key3",
-          last_public_key: "key3",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3003,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        }
+        new_node(first_public_key: "key2", last_public_key: "key2", port: 3002),
+        new_node(first_public_key: "key3", last_public_key: "key3", port: 3003)
       ]
 
     P2P.add_and_connect_node(welcome_node)

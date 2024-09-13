@@ -139,9 +139,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
   @doc """
   Add a cross validation stamp to the transaction mining process
   """
-  @spec add_cross_validation_stamp(worker_pid :: pid(), stamp :: CrossValidationStamp.t()) :: :ok
-  def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}) do
-    GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
+  @spec add_cross_validation_stamp(
+          worker_pid :: pid(),
+          stamp :: CrossValidationStamp.t(),
+          from :: Crypto.key()
+        ) :: :ok
+  def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}, from) do
+    GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp, from})
   end
 
   @doc """
@@ -610,7 +614,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :cast,
-        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
         :wait_cross_validation_stamps,
         data = %{
           context: context = %ValidationContext{transaction: tx}
@@ -621,7 +625,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
+    new_context =
+      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
 
     if ValidationContext.enough_cross_validation_stamps?(new_context) do
       if ValidationContext.atomic_commitment?(new_context) do
