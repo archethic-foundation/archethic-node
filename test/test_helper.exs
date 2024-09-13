@@ -40,4 +40,4 @@ Mox.defmock(MockUCOPrice, for: Archethic.OracleChain.Services.Impl)
 Mox.defmock(MockUCOProvider1, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 Mox.defmock(MockUCOProvider2, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 
-Mox.defmock(MockWasmIO, for: Archethic.Contracts.WasmIO)
+Mox.defmock(MockWasmIO, for: Archethic.Contracts.Wasm.IO)

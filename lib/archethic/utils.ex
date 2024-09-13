@@ -1334,7 +1334,14 @@ defmodule Archethic.Utils do
   Replace bitstring by hex
   """
   @spec bin2hex(any()) :: any()
-  def bin2hex(data = %{__struct__: _}), do: data
+  def bin2hex(data = %DateTime{}), do: data
+
+  def bin2hex(data = %{__struct__: struct}) do
+    data
+    |> Map.from_struct()
+    |> bin2hex()
+    |> Map.put(:__struct__, struct)
+  end
 
   def bin2hex(data) when is_map(data) do
     Enum.reduce(data, %{}, fn {key, value}, acc ->

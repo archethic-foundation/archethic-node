@@ -1,10 +1,19 @@
-defmodule Archethic.Contracts.WasmIO do
+defmodule Archethic.Contracts.Wasm.IO do
   @moduledoc """
-  Represents callbacks for WebAssembly contract to performs I/O operations
+  Query some data of the blockchain from the SC
   """
+  alias Archethic.Contracts.Wasm.Result
 
-  alias Archethic.UTXO
+  defmodule Request do
+    @moduledoc false
 
-  use Knigge, otp_app: :archethic, default: __MODULE__.NetworkImpl
-  @callback get_balance(address :: binary()) :: UTXO.balance()
+    @type t :: %{
+            method: String.t(),
+            params: term()
+          }
+    defstruct [:method, :params]
+  end
+
+  use Knigge, otp_app: :archethic, default: __MODULE__.JSONRPCImpl
+  @callback request(request :: Request.t()) :: Result.t()
 end

@@ -79,7 +79,7 @@ defmodule Archethic.Contracts.WasmModule do
     allowed_imports =
       [
         "archethic/env::log",
-        "archethic/IO::get_balance"
+        "archethic/env::jsonrpc"
       ]
       |> MapSet.new()
 
@@ -220,12 +220,10 @@ defmodule Archethic.Contracts.WasmModule do
            fn _context, offset, length -> WasmImports.set_error(offset, length, io_mem_pid) end},
         store_u8:
           {:fn, [:i64, :i32], [],
-           fn _context, offset, value -> WasmImports.store_u8(offset, value, io_mem_pid) end}
-      },
-      "archethic/IO" => %{
-        get_balance:
-          {:fn, [:i64, :i64], [:i64],
-           fn _context, offset, length -> WasmImports.get_balance(offset, length, io_mem_pid) end}
+           fn _context, offset, value -> WasmImports.store_u8(offset, value, io_mem_pid) end},
+        jsonrpc:
+           {:fn, [:i64, :i64], [:i64],
+            fn _context, offset, length -> WasmImports.jsonrpc(offset, length, io_mem_pid) end}
       }
     }
   end

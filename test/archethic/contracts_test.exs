@@ -4,6 +4,7 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.Wasm.Result
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -919,8 +920,17 @@ defmodule Archethic.ContractsTest do
       address = ArchethicCase.random_address()
 
       MockWasmIO
-      |> expect(:get_balance, fn ^address ->
-        %{uco: 500_000_000, token: %{}}
+      |> expect(:request, fn _request ->
+        Result.wrap_ok(%{
+          uco: 500_000_000,
+          token: [
+            %{
+              tokenAddress: :crypto.strong_rand_bytes(32),
+              amount: 100,
+              tokenId: 0
+            }
+          ]
+        })
       end)
 
       bytes = File.read!("test/support/contract.wasm")

@@ -4,7 +4,8 @@ defmodule Archethic.Contracts.WasmImports do
   """
 
   alias Archethic.Contracts.WasmMemory
-  alias Archethic.Contracts.WasmIO
+  alias Archethic.Contracts.Wasm.IO, as: WasmIO
+  alias Archethic.Utils
 
   import Bitwise
 
@@ -60,31 +61,21 @@ defmodule Archethic.Contracts.WasmImports do
   def set_error(offset, length, io_mem_pid),
     do: WasmMemory.set_error(io_mem_pid, offset, length)
 
-  # FIXME: to be modifier with the JSON RPC approach
-  def get_balance(offset, length, io_mem_pid) do
-    address = WasmMemory.read(io_mem_pid, offset, length)
-
-    %{uco: uco, token: token_balance} = WasmIO.get_balance(address)
-
-    encoded_balance =
-      %{
-        uco: uco,
-        token:
-          Enum.map(token_balance, fn {{address, token_id}, amount} ->
-            %{
-              tokenAddress: address,
-              tokenId: token_id,
-              amount: amount
-            }
-          end)
-      }
+  @doc """
+  Query the node for some I/O function
+  """
+  def jsonrpc(offset, length, io_mem_pid) do
+    encoded_response =
+      WasmMemory.read(io_mem_pid, offset, length)
+      |> Jason.decode!()
+      |> WasmIO.request()
+      |> Utils.bin2hex()
       |> Jason.encode!()
 
-    size = byte_size(encoded_balance)
-
+    size = byte_size(encoded_response)
     offset = WasmMemory.alloc(io_mem_pid, size)
 
-    encoded_balance
+    encoded_response
     |> :erlang.binary_to_list()
     |> Enum.with_index()
     |> Enum.each(fn {byte, i} ->

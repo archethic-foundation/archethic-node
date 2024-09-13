@@ -1,3 +1,24 @@
+defmodule Archethic.Contracts.Wasm.Result do
+  @moduledoc """
+  Represents a result which mutate the transaction or state
+  """
+  @type t :: %__MODULE__{
+          ok: %{value: term()} | nil,
+          error: String.t() | nil
+        }
+
+  @derive Jason.Encoder
+  defstruct [:ok, :error]
+
+  def wrap_ok(value) do
+    %__MODULE__{ok: %{value: value}}
+  end
+
+  def wrap_error(message) do
+    %__MODULE__{error: message}
+  end
+end
+
 defmodule Archethic.Contracts.Wasm.UpdateResult do
   @moduledoc """
   Represents a result which mutate the transaction or state

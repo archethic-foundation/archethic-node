@@ -18,6 +18,26 @@
           "address": "string"
         }
       },
+      "printDeposit": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "amount": "u64",
+          "level": "u8"
+        }
+      },
+      "printSum": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {}
+      },
+      "printTx": {
+        "type": "action",
+        "triggerType": "transaction",
+        "input": {
+          "address": "string"
+        }
+      },
       "tick": {
         "type": "action",
         "triggerType": "interval",
