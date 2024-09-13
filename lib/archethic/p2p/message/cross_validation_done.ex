@@ -35,8 +35,8 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
   end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
-  def process(%__MODULE__{address: tx_address, cross_validation_stamp: stamp}, _) do
-    Mining.add_cross_validation_stamp(tx_address, stamp)
+  def process(%__MODULE__{address: tx_address, cross_validation_stamp: stamp}, from) do
+    Mining.add_cross_validation_stamp(tx_address, stamp, from)
     %Ok{}
   end
 end

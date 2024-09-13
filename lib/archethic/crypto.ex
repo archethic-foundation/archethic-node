@@ -562,8 +562,7 @@ defmodule Archethic.Crypto do
           signature :: binary(),
           data :: iodata() | bitstring() | [bitstring],
           public_key :: key()
-        ) ::
-          boolean()
+        ) :: boolean()
   def verify?(
         sig,
         data,
@@ -576,7 +575,13 @@ defmodule Archethic.Crypto do
   end
 
   defp do_verify?(:ed25519, key, data, sig), do: Ed25519.verify?(key, data, sig)
-  defp do_verify?(:bls, key, data, sig), do: BlsEx.verify_signature(key, data, sig)
+
+  defp do_verify?(:bls, key, data, sig) do
+    BlsEx.verify_signature(key, data, sig)
+  rescue
+    _ -> false
+  end
+
   defp do_verify?(curve, key, data, sig), do: ECDSA.verify?(curve, key, data, sig)
 
   @doc """

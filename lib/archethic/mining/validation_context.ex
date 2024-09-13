@@ -369,27 +369,22 @@ defmodule Archethic.Mining.ValidationContext do
   @doc """
   Add a cross validation stamp if not exists
   """
-  @spec add_cross_validation_stamp(t(), CrossValidationStamp.t()) :: t()
+  @spec add_cross_validation_stamp(t(), CrossValidationStamp.t(), from :: Crypto.key()) :: t()
   def add_cross_validation_stamp(
-        context = %__MODULE__{
-          validation_stamp: validation_stamp
-        },
-        stamp = %CrossValidationStamp{
-          node_public_key: from
-        }
+        context = %__MODULE__{validation_stamp: validation_stamp},
+        cross_stamp = %CrossValidationStamp{node_public_key: mining_public_key},
+        from
       ) do
-    cond do
-      !cross_validation_node?(context, from) ->
-        context
+    %Node{last_public_key: last_public_key, mining_public_key: expected_mining_public_key} =
+      P2P.get_node_info!(from)
 
-      !CrossValidationStamp.valid_signature?(stamp, validation_stamp) ->
-        context
-
-      cross_validation_stamp_exists?(context, from) ->
-        context
-
-      true ->
-        Map.update!(context, :cross_validation_stamps, &[stamp | &1])
+    with true <- mining_public_key == expected_mining_public_key,
+         true <- cross_validation_node?(context, last_public_key),
+         false <- cross_validation_stamp_exists?(context, mining_public_key),
+         true <- CrossValidationStamp.valid_signature?(cross_stamp, validation_stamp) do
+      Map.update!(context, :cross_validation_stamps, &[cross_stamp | &1])
+    else
+      _ -> context
     end
   end
 
@@ -1134,7 +1129,7 @@ defmodule Archethic.Mining.ValidationContext do
     subsets_verifications = [
       aggregated_utxos: fn -> valid_aggregated_utxo?(aggregated_utxos, context) end,
       timestamp: fn -> valid_timestamp(stamp, context) end,
-      signature: fn -> valid_stamp_signature(stamp, context) end,
+      signature: fn -> valid_stamp_signature?(stamp, context) end,
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
       proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
@@ -1163,10 +1158,10 @@ defmodule Archethic.Mining.ValidationContext do
     diff <= 10 and diff > -10
   end
 
-  defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
-         coordinator_node: %Node{last_public_key: coordinator_node_public_key}
+  defp valid_stamp_signature?(stamp = %ValidationStamp{}, %__MODULE__{
+         coordinator_node: %Node{mining_public_key: mining_public_key}
        }) do
-    ValidationStamp.valid_signature?(stamp, coordinator_node_public_key)
+    ValidationStamp.valid_signature?(stamp, mining_public_key)
   end
 
   defp valid_stamp_proof_of_work?(%ValidationStamp{proof_of_work: pow}, %__MODULE__{

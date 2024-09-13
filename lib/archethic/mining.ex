@@ -224,11 +224,15 @@ defmodule Archethic.Mining do
   @doc """
   Add a cross validation stamp to the transaction mining process
   """
-  @spec add_cross_validation_stamp(binary(), stamp :: CrossValidationStamp.t()) :: :ok
-  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}) do
+  @spec add_cross_validation_stamp(
+          tx_address :: Crypto.prepended_hash(),
+          stamp :: CrossValidationStamp.t(),
+          from :: Crypto.key()
+        ) :: :ok
+  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}, from) do
     tx_address
     |> get_mining_process!()
-    |> DistributedWorkflow.add_cross_validation_stamp(stamp)
+    |> DistributedWorkflow.add_cross_validation_stamp(stamp, from)
   end
 
   @doc """

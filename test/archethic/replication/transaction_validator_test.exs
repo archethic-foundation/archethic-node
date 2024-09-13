@@ -15,7 +15,6 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Node
   alias Archethic.Replication.TransactionValidator
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -40,38 +39,24 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    welcome_node = %Node{
-      first_public_key: random_public_key(),
-      last_public_key: random_public_key(),
-      authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      available?: true,
-      geo_patch: "BBB",
-      network_patch: "BBB"
-    }
-
-    coordinator_node = %Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      geo_patch: "AAA",
-      network_patch: "AAA"
-    }
-
-    storage_nodes = [
-      %Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+    welcome_node =
+      new_node(
         first_public_key: random_public_key(),
         last_public_key: random_public_key(),
-        authorized?: true,
-        available?: true,
+        mining_publiv_key: random_address(),
         geo_patch: "BBB",
-        network_patch: "BBB",
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      }
+        network_patch: "BBB"
+      )
+
+    coordinator_node = new_node()
+
+    storage_nodes = [
+      new_node(
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        geo_patch: "BBB",
+        network_patch: "BBB"
+      )
     ]
 
     Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))

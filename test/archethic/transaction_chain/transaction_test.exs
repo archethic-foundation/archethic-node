@@ -9,6 +9,8 @@ defmodule Archethic.TransactionChain.TransactionTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.TransactionData
@@ -77,7 +79,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
     test "should return false if validation stamp signature is invalid" do
       tx = TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [[Crypto.mining_node_public_key()]]
 
       refute Transaction.valid_stamps_signature?(tx, keys)
     end
@@ -85,7 +87,40 @@ defmodule Archethic.TransactionChain.TransactionTest do
     test "should return true if validation stamp signature is good" do
       tx = TransactionFactory.create_valid_transaction()
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [[Crypto.mining_node_public_key()]]
+
+      assert Transaction.valid_stamps_signature?(tx, keys)
+    end
+
+    test "should return true if validation stamp signature is good with node keys" do
+      tx =
+        %Transaction{validation_stamp: stamp} =
+        TransactionFactory.create_valid_transaction()
+        |> Map.update!(:validation_stamp, fn stamp ->
+          sig =
+            stamp
+            |> Map.put(:signature, nil)
+            |> ValidationStamp.serialize()
+            |> Crypto.sign_with_last_node_key()
+
+          Map.put(stamp, :signature, sig)
+        end)
+
+      tx =
+        Map.update!(tx, :cross_validation_stamps, fn cross_stamps ->
+          signature =
+            [stamp |> ValidationStamp.serialize(), ""]
+            |> Crypto.sign_with_last_node_key()
+
+          key = Crypto.last_node_public_key()
+
+          Enum.map(
+            cross_stamps,
+            &(Map.put(&1, :signature, signature) |> Map.put(:node_public_key, key))
+          )
+        end)
+
+      keys = [[Crypto.last_node_public_key()]]
 
       assert Transaction.valid_stamps_signature?(tx, keys)
     end
@@ -94,7 +129,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
       tx = TransactionFactory.create_valid_transaction()
 
       keys = [
-        [random_public_key(), Crypto.first_node_public_key()],
+        [random_public_key(), Crypto.mining_node_public_key()],
         [random_public_key(), random_public_key()]
       ]
 
