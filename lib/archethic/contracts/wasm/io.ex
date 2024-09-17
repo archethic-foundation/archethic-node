@@ -15,5 +15,5 @@ defmodule Archethic.Contracts.Wasm.IO do
   end
 
   use Knigge, otp_app: :archethic, default: __MODULE__.JSONRPCImpl
-  @callback request(request :: Request.t()) :: Result.t()
+  @callback request(request :: Request.t(), opts :: Keyword.t()) :: Result.t()
 end

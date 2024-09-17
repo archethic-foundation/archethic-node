@@ -12,8 +12,8 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
   # CHAIN
   #########################################################
 
-  @spec request(req :: WasmIO.Request.t()) :: Result.t()
-  def request(%{"method" => "getBalance", "params" => %{"hex" => address}}) do
+  @spec request(req :: WasmIO.Request.t(), opts :: Keyword.t()) :: Result.t()
+  def request(%{"method" => "getBalance", "params" => %{"hex" => address}}, _opts) do
     address
     |> Base.decode16!(case: :mixed)
     |> Archethic.get_balance()
@@ -21,7 +21,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
     |> Result.wrap_ok()
   end
 
-  def request(%{"method" => "getGenesisAddress", "params" => %{"hex" => address}}) do
+  def request(%{"method" => "getGenesisAddress", "params" => %{"hex" => address}}, _opts) do
     address
     |> Base.decode16!(case: :mixed)
     |> Library.Common.Chain.get_genesis_address()
@@ -32,7 +32,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
       Result.wrap_error("network issue")
   end
 
-  def request(%{"method" => "getFirstTransactionAddress", "params" => %{"hex" => address}}) do
+  def request(%{"method" => "getFirstTransactionAddress", "params" => %{"hex" => address}}, _opts) do
     case address
          |> Base.decode16!(case: :mixed)
          |> Library.Common.Chain.get_first_transaction_address() do
@@ -46,7 +46,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
     end
   end
 
-  def request(%{"method" => "getLastAddress", "params" => %{"hex" => address}}) do
+  def request(%{"method" => "getLastAddress", "params" => %{"hex" => address}}, _opts) do
     Library.Common.Chain.get_last_address(address)
     |> transform_hex()
     |> Result.wrap_ok()
@@ -55,7 +55,10 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
       Result.wrap_error("not found")
   end
 
-  def request(%{"method" => "getPreviousAddress", "params" => %{"hex" => previous_public_key}}) do
+  def request(
+        %{"method" => "getPreviousAddress", "params" => %{"hex" => previous_public_key}},
+        _opts
+      ) do
     previous_public_key
     |> String.upcase()
     |> Library.Common.Chain.get_previous_address()
@@ -66,7 +69,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
       Result.wrap_error("invalid previous public key")
   end
 
-  def request(%{"method" => "getGenesisPublicKey", "params" => %{"hex" => public_key}}) do
+  def request(%{"method" => "getGenesisPublicKey", "params" => %{"hex" => public_key}}, _opts) do
     case public_key
          |> Base.decode16!(case: :mixed)
          |> Library.Common.Chain.get_genesis_public_key() do
@@ -80,7 +83,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
     end
   end
 
-  def request(%{"method" => "getTransaction", "params" => %{"hex" => address}}) do
+  def request(%{"method" => "getTransaction", "params" => %{"hex" => address}}, _opts) do
     case address
          |> Base.decode16!(case: :mixed)
          |> Archethic.search_transaction() do
@@ -94,7 +97,7 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
     end
   end
 
-  def request(%{"method" => "getLastTransaction", "params" => %{"hex" => address}}) do
+  def request(%{"method" => "getLastTransaction", "params" => %{"hex" => address}}, _opts) do
     case address
          |> Base.decode16!(case: :mixed)
          |> Archethic.get_last_transaction() do
@@ -111,14 +114,17 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
   #########################################################
   # CONTRACT
   #########################################################
-  def request(%{
-        "method" => "callFunction",
-        "params" => %{
-          "address" => %{"hex" => address},
-          "functionName" => function_name,
-          "args" => args
-        }
-      }) do
+  def request(
+        %{
+          "method" => "callFunction",
+          "params" => %{
+            "address" => %{"hex" => address},
+            "functionName" => function_name,
+            "args" => args
+          }
+        },
+        _opts
+      ) do
     args =
       if args == nil do
         []
@@ -138,14 +144,17 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
   #########################################################
   # CRYPTO
   #########################################################
-  def request(%{
-        "method" => "hmacWithStorageNonce",
-        "params" => %{
-          "data" => data,
-          "hashFunction" => hash_function
-        }
-      }) do
-    case Process.get(:contract_seed) do
+  def request(
+        %{
+          "method" => "hmacWithStorageNonce",
+          "params" => %{
+            "data" => %{"hex" => data},
+            "hashFunction" => hash_function
+          }
+        },
+        opts
+      ) do
+    case Keyword.get(opts, :seed) do
       nil ->
         Result.wrap_error("Missing contract seed")
 
@@ -154,16 +163,16 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
 
         hash_function =
           case hash_function do
-            "sha256" ->
+            0 ->
               :sha256
 
-            "sha512" ->
+            1 ->
               :sha512
 
-            "sha3_256" ->
+            2 ->
               :sha3_256
 
-            "sha3_512" ->
+            3 ->
               :sha3_512
 
             _ ->
@@ -175,25 +184,33 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
         if hash_function == nil do
           Result.wrap_error("Invalid hash function")
         else
-          :crypto.mac(:hmac, hash_function, key, data |> Base.decode16!()) |> Base.encode16()
+          :crypto.mac(:hmac, hash_function, key, data |> Base.decode16!())
+          |> transform_hex()
+          |> Result.wrap_ok()
         end
     end
   end
 
-  def request(%{
-        "method" => "signWithRecovery",
-        "params" => data
-      }) do
+  def request(
+        %{
+          "method" => "signWithRecovery",
+          "params" => data
+        },
+        _opts
+      ) do
     data
     # |> Base.decode16!(case: :mixed)
     |> Library.Common.Crypto.sign_with_recovery()
     |> Result.wrap_ok()
   end
 
-  def request(%{
-        "method" => "decryptWithStorageNonce",
-        "params" => data
-      }) do
+  def request(
+        %{
+          "method" => "decryptWithStorageNonce",
+          "params" => data
+        },
+        _opts
+      ) do
     data
     |> Base.decode16!(case: :mixed)
     |> Library.Common.Crypto.decrypt_with_storage_nonce()

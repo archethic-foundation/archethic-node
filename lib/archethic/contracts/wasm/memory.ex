@@ -7,8 +7,8 @@ defmodule Archethic.Contracts.WasmMemory do
 
   @vsn 1
 
-  def start_link() do
-    GenServer.start_link(__MODULE__, [])
+  def start_link(contract_seed) do
+    GenServer.start_link(__MODULE__, [contract_seed])
   end
 
   @doc """
@@ -83,9 +83,18 @@ defmodule Archethic.Contracts.WasmMemory do
     GenServer.call(server, {:read, offset, length})
   end
 
-  def init(_) do
+  @doc """
+  Read the contract seed
+  """
+  @spec read_contract_seed(GenServer.server()) :: binary()
+  def read_contract_seed(server) do
+    GenServer.call(server, :read_seed)
+  end
+
+  def init([contract_seed]) do
     {:ok,
      %{
+       seed: contract_seed,
        input: <<>>,
        buffer: <<>>,
        buffer_offset: 0
@@ -152,5 +161,9 @@ defmodule Archethic.Contracts.WasmMemory do
 
   def handle_call({:read, offset, length}, _from, state = %{buffer: buffer}) do
     {:reply, :erlang.binary_part(buffer, offset, length), state}
+  end
+
+  def handle_call(:read_seed, _from, state = %{seed: seed}) do
+    {:reply, seed, state}
   end
 end

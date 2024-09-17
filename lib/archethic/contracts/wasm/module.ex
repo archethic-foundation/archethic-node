@@ -180,7 +180,7 @@ defmodule Archethic.Contracts.WasmModule do
       }
       |> Jason.encode!()
 
-    {:ok, io_mem_pid} = WasmMemory.start_link()
+    {:ok, io_mem_pid} = WasmMemory.start_link(Keyword.get(opts, :seed))
     WasmMemory.set_input(io_mem_pid, input)
 
     with {:ok, instance_pid} <-

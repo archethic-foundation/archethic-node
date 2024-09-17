@@ -218,7 +218,7 @@ defmodule Archethic.Contracts do
   end
 
   defp exec_wasm(
-         %WasmContract{
+         contract = %WasmContract{
            state: state,
            module: module = %WasmModule{spec: %WasmSpec{triggers: triggers}}
          },
@@ -268,7 +268,8 @@ defmodule Archethic.Contracts do
         transaction: maybe_trigger_tx,
         state: state,
         balance: UTXO.get_balance(inputs),
-        arguments: argument
+        arguments: argument,
+        seed: WasmContract.get_encrypted_seed(contract)
       )
     else
       {:error, :trigger_not_exists}
@@ -423,7 +424,7 @@ defmodule Archethic.Contracts do
           {:ok, value :: any(), logs :: list(String.t())}
           | {:error, Failure.t()}
   def execute_function(
-        %WasmContract{
+        contract = %WasmContract{
           module: module = %WasmModule{spec: %WasmSpec{public_functions: functions}},
           state: state
         },
@@ -463,7 +464,8 @@ defmodule Archethic.Contracts do
         case WasmModule.execute(module, function_name,
                state: state,
                balance: UTXO.get_balance(inputs),
-               arguments: arguments
+               arguments: arguments,
+               seed: WasmContract.get_encrypted_seed(contract)
              ) do
           {:ok, %ReadResult{value: value}} ->
             {:ok, value, []}

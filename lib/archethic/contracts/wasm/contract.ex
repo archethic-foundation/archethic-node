@@ -134,7 +134,7 @@ defmodule Archethic.Contracts.WasmContract do
   @doc """
   Return the encrypted seed and encrypted aes key
   """
-  @spec get_encrypted_seed(contract :: t()) :: {binary(), binary()} | nil
+  @spec get_encrypted_seed(contract :: t()) :: binary() | nil
   def get_encrypted_seed(%__MODULE__{transaction: tx}) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
@@ -142,7 +142,13 @@ defmodule Archethic.Contracts.WasmContract do
       %Ownership{secret: secret, authorized_keys: authorized_keys} ->
         encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
 
-        {secret, encrypted_key}
+        with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
+             {:ok, seed} <- Crypto.aes_decrypt(secret, aes_key) do
+          seed
+        else
+          _ ->
+            nil
+        end
 
       nil ->
         nil

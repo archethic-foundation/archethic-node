@@ -65,10 +65,12 @@ defmodule Archethic.Contracts.WasmImports do
   Query the node for some I/O function
   """
   def jsonrpc(offset, length, io_mem_pid) do
+    contract_seed = WasmMemory.read_contract_seed(io_mem_pid)
+
     encoded_response =
       WasmMemory.read(io_mem_pid, offset, length)
       |> Jason.decode!()
-      |> WasmIO.request()
+      |> WasmIO.request(seed: contract_seed)
       |> Utils.bin2hex()
       |> Jason.encode!()
 
