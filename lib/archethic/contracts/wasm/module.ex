@@ -222,8 +222,8 @@ defmodule Archethic.Contracts.WasmModule do
           {:fn, [:i64, :i32], [],
            fn _context, offset, value -> WasmImports.store_u8(offset, value, io_mem_pid) end},
         jsonrpc:
-           {:fn, [:i64, :i64], [:i64],
-            fn _context, offset, length -> WasmImports.jsonrpc(offset, length, io_mem_pid) end}
+          {:fn, [:i64, :i64], [:i64],
+           fn _context, offset, length -> WasmImports.jsonrpc(offset, length, io_mem_pid) end}
       }
     }
   end
