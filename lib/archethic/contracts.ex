@@ -129,10 +129,13 @@ defmodule Archethic.Contracts do
 
               upgrade_state =
                 if "onUpgrade" in WasmModule.list_exported_functions_name(new_module) do
-                  {:ok, %UpdateResult{state: migrated_state}} =
-                    WasmModule.execute(new_module, "onUpgrade", state: state)
+                  case WasmModule.execute(new_module, "onUpgrade", state: state) do
+                    {:ok, %UpdateResult{state: migrated_state}} ->
+                      migrated_state
 
-                  migrated_state
+                    _ ->
+                      state
+                  end
                 else
                   state
                 end
@@ -352,6 +355,16 @@ defmodule Archethic.Contracts do
     end
   end
 
+  defp cast_trigger_result({:ok, nil}, _, _),
+    do:
+      {:error,
+       %Failure{
+         logs: [],
+         error: :invalid_trigger_output,
+         stacktrace: [],
+         user_friendly_error: "Trigger must return either a new transaction or a new state"
+       }}
+
   defp cast_trigger_result(err = {:error, %Failure{}}, _, _), do: err
 
   defp cast_trigger_result({:error, :trigger_not_exists}, _, _) do
@@ -447,14 +460,24 @@ defmodule Archethic.Contracts do
             nil
           end
 
-        {:ok, %ReadResult{value: value}} =
-          WasmModule.execute(module, function_name,
-            state: state,
-            balance: UTXO.get_balance(inputs),
-            arguments: arguments
-          )
+        case WasmModule.execute(module, function_name,
+               state: state,
+               balance: UTXO.get_balance(inputs),
+               arguments: arguments
+             ) do
+          {:ok, %ReadResult{value: value}} ->
+            {:ok, value, []}
 
-        {:ok, value, []}
+          {:ok, nil} ->
+            {:ok, nil, []}
+
+          {:error, reason} ->
+            {:error,
+             %Failure{
+               user_friendly_error: "#{inspect(reason)}",
+               error: :invalid_function_call
+             }}
+        end
     end
   end
 
@@ -616,15 +639,52 @@ defmodule Archethic.Contracts do
       )
 
   def execute_condition(
-        _condition_key,
-        _contract = %WasmContract{},
-        _transaction = %Transaction{},
+        :inherit,
+        %WasmContract{module: module},
+        transaction = %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: %LedgerOperations{
+              unspent_outputs: next_unspent_outputs
+            }
+          }
+        },
         _maybe_recipient,
         _datetime,
-        _inputs,
+        inputs,
         _opts
-      ),
-      do: {:ok, []}
+      ) do
+    if "onInherit" in WasmModule.list_exported_functions_name(module) do
+      next_state =
+        case Enum.find(next_unspent_outputs, &(&1.type == :state)) do
+          nil ->
+            %{}
+
+          %UnspentOutput{encoded_payload: encoded_payload} ->
+            {state, _} = State.deserialize(encoded_payload)
+            state
+        end
+
+      case WasmModule.execute(module, "onInherit",
+             state: next_state,
+             balance: UTXO.get_balance(inputs),
+             transaction: transaction
+           ) do
+        {:ok, _} ->
+          {:ok, []}
+
+        {:error, reason} ->
+          {:error,
+           %Failure{
+             error: :invalid_inherit_condition,
+             user_friendly_error: "#{inspect(reason)}",
+             logs: [],
+             stacktrace: []
+           }}
+      end
+    else
+      {:ok, []}
+    end
+  end
 
   def execute_condition(
         condition_key,

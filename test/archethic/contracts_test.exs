@@ -160,6 +160,43 @@ defmodule Archethic.ContractsTest do
                  []
                )
     end
+
+    test "should execute wasm onInherit function" do
+      bytes = File.read!("test/support/contract.wasm")
+      manifest = File.read!("test/support/contract_manifest.json")
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
+      contract = WasmContract.from_transaction!(contract_tx)
+
+      assert {:ok, []} =
+               Contracts.execute_condition(
+                 :inherit,
+                 contract,
+                 contract_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 []
+               )
+
+      invalid_tx = TransactionFactory.create_valid_transaction([], content: "hello")
+
+      assert {:error, %Failure{error: :invalid_inherit_condition}} =
+               Contracts.execute_condition(
+                 :inherit,
+                 contract,
+                 invalid_tx,
+                 nil,
+                 DateTime.utc_now(),
+                 []
+               )
+    end
   end
 
   describe "execute_condition/5 (transaction)" do

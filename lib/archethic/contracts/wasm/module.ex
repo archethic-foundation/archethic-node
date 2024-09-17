@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.WasmModule do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
 
-  @reserved_functions ["onInit", "onUpgrade"]
+  @reserved_functions ["onInit", "onUpgrade", "onInherit"]
 
   defstruct [:module, :store, :spec]
 
@@ -164,7 +164,7 @@ defmodule Archethic.Contracts.WasmModule do
   end
 
   @spec execute(module :: t(), functionName :: binary(), opts :: execution_opts()) ::
-          {:ok, ReadResult.t() | UpdateResult.t()}
+          {:ok, ReadResult.t() | UpdateResult.t() | nil}
           | {:error, any()}
   def execute(%__MODULE__{module: module, store: store}, function_name, opts \\ [])
       when is_binary(function_name) do
@@ -230,7 +230,7 @@ defmodule Archethic.Contracts.WasmModule do
     }
   end
 
-  defp cast_output(nil), do: {:error, {:invalid_output, nil}}
+  defp cast_output(nil), do: {:ok, nil}
 
   defp cast_output(output) do
     with {:ok, json} <- Jason.decode(output) do
