@@ -150,9 +150,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp validate_code_size(code) do
-    if TransactionData.code_size_valid?(code),
-      do: :ok,
-      else: {:error, "Invalid transaction, code exceed max size"}
+    valid_size? =
+      case Jason.decode(code) do
+        {:ok, %{"bytecode" => bytecode}} ->
+          TransactionData.code_size_valid?(Base.decode16!(bytecode, case: :mixed))
+
+        _ ->
+          TransactionData.code_size_valid?(code)
+      end
+
+    if valid_size?, do: :ok, else: {:error, "Invalid transaction, code exceed max size"}
   end
 
   defp parse_contract(code) do
