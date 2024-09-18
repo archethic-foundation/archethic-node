@@ -194,29 +194,126 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
   def request(
         %{
           "method" => "signWithRecovery",
-          "params" => data
+          "params" => %{"hex" => data}
         },
-        _opts
+        opts
       ) do
-    data
-    # |> Base.decode16!(case: :mixed)
-    |> Library.Common.Crypto.sign_with_recovery()
-    |> Result.wrap_ok()
+    case Keyword.get(opts, :seed) do
+      nil ->
+        Result.wrap_error("Missing contract seed")
+
+      seed ->
+        data = Base.decode16!(data, case: :mixed)
+
+        {_pub, <<_::16, priv::binary>>} = Crypto.derive_keypair(seed, 0, :secp256k1)
+
+        case ExSecp256k1.sign(data, priv) do
+          {:ok, {r, s, v}} ->
+            Result.wrap_ok(%{
+              "r" => transform_hex(r),
+              "s" => transform_hex(s),
+              "v" => v
+            })
+
+          {:error, err} ->
+            err |> inspect() |> Result.wrap_error()
+        end
+    end
   end
 
   def request(
         %{
           "method" => "decryptWithStorageNonce",
-          "params" => data
+          "params" => %{"hex" => data}
         },
         _opts
       ) do
     data
     |> Base.decode16!(case: :mixed)
     |> Library.Common.Crypto.decrypt_with_storage_nonce()
+    |> transform_hex()
     |> Result.wrap_ok()
   rescue
     _ -> Result.wrap_error("decryption failed")
+  end
+
+  #########################################################
+  # HTTP
+  #########################################################
+  def request(
+        %{
+          "method" => "request",
+          "params" => %{
+            "body" => body,
+            "headers" => headers,
+            "method" => method,
+            "uri" => uri
+          }
+        },
+        _opts
+      ) do
+    method =
+      case method do
+        0 -> "GET"
+        1 -> "PUT"
+        2 -> "POST"
+        3 -> "PATCH"
+        4 -> "DELETE"
+      end
+
+    headers =
+      Enum.reduce(headers, %{}, fn %{"key" => key, "value" => value}, acc ->
+        Map.put(acc, key, value)
+      end)
+
+    Library.Common.Http.request(uri, method, headers, body, true)
+    |> Result.wrap_ok()
+  rescue
+    e in Library.Error ->
+      Result.wrap_error(e.message)
+  end
+
+  def request(
+        %{
+          "method" => "requestMany",
+          "params" => reqs
+        },
+        _opts
+      ) do
+    reqs =
+      Enum.map(reqs, fn %{
+                          "body" => body,
+                          "headers" => headers,
+                          "method" => method,
+                          "uri" => uri
+                        } ->
+        method =
+          case method do
+            0 -> "GET"
+            1 -> "PUT"
+            2 -> "POST"
+            3 -> "PATCH"
+            4 -> "DELETE"
+          end
+
+        headers =
+          Enum.reduce(headers, %{}, fn %{"key" => key, "value" => value}, acc ->
+            Map.put(acc, key, value)
+          end)
+
+        %{
+          "body" => body,
+          "headers" => headers,
+          "method" => method,
+          "url" => uri
+        }
+      end)
+
+    Library.Common.Http.request_many(reqs, true)
+    |> Result.wrap_ok()
+  rescue
+    e in Library.Error ->
+      Result.wrap_error(e.message)
   end
 
   defp transform_balance(%{uco: uco, token: token}) do
