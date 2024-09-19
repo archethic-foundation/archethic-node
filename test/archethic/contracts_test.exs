@@ -920,7 +920,7 @@ defmodule Archethic.ContractsTest do
       address = ArchethicCase.random_address()
 
       MockWasmIO
-      |> expect(:request, fn _request ->
+      |> expect(:request, fn _request, _opts ->
         Result.wrap_ok(%{
           uco: 500_000_000,
           token: [
