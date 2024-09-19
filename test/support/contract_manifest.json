@@ -15,7 +15,7 @@
         "type": "action",
         "triggerType": "transaction",
         "input": {
-          "address": "string"
+          "address": "Address"
         }
       },
       "printDeposit": {
@@ -35,7 +35,7 @@
         "type": "action",
         "triggerType": "transaction",
         "input": {
-          "address": "string"
+          "address": "Address"
         }
       },
       "tick": {
@@ -56,7 +56,7 @@
         "type": "action",
         "triggerType": "transaction",
         "input": {
-          "to": "string",
+          "to": "Address",
           "amount": "u64"
         }
       },
@@ -68,6 +68,94 @@
         "type": "publicFunction",
         "input": {
           "from": "u64"
+        }
+      },
+      "ucoBalance": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "coincoinBalance": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "genesis": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "first": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "last": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "burn": {
+        "type": "publicFunction",
+        "input": {}
+      },
+      "previous": {
+        "type": "publicFunction",
+        "input": {
+          "publicKey": "PublicKey"
+        }
+      },
+      "genesisPkey": {
+        "type": "publicFunction",
+        "input": {
+          "publicKey": "PublicKey"
+        }
+      },
+      "tx": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "lastTx": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "callFn": {
+        "type": "publicFunction",
+        "input": {
+          "address": "Address"
+        }
+      },
+      "hmac": {
+        "type": "publicFunction",
+        "input": {
+          "hex": "Hex"
+        }
+      },
+      "sign": {
+        "type": "publicFunction",
+        "input": {
+          "hex": "Hex"
+        }
+      },
+      "http": {
+        "type": "publicFunction",
+        "input": {
+          "str": "string"
+        }
+      },
+      "httpMany": {
+        "type": "publicFunction",
+        "input": {
+          "str": "string"
         }
       }
     }
