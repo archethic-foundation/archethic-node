@@ -4,10 +4,11 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   @enforce_keys [:transaction, :inputs]
   defstruct [:transaction, :contract_context, :inputs]
 
+  alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Contracts.Contract
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.P2P.Message.ReplicationError
-  alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
   alias Archethic.Crypto
 
@@ -21,16 +22,19 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
           inputs: list(VersionedUnspentOutput.t())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
+  @spec process(__MODULE__.t(), Crypto.key()) :: CrossValidationDone.t()
   def process(%__MODULE__{transaction: tx, contract_context: contract_context, inputs: inputs}, _) do
-    case Replication.validate_transaction(tx, contract_context, inputs) do
-      :ok ->
-        Replication.add_transaction_to_commit_pool(tx, inputs)
-        %Ok{}
+    %Transaction{address: tx_address, validation_stamp: %ValidationStamp{error: stamp_error}} = tx
 
-      {:error, error} ->
-        %ReplicationError{address: tx.address, error: error}
+    cross_stamp =
+      %CrossValidationStamp{inconsistencies: inconsistencies} =
+      Replication.validate_transaction(tx, contract_context, inputs)
+
+    if stamp_error == nil and Enum.empty?(inconsistencies) do
+      Replication.add_transaction_to_commit_pool(tx, inputs)
     end
+
+    %CrossValidationDone{address: tx_address, cross_validation_stamp: cross_stamp}
   end
 
   @spec serialize(t()) :: bitstring()

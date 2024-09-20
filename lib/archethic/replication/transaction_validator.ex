@@ -8,7 +8,6 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.P2P.Node
   alias Archethic.SharedSecrets
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   require Logger
@@ -22,39 +21,8 @@ defmodule Archethic.Replication.TransactionValidator do
   def validate(validation_context) do
     validation_context
     |> validate_consensus()
-    |> validate_pending_transaction()
-    |> cross_validate()
-    |> handle_cross_stamp_inconsistencies()
-  end
-
-  defp validate_pending_transaction(context = %ValidationContext{mining_error: %Error{}}),
-    do: context
-
-  defp validate_pending_transaction(context),
-    do: ValidationContext.validate_pending_transaction(context)
-
-  defp cross_validate(context = %ValidationContext{mining_error: %Error{}}), do: context
-  defp cross_validate(context), do: ValidationContext.cross_validate(context)
-
-  defp handle_cross_stamp_inconsistencies(context = %ValidationContext{mining_error: %Error{}}),
-    do: context
-
-  defp handle_cross_stamp_inconsistencies(
-         context = %ValidationContext{
-           cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
-         }
-       ),
-       do: context
-
-  defp handle_cross_stamp_inconsistencies(
-         context = %ValidationContext{
-           cross_validation_stamps: [%CrossValidationStamp{inconsistencies: inconsistencies}]
-         }
-       ) do
-    error_data =
-      inconsistencies |> Enum.map(&(&1 |> Atom.to_string() |> String.replace("_", " ")))
-
-    ValidationContext.set_mining_error(context, Error.new(:consensus_not_reached, error_data))
+    |> ValidationContext.validate_pending_transaction()
+    |> ValidationContext.cross_validate()
   end
 
   @doc """

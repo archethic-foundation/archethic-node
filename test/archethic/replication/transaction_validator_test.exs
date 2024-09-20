@@ -1,6 +1,7 @@
 defmodule Archethic.Replication.TransactionValidatorTest do
   use ArchethicCase, async: false
 
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
@@ -284,8 +285,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         validation_time: tx.validation_stamp.timestamp
       }
 
-      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
-               TransactionValidator.validate(validation_context)
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+               ]
+             } = TransactionValidator.validate(validation_context)
     end
 
     test "should return error when the fees are invalid using contract context" do
@@ -358,8 +362,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         validation_time: next_tx.validation_stamp.timestamp
       }
 
-      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
-               TransactionValidator.validate(validation_context)
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+               ]
+             } = TransactionValidator.validate(validation_context)
     end
 
     test "should return error if recipient contract execution invalid" do
