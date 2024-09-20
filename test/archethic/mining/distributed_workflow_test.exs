@@ -861,7 +861,12 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %ValidateTransaction{transaction: tx}, _ ->
           Agent.update(agent_pid, fn _ -> tx end)
-          {:ok, %Ok{}}
+
+          {:ok,
+           %CrossValidationDone{
+             address: tx.address,
+             cross_validation_stamp: %CrossValidationStamp{}
+           }}
 
         _, %NotifyReplicationValidation{}, _ ->
           send(me, :ack_replication_validation)

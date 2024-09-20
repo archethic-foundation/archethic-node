@@ -1,6 +1,7 @@
 defmodule Archethic.ReplicationTest do
   use ArchethicCase, async: false
 
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
@@ -77,7 +78,7 @@ defmodule Archethic.ReplicationTest do
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
       end
     ) do
-      assert :ok =
+      assert %CrossValidationStamp{inconsistencies: []} =
                Replication.validate_transaction(
                  tx,
                  nil,
@@ -145,7 +146,7 @@ defmodule Archethic.ReplicationTest do
     with_mock(TransactionContext, [:passthrough],
       fetch_transaction_unspent_outputs: fn _ -> v_unspent_outputs end
     ) do
-      assert :ok =
+      assert %CrossValidationStamp{inconsistencies: []} =
                Replication.validate_transaction(
                  next_tx,
                  %Contract.Context{

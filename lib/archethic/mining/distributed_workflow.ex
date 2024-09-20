@@ -30,7 +30,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
-  alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.NotifyReplicationValidation
   alias Archethic.P2P.Message.ReplicationAttestationMessage
@@ -1138,20 +1137,23 @@ defmodule Archethic.Mining.DistributedWorkflow do
       inputs: aggregated_utxos
     }
 
-    results =
+    new_context =
       Task.Supervisor.async_stream_nolink(
         Archethic.task_supervisors(),
         storage_nodes,
-        &P2P.send_message(&1, message),
+        &{&1.first_public_key, P2P.send_message(&1, message)},
         ordered: false,
         on_timeout: :kill_task,
         timeout: Message.get_timeout(message) + 2000,
         max_concurrency: length(storage_nodes)
       )
-      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-      |> Enum.map(fn {:ok, {:ok, res}} -> res end)
+      |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
+      |> Enum.reduce(context, fn {:ok, {from, {:ok, res}}}, acc ->
+        %CrossValidationDone{cross_validation_stamp: cross_stamp} = res
+        ValidationContext.add_cross_validation_stamp(acc, cross_stamp, from)
+      end)
 
-    if Enum.all?(results, &match?(%Ok{}, &1)) do
+    if ValidationContext.atomic_commitment?(new_context) do
       cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
 
       validation_nodes =
@@ -1173,18 +1175,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
       new_context
     else
-      errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
+      error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
+      send(self(), {:replication_error, error})
 
-      case Enum.dedup(errors) do
-        [%ReplicationError{error: error}] ->
-          send(self(), {:replication_error, error})
-
-        [] ->
-          error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
-          send(self(), {:replication_error, error})
-      end
-
-      context
+      new_context
     end
   end
 

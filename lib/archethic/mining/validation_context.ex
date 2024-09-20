@@ -362,8 +362,7 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec atomic_commitment?(t()) :: boolean()
   def atomic_commitment?(%__MODULE__{transaction: tx, cross_validation_stamps: stamps}) do
-    %{tx | cross_validation_stamps: stamps}
-    |> Transaction.atomic_commitment?()
+    %Transaction{tx | cross_validation_stamps: stamps} |> Transaction.atomic_commitment?()
   end
 
   @doc """
@@ -401,35 +400,41 @@ defmodule Archethic.Mining.ValidationContext do
 
   ## Examples
 
-    iex> %ValidationContext{
+    iex> context = %ValidationContext{
     ...>   coordinator_node: %Node{last_public_key: "key1"},
     ...>   cross_validation_nodes: [
     ...>     %Node{last_public_key: "key2"},
     ...>     %Node{last_public_key: "key3"},
     ...>     %Node{last_public_key: "key4"}
+    ...>   ],
+    ...>   chain_storage_nodes: [
+    ...>     %Node{last_public_key: "key5"},
+    ...>     %Node{last_public_key: "key6"},
+    ...>     %Node{last_public_key: "key7"}
     ...>   ]
     ...> }
-    ...> |> ValidationContext.cross_validation_node?("key3")
-    true
-
-    iex> %ValidationContext{
-    ...>   coordinator_node: %Node{last_public_key: "key1"},
-    ...>   cross_validation_nodes: [
-    ...>     %Node{last_public_key: "key2"},
-    ...>     %Node{last_public_key: "key3"},
-    ...>     %Node{last_public_key: "key4"}
-    ...>   ]
-    ...> }
-    ...> |> ValidationContext.cross_validation_node?("key1")
+    ...> 
+    ...> ValidationContext.cross_validation_node?(context, "key3")
+    ...> true
+    ...> ValidationContext.cross_validation_node?(context, "key7")
+    ...> true
+    ...> ValidationContext.cross_validation_node?(context, "key1")
     false
+
   """
   @spec cross_validation_node?(t(), Crypto.key()) :: boolean()
   def cross_validation_node?(
-        %__MODULE__{cross_validation_nodes: cross_validation_nodes},
+        %__MODULE__{
+          cross_validation_nodes: cross_validation_nodes,
+          chain_storage_nodes: chain_storage_nodes
+        },
         node_public_key
       )
       when is_binary(node_public_key) do
-    Enum.any?(cross_validation_nodes, &(&1.last_public_key == node_public_key))
+    Enum.any?(
+      cross_validation_nodes ++ chain_storage_nodes,
+      &(&1.last_public_key == node_public_key)
+    )
   end
 
   @doc """

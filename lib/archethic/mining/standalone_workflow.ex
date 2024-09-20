@@ -22,12 +22,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
-  alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Message.UnlockChain
@@ -173,13 +172,14 @@ defmodule Archethic.Mining.StandaloneWorkflow do
            unspent_outputs: unspent_outputs
          }
        ) do
-    validated_tx = ValidationContext.get_validated_transaction(context)
+    validated_tx =
+      %Transaction{address: tx_address} = ValidationContext.get_validated_transaction(context)
 
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
       "Send transaction to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)} for replication's validation",
-      transaction_address: Base.encode16(validated_tx.address),
+      transaction_address: Base.encode16(tx_address),
       transaction_type: validated_tx.type
     )
 
@@ -189,43 +189,35 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       inputs: unspent_outputs
     }
 
-    results =
+    new_context =
       Task.Supervisor.async_stream_nolink(
         Archethic.task_supervisors(),
         replication_nodes,
-        &P2P.send_message(&1, message),
+        &{&1.first_public_key, P2P.send_message(&1, message)},
         ordered: false,
         on_timeout: :kill_task,
         timeout: Message.get_timeout(message) + 2000
       )
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
-      |> Enum.to_list()
+      |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
+      |> Enum.reduce(context, fn {:ok, {from, {:ok, res}}}, acc ->
+        %CrossValidationDone{cross_validation_stamp: cross_stamp} = res
+        ValidationContext.add_cross_validation_stamp(acc, cross_stamp, from)
+      end)
 
-    if Enum.all?(results, &match?(%Ok{}, &1)) do
+    if ValidationContext.atomic_commitment?(new_context) do
       Logger.info(
         "Send replication chain message to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)}",
-        transaction_address: Base.encode16(validated_tx.address),
+        transaction_address: Base.encode16(tx_address),
         transaction_type: validated_tx.type
       )
 
       P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
-        address: validated_tx.address,
+        address: tx_address,
         genesis_address: genesis_address
       })
     else
-      errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
-
-      case Enum.dedup(errors) do
-        [%ReplicationError{error: error}] ->
-          send(self(), {:replication_error, error})
-
-        _ ->
-          send(
-            self(),
-            {:replication_error, Error.new(:consensus_not_reached, "Invalid atomic commitment")}
-          )
-      end
+      error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
+      send(self(), {:replication_error, error})
     end
   end
 
