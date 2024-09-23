@@ -875,7 +875,7 @@ defmodule Archethic.ContractsTest do
           %Recipient{
             address: contract_tx.address,
             action: "inc",
-            args: [%{value: 5}]
+            args: [%{"value" => 5}]
           },
           [],
           []
@@ -955,7 +955,7 @@ defmodule Archethic.ContractsTest do
           %Recipient{
             address: contract_tx.address,
             action: "printBalance",
-            args: [%{address: Base.encode16(address)}]
+            args: [%{"address" => Base.encode16(address)}]
           },
           []
         )
@@ -1113,7 +1113,7 @@ defmodule Archethic.ContractsTest do
                Contracts.execute_function(
                  contract,
                  "getFactorial",
-                 [%{from: 4}],
+                 [%{"from" => 4}],
                  []
                )
     end
@@ -1167,6 +1167,72 @@ defmodule Archethic.ContractsTest do
                      type: :UCO
                    }
                  ]
+               )
+    end
+
+    test "should execute function and return binary type" do
+      bytes = File.read!("test/support/contract.wasm")
+      manifest = File.read!("test/support/contract_manifest.json")
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
+      contract = WasmContract.from_transaction!(contract_tx)
+
+      assert {:ok, <<0::16, 0::256>>, []} =
+               Contracts.execute_function(
+                 contract,
+                 "burn",
+                 [],
+                 []
+               )
+    end
+
+    test "should execute function and return nested binary type" do
+      tx_address = ArchethicCase.random_address()
+      to_address = ArchethicCase.random_address()
+
+      MockWasmIO
+      |> expect(:request, fn %{"method" => "getTransaction", "params" => %{"hex" => _}}, _opts ->
+        Result.wrap_ok(%{
+          "address" => %{"hex" => Base.encode16(tx_address)},
+          "type" => "transfer",
+          "data" => %{
+            "ledger" => %{
+              "uco" => %{
+                "transfers" => [
+                  %{"to" => %{"hex" => Base.encode16(to_address)}, "amount" => 100_000_000}
+                ]
+              }
+            }
+          }
+        })
+      end)
+
+      bytes = File.read!("test/support/contract.wasm")
+      manifest = File.read!("test/support/contract_manifest.json")
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(
+          Jason.encode!(%{
+            manifest: Jason.decode!(manifest),
+            bytecode: Base.encode16(:zlib.zip(bytes))
+          })
+        )
+
+      contract = WasmContract.from_transaction!(contract_tx)
+
+      assert {:ok, %{address: ^tx_address, data: %{ledger: %{uco: %{transfers: [%{to: ^to_address}]}}}}, []} =
+               Contracts.execute_function(
+                 contract,
+                 "tx",
+                 [Base.encode16(tx_address)],
+                 []
                )
     end
   end

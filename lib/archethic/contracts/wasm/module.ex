@@ -8,7 +8,6 @@ defmodule Archethic.Contracts.WasmModule do
   alias Archethic.Contracts.WasmImports
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.Utils
 
   @reserved_functions ["onInit", "onUpgrade", "onInherit"]
 
@@ -238,11 +237,65 @@ defmodule Archethic.Contracts.WasmModule do
 
   defp cast_transaction(nil), do: nil
 
-  defp cast_transaction(tx) when is_map(tx) do
+  defp cast_transaction(tx = %Transaction{}) do
     tx
     |> Transaction.to_map()
-    # FIXME: find a better way to avoid timeout based on the uncompressed code
-    |> put_in([:data, :code], "")
-    |> Utils.bin2hex()
+    |> wrap_binary()
+  end
+
+  defp wrap_binary(%{
+         address: address,
+         type: type,
+         previous_public_key: previous_public_key,
+         data: %{
+           content: content,
+           ledger: %{uco: %{transfers: uco_transfers}, token: %{transfers: token_transfers}},
+           ownerships: ownerships,
+           recipients: recipients
+         }
+       }) do
+    %{
+      address: %{hex: Base.encode16(address)},
+      type: type,
+      previous_public_key: %{hex: Base.encode16(previous_public_key)},
+      data: %{
+        content: content,
+        # FIXME: find a better way to avoid timeout
+        code: "",
+        ledger: %{
+          uco: %{
+            transfers:
+              Enum.map(uco_transfers, fn transfer ->
+                Map.update!(transfer, :to, &%{hex: Base.encode16(&1)})
+              end)
+          },
+          token: %{
+            transfers:
+              Enum.map(token_transfers, fn transfer ->
+                transfer
+                |> Map.update!(:to, &%{hex: Base.encode16(&1)})
+                |> Map.update!(:token_address, &%{hex: Base.encode16(&1)})
+              end)
+          }
+        },
+        ownerships:
+          Enum.map(ownerships, fn %{secret: secret, authorized_keys: authorized_keys} ->
+            %{
+              secret: %{hex: Base.encode16(secret)},
+              authorized_keys:
+                Enum.map(authorized_keys, fn {public_key, encrypted_key} ->
+                  %{
+                    public_key: %{hex: Base.encode16(public_key)},
+                    encrypted_secret_key: %{hex: Base.encode16(encrypted_key)}
+                  }
+                end)
+            }
+          end)
+      },
+      recipients:
+        Enum.map(recipients, fn recipient ->
+          Map.update!(recipient, :address, &%{hex: Base.encode16(&1)})
+        end)
+    }
   end
 end

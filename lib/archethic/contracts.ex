@@ -240,37 +240,44 @@ defmodule Archethic.Contracts do
       end)
 
     if trigger != nil do
+      %WasmSpec.Trigger{input: input} = trigger
+
       argument =
         case maybe_recipient do
           %Recipient{args: args = [_ | _]} ->
             case Enum.at(args, 0) do
               arg when is_map(arg) ->
-                arg
+                cast_value(arg, input)
 
               _ ->
-                %WasmSpec.Trigger{input: input} = trigger
-
                 input
                 |> Map.keys()
                 |> Enum.with_index()
                 |> Enum.reduce(%{}, fn {key, index}, acc ->
                   Map.put(acc, key, Enum.at(args, index))
                 end)
+                |> cast_value(input)
             end
 
           _ ->
-            nil
+            {:ok, nil}
         end
 
-      WasmModule.execute(
-        module,
-        trigger.name,
-        transaction: maybe_trigger_tx,
-        state: state,
-        balance: UTXO.get_balance(inputs),
-        arguments: argument,
-        seed: WasmContract.get_encrypted_seed(contract)
-      )
+      case argument do
+        {:ok, arg} ->
+          WasmModule.execute(
+            module,
+            trigger.name,
+            transaction: maybe_trigger_tx,
+            state: state,
+            balance: UTXO.get_balance(inputs),
+            arguments: arg,
+            seed: WasmContract.get_encrypted_seed(contract)
+          )
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     else
       {:error, :trigger_not_exists}
     end
@@ -442,12 +449,12 @@ defmodule Archethic.Contracts do
            logs: []
          }}
 
-      %WasmSpec.Function{input: input} ->
+      %WasmSpec.Function{input: input, output: output} ->
         arguments =
           if length(args_values) > 0 do
             case Enum.at(args_values, 0) do
               arg when is_map(arg) ->
-                arg
+                cast_value(arg, input)
 
               _ ->
                 input
@@ -456,23 +463,25 @@ defmodule Archethic.Contracts do
                 |> Enum.reduce(%{}, fn {key, index}, acc ->
                   Map.put(acc, key, Enum.at(args_values, index))
                 end)
+                |> cast_value(input)
             end
           else
-            nil
+            {:ok, nil}
           end
 
-        case WasmModule.execute(module, function_name,
-               state: state,
-               balance: UTXO.get_balance(inputs),
-               arguments: arguments,
-               seed: WasmContract.get_encrypted_seed(contract)
-             ) do
-          {:ok, %ReadResult{value: value}} ->
-            {:ok, value, []}
-
-          {:ok, nil} ->
-            {:ok, nil, []}
-
+        with {:ok, arg} <- arguments,
+             {:ok, value} <-
+               WasmModule.execute(module, function_name,
+                 state: state,
+                 balance: UTXO.get_balance(inputs),
+                 arguments: arg ,
+                 seed: WasmContract.get_encrypted_seed(contract)
+               ) do
+          case value do
+            %ReadResult{value: value} -> {:ok, uncast_value(value, output), []}
+            nil -> {:ok, nil, []}
+          end
+        else
           {:error, reason} ->
             {:error,
              %Failure{
@@ -550,6 +559,136 @@ defmodule Archethic.Contracts do
         end
     end
   end
+
+  defp cast_value(value, input)
+       when input in ["Address", "Hex", "PublicKey"] and is_binary(value) do
+    case Base.decode16(value, case: :mixed) do
+      {:ok, _} -> {:ok, %{"hex" => value}}
+      _ -> {:error, :invalid_hex}
+    end
+  end
+
+  defp cast_value(value, input) when is_map(value) do
+    %{value: value, error: error} =
+      Enum.reduce_while(value, %{value: %{}, error: nil}, fn {k, v}, acc ->
+        case cast_value(v, Map.get(input, k)) do
+          {:ok, value} ->
+            {:cont, put_in(acc, [:value, k], value)}
+
+          {:error, reason} ->
+            {:halt, %{acc | error: reason}}
+        end
+      end)
+
+    case error do
+      nil -> {:ok, value}
+      reason -> {:error, reason}
+    end
+  end
+
+  defp cast_value(value, input)
+       when input in ["i8"] and is_integer(value) and value > -128 and value < 127,
+       do: {:ok, value}
+
+  defp cast_value(value, input)
+       when input in ["u8"] and is_integer(value) and value > 0 and value < 256,
+       do: {:ok, value}
+
+  defp cast_value(value, input)
+       when input in ["i16"] and is_integer(value) and value > -32_768 and value < 32_767,
+       do: value
+
+  defp cast_value(value, input)
+       when input in ["u16"] and is_integer(value) and value > 0 and value < 65535,
+       do: {:ok, value}
+
+  defp cast_value(value, input)
+       when input in ["i32"] and is_integer(value) and value > -2_147_483_648 and
+              value < 2_147_483_647,
+       do: value
+
+  defp cast_value(value, input)
+       when input in ["u32"] and is_integer(value) and value > 0 and value < 4_294_967_295,
+       do: {:ok, value}
+
+  defp cast_value(value, input)
+       when input in ["i64"] and is_integer(value) and value > -9_223_372_036_854_775_808 and
+              value < 9_223_372_036_854_775_807,
+       do: {:ok, value}
+
+  defp cast_value(value, input)
+       when input in ["u64"] and is_integer(value) and value > 0 and
+              value < 18_446_744_073_709_551_615,
+       do: {:ok, value}
+
+  defp cast_value(value, "string") when is_binary(value), do: {:ok, value}
+  defp cast_value(value, "map") when is_map(value), do: {:ok, value}
+  defp cast_value(_, _), do: {:error, :invalid_input_type}
+
+  defp uncast_value(%{"hex" => value}, output) when output in ["Address", "Hex", "PublicKey"] do
+    Base.decode16!(value, case: :mixed)
+  end
+
+  defp uncast_value(
+         %{
+          "address" => %{ "hex" => address},
+          "type" => type,
+           "data" => %{
+             "content" => content,
+             "ledger" => %{
+               "uco" => %{"transfers" => uco_transfers},
+               "token" => %{"transfers" => token_transfers}
+             }
+             # "recipients" => recipients,
+             # "ownerships" => ownerships
+           }
+         },
+         "Transaction"
+       ) do
+    %{
+      address: Base.decode16!(address, case: :mixed),
+      type: type,
+      data: %{
+        content: content,
+        ledger: %{
+          uco: %{
+            transfers:
+              Enum.map(
+                uco_transfers,
+               fn %{ "to" => %{ "hex" => to}, "amount" => amount} ->
+                %{ to: Base.decode16!(to, case: :mixed), amount: amount}
+               end
+              )
+          },
+          token: %{
+            transfers:
+              Enum.map(token_transfers, fn transfer = %{ "to" => %{ "hex" => to}, "amount" => amount, "token_address" => %{"hex" => token_address}} ->
+                %{ to: Base.decode16!(to, case: :mixed), amount: amount, token_address: Base.decode16!(token_address, case: :mixed), token_id: Map.get(transfer, "token_id", 0)}
+               end)
+          }
+        }
+      }
+    } |> Transaction.cast()
+  end
+
+  defp uncast_value(map, output) when is_map(map) do
+    Enum.map(map, fn
+      {k, _v = %{"hex" => value}} ->
+        case Map.get(output, k) do
+          type when type in ["Address", "PublicKey", "Hex"] ->
+            {k, Base.decode16!(value, case: :mixed)}
+
+          type ->
+            {k, uncast_value(value, type)}
+        end
+
+      {k, v} ->
+        {k, uncast_value(v, Map.get(output, k))}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp uncast_value(value, _output), do: value
 
   @doc """
   Called by the telemetry poller

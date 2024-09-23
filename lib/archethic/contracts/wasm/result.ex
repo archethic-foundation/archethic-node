@@ -54,7 +54,7 @@ defmodule Archethic.Contracts.WasmResult do
   def cast(result) when is_map_key(result, "state") or is_map_key(result, "transaction") do
     %UpdateResult{
       state: Map.get(result, "state") |> cast_state(),
-      transaction: result |> Map.get("transaction") |> cast_transaction()
+      transaction: result |> Map.get("transaction")  |> cast_transaction()
     }
   end
 
@@ -69,30 +69,9 @@ defmodule Archethic.Contracts.WasmResult do
          "type" => type,
          "data" => tx_data
        }) do
-    atomized_tx_type =
-      case type do
-        249 -> :contract
-        253 -> :transfer
-        250 -> :data
-        251 -> :token
-      end
-
     %{
-      type: atomized_tx_type,
-      data:
-        tx_data
-        |> Archethic.Utils.atomize_keys()
-        |> Archethic.Utils.hex2bin(
-          keys_to_base_decode: [
-            :address,
-            :to,
-            :token_address,
-            :secret,
-            :public_key,
-            :encrypted_secret_key,
-            :code
-          ]
-        )
+      type: type,
+      data: Archethic.Utils.atomize_keys(tx_data)
     }
   end
 end

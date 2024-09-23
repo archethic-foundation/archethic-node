@@ -28,8 +28,7 @@
       },
       "printSum": {
         "type": "action",
-        "triggerType": "transaction",
-        "input": {}
+        "triggerType": "transaction"
       },
       "printTx": {
         "type": "action",
@@ -41,8 +40,7 @@
       "tick": {
         "type": "action",
         "triggerType": "interval",
-        "triggerArgument": "*/5 * * * *",
-        "input": {}
+        "triggerArgument": "*/5 * * * *"
       },
       "incAndSetJSONContent": {
         "type": "action",
@@ -60,103 +58,122 @@
           "amount": "u64"
         }
       },
+      "printTransactionContent": {
+        "type": "action",
+        "triggerType": "transaction"
+      },
       "currentBalance": {
         "type": "publicFunction",
-        "input": {}
+        "output": "string"
       },
       "getFactorial": {
         "type": "publicFunction",
         "input": {
           "from": "u64"
-        }
+        },
+        "output": "u64"
       },
       "ucoBalance": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "u64"
       },
       "coincoinBalance": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "u64"
       },
       "genesis": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Address"
       },
       "first": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Address"
       },
       "last": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Address"
       },
       "burn": {
         "type": "publicFunction",
-        "input": {}
+        "output": "Address"
       },
       "previous": {
         "type": "publicFunction",
         "input": {
           "publicKey": "PublicKey"
-        }
+        },
+        "output": "Address"
       },
       "genesisPkey": {
         "type": "publicFunction",
         "input": {
           "publicKey": "PublicKey"
-        }
+        },
+        "output": "PublicKey"
       },
       "tx": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Transaction"
       },
       "lastTx": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Transaction"
       },
       "callFn": {
         "type": "publicFunction",
         "input": {
           "address": "Address"
-        }
+        },
+        "output": "Address"
       },
       "hmac": {
         "type": "publicFunction",
         "input": {
           "hex": "Hex"
-        }
+        },
+        "output": "Hex"
       },
       "sign": {
         "type": "publicFunction",
         "input": {
           "hex": "Hex"
-        }
+        },
+        "output": "Signature"
       },
       "http": {
         "type": "publicFunction",
         "input": {
           "str": "string"
-        }
+        },
+        "output": "string"
       },
       "httpMany": {
         "type": "publicFunction",
         "input": {
           "str": "string"
-        }
+        },
+        "output": "string"
       }
     }
   }
