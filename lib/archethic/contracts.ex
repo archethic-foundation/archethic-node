@@ -638,8 +638,8 @@ defmodule Archethic.Contracts do
              "ledger" => %{
                "uco" => %{"transfers" => uco_transfers},
                "token" => %{"transfers" => token_transfers}
-             }
-             # "recipients" => recipients,
+             },
+             "recipients" => recipients
              # "ownerships" => ownerships
            }
          },
@@ -666,7 +666,10 @@ defmodule Archethic.Contracts do
                 %{ to: Base.decode16!(to, case: :mixed), amount: amount, token_address: Base.decode16!(token_address, case: :mixed), token_id: Map.get(transfer, "token_id", 0)}
                end)
           }
-        }
+        },
+        recipients: Enum.map(recipients, fn %{ "address" => %{ "hex" => address}, "action" => action, "args" => args} ->
+          %{ address: Base.decode16!(address, case: :mixed), action: action, args: args}
+        end)
       }
     } |> Transaction.cast()
   end

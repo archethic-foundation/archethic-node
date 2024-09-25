@@ -251,7 +251,7 @@ defmodule Archethic.Contracts.WasmModule do
            content: content,
            ledger: %{uco: %{transfers: uco_transfers}, token: %{transfers: token_transfers}},
            ownerships: ownerships,
-           recipients: recipients
+           action_recipients: recipients
          }
        }) do
     %{
