@@ -474,7 +474,7 @@ defmodule Archethic.Contracts do
                WasmModule.execute(module, function_name,
                  state: state,
                  balance: UTXO.get_balance(inputs),
-                 arguments: arg ,
+                 arguments: arg,
                  seed: WasmContract.get_encrypted_seed(contract)
                ) do
           case value do
@@ -631,8 +631,8 @@ defmodule Archethic.Contracts do
 
   defp uncast_value(
          %{
-          "address" => %{ "hex" => address},
-          "type" => type,
+           "address" => %{"hex" => address},
+           "type" => type,
            "data" => %{
              "content" => content,
              "ledger" => %{
@@ -655,23 +655,41 @@ defmodule Archethic.Contracts do
             transfers:
               Enum.map(
                 uco_transfers,
-               fn %{ "to" => %{ "hex" => to}, "amount" => amount} ->
-                %{ to: Base.decode16!(to, case: :mixed), amount: amount}
-               end
+                fn %{"to" => %{"hex" => to}, "amount" => amount} ->
+                  %{to: Base.decode16!(to, case: :mixed), amount: amount}
+                end
               )
           },
           token: %{
             transfers:
-              Enum.map(token_transfers, fn transfer = %{ "to" => %{ "hex" => to}, "amount" => amount, "token_address" => %{"hex" => token_address}} ->
-                %{ to: Base.decode16!(to, case: :mixed), amount: amount, token_address: Base.decode16!(token_address, case: :mixed), token_id: Map.get(transfer, "token_id", 0)}
-               end)
+              Enum.map(
+                token_transfers,
+                fn transfer = %{
+                     "to" => %{"hex" => to},
+                     "amount" => amount,
+                     "token_address" => %{"hex" => token_address}
+                   } ->
+                  %{
+                    to: Base.decode16!(to, case: :mixed),
+                    amount: amount,
+                    token_address: Base.decode16!(token_address, case: :mixed),
+                    token_id: Map.get(transfer, "token_id", 0)
+                  }
+                end
+              )
           }
         },
-        recipients: Enum.map(recipients, fn %{ "address" => %{ "hex" => address}, "action" => action, "args" => args} ->
-          %{ address: Base.decode16!(address, case: :mixed), action: action, args: args}
-        end)
+        recipients:
+          Enum.map(recipients, fn %{
+                                    "address" => %{"hex" => address},
+                                    "action" => action,
+                                    "args" => args
+                                  } ->
+            %{address: Base.decode16!(address, case: :mixed), action: action, args: args}
+          end)
       }
-    } |> Transaction.cast()
+    }
+    |> Transaction.cast()
   end
 
   defp uncast_value(map, output) when is_map(map) do
@@ -831,13 +849,15 @@ defmodule Archethic.Contracts do
   end
 
   def execute_condition(
-    _condition_key,
-    %WasmContract{},
-    _transaction,
-    _recipient,
-    _datetime,
-    _inputs,
-    _opts), do: {:ok, []}
+        _condition_key,
+        %WasmContract{},
+        _transaction,
+        _recipient,
+        _datetime,
+        _inputs,
+        _opts
+      ),
+      do: {:ok, []}
 
   def execute_condition(
         condition_key,

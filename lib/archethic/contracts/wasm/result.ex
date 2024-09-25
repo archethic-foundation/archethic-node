@@ -54,7 +54,7 @@ defmodule Archethic.Contracts.WasmResult do
   def cast(result) when is_map_key(result, "state") or is_map_key(result, "transaction") do
     %UpdateResult{
       state: Map.get(result, "state") |> cast_state(),
-      transaction: result |> Map.get("transaction")  |> cast_transaction()
+      transaction: result |> Map.get("transaction") |> cast_transaction()
     }
   end
 

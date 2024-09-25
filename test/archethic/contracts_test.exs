@@ -1227,7 +1227,12 @@ defmodule Archethic.ContractsTest do
 
       contract = WasmContract.from_transaction!(contract_tx)
 
-      assert {:ok, %{address: ^tx_address, data: %{ledger: %{uco: %{transfers: [%{to: ^to_address}]}}}}, []} =
+      assert {:ok,
+              %{
+                address: ^tx_address,
+                data: %{ledger: %{uco: %{transfers: [%{to: ^to_address}]}}}
+              },
+              []} =
                Contracts.execute_function(
                  contract,
                  "tx",
