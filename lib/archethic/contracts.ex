@@ -831,6 +831,15 @@ defmodule Archethic.Contracts do
   end
 
   def execute_condition(
+    _condition_key,
+    %WasmContract{},
+    _transaction,
+    _recipient,
+    _datetime,
+    _inputs,
+    _opts), do: {:ok, []}
+
+  def execute_condition(
         condition_key,
         contract = %Contract{conditions: conditions},
         transaction = %Transaction{},
