@@ -572,12 +572,20 @@ defmodule Archethic.Utils do
 
       iex> Utils.set_bitstring_bit(<<0::1, 0::1, 0::1>>, 1)
       <<0::1, 1::1, 0::1>>
+
+      iex> Utils.set_bitstring_bit(<<0::1, 0::1>>, 3)
+      <<0::1, 0::1, 0::1, 1::1>>
   """
   @spec set_bitstring_bit(bitstring(), non_neg_integer()) :: bitstring()
-  def set_bitstring_bit(seq, pos)
-      when is_bitstring(seq) and is_integer(pos) and pos >= 0 and bit_size(seq) > pos do
-    <<prefix::size(pos), _::size(1), suffix::bitstring>> = seq
-    <<prefix::size(pos), 1::size(1), suffix::bitstring>>
+  def set_bitstring_bit(seq, pos) when is_bitstring(seq) and is_integer(pos) and pos >= 0 do
+    size = bit_size(seq)
+
+    if pos < size do
+      <<prefix::size(pos), _::size(1), suffix::bitstring>> = seq
+      <<prefix::size(pos), 1::size(1), suffix::bitstring>>
+    else
+      <<seq::bitstring, 0::size(pos - size), 1::1>>
+    end
   end
 
   @doc """
