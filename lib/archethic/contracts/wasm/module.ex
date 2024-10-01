@@ -23,6 +23,7 @@ defmodule Archethic.Contracts.WasmModule do
           now: DateTime.t(),
           state: map(),
           transaction: map(),
+          contract: map(),
           balance: %{
             uco: pos_integer(),
             tokens:
@@ -175,7 +176,8 @@ defmodule Archethic.Contracts.WasmModule do
           |> Keyword.get(:transaction)
           |> cast_transaction(),
         arguments: Keyword.get(opts, :arguments),
-        balance: Keyword.get(opts, :balance, %{uco: 0, tokens: []})
+        balance: Keyword.get(opts, :balance, %{uco: 0, tokens: []}),
+        contract: opts |> Keyword.get(:contract) |> cast_transaction()
       }
       |> Jason.encode!()
 
@@ -237,9 +239,10 @@ defmodule Archethic.Contracts.WasmModule do
 
   defp cast_transaction(nil), do: nil
 
-  defp cast_transaction(tx = %Transaction{}) do
+  defp cast_transaction(tx) do
     tx
     |> Transaction.to_map()
+    |> Map.put(:genesis, Map.get(tx, :genesis))
     |> wrap_binary()
   end
 
@@ -252,10 +255,12 @@ defmodule Archethic.Contracts.WasmModule do
            ledger: %{uco: %{transfers: uco_transfers}, token: %{transfers: token_transfers}},
            ownerships: ownerships,
            action_recipients: recipients
-         }
+         },
+         genesis: genesis
        }) do
     %{
       address: %{hex: Base.encode16(address)},
+      genesis: %{hex: Base.encode16(genesis)},
       type: type,
       previous_public_key: %{hex: Base.encode16(previous_public_key)},
       data: %{
@@ -290,12 +295,12 @@ defmodule Archethic.Contracts.WasmModule do
                   }
                 end)
             }
+          end),
+        recipients:
+          Enum.map(recipients, fn recipient ->
+            Map.update!(recipient, :address, &%{hex: Base.encode16(&1)})
           end)
-      },
-      recipients:
-        Enum.map(recipients, fn recipient ->
-          Map.update!(recipient, :address, &%{hex: Base.encode16(&1)})
-        end)
+      }
     }
   end
 end

@@ -220,7 +220,8 @@ defmodule Archethic.Contracts do
   defp exec_wasm(
          contract = %WasmContract{
            state: state,
-           module: module = %WasmModule{spec: %WasmSpec{triggers: triggers}}
+           module: module = %WasmModule{spec: %WasmSpec{triggers: triggers}},
+           transaction: contract_tx
          },
          trigger_type,
          maybe_trigger_tx,
@@ -265,6 +266,17 @@ defmodule Archethic.Contracts do
 
       case argument do
         {:ok, arg} ->
+          # FIXME: remove the fetch genesis address when it will be integrated in the transaction's structure
+
+          maybe_trigger_tx =
+            case maybe_trigger_tx do
+              nil ->
+                nil
+
+              tx ->
+                Map.put(tx, :genesis, tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address() |> elem(1))
+            end
+
           WasmModule.execute(
             module,
             trigger.name,
@@ -272,6 +284,8 @@ defmodule Archethic.Contracts do
             state: state,
             balance: UTXO.get_balance(inputs),
             arguments: arg,
+            contract:
+              Map.put(contract_tx, :genesis, contract_tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address() |> elem(1)),
             seed: WasmContract.get_encrypted_seed(contract)
           )
 
@@ -433,7 +447,8 @@ defmodule Archethic.Contracts do
   def execute_function(
         contract = %WasmContract{
           module: module = %WasmModule{spec: %WasmSpec{public_functions: functions}},
-          state: state
+          state: state,
+          transaction: contract_tx
         },
         function_name,
         args_values,
@@ -475,7 +490,13 @@ defmodule Archethic.Contracts do
                  state: state,
                  balance: UTXO.get_balance(inputs),
                  arguments: arg,
-                 seed: WasmContract.get_encrypted_seed(contract)
+                 seed: WasmContract.get_encrypted_seed(contract),
+                 contract:
+                   Map.put(
+                     contract_tx,
+                     :genesis,
+                     Archethic.fetch_genesis_address(contract_tx.address)
+                   )
                ) do
           case value do
             %ReadResult{value: value} -> {:ok, uncast_value(value, output), []}
