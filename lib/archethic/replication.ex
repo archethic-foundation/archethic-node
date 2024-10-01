@@ -81,7 +81,7 @@ defmodule Archethic.Replication do
       genesis_address: genesis_address
     }
 
-    %ValidationContext{mining_error: mining_error, cross_validation_stamps: [cross_stamp]} =
+    %ValidationContext{mining_error: mining_error, cross_validation_stamps: [{_, cross_stamp}]} =
       TransactionValidator.validate(validation_context)
 
     :telemetry.execute(
