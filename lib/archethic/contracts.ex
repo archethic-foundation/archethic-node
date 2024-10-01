@@ -243,23 +243,7 @@ defmodule Archethic.Contracts do
     if trigger != nil do
       %WasmSpec.Trigger{input: input} = trigger
 
-      argument =
-        case maybe_recipient do
-          %Recipient{args: args = [_ | _]} ->
-
-                input
-                |> Map.keys()
-                |> Enum.with_index()
-                |> Enum.reduce(%{}, fn {key, index}, acc ->
-                  Map.put(acc, key, Enum.at(args, index))
-                end)
-                |> cast_value(input)
-
-          _ ->
-            {:ok, nil}
-        end
-
-      case argument do
+      case get_wasm_arg(maybe_recipient, input) do
         {:ok, arg} ->
           # FIXME: remove the fetch genesis address when it will be integrated in the transaction's structure
 
@@ -269,7 +253,14 @@ defmodule Archethic.Contracts do
                 nil
 
               tx ->
-                Map.put(tx, :genesis, tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address() |> elem(1))
+                Map.put(
+                  tx,
+                  :genesis,
+                  tx
+                  |> Transaction.previous_address()
+                  |> Archethic.fetch_genesis_address()
+                  |> elem(1)
+                )
             end
 
           WasmModule.execute(
@@ -280,7 +271,14 @@ defmodule Archethic.Contracts do
             balance: UTXO.get_balance(inputs),
             arguments: arg,
             contract:
-              Map.put(contract_tx, :genesis, contract_tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address() |> elem(1)),
+              Map.put(
+                contract_tx,
+                :genesis,
+                contract_tx
+                |> Transaction.previous_address()
+                |> Archethic.fetch_genesis_address()
+                |> elem(1)
+              ),
             seed: WasmContract.get_encrypted_seed(contract)
           )
 
@@ -291,6 +289,18 @@ defmodule Archethic.Contracts do
       {:error, :trigger_not_exists}
     end
   end
+
+  defp get_wasm_arg(args = [_|_], abi_input) do
+    abi_input
+    |> Map.keys()
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {key, index}, acc ->
+      Map.put(acc, key, Enum.at(args, index))
+    end)
+    |> cast_value(abi_input)
+  end
+
+  defp get_wasm_arg(_, _), do: {:ok, nil}
 
   defp time_now({:transaction, _, _}, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
@@ -460,20 +470,7 @@ defmodule Archethic.Contracts do
          }}
 
       %WasmSpec.Function{input: input, output: output} ->
-        arguments =
-          if length(args_values) > 0 do
-            input
-                |> Map.keys()
-                |> Enum.with_index()
-                |> Enum.reduce(%{}, fn {key, index}, acc ->
-                  Map.put(acc, key, Enum.at(args_values, index))
-                end)
-                |> cast_value(input)
-          else
-            {:ok, nil}
-          end
-
-        with {:ok, arg} <- arguments,
+        with {:ok, arg} <- get_wasm_arg(args_values, input),
              {:ok, value} <-
                WasmModule.execute(module, function_name,
                  state: state,
@@ -651,6 +648,7 @@ defmodule Archethic.Contracts do
   defp cast_value(value, "string") when is_binary(value), do: {:ok, value}
   defp cast_value(value, "map") when is_map(value), do: {:ok, value}
   defp cast_value(nil, _), do: {:ok, nil}
+
   defp cast_value(_val, _type) do
     {:error, :invalid_input_type}
   end

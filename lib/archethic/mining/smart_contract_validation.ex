@@ -257,6 +257,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   defp wasm_init_state(module = %WasmModule{}, next_tx = %Transaction{}) do
     # FIXME when genesis will be integrated in transaction's structure
     next_tx = Map.put(next_tx, :genesis, Transaction.previous_address(next_tx))
+
     case WasmModule.execute(module, "onInit", transaction: next_tx) do
       {:ok, %ReadResult{value: state}} when is_map(state) ->
         if State.empty?(state) do
