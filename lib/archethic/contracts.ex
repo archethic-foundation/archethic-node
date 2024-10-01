@@ -246,11 +246,7 @@ defmodule Archethic.Contracts do
       argument =
         case maybe_recipient do
           %Recipient{args: args = [_ | _]} ->
-            case Enum.at(args, 0) do
-              arg when is_map(arg) ->
-                cast_value(arg, input)
 
-              _ ->
                 input
                 |> Map.keys()
                 |> Enum.with_index()
@@ -258,7 +254,6 @@ defmodule Archethic.Contracts do
                   Map.put(acc, key, Enum.at(args, index))
                 end)
                 |> cast_value(input)
-            end
 
           _ ->
             {:ok, nil}
@@ -467,19 +462,13 @@ defmodule Archethic.Contracts do
       %WasmSpec.Function{input: input, output: output} ->
         arguments =
           if length(args_values) > 0 do
-            case Enum.at(args_values, 0) do
-              arg when is_map(arg) ->
-                cast_value(arg, input)
-
-              _ ->
-                input
+            input
                 |> Map.keys()
                 |> Enum.with_index()
                 |> Enum.reduce(%{}, fn {key, index}, acc ->
                   Map.put(acc, key, Enum.at(args_values, index))
                 end)
                 |> cast_value(input)
-            end
           else
             {:ok, nil}
           end
@@ -589,6 +578,23 @@ defmodule Archethic.Contracts do
     end
   end
 
+  defp cast_value(value, [input]) when is_list(value) do
+    %{value: value, error: error} =
+      Enum.reduce_while(value, %{value: [], error: nil}, fn val, acc ->
+        case cast_value(val, input) do
+          {:ok, value} ->
+            {:cont, Map.update!(acc, :value, &(&1 ++ [value]))}
+
+          {:error, reason} ->
+            {:halt, %{acc | error: reason}}
+        end
+      end)
+    case error do
+      nil -> {:ok, value}
+      reason -> {:error, reason}
+    end
+  end
+
   defp cast_value(value, input) when is_map(value) do
     %{value: value, error: error} =
       Enum.reduce_while(value, %{value: %{}, error: nil}, fn {k, v}, acc ->
@@ -644,7 +650,10 @@ defmodule Archethic.Contracts do
 
   defp cast_value(value, "string") when is_binary(value), do: {:ok, value}
   defp cast_value(value, "map") when is_map(value), do: {:ok, value}
-  defp cast_value(_, _), do: {:error, :invalid_input_type}
+  defp cast_value(nil, _), do: {:ok, nil}
+  defp cast_value(_val, _type) do
+    {:error, :invalid_input_type}
+  end
 
   defp uncast_value(%{"hex" => value}, output) when output in ["Address", "Hex", "PublicKey"] do
     Base.decode16!(value, case: :mixed)
