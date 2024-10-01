@@ -12,6 +12,8 @@ defmodule Archethic.Mining.ValidationContext do
     :validation_time,
     :contract_context,
     :genesis_address,
+    :proof_of_validation,
+    :sorted_nodes,
     resolved_addresses: %{},
     unspent_outputs: [],
     cross_validation_stamps: [],
@@ -34,7 +36,6 @@ defmodule Archethic.Mining.ValidationContext do
     },
     previous_storage_nodes: [],
     storage_nodes_confirmations: [],
-    sub_replication_tree_validations: [],
     aggregated_utxos: [],
     mining_error: nil
   ]
@@ -65,6 +66,8 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation.SortedNode
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -100,11 +103,12 @@ defmodule Archethic.Mining.ValidationContext do
             beacon: bitstring(),
             IO: bitstring()
           },
-          cross_validation_stamps: list(CrossValidationStamp.t()),
+          cross_validation_stamps: list({Crypto.key(), CrossValidationStamp.t()}),
+          proof_of_validation: nil | ProofOfValidation.t(),
+          sorted_nodes: nil | SortedNode.t(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
-          sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
           genesis_address: nil | Crypto.prepended_hash(),
           aggregated_utxos: list(VersionedUnspentOutput.t()),
@@ -332,9 +336,9 @@ defmodule Archethic.Mining.ValidationContext do
 
     iex> %ValidationContext{
     ...>   cross_validation_stamps: [
-    ...>     %CrossValidationStamp{},
-    ...>     %CrossValidationStamp{},
-    ...>     %CrossValidationStamp{}
+    ...>     {random_public_key(), %CrossValidationStamp{}},
+    ...>     {random_public_key(), %CrossValidationStamp{}},
+    ...>     {random_public_key(), %CrossValidationStamp{}}
     ...>   ],
     ...>   cross_validation_nodes: [
     ...>     %Node{},
@@ -348,11 +352,7 @@ defmodule Archethic.Mining.ValidationContext do
     false
   """
   @spec enough_cross_validation_stamps?(t()) :: boolean()
-  def enough_cross_validation_stamps?(
-        context = %__MODULE__{
-          cross_validation_stamps: stamps
-        }
-      ) do
+  def enough_cross_validation_stamps?(context = %__MODULE__{cross_validation_stamps: stamps}) do
     confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
     length(confirmed_cross_validation_nodes) == length(stamps)
   end
@@ -362,6 +362,7 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec atomic_commitment?(t()) :: boolean()
   def atomic_commitment?(%__MODULE__{transaction: tx, cross_validation_stamps: stamps}) do
+    stamps = Enum.map(stamps, &elem(&1, 1))
     %Transaction{tx | cross_validation_stamps: stamps} |> Transaction.atomic_commitment?()
   end
 
@@ -379,9 +380,9 @@ defmodule Archethic.Mining.ValidationContext do
 
     with true <- mining_public_key == expected_mining_public_key,
          true <- cross_validation_node?(context, last_public_key),
-         false <- cross_validation_stamp_exists?(context, mining_public_key),
+         false <- cross_validation_stamp_exists?(context, from),
          true <- CrossValidationStamp.valid_signature?(cross_stamp, validation_stamp) do
-      Map.update!(context, :cross_validation_stamps, &[cross_stamp | &1])
+      Map.update!(context, :cross_validation_stamps, &[{from, cross_stamp} | &1])
     else
       _ -> context
     end
@@ -392,7 +393,10 @@ defmodule Archethic.Mining.ValidationContext do
          node_public_key
        )
        when is_binary(node_public_key) do
-    Enum.any?(stamps, &(&1.node_public_key == node_public_key))
+    Enum.any?(stamps, fn
+      {^node_public_key, _} -> true
+      _ -> false
+    end)
   end
 
   @doc """
@@ -436,6 +440,59 @@ defmodule Archethic.Mining.ValidationContext do
       &(&1.last_public_key == node_public_key)
     )
   end
+
+  @doc """
+  Determines if enough cross validation stamps have been received to create the aggregated signature
+  Returns
+    - :reached if enough stamps are valid
+    - :not_reached if not enough stamps received yet
+    - :error if it's not possible to reach the threshold
+  """
+  @spec get_cross_validation_state(t()) :: :reached | :not_reached | :error
+  def get_cross_validation_state(%__MODULE__{
+        cross_validation_stamps: stamps,
+        sorted_nodes: sorted_nodes
+      }),
+      do: ProofOfValidation.get_state(sorted_nodes, stamps)
+
+  @doc """
+  Aggregate signature of the cross validation stamps
+  Create a bitmask of the node that signed the cross stamps
+  """
+  @spec create_proof_of_validation(context :: t()) :: t()
+  def create_proof_of_validation(
+        context = %__MODULE__{cross_validation_stamps: stamps, sorted_nodes: sorted_nodes}
+      ) do
+    %__MODULE__{context | proof_of_validation: ProofOfValidation.create(sorted_nodes, stamps)}
+  end
+
+  @doc """
+  Ensure a proof of validation is valid according to current context
+  """
+  @spec valid_proof_of_validation?(context :: t(), proof :: ProofOfValidation.t()) :: boolean()
+  def valid_proof_of_validation?(
+        context = %__MODULE__{
+          chain_storage_nodes: storage_nodes,
+          sorted_nodes: sorted_nodes,
+          validation_stamp: stamp
+        },
+        proof
+      ) do
+    validation_nodes = ProofOfValidation.get_nodes(sorted_nodes, proof)
+
+    expected_validation_nodes =
+      context |> get_confirmed_validation_nodes() |> Enum.concat(storage_nodes) |> Enum.uniq()
+
+    Enum.all?(validation_nodes, &Enum.member?(expected_validation_nodes, &1)) and
+      ProofOfValidation.valid?(sorted_nodes, proof, stamp)
+  end
+
+  @doc """
+  Add proof of validation in context
+  """
+  @spec add_proof_of_validation(context :: t(), proof :: ProofOfValidation.t()) :: t()
+  def add_proof_of_validation(context, proof),
+    do: %__MODULE__{context | proof_of_validation: proof}
 
   @doc """
   Add the replication tree and initialize the replication nodes confirmation list
@@ -562,7 +619,7 @@ defmodule Archethic.Mining.ValidationContext do
     %{
       transaction
       | validation_stamp: validation_stamp,
-        cross_validation_stamps: cross_validation_stamps
+        cross_validation_stamps: Enum.map(cross_validation_stamps, &elem(&1, 1))
     }
   end
 
@@ -1123,7 +1180,10 @@ defmodule Archethic.Mining.ValidationContext do
       %CrossValidationStamp{inconsistencies: inconsistencies}
       |> CrossValidationStamp.sign(stamp)
 
-    %__MODULE__{context | cross_validation_stamps: [cross_stamp]}
+    %__MODULE__{
+      context
+      | cross_validation_stamps: [{Crypto.first_node_public_key(), cross_stamp}]
+    }
   end
 
   defp validation_stamp_inconsistencies(
@@ -1389,25 +1449,6 @@ defmodule Archethic.Mining.ValidationContext do
     |> get_storage_nodes_tree_indexes
     |> Enum.map(&Enum.at(storage_nodes, &1))
     |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
-  end
-
-  @doc """
-  Add a replication nodes validation confirmation
-  """
-  @spec add_replication_validation(t(), Crypto.key()) :: t()
-  def add_replication_validation(context = %__MODULE__{}, node_public_key) do
-    Map.update!(context, :sub_replication_tree_validations, &[node_public_key | &1])
-  end
-
-  @doc """
-  Determine if the replication validations are sufficient
-  """
-  @spec enough_replication_validations?(t()) :: boolean()
-  def enough_replication_validations?(%__MODULE__{
-        sub_replication_tree_validations: sub_replication_tree_validations,
-        full_replication_tree: %{chain: chain_replication_tree}
-      }) do
-    length(chain_replication_tree) == length(sub_replication_tree_validations)
   end
 
   @doc """

@@ -8,7 +8,6 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
-  alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
 
@@ -23,11 +22,12 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           genesis_address: Crypto.prepended_hash()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{
           transaction:
             tx = %Transaction{
+              address: address,
               type: type,
               validation_stamp: %ValidationStamp{timestamp: validation_time}
             },
@@ -44,6 +44,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           Replication.validate_and_store_transaction(tx, genesis_address, chain?: true)
 
         Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes) ->
+          Replication.validate_and_store_transaction(tx, genesis_address, chain?: true)
+
+        Election.chain_storage_node?(address, node_public_key, authorized_nodes) ->
           Replication.validate_and_store_transaction(tx, genesis_address, chain?: true)
 
         io_node?(tx, node_public_key, authorized_nodes) ->

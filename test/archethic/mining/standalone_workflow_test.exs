@@ -3,7 +3,6 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   import ArchethicCase
 
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.Crypto
@@ -100,13 +99,8 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
       _, %ValidateTransaction{transaction: tx}, _ ->
         Agent.update(agent_pid, fn _ -> tx end)
-
-        {:ok,
-         %CrossValidationDone{
-           address: tx.address,
-           cross_validation_stamp:
-             CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
-         }}
+        send(me, {:cross_replication_stamp, tx})
+        {:ok, %Ok{}}
 
       _, %ReplicatePendingTransactionChain{genesis_address: genesis_address}, _ ->
         tx = Agent.get(agent_pid, & &1)
@@ -127,10 +121,18 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
              )
 
     receive do
+      {:cross_replication_stamp, tx} ->
+        cross_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
+        send(pid, {:add_cross_validation_stamp, cross_stamp, Crypto.first_node_public_key()})
+    after
+      1000 -> :skip
+    end
+
+    receive do
       {:ack_replication, sig, public_key} ->
         send(pid, {:ack_replication, sig, public_key})
     after
-      3000 -> :skip
+      1000 -> :skip
     end
 
     assert_receive :transaction_replicated

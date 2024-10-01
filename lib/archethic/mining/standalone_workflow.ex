@@ -21,8 +21,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.Mining.WorkflowRegistry
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.ReplicateTransaction
@@ -34,6 +32,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
@@ -126,7 +126,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         validation_time: validation_time,
         resolved_addresses: resolved_addresses,
         contract_context: contract_context,
-        genesis_address: genesis_address
+        genesis_address: genesis_address,
+        sorted_nodes: ProofOfValidation.sort_nodes(authorized_nodes)
       )
 
     validation_context = ValidationContext.validate_pending_transaction(validation_context)
@@ -146,13 +147,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       |> validate()
 
     if mining_error == nil,
-      do: start_replication(validation_context),
-      else: send(self(), {:replication_error, mining_error})
+      do: request_replication_validation(validation_context),
+      else: send(self(), {:validation_error, mining_error})
 
-    new_state =
-      state
-      |> Map.put(:context, validation_context)
-      |> Map.put(:confirmations, [])
+    new_state = state |> Map.put(:context, validation_context) |> Map.put(:confirmations, [])
 
     {:noreply, new_state, @mining_timeout}
   end
@@ -165,64 +163,92 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> ValidationContext.cross_validate()
   end
 
-  defp start_replication(
+  defp request_replication_validation(
          context = %ValidationContext{
+           transaction: tx,
            contract_context: contract_context,
-           genesis_address: genesis_address,
-           unspent_outputs: unspent_outputs
+           aggregated_utxos: aggregated_utxos
          }
        ) do
+    storage_nodes = ValidationContext.get_chain_replication_nodes(context)
+
+    Logger.info(
+      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)} for replication's validation",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    validated_tx = ValidationContext.get_validated_transaction(context)
+
+    message = %ValidateTransaction{
+      transaction: validated_tx,
+      contract_context: contract_context,
+      inputs: aggregated_utxos
+    }
+
+    P2P.broadcast_message(storage_nodes, message)
+  end
+
+  defp request_replication(context = %ValidationContext{genesis_address: genesis_address}) do
     validated_tx =
       %Transaction{address: tx_address} = ValidationContext.get_validated_transaction(context)
 
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
-      "Send transaction to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)} for replication's validation",
+      "Send replication chain message to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)}",
       transaction_address: Base.encode16(tx_address),
       transaction_type: validated_tx.type
     )
 
-    message = %ValidateTransaction{
-      transaction: validated_tx,
-      contract_context: contract_context,
-      inputs: unspent_outputs
-    }
+    P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
+      address: tx_address,
+      genesis_address: genesis_address
+    })
+  end
+
+  def handle_info(
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
+        state = %{
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type}
+            }
+        }
+      ) do
+    Logger.info("Add cross replication stamp",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
 
     new_context =
-      Task.Supervisor.async_stream_nolink(
-        Archethic.task_supervisors(),
-        replication_nodes,
-        &{&1.first_public_key, P2P.send_message(&1, message)},
-        ordered: false,
-        on_timeout: :kill_task,
-        timeout: Message.get_timeout(message) + 2000
-      )
-      |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
-      |> Enum.reduce(context, fn {:ok, {from, {:ok, res}}}, acc ->
-        %CrossValidationDone{cross_validation_stamp: cross_stamp} = res
-        ValidationContext.add_cross_validation_stamp(acc, cross_stamp, from)
-      end)
+      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
 
-    if ValidationContext.atomic_commitment?(new_context) do
-      Logger.info(
-        "Send replication chain message to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)}",
-        transaction_address: Base.encode16(tx_address),
-        transaction_type: validated_tx.type
-      )
+    new_state = Map.put(state, :context, new_context)
 
-      P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
-        address: tx_address,
-        genesis_address: genesis_address
-      })
-    else
-      error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
-      send(self(), {:replication_error, error})
+    case ValidationContext.get_cross_validation_state(new_context) do
+      :reached ->
+        Logger.info("Create proof of validation",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: type
+        )
+
+        new_context = ValidationContext.create_proof_of_validation(context)
+        request_replication(new_context)
+        {:noreply, Map.put(state, :context, new_context)}
+
+      :not_reached ->
+        {:noreply, new_state}
+
+      :error ->
+        error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
+        send(self(), {:validation_error, error})
+        {:noreply, new_state}
     end
   end
 
   def handle_info(
-        {:replication_error, error},
+        {:validation_error, error},
         state = %{
           context: context = %ValidationContext{transaction: %Transaction{address: tx_address}}
         }

@@ -41,7 +41,6 @@ defmodule Archethic.P2P.MessageId do
     AddressList,
     ShardRepair,
     TransactionSummaryList,
-    ReplicationError,
     ValidationError,
     GenesisAddress,
     BeaconUpdate,
@@ -61,7 +60,6 @@ defmodule Archethic.P2P.MessageId do
     Ok,
     ValidateTransaction,
     ReplicatePendingTransactionChain,
-    NotifyReplicationValidation,
     TransactionSummaryMessage,
     ReplicationAttestationMessage,
     GetNetworkStats,
@@ -71,7 +69,8 @@ defmodule Archethic.P2P.MessageId do
     GetDashboardData,
     DashboardData,
     RequestChainLock,
-    UnlockChain
+    UnlockChain,
+    ProofOfValidationDone
   }
 
   alias Archethic.TransactionChain.{
@@ -123,7 +122,7 @@ defmodule Archethic.P2P.MessageId do
     GetNextAddresses => 35,
     ValidateTransaction => 36,
     ReplicatePendingTransactionChain => 37,
-    NotifyReplicationValidation => 38,
+    ProofOfValidationDone => 38,
     GetNetworkStats => 39,
     GetDashboardData => 40,
     UnlockChain => 41,
@@ -138,7 +137,7 @@ defmodule Archethic.P2P.MessageId do
     ShardRepair => 230,
     SummaryAggregate => 231,
     TransactionSummaryList => 232,
-    ReplicationError => 233,
+    # Message number 233 is available
     ValidationError => 234,
     GenesisAddress => 235,
     BeaconUpdate => 236,

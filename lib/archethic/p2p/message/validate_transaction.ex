@@ -4,13 +4,17 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   @enforce_keys [:transaction, :inputs]
   defstruct [:transaction, :contract_context, :inputs]
 
+  require Logger
+  alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.Election
+  alias Archethic.P2P
   alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.Replication
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.Contracts.Contract
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.Replication
-  alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -22,8 +26,47 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
           inputs: list(VersionedUnspentOutput.t())
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: CrossValidationDone.t()
-  def process(%__MODULE__{transaction: tx, contract_context: contract_context, inputs: inputs}, _) do
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(
+        %__MODULE__{transaction: tx, contract_context: contract_context, inputs: inputs},
+        from
+      ) do
+    %Transaction{
+      address: tx_address,
+      type: type,
+      validation_stamp: %ValidationStamp{
+        proof_of_election: proof_of_election,
+        timestamp: timestamp
+      }
+    } = tx
+
+    authorized_nodes = P2P.authorized_and_available_nodes(timestamp)
+    storage_nodes = Election.chain_storage_nodes(tx_address, authorized_nodes)
+
+    validation_nodes =
+      Election.validation_nodes(tx, proof_of_election, authorized_nodes, storage_nodes)
+
+    node_key = Crypto.first_node_public_key()
+
+    meta = [transaction_address: tx_address, transaction_type: type]
+
+    cond do
+      not Utils.key_in_node_list?(validation_nodes, from) ->
+        Logger.warning("Received validate tx message from non validation node", meta)
+
+      not Utils.key_in_node_list?(storage_nodes, node_key) ->
+        Logger.warning("Received validate tx message while node is not storage node", meta)
+
+      true ->
+        Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+          do_validate_transaction(tx, contract_context, inputs, validation_nodes)
+        end)
+    end
+
+    %Ok{}
+  end
+
+  defp do_validate_transaction(tx, contract_context, inputs, validation_nodes) do
     %Transaction{address: tx_address, validation_stamp: %ValidationStamp{error: stamp_error}} = tx
 
     cross_stamp =
@@ -34,11 +77,12 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
       Replication.add_transaction_to_commit_pool(tx, inputs)
     end
 
-    %CrossValidationDone{address: tx_address, cross_validation_stamp: cross_stamp}
+    message = %CrossValidationDone{address: tx_address, cross_validation_stamp: cross_stamp}
+
+    P2P.broadcast_message(validation_nodes, message)
   end
 
   @spec serialize(t()) :: bitstring()
-
   def serialize(%__MODULE__{transaction: tx, contract_context: nil, inputs: inputs}) do
     inputs_bin =
       inputs
