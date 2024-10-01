@@ -232,13 +232,16 @@ defmodule Archethic.Mining.SmartContractValidation do
         _chain_unspent_outputs
       )
       when code != "" do
-    with {:ok, %WasmContract{module: module}} <- Contracts.from_transaction(next_tx),
-         {:ok, %ReadResult{value: state}} when is_map(state) <-
-           WasmModule.execute(module, "onInit", transaction: next_tx),
-         false <- State.empty?(state) do
-      {:ok, State.serialize(state)}
-    else
-      _ -> {:ok, nil}
+    case Contracts.from_transaction(next_tx) do
+      {:ok, %WasmContract{module: module}} ->
+        if "onInit" in WasmModule.list_exported_functions_name(module) do
+          wasm_init_state(module, next_tx)
+        else
+          {:ok, nil}
+        end
+
+      _ ->
+        {:ok, nil}
     end
   end
 
@@ -250,6 +253,25 @@ defmodule Archethic.Mining.SmartContractValidation do
         _chain_unspent_outputs
       ),
       do: {:ok, nil}
+
+  defp wasm_init_state(module = %WasmModule{}, next_tx = %Transaction{}) do
+    # FIXME when genesis will be integrated in transaction's structure
+    next_tx = Map.put(next_tx, :genesis, Transaction.previous_address(next_tx))
+    case WasmModule.execute(module, "onInit", transaction: next_tx) do
+      {:ok, %ReadResult{value: state}} when is_map(state) ->
+        if State.empty?(state) do
+          {:ok, nil}
+        else
+          {:ok, State.serialize(state)}
+        end
+
+      {:ok, %ReadResult{}} ->
+        {:ok, nil}
+
+      {:error, e} ->
+        {:error, Error.new(:invalid_contract_execution, "onInit call failed #{inspect(e)}")}
+    end
+  end
 
   @doc """
   Validate contract inherit constraint
