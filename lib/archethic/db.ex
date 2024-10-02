@@ -61,8 +61,6 @@ defmodule Archethic.DB do
               Crypto.prepended_hash() | nil
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
-  @callback get_last_chain_public_key(binary()) :: Crypto.key()
-  @callback get_last_chain_public_key(binary(), DateTime.t()) :: Crypto.key()
   @callback get_genesis_address(address :: Crypto.prepended_hash()) ::
               genesis_address :: Crypto.prepended_hash()
   @callback find_genesis_address(address :: Crypto.prepended_hash()) ::
