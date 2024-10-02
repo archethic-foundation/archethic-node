@@ -916,7 +916,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
             context = %ValidationContext{
               welcome_node: welcome_node = %Node{},
               storage_nodes_confirmations: confirmations,
-              genesis_address: genesis_address
+              genesis_address: genesis_address,
+              proof_of_validation: proof_of_validation
             }
         }
       ) do
@@ -935,13 +936,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
     |> P2P.distinct_nodes()
     |> P2P.broadcast_message(message)
 
-    validated_tx = ValidationContext.get_validated_transaction(context)
-
     context
     |> ValidationContext.get_io_replication_nodes()
     |> P2P.broadcast_message(%ReplicateTransaction{
       transaction: validated_tx,
-      genesis_address: genesis_address
+      genesis_address: genesis_address,
+      proof_of_validation: proof_of_validation
     })
 
     :keep_state_and_data
@@ -1201,21 +1201,23 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   defp request_replication(
          context = %ValidationContext{
-           transaction: tx,
-           genesis_address: genesis_address
+           transaction: %Transaction{address: address, type: type},
+           genesis_address: genesis_address,
+           proof_of_validation: proof_of_validation
          }
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
       "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
+      transaction_address: Base.encode16(address),
+      transaction_type: type
     )
 
     message = %ReplicatePendingTransactionChain{
-      address: tx.address,
-      genesis_address: genesis_address
+      address: address,
+      genesis_address: genesis_address,
+      proof_of_validation: proof_of_validation
     }
 
     P2P.broadcast_message(storage_nodes, message)

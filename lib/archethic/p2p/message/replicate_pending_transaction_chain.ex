@@ -1,7 +1,7 @@
 defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   @moduledoc false
 
-  defstruct [:address, :genesis_address]
+  defstruct [:address, :genesis_address, :proof_of_validation]
 
   alias Archethic.Crypto
   alias Archethic.Utils
@@ -9,6 +9,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -22,36 +23,51 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.P2P.Message.AcknowledgeStorage
 
   @type t() :: %__MODULE__{
-          address: binary(),
-          genesis_address: binary()
+          address: Crypto.prepended_hash(),
+          genesis_address: Crypto.prepended_hash(),
+          proof_of_validation: ProofOfValidation.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{address: address, genesis_address: genesis_address}, sender_public_key) do
-    case Replication.get_transaction_in_commit_pool(address) do
-      {:ok,
-       tx = %Transaction{
-         address: tx_address,
-         validation_stamp: %ValidationStamp{timestamp: validation_time}
-       }, validation_inputs} ->
-        Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
-          authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+  def process(
+        %__MODULE__{
+          address: address,
+          genesis_address: genesis_address,
+          proof_of_validation: proof
+        },
+        sender_public_key
+      ) do
+    with {:ok, tx, validation_inputs} <- Replication.get_transaction_in_commit_pool(address),
+         true <- ProofOfValidation.valid?(proof, tx.validation_stamp) do
+      Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+        replicate_transaction(tx, validation_inputs, genesis_address, sender_public_key)
+      end)
 
-          Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
-
-          TransactionChain.write_inputs(
-            tx_address,
-            convert_unspent_outputs_to_inputs(validation_inputs)
-          )
-
-          P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
-        end)
-
-        %Ok{}
-
-      {:error, :transaction_not_exists} ->
-        %Error{reason: :invalid_transaction}
+      %Ok{}
+    else
+      _ -> %Error{reason: :invalid_transaction}
     end
+  end
+
+  defp replicate_transaction(
+         %Transaction{
+           address: tx_address,
+           validation_stamp: %ValidationStamp{timestamp: validation_time}
+         } = tx,
+         validation_inputs,
+         genesis_address,
+         sender_public_key
+       ) do
+    authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+
+    Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
+
+    TransactionChain.write_inputs(
+      tx_address,
+      convert_unspent_outputs_to_inputs(validation_inputs)
+    )
+
+    P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
   end
 
   defp convert_unspent_outputs_to_inputs(validation_inputs) do
@@ -80,19 +96,25 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{address: address, genesis_address: genesis_address}) do
-    <<address::binary, genesis_address::binary>>
+  def serialize(%__MODULE__{
+        address: address,
+        genesis_address: genesis_address,
+        proof_of_validation: proof
+      }) do
+    <<address::binary, genesis_address::binary, ProofOfValidation.serialize(proof)::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(bin) do
     {address, rest} = Utils.deserialize_address(bin)
     {genesis_address, rest} = Utils.deserialize_address(rest)
+    {proof, rest} = ProofOfValidation.deserialize(rest)
 
     {
       %__MODULE__{
         address: address,
-        genesis_address: genesis_address
+        genesis_address: genesis_address,
+        proof_of_validation: proof
       },
       rest
     }
