@@ -26,13 +26,19 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{
-          transaction: tx = %Transaction{validation_stamp: stamp},
+          transaction:
+            tx = %Transaction{
+              validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
+            },
           genesis_address: genesis_address,
           proof_of_validation: proof_of_validation
         },
         _
       ) do
-    if ProofOfValidation.valid?(proof_of_validation, stamp) do
+    sorted_nodes =
+      validation_time |> P2P.authorized_and_available_nodes() |> ProofOfValidation.sort_nodes()
+
+    if ProofOfValidation.valid?(sorted_nodes, proof_of_validation, stamp) do
       Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
         replicate_transaction(tx, genesis_address)
       end)

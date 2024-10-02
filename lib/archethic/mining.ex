@@ -258,12 +258,12 @@ defmodule Archethic.Mining do
           node_public_key :: Crypto.key()
         ) :: :ok
   def confirm_replication(tx_address, signature, node_public_key) do
-    pid = get_mining_process!(tx_address, 1000)
+    pid = get_mining_process!(tx_address)
     if pid, do: send(pid, {:ack_replication, signature, node_public_key})
     :ok
   end
 
-  defp get_mining_process!(tx_address, timeout \\ 3_000) do
+  defp get_mining_process!(tx_address, timeout \\ 1000) do
     retry_while with: constant_backoff(100) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
         [{pid, _}] ->

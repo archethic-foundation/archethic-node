@@ -3,8 +3,14 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
 
   defstruct [:address, :genesis_address, :proof_of_validation]
 
+  use Retry
+
   alias Archethic.Crypto
-  alias Archethic.Utils
+  alias Archethic.Election
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.Replication
 
   alias Archethic.TransactionChain
@@ -17,10 +23,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.AcknowledgeStorage
+  alias Archethic.Utils
 
   @type t() :: %__MODULE__{
           address: Crypto.prepended_hash(),
@@ -37,23 +40,68 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
         },
         sender_public_key
       ) do
-    with {:ok, tx, validation_inputs} <- Replication.get_transaction_in_commit_pool(address),
-         true <- ProofOfValidation.valid?(proof, tx.validation_stamp) do
-      Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
-        replicate_transaction(tx, validation_inputs, genesis_address, sender_public_key)
-      end)
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+      node_public_key = Crypto.first_node_public_key()
 
-      %Ok{}
-    else
-      _ -> %Error{reason: :invalid_transaction}
+      with {:ok, tx, validation_inputs} <- get_transaction_data(address),
+           authorized_nodes <- P2P.authorized_and_available_nodes(tx.validation_stamp.timestamp),
+           true <- Election.chain_storage_node?(address, node_public_key, authorized_nodes),
+           sorted_nodes <- ProofOfValidation.sort_nodes(authorized_nodes),
+           true <- ProofOfValidation.valid?(sorted_nodes, proof, tx.validation_stamp) do
+        replicate_transaction(tx, validation_inputs, genesis_address, sender_public_key)
+      else
+        _ -> :skip
+      end
+    end)
+
+    %Ok{}
+  end
+
+  defp get_transaction_data(address) do
+    # As validation can happen without all node returned the validation response
+    # it is possible to receive this message before processing the validation
+    case get_data_in_tx_pool(address) do
+      res = {:ok, _, _} -> res
+      _ -> fetch_tx_data(address)
+    end
+  end
+
+  defp get_data_in_tx_pool(address) do
+    retry_while with: constant_backoff(100) |> expiry(2000) do
+      case Replication.get_transaction_in_commit_pool(address) do
+        {:ok, tx, validation_utxo} ->
+          validation_inputs = convert_unspent_outputs_to_inputs(validation_utxo)
+          {:halt, {:ok, tx, validation_inputs}}
+
+        er ->
+          {:cont, er}
+      end
+    end
+  end
+
+  defp fetch_tx_data(address) do
+    storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    res =
+      [
+        Task.async(fn ->
+          TransactionChain.fetch_transaction(address, storage_nodes, search_mode: :remote)
+        end),
+        Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)
+      ]
+      |> Task.await_many(P2P.Message.get_max_timeout() + 100)
+
+    case res do
+      [{:ok, tx}, validation_inputs] -> {:ok, tx, validation_inputs}
+      _ -> {:error, :transaction_not_exists}
     end
   end
 
   defp replicate_transaction(
-         %Transaction{
+         tx = %Transaction{
            address: tx_address,
            validation_stamp: %ValidationStamp{timestamp: validation_time}
-         } = tx,
+         },
          validation_inputs,
          genesis_address,
          sender_public_key
@@ -61,11 +109,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
     Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
-
-    TransactionChain.write_inputs(
-      tx_address,
-      convert_unspent_outputs_to_inputs(validation_inputs)
-    )
+    TransactionChain.write_inputs(tx_address, validation_inputs)
 
     P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
   end

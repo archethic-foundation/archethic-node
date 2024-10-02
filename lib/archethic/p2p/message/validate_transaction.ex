@@ -13,7 +13,6 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -69,15 +68,14 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   defp do_validate_transaction(tx, contract_context, inputs, validation_nodes) do
     %Transaction{address: tx_address, validation_stamp: %ValidationStamp{error: stamp_error}} = tx
 
-    cross_stamp =
-      %CrossValidationStamp{inconsistencies: inconsistencies} =
-      Replication.validate_transaction(tx, contract_context, inputs)
+    # Since the transaction can be validated before a node finish processing this message
+    # we store the transaction directly in the waiting pool
+    if stamp_error == nil, do: Replication.add_transaction_to_commit_pool(tx, inputs)
 
-    if stamp_error == nil and Enum.empty?(inconsistencies) do
-      Replication.add_transaction_to_commit_pool(tx, inputs)
-    end
-
-    message = %CrossValidationDone{address: tx_address, cross_validation_stamp: cross_stamp}
+    message = %CrossValidationDone{
+      address: tx_address,
+      cross_validation_stamp: Replication.validate_transaction(tx, contract_context, inputs)
+    }
 
     P2P.broadcast_message(validation_nodes, message)
   end
