@@ -14,6 +14,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
   alias Archethic.Election
 
   alias Archethic.Mining
+  alias Archethic.Mining.LedgerValidation
 
   alias Archethic.PubSub
 
@@ -26,7 +27,6 @@ defmodule Archethic.Bootstrap.NetworkInit do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -187,20 +187,16 @@ defmodule Archethic.Bootstrap.NetworkInit do
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
     fee = Mining.get_transaction_fee(tx, nil, 0.07, timestamp, nil)
     movements = Transaction.get_movements(tx)
-
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.consume_inputs(
-        address,
-        timestamp,
-        unspent_outputs,
-        Transaction.get_movements(tx),
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp, 1)
-      )
-      |> elem(1)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(unspent_outputs, nil)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, 1)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(address, timestamp)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{

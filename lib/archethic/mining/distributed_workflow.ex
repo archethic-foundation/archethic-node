@@ -21,7 +21,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   alias Archethic.Mining.Error
   alias Archethic.Mining.MaliciousDetection
-  alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.TransactionContext
   alias Archethic.Mining.ValidationContext
   alias Archethic.Mining.WorkflowRegistry
@@ -403,24 +402,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :prior_validation,
         state,
         data = %{
-          context:
-            context = %ValidationContext{transaction: tx, validation_time: validation_time},
+          context: context = %ValidationContext{transaction: tx},
           ref_timestamp: ref_timestamp
         }
       ) do
-    new_context =
-      case PendingTransactionValidation.validate(tx, validation_time) do
-        :ok ->
-          context
-
-        {:error, error} ->
-          Logger.debug("Invalid pending transaction - #{inspect(error)}",
-            transaction_address: Base.encode16(tx.address),
-            transaction_type: tx.type
-          )
-
-          ValidationContext.set_mining_error(context, error)
-      end
+    new_context = ValidationContext.validate_pending_transaction(context)
 
     new_data = Map.put(data, :context, new_context)
 

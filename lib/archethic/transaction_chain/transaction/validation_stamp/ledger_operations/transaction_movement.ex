@@ -11,7 +11,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
   alias Archethic.Reward
-  alias Archethic.TransactionChain.Transaction
 
   @typedoc """
   TransactionMovement is composed from:

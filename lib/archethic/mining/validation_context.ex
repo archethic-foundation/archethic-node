@@ -50,6 +50,8 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.Mining.Error
+  alias Archethic.Mining.LedgerValidation
+  alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.ProofOfWork
   alias Archethic.Mining.SmartContractValidation
 
@@ -78,15 +80,16 @@ defmodule Archethic.Mining.ValidationContext do
           previous_transaction: nil | Transaction.t(),
           unspent_outputs: list(VersionedUnspentOutput.t()),
           resolved_addresses: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
-          welcome_node: Node.t(),
-          coordinator_node: Node.t(),
-          cross_validation_nodes: list(Node.t()),
+          welcome_node: nil | Node.t(),
+          coordinator_node: nil | Node.t(),
+          cross_validation_nodes: nil | list(Node.t()),
           previous_storage_nodes: list(Node.t()),
           chain_storage_nodes: list(Node.t()),
           beacon_storage_nodes: list(Node.t()),
           io_storage_nodes: list(Node.t()),
           cross_validation_nodes_confirmation: bitstring(),
           validation_stamp: nil | ValidationStamp.t(),
+          validation_time: DateTime.t(),
           full_replication_tree: %{
             chain: list(bitstring()),
             beacon: list(bitstring()),
@@ -103,7 +106,7 @@ defmodule Archethic.Mining.ValidationContext do
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
-          genesis_address: binary(),
+          genesis_address: nil | Crypto.prepended_hash(),
           aggregated_utxos: list(VersionedUnspentOutput.t()),
           mining_error: Error.t() | nil
         }
@@ -147,15 +150,6 @@ defmodule Archethic.Mining.ValidationContext do
       attrs
     )
   end
-
-  @doc """
-  Set the mining error. If one is already set, keeps the existing one
-  """
-  @spec set_mining_error(context :: t(), mining_error :: Error.t()) :: t()
-  def set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
-    do: %__MODULE__{context | mining_error: mining_error}
-
-  def set_mining_error(context, _), do: context
 
   @doc """
   Determine if the enough context has been retrieved
@@ -284,6 +278,51 @@ defmodule Archethic.Mining.ValidationContext do
   @spec add_validation_stamp(t(), ValidationStamp.t()) :: t()
   def add_validation_stamp(context = %__MODULE__{}, stamp = %ValidationStamp{}) do
     %{context | validation_stamp: stamp}
+  end
+
+  @doc """
+  Set the mining error to the mining context
+  """
+  @spec set_mining_error(context :: t(), mining_error :: Error.t()) :: t()
+  def set_mining_error(context = %__MODULE__{mining_error: nil}, mining_error),
+    do: %__MODULE__{context | mining_error: mining_error}
+
+  def set_mining_error(context, _), do: context
+
+  @doc """
+  Determines if the transaction is accepted into the network
+  """
+  @spec validate_pending_transaction(context :: t()) :: t()
+  def validate_pending_transaction(
+        context = %__MODULE__{
+          transaction: tx = %Transaction{type: type},
+          validation_time: validation_time
+        }
+      ) do
+    start = System.monotonic_time()
+
+    with :ok <- PendingTransactionValidation.validate_previous_public_key(tx),
+         :ok <- PendingTransactionValidation.validate_previous_signature(tx),
+         :ok <- PendingTransactionValidation.validate_size(tx),
+         :ok <- PendingTransactionValidation.validate_contract(tx),
+         :ok <- PendingTransactionValidation.validate_ownerships(tx),
+         :ok <- PendingTransactionValidation.validate_non_fungible_token_transfer(tx),
+         :ok <- PendingTransactionValidation.validate_token_transaction(tx),
+         :ok <- PendingTransactionValidation.validate_type_rules(tx, validation_time),
+         :ok <- PendingTransactionValidation.validate_network_chain(tx),
+         :ok <- PendingTransactionValidation.validate_not_exists(tx) do
+      :telemetry.execute(
+        [:archethic, :mining, :pending_transaction_validation],
+        %{duration: System.monotonic_time() - start},
+        %{transaction_type: type}
+      )
+
+      context
+    else
+      {:error, reason} ->
+        error = Error.new(:invalid_pending_transaction, reason)
+        %__MODULE__{context | mining_error: error}
+    end
   end
 
   @doc """
@@ -760,29 +799,26 @@ defmodule Archethic.Mining.ValidationContext do
     movements = Transaction.get_movements(tx)
     protocol_version = Mining.protocol_version()
 
-    ops = %LedgerOperations{fee: fee}
+    ops =
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, validation_time, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(
+        address,
+        validation_time,
+        encoded_state,
+        contract_context
+      )
 
-    case LedgerOperations.consume_inputs(
-           ops,
-           address,
-           validation_time |> DateTime.truncate(:millisecond),
-           unspent_outputs,
-           movements,
-           LedgerOperations.get_utxos_from_transaction(tx, validation_time, protocol_version),
-           encoded_state,
-           contract_context
-         ) do
-      {:ok, ops} ->
-        new_ops =
-          LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
+    case ops do
+      %LedgerValidation{sufficient_funds?: false} ->
+        {set_mining_error(context, Error.new(:insufficient_funds)),
+         LedgerValidation.to_ledger_operations(ops)}
 
-        {context, new_ops}
-
-      {:error, :insufficient_funds} ->
-        new_ops =
-          LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
-
-        {set_mining_error(context, Error.new(:insufficient_funds)), new_ops}
+      _ ->
+        {context, LedgerValidation.to_ledger_operations(ops)}
     end
   end
 
@@ -1209,8 +1245,9 @@ defmodule Archethic.Mining.ValidationContext do
     movements = Transaction.get_movements(tx)
 
     %LedgerOperations{transaction_movements: resolved_movements} =
-      %LedgerOperations{}
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
+      %LedgerValidation{}
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
+      |> LedgerValidation.to_ledger_operations()
 
     length(resolved_movements) == length(transaction_movements) and
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
@@ -1226,9 +1263,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{
-             unspent_outputs: next_unspent_outputs
-           }
+           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
          },
          %LedgerOperations{unspent_outputs: expected_unspent_outputs}
        ) do

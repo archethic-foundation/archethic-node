@@ -4,7 +4,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.Mining.Error
   alias Archethic.Mining.PendingTransactionValidation
 
   alias Archethic.P2P
@@ -86,8 +85,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
 
-      assert {:error, %Error{data: "Non fungible token can only be sent by unit"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Non fungible token can only be sent by unit"} =
+               PendingTransactionValidation.validate_non_fungible_token_transfer(tx)
 
       ledger = %Ledger{
         token: %TokenLedger{
@@ -104,8 +103,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
 
-      assert {:error, %Error{data: "Non fungible token can only be sent by unit"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Non fungible token can only be sent by unit"} =
+               PendingTransactionValidation.validate_non_fungible_token_transfer(tx)
     end
 
     test "should return ok if nft token is sent in unit" do
@@ -124,7 +123,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_non_fungible_token_transfer(tx)
     end
 
     test "should return ok if fungible token is sent in fraction" do
@@ -143,7 +142,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_non_fungible_token_transfer(tx)
     end
   end
 
@@ -155,18 +154,18 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           content: :crypto.strong_rand_bytes(3_145_711)
         )
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_size(tx)
     end
 
-    test "should return  transaction data exceeds limit when the transaction size is greater than 3.1MB" do
+    test "should return transaction data exceeds limit when the transaction size is greater than 3.1MB" do
       tx =
         TransactionFactory.create_non_valided_transaction(
           type: :data,
           content: :crypto.strong_rand_bytes(3_145_728)
         )
 
-      assert {:error, %Error{data: "Transaction data exceeds limit"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Transaction data exceeds limit"} =
+               PendingTransactionValidation.validate_size(tx)
     end
   end
 
@@ -191,8 +190,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           public_key
         )
 
-      assert {:error, %Error{data: "Invalid previous public key (should be chain index - 1)"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid previous public key (should be chain index - 1)"} =
+               PendingTransactionValidation.validate_previous_public_key(tx)
     end
   end
 
@@ -202,31 +201,29 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     end
 
     test "validate conditions for ownerships" do
-      assert {:error,
-              %Error{data: "Invalid data type transaction - Both content & ownership are empty"}} =
-               PendingTransactionValidation.validate(get_tx([]))
+      assert :ok = PendingTransactionValidation.validate_ownerships(get_tx([]))
 
-      assert {:error, %Error{data: "Ownership: empty secret"}} =
+      assert {:error, "Ownership: empty secret"} =
                [%Ownership{secret: "", authorized_keys: %{}}]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
 
-      assert {:error, %Error{data: "Ownership: empty authorized keys"}} =
+      assert {:error, "Ownership: empty authorized keys"} =
                [%Ownership{secret: random_secret(), authorized_keys: %{}}]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
 
-      assert {:error, %Error{data: "Ownership: invalid public key"}} =
+      assert {:error, "Ownership: invalid public key"} =
                [%Ownership{secret: random_secret(), authorized_keys: %{"" => "encrypted_key"}}]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
 
-      assert {:error, %Error{data: "Ownership: invalid public key"}} =
+      assert {:error, "Ownership: invalid public key"} =
                [%Ownership{secret: random_secret(), authorized_keys: %{"abc" => "cba"}}]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
 
-      assert {:error, %Error{data: "Ownership: invalid encrypted key"}} =
+      assert {:error, "Ownership: invalid encrypted key"} =
                [
                  %Ownership{
                    secret: random_secret(),
@@ -234,7 +231,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                  }
                ]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
 
       pub = random_public_key()
 
@@ -246,7 +243,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                  }
                ]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_ownerships()
     end
   end
 
@@ -259,29 +256,30 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       """
 
       assert :ok =
-               ContractFactory.create_valid_contract_tx(code)
-               |> PendingTransactionValidation.validate()
+               code
+               |> ContractFactory.create_valid_contract_tx()
+               |> PendingTransactionValidation.validate_contract()
     end
 
     test "exceeds max code size" do
       code = generate_code_that_exceed_limit_when_compressed()
 
-      assert {:error, %Error{data: "Invalid transaction, code exceed max size"}} =
-               ContractFactory.create_valid_contract_tx(code)
-               |> PendingTransactionValidation.validate()
+      assert {:error, "Invalid transaction, code exceed max size"} =
+               code
+               |> ContractFactory.create_valid_contract_tx()
+               |> PendingTransactionValidation.validate_contract()
     end
   end
 
   describe "Data" do
     test "Should return error when both content and ownerships are empty" do
-      assert {:error,
-              %Error{data: "Invalid data type transaction - Both content & ownership are empty"}} =
+      assert {:error, "Invalid data type transaction - Both content & ownership are empty"} =
                TransactionFactory.create_non_valided_transaction(type: :data)
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_type_rules(DateTime.utc_now())
 
       pub = random_public_key()
 
-      assert :ok ==
+      assert :ok =
                [
                  %Ownership{
                    secret: random_secret(),
@@ -289,11 +287,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                  }
                ]
                |> get_tx()
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_type_rules(DateTime.utc_now())
 
-      assert :ok ==
+      assert :ok =
                TransactionFactory.create_non_valided_transaction(type: :data, content: "content")
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_type_rules(DateTime.utc_now())
     end
   end
 
@@ -362,15 +360,15 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           {:ok, %NotFound{}}
       end)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
   describe "Contract" do
     test "should return error when code is empty" do
-      assert {:error, %Error{data: "Invalid contract type transaction -  code is empty"}} =
+      assert {:error, "Invalid contract type transaction -  code is empty"} =
                ContractFactory.create_valid_contract_tx("")
-               |> PendingTransactionValidation.validate()
+               |> PendingTransactionValidation.validate_type_rules(DateTime.utc_now())
     end
   end
 
@@ -396,7 +394,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :ok when we deploy a aeweb ref transaction with publicationStatus" do
@@ -421,7 +419,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :ok when we deploy a aeweb ref transaction (unpublished)" do
@@ -433,7 +431,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :ok when we deploy a aeweb file transaction" do
@@ -444,7 +442,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :error when we deploy a wrong aeweb file transaction" do
@@ -452,7 +450,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :error when we deploy a wrong aeweb ref transaction" do
@@ -476,7 +475,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :error when we deploy a wrong aeweb ref transaction (unpublished)" do
@@ -501,7 +501,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return :error when it does not respect the schema" do
@@ -526,7 +527,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :hosting, content: content)
 
-      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
@@ -558,11 +560,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn address ->
         address
       end)
-      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
-        {:error, :transaction_not_exists}
-      end)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return an error when a node transaction public key used on non allowed origin" do
@@ -597,26 +596,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn address ->
         address
       end)
-      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
-        {:error, :transaction_not_exists}
-      end)
 
-      assert {:error, %Error{data: "Invalid node transaction with invalid key origin"}} =
-               PendingTransactionValidation.validate(tx)
-    end
-
-    test "should return an error when a node transaction content is greater than content_max_size " do
-      content = :crypto.strong_rand_bytes(4 * 1024 * 1024)
-
-      tx =
-        TransactionFactory.create_non_valided_transaction(
-          type: :data,
-          content: content,
-          seed: "seed"
-        )
-
-      assert {:error, %Error{data: "Transaction data exceeds limit"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid node transaction with invalid key origin"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
@@ -682,7 +664,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
-      assert :ok = PendingTransactionValidation.validate(tx)
+
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_network_chain(tx)
 
       tx =
         TransactionFactory.create_non_valided_transaction(
@@ -692,7 +676,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: [ownership]
         )
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate_network_chain(tx)
+
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
 
@@ -741,8 +727,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
 
-      assert {:error, %Error{data: "Invalid node shared secrets transaction authorized nodes"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid node shared secrets transaction authorized nodes"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
@@ -767,8 +753,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: [ownership]
         )
 
-      assert {:error, %Error{data: "Invalid node shared secrets trigger time"}} =
-               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+      assert {:error, "Invalid node shared secrets trigger time"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
@@ -781,8 +767,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :oracle)
 
-      assert {:error, %Error{data: "Invalid oracle trigger time"}} =
-               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:10:03Z])
+      assert {:error, "Invalid oracle trigger time"} =
+               PendingTransactionValidation.validate_type_rules(tx, ~U[2022-01-01 00:10:03Z])
     end
   end
 
@@ -827,7 +813,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
-      assert :ok = PendingTransactionValidation.validate(tx)
+
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
+
       :persistent_term.put(:origin_gen_addr, nil)
     end
 
@@ -877,8 +865,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
 
-      assert {:error, %Error{data: "Invalid Origin transaction Public Key Already Exists"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Origin transaction Public Key Already Exists"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       :persistent_term.put(:origin_gen_addr, nil)
     end
@@ -928,7 +916,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       :persistent_term.put(:origin_gen_addr, nil)
     end
@@ -963,7 +951,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn _ -> {tx.address, DateTime.utc_now()} end)
 
       :persistent_term.put(:reward_gen_addr, Transaction.previous_address(tx))
-      assert :ok = PendingTransactionValidation.validate(tx)
+
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
+
       :persistent_term.put(:reward_gen_addr, nil)
       :persistent_term.put(:archethic_up, :up)
     end
@@ -995,8 +985,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn _, _ -> {tx.address, DateTime.utc_now()} end)
       |> stub(:get_last_chain_address, fn _ -> {tx.address, DateTime.utc_now()} end)
 
-      assert {:error, %Error{data: "The supply do not match burned fees from last summary"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "The supply do not match burned fees from last summary"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       :persistent_term.put(:archethic_up, :up)
     end
@@ -1027,9 +1017,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
       |> stub(:get_last_chain_address, fn _, _ -> {tx.address, DateTime.utc_now()} end)
 
-      assert {:error,
-              %Error{data: "There is already a mint rewards transaction since last schedule"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "There is already a mint rewards transaction since last schedule"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       :persistent_term.put(:archethic_up, :up)
     end
@@ -1045,8 +1034,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :node_rewards)
 
-      assert {:error, %Error{data: "Invalid node rewards trigger time"}} =
-               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+      assert {:error, "Invalid node rewards trigger time"} =
+               PendingTransactionValidation.validate_type_rules(tx, ~U[2022-01-01 00:00:03Z])
     end
   end
 
@@ -1058,6 +1047,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           name: "MyToken",
           type: "non-fungible",
           symbol: "MTK",
+          decimals: 8,
           properties: %{
             global: "property"
           },
@@ -1070,7 +1060,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
     end
 
     test "should return ok with a token creation with allow_mint flag" do
@@ -1078,7 +1068,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         Jason.encode!(%{
           aeip: [2, 18],
           supply: 100_000_000_000,
-          decimals: 8,
           name: "CoinCoin",
           type: "fungible",
           symbol: "CC",
@@ -1087,7 +1076,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
     end
 
     test "should return ok with a valid token resupply" do
@@ -1107,7 +1096,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
        {
         "supply": 10000000000,
         "type": "fungible",
-        "decimals": 8,
+        "decimals": 7,
         "name": "CoinCoin",
         "allow_mint": true,
         "aeip": [2, 18]
@@ -1122,7 +1111,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_genesis_address: fn _, _ -> {:ok, genesis_address} end,
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
-        assert :ok = PendingTransactionValidation.validate(tx)
+        assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
+
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
     end
@@ -1164,10 +1154,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
         assert {:error,
-                %Error{
-                  data:
-                    "Invalid token transaction - token_reference is not in the same transaction chain"
-                }} = PendingTransactionValidation.validate(tx)
+                "Invalid token transaction - token_reference is not in the same transaction chain"} =
+                 PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
@@ -1205,10 +1193,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
         assert {:error,
-                %Error{
-                  data:
-                    "Invalid token transaction - token_reference does not have allow_mint: true"
-                }} = PendingTransactionValidation.validate(tx)
+                "Invalid token transaction - token_reference does not have allow_mint: true"} =
+                 PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
@@ -1255,9 +1241,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_genesis_address: fn _, _ -> {:ok, genesis_address} end,
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
-        assert {:error,
-                %Error{data: "Invalid token transaction - token_reference must be fungible"}} =
-                 PendingTransactionValidation.validate(tx)
+        assert {:error, "Invalid token transaction - token_reference must be fungible"} =
+                 PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
@@ -1282,8 +1267,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         fetch_genesis_address: fn _, _ -> {:ok, genesis_address} end,
         fetch_transaction: fn _, _ -> {:error, :transaction_not_exists} end
       ) do
-        assert {:error, %Error{data: "Invalid token transaction - token_reference not found"}} =
-                 PendingTransactionValidation.validate(tx)
+        assert {:error, "Invalid token transaction - token_reference not found"} =
+                 PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
@@ -1311,10 +1296,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         end
       ) do
         assert {:error,
-                %Error{
-                  data:
-                    "Invalid token transaction - token_reference exists but does not contain a valid JSON"
-                }} = PendingTransactionValidation.validate(tx)
+                "Invalid token transaction - token_reference exists but does not contain a valid JSON"} =
+                 PendingTransactionValidation.validate_token_transaction(tx)
 
         assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
       end
@@ -1330,10 +1313,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
-      assert {:error,
-              %Error{
-                data: "Invalid token transaction - neither a token creation nor a token resupply"
-              }} = PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid token transaction - neither a token creation nor a token resupply"} =
+               PendingTransactionValidation.validate_token_transaction(tx)
     end
 
     test "should return error if token transaction is incorrect" do
@@ -1343,10 +1324,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           content: Jason.encode!(%{})
         )
 
-      assert {:error,
-              %Error{
-                data: "Invalid token transaction - neither a token creation nor a token resupply"
-              }} = PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid token transaction - neither a token creation nor a token resupply"} =
+               PendingTransactionValidation.validate_token_transaction(tx)
     end
   end
 
@@ -1388,7 +1367,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert :ok = PendingTransactionValidation.validate(tx)
+      assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
@@ -1396,15 +1375,15 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     test "should reject empty content in keychain transaction" do
       tx = TransactionFactory.create_non_valided_transaction(type: :keychain, content: "")
 
-      assert {:error, %Error{data: "Invalid Keychain transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "Should Reject keychain tx with empty Ownerships list in keychain transaction" do
       tx = TransactionFactory.create_non_valided_transaction(type: :keychain, content: "content")
 
-      assert {:error, %Error{data: "Invalid Keychain transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "Should Reject keychain tx with UCO tranfers" do
@@ -1428,8 +1407,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert {:error, %Error{data: "Invalid Keychain transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       ledger = %Ledger{
         token: %TokenLedger{
@@ -1451,8 +1430,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert {:error, %Error{data: "Invalid Keychain transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       ledger = %Ledger{
         uco: %UCOLedger{
@@ -1479,8 +1458,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert {:error, %Error{data: "Invalid Keychain transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 
@@ -1501,13 +1480,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert {:error, %Error{data: "Invalid Keychain Access transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       tx = TransactionFactory.create_non_valided_transaction(type: :keychain_access)
 
-      assert {:error, %Error{data: "Invalid Keychain Access transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       ownerships = [
         Ownership.new(random_secret(), :crypto.strong_rand_bytes(32), [
@@ -1522,8 +1501,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           ownerships: ownerships
         )
 
-      assert {:error, %Error{data: "Invalid Keychain Access transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       tx =
         TransactionFactory.create_non_valided_transaction(
@@ -1533,10 +1512,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert {:error,
-              %Error{
-                data:
-                  "Invalid Keychain access transaction - Previous public key must be authorized"
-              }} = PendingTransactionValidation.validate(tx)
+              "Invalid Keychain access transaction - Previous public key must be authorized"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       tx =
         TransactionFactory.create_non_valided_transaction(
@@ -1546,8 +1523,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           recipients: [%Recipient{address: random_address()}]
         )
 
-      assert {:error, %Error{data: "Invalid Keychain Access transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 
       tx =
         TransactionFactory.create_non_valided_transaction(
@@ -1557,8 +1534,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           recipients: [%Recipient{address: random_address(), action: "do_something", args: []}]
         )
 
-      assert {:error, %Error{data: "Invalid Keychain Access transaction"}} =
-               PendingTransactionValidation.validate(tx)
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
   end
 end
