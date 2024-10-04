@@ -249,7 +249,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       contract_genesis =
         contract_seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
 
-      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+      recipient = %Recipient{action: "test", args: %{}, address: contract_genesis}
 
       trigger_tx =
         %Transaction{address: trigger_address} =
@@ -357,7 +357,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       contract_genesis =
         contract_seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
 
-      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+      recipient = %Recipient{action: "test", args: %{}, address: contract_genesis}
 
       trigger_tx =
         %Transaction{address: trigger_address} =
