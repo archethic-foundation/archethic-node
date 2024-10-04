@@ -89,6 +89,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           {:error, :timeout}
         end
 
+        def handle_close(_socket) do
+          :ok
+        end
+
         def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
 
         def handle_message({_, _, _}), do: {:error, :closed}
@@ -122,6 +126,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         def handle_connect({127, 0, 0, 2}, _port) do
           Process.sleep(100_000)
           {:error, :timeout}
+        end
+
+        def handle_close(_socket) do
+          :ok
         end
 
         def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
@@ -170,6 +178,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
         def handle_connect({127, 0, 0, 2}, _port) do
           {:ok, make_ref()}
+        end
+
+        def handle_close(_socket) do
+          :ok
         end
 
         def handle_send(_socket, _), do: :ok
@@ -274,6 +286,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           {:ok, make_ref()}
         end
 
+        def handle_close(_socket) do
+          :ok
+        end
+
         def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
         def handle_send(_socket, <<_::32, _rest::bitstring>>), do: {:error, :closed}
 
@@ -338,6 +354,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
             true ->
               {:error, :closed}
           end
+        end
+
+        def handle_close(_socket) do
+          :ok
         end
 
         def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
@@ -579,6 +599,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           end
         end
 
+        def handle_close(_socket) do
+          :ok
+        end
+
         def handle_send(_socket, "hb") do
           hb_count = :persistent_term.get(:hb_count, 0)
           :persistent_term.put(:hb_count, hb_count + 1)
@@ -621,6 +645,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       {:ok, make_ref()}
     end
 
+    def handle_close(_socket) do
+      :ok
+    end
+
     def handle_send(_socket, "hb") do
       send(self(), {:tcp, make_ref(), "hb"})
       :ok
@@ -638,6 +666,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
     def handle_connect(_ip, _port) do
       {:ok, make_ref()}
+    end
+
+    def handle_close(_socket) do
+      :ok
     end
 
     def handle_send(_socket, _), do: :ok

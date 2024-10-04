@@ -445,6 +445,7 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     # disconnect if missed more than 2 heartbeats
     if heartbeats_sent - heartbeats_received >= 2 do
+      transport.handle_close(socket)
       {:next_state, :disconnected, data}
     else
       transport.handle_send(socket, "hb")
@@ -645,8 +646,8 @@ defmodule Archethic.P2P.Client.Connection do
         @reconnect_delay
 
       :exponential ->
-        # cap at 24hours
-        min(:timer.hours(24), 2 ** attempts * @reconnect_delay)
+        # cap at a few hours
+        min(:timer.hours(6), 2 ** attempts * @reconnect_delay)
     end
   end
 end
