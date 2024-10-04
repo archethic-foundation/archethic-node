@@ -23,6 +23,7 @@ defmodule Archethic.P2P.Client.Connection do
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn 2
   @table_name :connection_status
+  @max_reconnect_delay :timer.hours(6)
 
   @heartbeat_interval Keyword.get(
                         Application.compile_env(:archethic, __MODULE__, []),
@@ -34,6 +35,8 @@ defmodule Archethic.P2P.Client.Connection do
                      :reconnect_delay,
                      500
                    )
+  # we cap the attemps to avoid doing 2 ** BIGNUM
+  @max_attempts (@max_reconnect_delay / @reconnect_delay) |> :math.log2() |> :math.ceil()
 
   @doc """
   Starts a new connection
@@ -292,7 +295,7 @@ defmodule Archethic.P2P.Client.Connection do
   def handle_event({:timeout, :reconnect}, _event_data, _state, data) do
     actions = [{:next_event, :internal, {:connect, nil}}]
 
-    new_data = Map.update!(data, :reconnect_attempts, &(&1 + 1))
+    new_data = Map.update!(data, :reconnect_attempts, &min(@max_attempts, &1 + 1))
     {:keep_state, new_data, actions}
   end
 
@@ -647,7 +650,7 @@ defmodule Archethic.P2P.Client.Connection do
 
       :exponential ->
         # cap at a few hours
-        min(:timer.hours(6), 2 ** attempts * @reconnect_delay)
+        min(@max_reconnect_delay, 2 ** attempts * @reconnect_delay)
     end
   end
 end
