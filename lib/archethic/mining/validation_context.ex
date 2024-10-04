@@ -1120,7 +1120,6 @@ defmodule Archethic.Mining.ValidationContext do
       timestamp: fn -> valid_timestamp(stamp, context) end,
       signature: fn -> valid_stamp_signature(stamp, context) end,
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
-      # origin_signature: fn -> valid_stamp_origin_signature?(stamp, context) end,
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
       proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
       transaction_fee: fn -> valid_stamp_fee?(stamp, fee) end,
@@ -1165,10 +1164,6 @@ defmodule Archethic.Mining.ValidationContext do
         Transaction.verify_origin_signature?(tx, pow) and
           pow in ProofOfWork.list_origin_public_keys_candidates(tx)
     end
-  end
-
-  def valid_stamp_origin_signature?(%ValidationStamp{proof_of_work: pow}, %__MODULE__{}) do
-    pow != <<0::16, 0::256>>
   end
 
   defp valid_stamp_proof_of_integrity?(%ValidationStamp{proof_of_integrity: poi}, %__MODULE__{
