@@ -630,6 +630,8 @@ defmodule Archethic.P2P.Client.Connection do
   end
 
   def code_change(1, state, data, _extra) do
+    Process.send_after(self(), :heartbeat, @heartbeat_interval)
+
     {:ok, state,
      data
      |> Map.merge(%{
