@@ -230,22 +230,4 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     store_node_key_indexes(index)
     {:reply, :ok, state}
   end
-
-  @impl GenServer
-  # FIXME: use genserver message because ets table is protected
-  def handle_call(:migrate_1_5_9, _from, state) do
-    node_seed = Origin.retrieve_node_seed()
-    :ets.insert(@keystore_table, {:node_seed, node_seed})
-    :ets.delete(@keystore_table, :sign_fun)
-    :ets.delete(@keystore_table, :public_key_fun)
-    :ets.delete(@keystore_table, :dh_fun)
-
-    {:reply, :ok, state}
-  end
-
-  # FIXME: to remove after 1.5.9
-  @doc false
-  def migrate_ets_table_1_5_9 do
-    GenServer.call(__MODULE__, :migrate_1_5_9)
-  end
 end

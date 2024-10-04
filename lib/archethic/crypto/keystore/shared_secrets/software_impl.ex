@@ -269,20 +269,4 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   @impl GenServer
   def code_change(_old_vsn, state, _extra), do: {:ok, state}
-
-  # FIXME: to remove after 1.5.9
-  @doc false
-  def migrate_ets_table_1_5_9 do
-    :node_shared_secrets
-    |> TransactionChain.list_addresses_by_type()
-    |> Stream.take(-2)
-    |> Enum.each(&load_node_shared_secrets_tx/1)
-
-    :ets.delete(@keystore_table, :transaction_sign_fun)
-    :ets.delete(@keystore_table, :reward_sign_fun)
-    :ets.delete(@keystore_table, :transaction_public_key_fun)
-    :ets.delete(@keystore_table, :reward_public_key_fun)
-    :ets.delete(@keystore_table, :transaction_seed_wrap_fun)
-    :ets.delete(@keystore_table, :reward_seed_wrap_fun)
-  end
 end
