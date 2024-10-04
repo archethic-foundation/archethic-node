@@ -600,6 +600,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         end
 
         def handle_close(_socket) do
+          :persistent_term.put(:transport_closed, true)
           :ok
         end
 
@@ -633,6 +634,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(@heartbeat_interval * 5)
       assert {:disconnected, _} = :sys.get_state(pid)
+
+      assert :persistent_term.get(:transport_closed)
     end
   end
 
