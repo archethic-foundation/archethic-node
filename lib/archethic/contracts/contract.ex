@@ -181,8 +181,13 @@ defmodule Archethic.Contracts.Contract do
   @spec get_trigger_for_recipient(Recipient.t()) :: trigger_key()
   def get_trigger_for_recipient(%Recipient{action: nil, args: nil}), do: {:transaction, nil, nil}
 
-  def get_trigger_for_recipient(%Recipient{action: action, args: args_values}),
-    do: {:transaction, action, length(args_values)}
+  def get_trigger_for_recipient(%Recipient{action: action, args: args_values})
+      when is_list(args_values),
+      do: {:transaction, action, length(args_values)}
+
+  def get_trigger_for_recipient(%Recipient{action: action, args: args_values})
+      when is_map(args_values),
+      do: {:transaction, action, map_size(args_values)}
 
   @doc """
   Return the encrypted seed and encrypted aes key

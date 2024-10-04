@@ -107,7 +107,7 @@ defmodule Archethic.Contracts do
           module: %WasmModule{spec: %WasmSpec{upgrade_opts: upgrade_opts}}
         },
         trigger_tx,
-        %Recipient{args: arg},
+        %Recipient{args: args},
         _inputs,
         _opts
       ) do
@@ -122,37 +122,40 @@ defmodule Archethic.Contracts do
           |> Archethic.fetch_genesis_address()
 
         if genesis_address == from do
-          case Enum.at(arg, 0) do
-            %{"code" => new_code, "manifest" => manifest} ->
-              spec = manifest |> Jason.decode!() |> WasmSpec.from_manifest()
-              {:ok, new_module} = WasmModule.parse(Base.decode16!(new_code, case: :mixed), spec)
+          with {:ok, %{"bytecode" => new_code, "manifest" => manifest}} <-
+                 WasmSpec.cast_wasm_input(args, %{"bytecode" => "string", "manifest" => "map"}),
+               {:ok, new_code_bytes} <- Base.decode16(new_code, case: :mixed),
+               {:ok, new_module} <-
+                 WasmModule.parse(:zlib.unzip(new_code_bytes), WasmSpec.from_manifest(manifest)) do
+            upgrade_state =
+              if "onUpgrade" in WasmModule.list_exported_functions_name(new_module) do
+                case WasmModule.execute(new_module, "onUpgrade", state: state) do
+                  {:ok, %UpdateResult{state: migrated_state}} ->
+                    migrated_state
 
-              upgrade_state =
-                if "onUpgrade" in WasmModule.list_exported_functions_name(new_module) do
-                  case WasmModule.execute(new_module, "onUpgrade", state: state) do
-                    {:ok, %UpdateResult{state: migrated_state}} ->
-                      migrated_state
-
-                    _ ->
-                      state
-                  end
-                else
-                  state
+                  _ ->
+                    state
                 end
+              else
+                state
+              end
 
-              {:ok,
-               %UpdateResult{
-                 state: upgrade_state,
-                 transaction: %{
-                   type: :contract,
-                   data: %{
-                     code: new_code |> Base.decode16!(case: :mixed) |> :zlib.zip()
-                   }
+            {:ok,
+             %UpdateResult{
+               state: upgrade_state,
+               transaction: %{
+                 type: :contract,
+                 data: %{
+                   code:
+                     Jason.encode!(%{
+                       "bytecode" => new_code,
+                       "manifest" => manifest
+                     })
                  }
-               }}
-
-            _ ->
-              {:error, :invalid_upgrade_params}
+               }
+             }}
+          else
+            _ -> {:error, :invalid_upgrade_params}
           end
         else
           {:error, :upgrade_not_authorized}
@@ -243,45 +246,45 @@ defmodule Archethic.Contracts do
     if trigger != nil do
       %WasmSpec.Trigger{input: input} = trigger
 
-      case get_wasm_arg(maybe_recipient, input) do
-        {:ok, arg} ->
-          # FIXME: remove the fetch genesis address when it will be integrated in the transaction's structure
+      with {:ok, args} <- maybe_recipient_arg(maybe_recipient),
+           {:ok, args} <- WasmSpec.cast_wasm_input(args, input) do
+        # FIXME: remove the fetch genesis address when it will be integrated in the transaction's structure
 
-          maybe_trigger_tx =
-            case maybe_trigger_tx do
-              nil ->
-                nil
+        maybe_trigger_tx =
+          case maybe_trigger_tx do
+            nil ->
+              nil
 
-              tx ->
-                Map.put(
-                  tx,
-                  :genesis,
-                  tx
-                  |> Transaction.previous_address()
-                  |> Archethic.fetch_genesis_address()
-                  |> elem(1)
-                )
-            end
-
-          WasmModule.execute(
-            module,
-            trigger.name,
-            transaction: maybe_trigger_tx,
-            state: state,
-            balance: UTXO.get_balance(inputs),
-            arguments: arg,
-            contract:
+            tx ->
               Map.put(
-                contract_tx,
+                tx,
                 :genesis,
-                contract_tx
+                tx
                 |> Transaction.previous_address()
                 |> Archethic.fetch_genesis_address()
                 |> elem(1)
-              ),
-            seed: WasmContract.get_encrypted_seed(contract)
-          )
+              )
+          end
 
+        WasmModule.execute(
+          module,
+          trigger.name,
+          transaction: maybe_trigger_tx,
+          state: state,
+          balance: UTXO.get_balance(inputs),
+          arguments: args,
+          contract:
+            Map.put(
+              contract_tx,
+              :genesis,
+              contract_tx
+              |> Transaction.previous_address()
+              |> Archethic.fetch_genesis_address()
+              |> elem(1)
+            ),
+          seed: WasmContract.get_encrypted_seed(contract)
+        )
+      else
         {:error, reason} ->
           {:error, reason}
       end
@@ -290,17 +293,9 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp get_wasm_arg(args = [_|_], abi_input) do
-    abi_input
-    |> Map.keys()
-    |> Enum.with_index()
-    |> Enum.reduce(%{}, fn {key, index}, acc ->
-      Map.put(acc, key, Enum.at(args, index))
-    end)
-    |> cast_value(abi_input)
-  end
-
-  defp get_wasm_arg(_, _), do: {:ok, nil}
+  defp maybe_recipient_arg(nil), do: {:ok, nil}
+  defp maybe_recipient_arg(%Recipient{args: args}) when is_map(args), do: {:ok, args}
+  defp maybe_recipient_arg(_), do: {:error, "Wasm contract support only arguments as map"}
 
   defp time_now({:transaction, _, _}, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
@@ -444,7 +439,7 @@ defmodule Archethic.Contracts do
   @spec execute_function(
           contract :: Contract.t() | WasmContract.t(),
           function_name :: String.t(),
-          args_values :: list(),
+          args_values :: list() | map(),
           inputs :: list(UnspentOutput.t())
         ) ::
           {:ok, value :: any(), logs :: list(String.t())}
@@ -458,7 +453,8 @@ defmodule Archethic.Contracts do
         function_name,
         args_values,
         inputs
-      ) do
+      )
+      when is_map(args_values) do
     case Enum.find(functions, &(&1.name == function_name)) do
       nil ->
         {:error,
@@ -470,7 +466,7 @@ defmodule Archethic.Contracts do
          }}
 
       %WasmSpec.Function{input: input, output: output} ->
-        with {:ok, arg} <- get_wasm_arg(args_values, input),
+        with {:ok, arg} <- WasmSpec.cast_wasm_input(args_values, input),
              {:ok, value} <-
                WasmModule.execute(module, function_name,
                  state: state,
@@ -485,7 +481,7 @@ defmodule Archethic.Contracts do
                    )
                ) do
           case value do
-            %ReadResult{value: value} -> {:ok, uncast_value(value, output), []}
+            %ReadResult{value: value} -> {:ok, WasmSpec.cast_wasm_output(value, output), []}
             nil -> {:ok, nil, []}
           end
         else
@@ -498,6 +494,14 @@ defmodule Archethic.Contracts do
         end
     end
   end
+
+  def execute_function(%WasmContract{}, _function_name, _args_values, _input),
+    do:
+      {:error,
+       %Failure{
+         user_friendly_error: "Wasm contract support only arguments as map",
+         error: :invalid_function_call
+       }}
 
   def execute_function(
         contract = %Contract{
@@ -566,178 +570,6 @@ defmodule Archethic.Contracts do
         end
     end
   end
-
-  defp cast_value(value, input)
-       when input in ["Address", "Hex", "PublicKey"] and is_binary(value) do
-    case Base.decode16(value, case: :mixed) do
-      {:ok, _} -> {:ok, %{"hex" => value}}
-      _ -> {:error, :invalid_hex}
-    end
-  end
-
-  defp cast_value(value, [input]) when is_list(value) do
-    %{value: value, error: error} =
-      Enum.reduce_while(value, %{value: [], error: nil}, fn val, acc ->
-        case cast_value(val, input) do
-          {:ok, value} ->
-            {:cont, Map.update!(acc, :value, &(&1 ++ [value]))}
-
-          {:error, reason} ->
-            {:halt, %{acc | error: reason}}
-        end
-      end)
-    case error do
-      nil -> {:ok, value}
-      reason -> {:error, reason}
-    end
-  end
-
-  defp cast_value(value, input) when is_map(value) do
-    %{value: value, error: error} =
-      Enum.reduce_while(value, %{value: %{}, error: nil}, fn {k, v}, acc ->
-        case cast_value(v, Map.get(input, k)) do
-          {:ok, value} ->
-            {:cont, put_in(acc, [:value, k], value)}
-
-          {:error, reason} ->
-            {:halt, %{acc | error: reason}}
-        end
-      end)
-
-    case error do
-      nil -> {:ok, value}
-      reason -> {:error, reason}
-    end
-  end
-
-  defp cast_value(value, input)
-       when input in ["i8"] and is_integer(value) and value > -128 and value < 127,
-       do: {:ok, value}
-
-  defp cast_value(value, input)
-       when input in ["u8"] and is_integer(value) and value > 0 and value < 256,
-       do: {:ok, value}
-
-  defp cast_value(value, input)
-       when input in ["i16"] and is_integer(value) and value > -32_768 and value < 32_767,
-       do: value
-
-  defp cast_value(value, input)
-       when input in ["u16"] and is_integer(value) and value > 0 and value < 65535,
-       do: {:ok, value}
-
-  defp cast_value(value, input)
-       when input in ["i32"] and is_integer(value) and value > -2_147_483_648 and
-              value < 2_147_483_647,
-       do: value
-
-  defp cast_value(value, input)
-       when input in ["u32"] and is_integer(value) and value > 0 and value < 4_294_967_295,
-       do: {:ok, value}
-
-  defp cast_value(value, input)
-       when input in ["i64"] and is_integer(value) and value > -9_223_372_036_854_775_808 and
-              value < 9_223_372_036_854_775_807,
-       do: {:ok, value}
-
-  defp cast_value(value, input)
-       when input in ["u64"] and is_integer(value) and value > 0 and
-              value < 18_446_744_073_709_551_615,
-       do: {:ok, value}
-
-  defp cast_value(value, "string") when is_binary(value), do: {:ok, value}
-  defp cast_value(value, "map") when is_map(value), do: {:ok, value}
-  defp cast_value(nil, _), do: {:ok, nil}
-
-  defp cast_value(_val, _type) do
-    {:error, :invalid_input_type}
-  end
-
-  defp uncast_value(%{"hex" => value}, output) when output in ["Address", "Hex", "PublicKey"] do
-    Base.decode16!(value, case: :mixed)
-  end
-
-  defp uncast_value(
-         %{
-           "address" => %{"hex" => address},
-           "type" => type,
-           "data" => %{
-             "content" => content,
-             "ledger" => %{
-               "uco" => %{"transfers" => uco_transfers},
-               "token" => %{"transfers" => token_transfers}
-             },
-             "recipients" => recipients
-             # "ownerships" => ownerships
-           }
-         },
-         "Transaction"
-       ) do
-    %{
-      address: Base.decode16!(address, case: :mixed),
-      type: type,
-      data: %{
-        content: content,
-        ledger: %{
-          uco: %{
-            transfers:
-              Enum.map(
-                uco_transfers,
-                fn %{"to" => %{"hex" => to}, "amount" => amount} ->
-                  %{to: Base.decode16!(to, case: :mixed), amount: amount}
-                end
-              )
-          },
-          token: %{
-            transfers:
-              Enum.map(
-                token_transfers,
-                fn transfer = %{
-                     "to" => %{"hex" => to},
-                     "amount" => amount,
-                     "token_address" => %{"hex" => token_address}
-                   } ->
-                  %{
-                    to: Base.decode16!(to, case: :mixed),
-                    amount: amount,
-                    token_address: Base.decode16!(token_address, case: :mixed),
-                    token_id: Map.get(transfer, "token_id", 0)
-                  }
-                end
-              )
-          }
-        },
-        recipients:
-          Enum.map(recipients, fn %{
-                                    "address" => %{"hex" => address},
-                                    "action" => action,
-                                    "args" => args
-                                  } ->
-            %{address: Base.decode16!(address, case: :mixed), action: action, args: args}
-          end)
-      }
-    }
-    |> Transaction.cast()
-  end
-
-  defp uncast_value(map, output) when is_map(map) do
-    Enum.map(map, fn
-      {k, _v = %{"hex" => value}} ->
-        case Map.get(output, k) do
-          type when type in ["Address", "PublicKey", "Hex"] ->
-            {k, Base.decode16!(value, case: :mixed)}
-
-          type ->
-            {k, uncast_value(value, type)}
-        end
-
-      {k, v} ->
-        {k, uncast_value(v, Map.get(output, k))}
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp uncast_value(value, _output), do: value
 
   @doc """
   Called by the telemetry poller

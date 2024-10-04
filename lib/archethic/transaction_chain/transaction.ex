@@ -36,7 +36,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   @unit_uco 100_000_000
 
-  @version 3
+  @version 4
 
   defstruct [
     :address,

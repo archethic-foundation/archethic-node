@@ -85,7 +85,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     end
   end
 
-  defp validate_recipients_version(params) do
+  defp validate_recipients_version(params = %{"version" => version}) do
     case get_in(params, ["data", "recipients"]) do
       nil ->
         :ok
@@ -95,7 +95,11 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
           {:error,
            [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
         else
-          :ok
+          if version > 3 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) do
+            {:error, [{"From V4, recipient arguments must be a map", "#/data/recipients"}]}
+          else
+            :ok
+          end
         end
     end
   end
@@ -128,6 +132,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         updated_recipients =
           Enum.map(recipients, fn
             recipient = %{"args" => args} when is_list(args) -> Map.put(recipient, "args", [])
+            recipient = %{"args" => args} when is_map(args) -> Map.put(recipient, "args", %{})
             recipient -> recipient
           end)
 
