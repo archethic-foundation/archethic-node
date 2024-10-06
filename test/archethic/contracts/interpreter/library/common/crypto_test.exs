@@ -177,6 +177,39 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
     end
   end
 
+  describe "encrypt/2" do
+    test "should encrypt deterministically the given data with given public key" do
+      data = :crypto.strong_rand_bytes(10)
+      {pub, _} = Archethic.Crypto.derive_keypair("seed", 0)
+      {_, entropy_priv_key} = Archethic.Crypto.generate_deterministic_keypair("bioman")
+
+      expected_cipher =
+        Archethic.Crypto.ec_encrypt(data, pub, :crypto.hash(:sha256, entropy_priv_key))
+
+      Process.put(:ephemeral_entropy_priv_key, entropy_priv_key)
+
+      assert ^expected_cipher = Crypto.encrypt(data, Base.encode16(pub))
+    end
+  end
+
+  describe "encrypt_with_storage_nonce/decrypt_with_storage_nonce" do
+    test "should return the same value once encrypted/decrypted (binary)" do
+      data = :crypto.strong_rand_bytes(10)
+      assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    end
+
+    test "should return the same value once encrypted/decrypted (string)" do
+      data = "hello uco"
+      assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    end
+
+    # ERRONOUS because of the maybe_decode_hex
+    # test "should return the same value once encrypted/decrypted (hex)" do
+    #   data = "abcdef"
+    #   assert ^data = Crypto.decrypt_with_storage_nonce(Crypto.encrypt_with_storage_nonce(data))
+    # end
+  end
+
   describe "decrypt_with_storage_nonce" do
     test "should raise when the ciphertext cannot be decrypted by the storage nonce" do
       assert_raise Library.Error, fn -> Crypto.decrypt_with_storage_nonce("123456") end
