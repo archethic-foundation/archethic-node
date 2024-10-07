@@ -146,11 +146,7 @@ defmodule Archethic.Contracts do
                transaction: %{
                  type: :contract,
                  data: %{
-                   code:
-                     Jason.encode!(%{
-                       "bytecode" => new_code,
-                       "manifest" => manifest
-                     })
+                   contract: %{bytecode: new_code_bytes, manifest: Jason.encode!(manifest)}
                  }
                }
              }}
@@ -340,13 +336,13 @@ defmodule Archethic.Contracts do
   defp cast_trigger_result(
          {:ok, %UpdateResult{transaction: next_tx, state: next_state}},
          prev_state,
-         contract_tx = %Transaction{data: %TransactionData{code: code}}
+         contract_tx = %Transaction{data: %TransactionData{contract: contract}}
        ) do
     next_tx =
       if next_tx != nil do
-        if next_tx.data.code == nil do
+        if next_tx.data.contract == nil do
           next_tx
-          |> put_in([Access.key(:data, %{}), :code], :zlib.zip(code))
+          |> put_in([Access.key(:data, %{}), :contract], contract)
           |> Transaction.cast()
         else
           Transaction.cast(next_tx)
@@ -803,16 +799,11 @@ defmodule Archethic.Contracts do
   """
   @spec from_transaction(Transaction.t()) ::
           {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
-  def from_transaction(tx) do
-    case Contract.from_transaction(tx) do
-      {:ok, contract} ->
-        {:ok, contract}
-
-      {:error, _} = e ->
-        case WasmContract.from_transaction(tx) do
-          {:ok, contract} -> {:ok, contract}
-          {:error, _} -> e
-        end
+  def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
+    if code != "" do
+      Contract.from_transaction(tx)
+    else
+      WasmContract.from_transaction(tx)
     end
   end
 
@@ -893,13 +884,22 @@ defmodule Archethic.Contracts do
   end
 
   # create a new transaction with the same code
-  defp generate_next_tx(%Transaction{data: %TransactionData{code: code}}) do
-    %Transaction{
-      type: :contract,
-      data: %TransactionData{
-        code: code
+  defp generate_next_tx(%Transaction{data: %TransactionData{code: code, contract: contract}}) do
+    if code != "" do
+      %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
       }
-    }
+    else
+      %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          contract: contract
+        }
+      }
+    end
   end
 
   defp raise_to_failure(

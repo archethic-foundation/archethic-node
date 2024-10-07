@@ -138,32 +138,37 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
+  defp validate_contract(%Transaction{data: %TransactionData{code: "", contract: nil}}), do: :ok
 
-  defp validate_contract(%Transaction{
-         data: %TransactionData{code: code, ownerships: ownerships}
-       }) do
-    with :ok <- validate_code_size(code),
-         {:ok, contract} <- parse_contract(code) do
+  defp validate_contract(
+         tx = %Transaction{
+           data: %TransactionData{code: code, contract: contract, ownerships: ownerships}
+         }
+       ) do
+    with :ok <- validate_code_size(code, contract),
+         {:ok, contract} <- parse_contract(tx) do
       validate_contract_ownership(contract, ownerships)
     end
   end
 
-  defp validate_code_size(code) do
-    valid_size? =
-      case Jason.decode(code) do
-        {:ok, %{"bytecode" => bytecode}} ->
-          TransactionData.code_size_valid?(Base.decode16!(bytecode, case: :mixed))
-
-        _ ->
-          TransactionData.code_size_valid?(code)
-      end
-
-    if valid_size?, do: :ok, else: {:error, "Invalid transaction, code exceed max size"}
+  defp validate_code_size(code, _contract) when code != "" do
+    if TransactionData.code_size_valid?(code) do
+      :ok
+    else
+      {:error, "Invalid transaction, code exceed max size"}
+    end
   end
 
-  defp parse_contract(code) do
-    case Contracts.parse(code) do
+  defp validate_code_size(_code, %{bytecode: bytecode}) do
+    if TransactionData.code_size_valid?(bytecode) do
+      :ok
+    else
+      {:error, "Invalid transaction, code exceed max size"}
+    end
+  end
+
+  defp parse_contract(tx) do
+    case Contracts.from_transaction(tx) do
       {:ok, contract} -> {:ok, contract}
       {:error, reason} -> {:error, "Smart contract invalid #{inspect(reason)}"}
     end
@@ -687,8 +692,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: ""}}, _),
-    do: {:error, "Invalid contract type transaction -  code is empty"}
+  defp do_accept_transaction(
+         %Transaction{type: :contract, data: %TransactionData{code: code, contract: contract}},
+         _
+       )
+       when code == "" and contract == nil,
+       do: {:error, "Invalid contract type transaction -  contract's code is empty"}
 
   defp do_accept_transaction(
          %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},

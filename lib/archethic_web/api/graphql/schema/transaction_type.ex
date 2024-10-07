@@ -57,10 +57,17 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   object :data do
     field(:ledger, :ledger)
     field(:code, :content)
+    field(:contract, :contract)
     field(:content, :content)
     field(:ownerships, list_of(:ownership))
     field(:recipients, list_of(:address))
     field(:action_recipients, list_of(:recipient))
+  end
+
+  @desc "[Contract] represent web assembly smart contract"
+  object :contract do
+    field(:bytecode, :hex)
+    field(:manifest, :json)
   end
 
   @desc "[Ledger] represents the ledger operations to perform"

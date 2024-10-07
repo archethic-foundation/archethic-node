@@ -48,7 +48,7 @@ defmodule Archethic.Contracts.WasmContract do
   Create a contract from a transaction. Same `from_transaction/1` but throws if the contract's code is invalid
   """
   @spec from_transaction!(Transaction.t()) :: t()
-  def from_transaction!(tx) do
+  def from_transaction!(tx = %Transaction{}) do
     case from_transaction(tx) do
       {:ok, contract} ->
         contract
@@ -61,29 +61,17 @@ defmodule Archethic.Contracts.WasmContract do
   @doc """
   Parse smart contract json block and return a contract struct
   """
-  @spec parse(contract_json :: binary() | map()) :: {:ok, t()} | {:error, String.t()}
-  def parse(contract_json) when is_binary(contract_json) do
-    case Jason.decode(contract_json) do
-      {:ok, contract_json} -> parse(contract_json)
-      {:error, reason} -> {:error, "#{inspect(reason)}"}
-    end
-  end
-
-  def parse(%{"manifest" => manifest, "bytecode" => bytecode}) do
-    with {:ok, bytes} <- Base.decode16(bytecode, case: :mixed),
+  @spec parse(contract :: map()) ::
+          {:ok, t()} | {:error, String.t()}
+  def parse(%{manifest: manifest_json, bytecode: bytecode}) do
+    with {:ok, manifest} <- Jason.decode(manifest_json),
+         :ok <- WasmSpec.validate_manifest(manifest),
+         uncompressed_bytes = :zlib.unzip(bytecode),
          spec = WasmSpec.from_manifest(manifest),
-         uncompressed_bytes = :zlib.unzip(bytes),
          {:ok, module} <- WasmModule.parse(uncompressed_bytes, spec) do
-      {:ok,
-       %__MODULE__{
-         module: module
-       }}
+      {:ok, %__MODULE__{module: module}}
     else
-      :error ->
-        {:error, "Invalid Smart Contract JSON"}
-
-      {:error, reason} ->
-        {:error, "#{inspect(reason)}"}
+      {:error, reason} -> {:error, "#{inspect(reason)}"}
     end
   end
 
@@ -91,8 +79,9 @@ defmodule Archethic.Contracts.WasmContract do
   Create a contract from a transaction
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
-  def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
-    case parse(code) do
+  def from_transaction(tx = %Transaction{data: %TransactionData{contract: contract}})
+      when contract != nil do
+    case parse(contract) do
       {:ok, contract} ->
         {:ok, %{contract | state: get_state_from_tx(tx), transaction: tx}}
 
@@ -100,6 +89,9 @@ defmodule Archethic.Contracts.WasmContract do
         e
     end
   end
+
+  def from_transaction(%Transaction{data: %TransactionData{contract: nil}}),
+    do: {:error, "No contract to parse"}
 
   defp get_state_from_tx(%Transaction{
          validation_stamp: %ValidationStamp{

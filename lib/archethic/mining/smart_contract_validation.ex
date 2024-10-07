@@ -211,16 +211,27 @@ defmodule Archethic.Mining.SmartContractValidation do
 
     {:ok, contract} = Contracts.from_transaction(prev_tx)
 
-    case contract do
-      %WasmContract{} ->
-        if WasmContract.contains_trigger?(contract),
-          do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
-          else: {:ok, nil}
+    if Contract.contains_trigger?(contract),
+      do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
+      else: {:ok, nil}
+  end
 
-      _ ->
-        if Contract.contains_trigger?(contract),
-          do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
-          else: {:ok, nil}
+  def validate_contract_execution(
+        _contract_context = nil,
+        prev_tx = %Transaction{data: %TransactionData{contract: contract}},
+        _genesis_address,
+        _next_tx = %Transaction{},
+        _chain_unspent_outputs
+      )
+      when contract != nil do
+    # only contract without triggers are allowed to NOT have a Contract.Context
+
+    {:ok, contract} = WasmContract.from_transaction(prev_tx)
+
+    if WasmContract.contains_trigger?(contract) do
+      {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")}
+    else
+      {:ok, nil}
     end
   end
 
@@ -228,11 +239,11 @@ defmodule Archethic.Mining.SmartContractValidation do
         _contract_context,
         nil,
         _genesis_address,
-        next_tx = %Transaction{data: %TransactionData{code: code}},
+        next_tx = %Transaction{data: %TransactionData{contract: contract}},
         _chain_unspent_outputs
       )
-      when code != "" do
-    case Contracts.from_transaction(next_tx) do
+      when contract != nil do
+    case WasmContract.from_transaction(next_tx) do
       {:ok, %WasmContract{module: module}} ->
         if "onInit" in WasmModule.list_exported_functions_name(module) do
           wasm_init_state(module, next_tx)
@@ -283,11 +294,11 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract_inputs :: list(VersionedUnspentOutput.t())
         ) :: :ok | {:error, Error.t()}
   def validate_inherit_condition(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        prev_tx = %Transaction{data: %TransactionData{code: code, contract: contract}},
         next_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
         contract_inputs
       )
-      when code != "" do
+      when code != "" or contract != nil do
     {:ok, contract} = Contracts.from_transaction(prev_tx)
 
     case Contracts.execute_condition(

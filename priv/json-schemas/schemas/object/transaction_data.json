@@ -4,7 +4,11 @@
   "properties": {
     "code": {
       "type": "string",
-      "description": "Transaction's smart contract code"
+      "description": "Transaction's smart contract code (deprecated)"
+    },
+    "contract": {
+      "$ref": "file://schemas/object/contract.json",
+      "description": "Transaction's contract definition for WebAssembly"
     },
     "content": {
       "type": "string",

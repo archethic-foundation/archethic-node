@@ -53,8 +53,9 @@ defmodule Archethic.Contracts.Loader do
         genesis_addresses
         |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
         |> Stream.reject(fn
-          {_, {:ok, %Transaction{type: type, data: %TransactionData{code: code}}}} ->
-            Transaction.network_type?(type) or code == ""
+          {_,
+           {:ok, %Transaction{type: type, data: %TransactionData{code: code, contract: contract}}}} ->
+            Transaction.network_type?(type) or code == "" or contract == nil
 
           {_, {:error, _}} ->
             true
@@ -235,7 +236,7 @@ defmodule Archethic.Contracts.Loader do
          tx = %Transaction{
            address: address,
            type: type,
-           data: %TransactionData{code: code},
+           data: %TransactionData{code: code, contract: contract},
            validation_stamp: %ValidationStamp{
              ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
            }
@@ -245,7 +246,7 @@ defmodule Archethic.Contracts.Loader do
          authorized_nodes,
          execute_contract?
        )
-       when code != "" do
+       when code != "" or contract != nil do
     remove_invalid_input(genesis_address, consumed_inputs)
 
     with true <- Election.chain_storage_node?(genesis_address, node_key, authorized_nodes),

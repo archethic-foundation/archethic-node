@@ -23,7 +23,8 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     :encrypted_secret_key,
     :origin_signature,
     :previous_public_key,
-    :previous_signature
+    :previous_signature,
+    :bytecode
   ]
 
   @doc """
@@ -33,6 +34,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
          :ok <- validate_code_size(params),
+         :ok <- validate_code_manifest(params),
          :ok <- validate_recipients_version(params) do
       :ok
     else
@@ -51,22 +53,32 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         :ok
 
       code ->
-        valid_size? =
-          case Jason.decode(code) do
-            {:ok, %{"bytecode" => bytecode}} ->
-              TransactionData.code_size_valid?(Base.decode16!(bytecode, case: :mixed))
-
-            _ ->
-              TransactionData.code_size_valid?(code)
-          end
-
-        if valid_size? do
+        if TransactionData.code_size_valid?(code) do
           :ok
         else
           {:error,
            [
              {"Invalid transaction, code exceed max size.", "#/data/code"}
            ]}
+        end
+    end
+  end
+
+  defp validate_code_manifest(params) do
+    case get_in(params, ["data", "contract"]) do
+      nil ->
+        :ok
+
+      %{"manifest" => manifest} ->
+        with {:ok, manifest_json} <- Jason.decode(manifest),
+             :ok <- Archethic.Contracts.WasmSpec.validate_manifest(manifest_json) do
+          :ok
+        else
+          {:error, %Jason.DecodeError{}} ->
+            {:error, "Invalid transaction, contract manifest is not a valid json"}
+
+          {:error, errors} ->
+            {:error, format_errors(errors)}
         end
     end
   end

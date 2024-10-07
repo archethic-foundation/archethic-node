@@ -125,7 +125,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
 
     property "symmetric serialization/deserialization of transaction data" do
       check all(
-              code <- StreamData.binary(),
+              # code <- StreamData.binary(),
+              contract <- gen_contract(),
               content <- StreamData.binary(),
               secret <- StreamData.binary(min_length: 1),
               authorized_public_keys <-
@@ -135,7 +136,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
             ) do
         {tx_data, _} =
           %TransactionData{
-            code: code,
+            # code: code,
+            contract: contract,
             content: content,
             ownerships: [
               Ownership.new(
@@ -154,7 +156,9 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           |> TransactionData.serialize(current_transaction_version())
           |> TransactionData.deserialize(current_transaction_version())
 
-        assert tx_data.code == code
+        # assert tx_data.code == code
+        assert tx_data.contract == contract
+
         assert tx_data.content == content
         assert List.first(tx_data.ownerships).secret == secret
 
@@ -166,6 +170,56 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
         assert tx_data.recipients == recipients
         assert tx_data.ledger.uco.transfers == transfers
       end
+    end
+  end
+
+  defp gen_contract() do
+    gen all(
+          bytecode <- StreamData.binary(min_length: 1),
+          functions <- StreamData.list_of(gen_contract_manifest_function()),
+          state <-
+            StreamData.map_of(
+              StreamData.string(:alphanumeric),
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+            )
+        ) do
+      %{
+        bytecode: bytecode,
+        manifest: Jason.encode!(%{
+          "abi" => %{
+            "state" => state,
+            "functions" => Enum.into(functions, %{})
+          }
+        })
+      }
+    end
+  end
+
+  defp gen_contract_manifest_function() do
+    gen all(
+          name <- StreamData.string(:alphanumeric),
+          input <-
+            StreamData.map_of(
+              StreamData.string(:alphanumeric),
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+            ),
+          output <-
+            StreamData.map_of(
+              StreamData.string(:alphanumeric),
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+            ),
+          type <-
+            StreamData.one_of([
+              StreamData.constant("action"),
+              StreamData.constant("publicFunction")
+            ])
+        ) do
+      {name,
+       %{
+         "type" => type,
+         "input" => input,
+         "output" => output
+       }}
     end
   end
 
@@ -191,7 +245,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           address <- StreamData.binary(length: 32),
           action <- StreamData.string(:alphanumeric, min_length: 1),
           args <-
-            StreamData.list_of(
+            StreamData.map_of(
+              StreamData.string(:alphanumeric),
               StreamData.one_of([
                 StreamData.integer(),
                 StreamData.string(:alphanumeric),
@@ -199,6 +254,15 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
                 StreamData.constant(nil)
               ])
             )
+          # args <-
+          #   StreamData.list_of(
+          #     StreamData.one_of([
+          #       StreamData.integer(),
+          #       StreamData.string(:alphanumeric),
+          #       StreamData.boolean(),
+          #       StreamData.constant(nil)
+          #     ])
+          #   )
         ) do
       %Recipient{address: <<0::8, 0::8, address::binary>>, action: action, args: args}
     end

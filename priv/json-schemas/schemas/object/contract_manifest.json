@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties":  {
+    "abi": {
+      "type": "object",
+      "description": "Define functions and types of the contract",
+      "properties": {
+        "state": {
+          "type": "object",
+          "description": "Define the types of the contract's state"
+        },
+        "functions": {
+          "type": "object",
+          "description": "Define the list of public functions and triggers of the contract",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "action",
+                  "publicFunction"
+                ],
+                "description": "Transaction's type"
+              },
+              "triggerType": {
+                "enum": [
+                  "transaction",
+                  "oracle",
+                  "interval",
+                  "datetime"
+                ],
+                "description": "Define the type of the trigger of the contract action"
+              },
+              "triggerArgument": {
+                "type": "string",
+                "description": "Define the argument for specific trigger such as interval & datetime"
+              },
+              "input": {
+                "type": [ "string", "object"],
+                "description": "Define the types of the input(s)"
+              },
+              "output": {
+                "type": ["string", "object"],
+                "description": "Define the types of the output(s)"
+              }
+            },
+            "required": ["type"]
+          }
+        }
+      },
+      "required": ["state", "functions"]
+    }
+  },
+  "required": ["abi"]
+}

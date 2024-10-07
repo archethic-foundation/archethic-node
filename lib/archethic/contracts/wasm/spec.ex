@@ -8,6 +8,14 @@ defmodule Archethic.Contracts.WasmSpec do
   alias __MODULE__.UpgradeOpts
   alias Archethic.TransactionChain.Transaction
 
+  @manifest_schema :archethic
+                   |> Application.app_dir(
+                     "priv/json-schemas/schemas/object/contract_manifest.json"
+                   )
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> ExJsonSchema.Schema.resolve()
+
   @type t :: %__MODULE__{
           version: pos_integer(),
           triggers: list(Trigger.t()),
@@ -15,6 +23,11 @@ defmodule Archethic.Contracts.WasmSpec do
           upgrade_opts: nil | UpgradeOpts.t()
         }
   defstruct [:version, triggers: [], public_functions: [], upgrade_opts: nil]
+
+  @spec validate_manifest(map()) :: :ok | {:error, ExJsonSchema.Validator.errors()}
+  def validate_manifest(manifest) when is_map(manifest) do
+    ExJsonSchema.Validator.validate(@manifest_schema, manifest)
+  end
 
   def from_manifest(
         manifest = %{
