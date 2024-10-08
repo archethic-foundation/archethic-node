@@ -21,8 +21,6 @@ defmodule Archethic.ContractsTest do
 
   doctest Contracts
 
-  import Mox
-
   describe "execute_condition/5 (inherit)" do
     test "should return Rejected when the inherit constraints literal values are not respected" do
       code = """

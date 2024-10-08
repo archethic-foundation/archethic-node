@@ -505,7 +505,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
 
     test "should accept recipients both named & unnamed" do
       map = %{
-        "version" => current_transaction_version(),
+        "version" => 3,
         "address" => Base.encode16(random_address()),
         "type" => "transfer",
         "previousPublicKey" => Base.encode16(random_address()),
@@ -520,6 +520,29 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
               "address" => Base.encode16(random_address()),
               "action" => "something",
               "args" => []
+            }
+          ]
+        }
+      }
+
+      assert :ok = TransactionSchema.validate(map)
+
+      map = %{
+        "version" => current_transaction_version(),
+        "address" => Base.encode16(random_address()),
+        "type" => "transfer",
+        "previousPublicKey" => Base.encode16(random_address()),
+        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "data" => %{
+          "recipients" => [
+            %{
+              "address" => Base.encode16(random_address())
+            },
+            %{
+              "address" => Base.encode16(random_address()),
+              "action" => "something",
+              "args" => %{}
             }
           ]
         }

@@ -103,7 +103,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           recipients: [%Recipient{address: old_contract_address}],
-          content: "test content"
+          content: "test content",
+          version: 3
         )
 
       assert {:ok, [%{"valid" => true, "recipient_address" => ^old_contract_address_hex}]} =
@@ -144,7 +145,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           recipients: [%Recipient{address: old_contract_address, action: "vote", args: ["Jonas"]}],
-          content: "test content"
+          content: "test content",
+          version: 3
         )
 
       assert {:ok, [%{"valid" => true, "recipient_address" => ^old_contract_address_hex}]} =
@@ -187,7 +189,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
           recipients: [
             %Recipient{address: old_contract_address, action: "non_existing_action", args: [1, 2]}
           ],
-          content: "test content"
+          content: "test content",
+          version: 3
         )
 
       assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
@@ -230,7 +233,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
           recipients: [
             %Recipient{address: old_contract_address, action: "vote", args: ["Jose", "Monica"]}
           ],
-          content: "test content"
+          content: "test content",
+          version: 3
         )
 
       assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
@@ -273,7 +277,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           recipients: [%Recipient{address: old_contract_address, action: "vote", args: ["Lance"]}],
-          content: "test content"
+          content: "test content",
+          version: 3
         )
 
       assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
@@ -319,7 +324,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [%Recipient{address: contract_address}]
+          recipients: [%Recipient{address: contract_address}],
+          version: 3
         )
 
       assert {:ok,
@@ -366,7 +372,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [%Recipient{address: contract_address}]
+          recipients: [%Recipient{address: contract_address}],
+          version: 3
         )
 
       assert {:ok,
@@ -403,7 +410,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [%Recipient{address: contract_address}]
+          recipients: [%Recipient{address: contract_address}],
+          version: 3
         )
 
       assert {:ok,
@@ -452,7 +460,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [%Recipient{address: contract_address}]
+          recipients: [%Recipient{address: contract_address}],
+          version: 3
         )
 
       assert {:ok,
@@ -523,7 +532,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
           recipients: [
             %Recipient{address: contract_address1},
             %Recipient{address: contract_address2}
-          ]
+          ],
+          version: 3
         )
 
       assert {:ok,

@@ -1008,8 +1008,8 @@ defmodule Archethic.Contracts do
             next_data,
             contract_seed,
             index,
-            Crypto.get_public_key_curve(previous_public_key),
-            Crypto.get_public_key_origin(previous_public_key)
+            curve: Crypto.get_public_key_curve(previous_public_key),
+            origin: Crypto.get_public_key_origin(previous_public_key)
           )
 
         {:ok, signed_tx}

@@ -184,6 +184,7 @@ defmodule Archethic.Utils.Regression.Api do
 
     tx =
       %Transaction{
+        version: Keyword.get(opts, :version, Transaction.version()),
         address: Crypto.derive_address(next_public_key),
         type: tx_type,
         data: transaction_data,

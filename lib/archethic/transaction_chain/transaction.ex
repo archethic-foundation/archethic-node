@@ -170,18 +170,24 @@ defmodule Archethic.TransactionChain.Transaction do
           data :: TransactionData.t(),
           seed :: binary(),
           index :: non_neg_integer(),
-          curve :: Crypto.supported_curve(),
-          origin :: Crypto.supported_origin()
+          opts :: [
+            curve: Crypto.supported_curve(),
+            origin: Crypto.supported_origin(),
+            version: pos_integer()
+          ]
         ) :: t()
   def new(
         type,
         data = %TransactionData{},
         seed,
         index,
-        curve \\ Crypto.default_curve(),
-        origin \\ :software
+        opts \\ []
       )
       when type in @transaction_types and is_binary(seed) and is_integer(index) and index >= 0 do
+    curve = Keyword.get(opts, :curve, Crypto.default_curve())
+    origin = Keyword.get(opts, :origin, :software)
+    version = Keyword.get(opts, :version, version())
+
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(seed, index, curve, origin)
 
@@ -191,7 +197,8 @@ defmodule Archethic.TransactionChain.Transaction do
       address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
-      previous_public_key: previous_public_key
+      previous_public_key: previous_public_key,
+      version: version
     }
     |> previous_sign_transaction_with_key(previous_private_key)
     |> origin_sign_transaction()
