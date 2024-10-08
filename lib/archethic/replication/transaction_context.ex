@@ -66,6 +66,7 @@ defmodule Archethic.Replication.TransactionContext do
         genesis_address
         |> TransactionChain.fetch(storage_nodes, paging_state: paging_address)
         |> Stream.take_while(&(Transaction.previous_address(&1) != limit_address))
+        |> ensure_all_tx_fetched(paging_address, genesis_address, limit_address)
     end
   end
 
@@ -83,5 +84,31 @@ defmodule Archethic.Replication.TransactionContext do
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
     TransactionChain.fetch_unspent_outputs(genesis_address, genesis_nodes) |> Enum.to_list()
+  end
+
+  defp ensure_all_tx_fetched(transactions, paging_address, genesis_address, limit_address) do
+    paging_address = if paging_address == nil, do: genesis_address, else: paging_address
+
+    Stream.transform(
+      transactions,
+      # init accumulator
+      fn -> paging_address end,
+      # loop over transactions
+      fn tx = %Transaction{address: address}, expected_previous_address ->
+        if Transaction.previous_address(tx) != expected_previous_address do
+          raise(
+            "Replication failed to fetch previous chain after #{Base.encode16(expected_previous_address)}"
+          )
+        end
+
+        {[tx], address}
+      end,
+      # after all tx processed
+      fn last_address ->
+        if last_address != limit_address do
+          raise "Replication failed to fetch previous chain after #{Base.encode16(last_address)}"
+        end
+      end
+    )
   end
 end

@@ -18,7 +18,8 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
-  import ArchethicCase
+  alias Archethic.TransactionFactory
+
   import Mox
 
   test "fetch_transaction/1 should retrieve the transaction" do
@@ -42,47 +43,129 @@ defmodule Archethic.Replication.TransactionContextTest do
     assert %Transaction{} = TransactionContext.fetch_transaction("@Alice1")
   end
 
-  test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
-    pub1 = random_public_key()
-    pub2 = random_public_key()
+  describe "stream_transaction_chain/3" do
+    setup do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    genesis = random_address()
-    addr1 = Crypto.derive_address(pub1)
-    addr2 = Crypto.derive_address(pub2)
+      %{transactions: Enum.map(0..3, &TransactionFactory.create_valid_transaction([], index: &1))}
+    end
 
-    MockDB
-    |> expect(:get_last_chain_address_stored, fn ^genesis -> addr1 end)
+    test "should retrieve the previous transaction chain with part of chain already stored", %{
+      transactions: [tx1, tx2, tx3, tx4]
+    } do
+      genesis = Transaction.previous_address(tx1)
+      addr1 = tx1.address
+      addr3 = tx3.address
 
-    MockClient
-    |> expect(:send_message, fn
-      _, %GetTransactionChain{address: ^genesis, paging_state: ^addr1}, _ ->
-        {:ok,
-         %TransactionList{
-           transactions: [
-             %Transaction{previous_public_key: pub1},
-             %Transaction{previous_public_key: pub2}
-           ]
-         }}
-    end)
+      MockDB
+      |> expect(:get_last_chain_address_stored, fn ^genesis -> addr1 end)
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: Crypto.last_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^genesis, paging_state: ^addr1}, _ ->
+          {:ok, %TransactionList{transactions: [tx2, tx3, tx4]}}
+      end)
 
-    chain =
-      genesis
-      |> TransactionContext.stream_transaction_chain(addr2, P2P.authorized_and_available_nodes())
-      |> Enum.to_list()
+      nodes = P2P.authorized_and_available_nodes()
 
-    assert [%Transaction{previous_public_key: ^pub1}] = chain
+      assert [tx2, tx3] ==
+               genesis
+               |> TransactionContext.stream_transaction_chain(addr3, nodes)
+               |> Enum.to_list()
+    end
+
+    test "should retrieve the previous transactions with no tx of the chain already stored", %{
+      transactions: [tx1, tx2, tx3, tx4]
+    } do
+      genesis = Transaction.previous_address(tx1)
+      addr3 = tx3.address
+
+      MockDB
+      |> expect(:get_last_chain_address_stored, fn ^genesis -> nil end)
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^genesis, paging_state: nil}, _ ->
+          {:ok, %TransactionList{transactions: [tx1, tx2, tx3, tx4]}}
+      end)
+
+      nodes = P2P.authorized_and_available_nodes()
+
+      assert [tx1, tx2, tx3] ==
+               genesis
+               |> TransactionContext.stream_transaction_chain(addr3, nodes)
+               |> Enum.to_list()
+    end
+
+    test "should raise en error if part of the chain is not fetched", %{
+      transactions: [tx1, tx2, tx3, tx4]
+    } do
+      genesis = Transaction.previous_address(tx1)
+      addr3 = tx3.address
+
+      MockDB
+      |> stub(:get_last_chain_address_stored, fn ^genesis -> nil end)
+
+      nodes = P2P.authorized_and_available_nodes()
+
+      # Missing first transaction
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^genesis, paging_state: nil}, _ ->
+          {:ok, %TransactionList{transactions: [tx2, tx3, tx4]}}
+      end)
+
+      expected_message =
+        "Replication failed to fetch previous chain after #{Base.encode16(genesis)}"
+
+      assert_raise RuntimeError, expected_message, fn ->
+        genesis
+        |> TransactionContext.stream_transaction_chain(addr3, nodes)
+        |> Enum.to_list()
+      end
+
+      # Missing middle transaction
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^genesis, paging_state: nil}, _ ->
+          {:ok, %TransactionList{transactions: [tx1, tx3, tx4]}}
+      end)
+
+      expected_message =
+        "Replication failed to fetch previous chain after #{Base.encode16(tx1.address)}"
+
+      assert_raise RuntimeError, expected_message, fn ->
+        genesis
+        |> TransactionContext.stream_transaction_chain(addr3, nodes)
+        |> Enum.to_list()
+      end
+
+      # Missing last transaction
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^genesis, paging_state: nil}, _ ->
+          {:ok, %TransactionList{transactions: [tx1, tx2]}}
+      end)
+
+      expected_message =
+        "Replication failed to fetch previous chain after #{Base.encode16(tx2.address)}"
+
+      assert_raise RuntimeError, expected_message, fn ->
+        genesis
+        |> TransactionContext.stream_transaction_chain(addr3, nodes)
+        |> Enum.to_list()
+      end
+    end
   end
 
   test "fetch_transaction_unspent_outputs/1 should retrieve the utxos of the chain" do
