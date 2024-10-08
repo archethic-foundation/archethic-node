@@ -288,7 +288,7 @@ defmodule Archethic.TransactionChainTest do
       nodes = P2P.authorized_and_available_nodes()
 
       acceptance_resolver = fn %LastTransactionAddress{timestamp: remote_last_address_timestamp} ->
-        now < remote_last_address_timestamp
+        DateTime.compare(now, remote_last_address_timestamp) == :lt
       end
 
       assert {:error, :acceptance_failed} =
@@ -331,7 +331,7 @@ defmodule Archethic.TransactionChainTest do
       nodes = P2P.authorized_and_available_nodes()
 
       acceptance_resolver = fn %LastTransactionAddress{timestamp: remote_last_address_timestamp} ->
-        now < remote_last_address_timestamp
+        DateTime.compare(now, remote_last_address_timestamp) == :lt
       end
 
       assert {:ok, ^latest_address} =
