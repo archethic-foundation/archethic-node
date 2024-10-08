@@ -4,6 +4,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   """
 
   alias Archethic.Contracts
+
+  alias Archethic.Contracts.InterpretedContract
+  alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.Contract.Failure
   alias ArchethicWeb.API.FunctionCallPayload
   alias ArchethicWeb.API.JsonRPC.Method
@@ -49,7 +52,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
          {:ok, inputs} <- get_inputs(contract_address, resolve?),
          {:ok, value, _logs} <-
            Contracts.execute_function(contract, function_name, args, inputs) do
-      {:ok, value}
+      {:ok, value }
     else
       {:error, reason} ->
         format_reason(reason)

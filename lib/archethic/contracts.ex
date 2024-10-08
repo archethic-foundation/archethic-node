@@ -456,7 +456,7 @@ defmodule Archethic.Contracts do
       nil ->
         {:error,
          %Failure{
-           error: "invalid execution",
+           error: :function_does_not_exist,
            user_friendly_error: "#{function_name} is not exposed as public function",
            stacktrace: [],
            logs: []
@@ -474,7 +474,7 @@ defmodule Archethic.Contracts do
                    Map.put(
                      contract_tx,
                      :genesis,
-                     Archethic.fetch_genesis_address(contract_tx.address)
+                     Archethic.fetch_genesis_address(contract_tx.address) |> elem(1)
                    )
                ) do
           case value do
