@@ -57,17 +57,18 @@ defmodule Archethic.Contracts.WasmContract do
   @doc """
   Parse smart contract json block and return a contract struct
   """
-  @spec parse(contract :: map()) ::
+  @spec parse(%{bytecode: binary(), manifest: map()}) ::
           {:ok, t()} | {:error, String.t()}
-  def parse(%{manifest: manifest_json, bytecode: bytecode}) do
-    with {:ok, manifest} <- Jason.decode(manifest_json),
-         :ok <- WasmSpec.validate_manifest(manifest),
-         uncompressed_bytes = :zlib.unzip(bytecode),
-         spec = WasmSpec.from_manifest(manifest),
-         {:ok, module} <- WasmModule.parse(uncompressed_bytes, spec) do
-      {:ok, %__MODULE__{module: module}}
-    else
-      {:error, reason} -> {:error, "#{inspect(reason)}"}
+  def parse(%{manifest: manifest, bytecode: bytecode}) do
+    uncompressed_bytes = :zlib.unzip(bytecode)
+    spec = WasmSpec.from_manifest(manifest)
+
+    case WasmModule.parse(uncompressed_bytes, spec) do
+      {:ok, module} ->
+        {:ok, %__MODULE__{module: module}}
+
+      {:error, reason} ->
+        {:error, "#{inspect(reason)}"}
     end
   end
 

@@ -450,7 +450,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: genesis}],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -499,7 +502,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: genesis}],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -692,7 +698,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          ledger: ledger,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -748,7 +758,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -797,7 +811,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          ledger: ledger,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)

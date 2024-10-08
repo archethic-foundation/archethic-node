@@ -368,7 +368,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   describe "Contract" do
     test "should return error when code  or contract is empty" do
-      assert {:error, %Error{data: "Invalid contract type transaction -  contract's code is empty"}} =
+      assert {:error,
+              %Error{data: "Invalid contract type transaction -  contract's code is empty"}} =
                ContractFactory.create_valid_contract_tx("")
                |> PendingTransactionValidation.validate()
     end

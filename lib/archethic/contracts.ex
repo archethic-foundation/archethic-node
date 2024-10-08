@@ -147,7 +147,7 @@ defmodule Archethic.Contracts do
                transaction: %{
                  type: :contract,
                  data: %{
-                   contract: %{bytecode: new_code_bytes, manifest: Jason.encode!(manifest)}
+                   contract: %{bytecode: new_code_bytes, manifest: manifest}
                  }
                }
              }}
@@ -859,7 +859,7 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          _,
-          %InterpretedContract{
+         %InterpretedContract{
            transaction: contract_tx,
            functions: functions,
            version: contract_version,
@@ -1073,9 +1073,7 @@ defmodule Archethic.Contracts do
   Return the ownership related to the storage nonce public key
   """
   @spec get_seed_ownership(Transaction.t()) :: Ownership.t() | nil
-  def get_seed_ownership(
-        %Transaction{data: %TransactionData{ownerships: ownerships}}
-      ) do
+  def get_seed_ownership(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
     Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
   end
@@ -1087,7 +1085,6 @@ defmodule Archethic.Contracts do
   def get_encrypted_seed(tx = %Transaction{}) do
     case get_seed_ownership(tx) do
       %Ownership{secret: secret, authorized_keys: authorized_keys} ->
-
         storage_nonce_public_key = Crypto.storage_nonce_public_key()
         encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
 
@@ -1103,7 +1100,8 @@ defmodule Archethic.Contracts do
   """
   @spec get_contract_seed(Transaction.t()) :: {:ok, binary()} | {:error, :decryption_failed}
   def get_contract_seed(tx = %Transaction{}) do
-    { secret, encrypted_key} = get_encrypted_seed(tx)
+    {secret, encrypted_key} = get_encrypted_seed(tx)
+
     case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
       {:ok, aes_key} -> Crypto.aes_decrypt(secret, aes_key)
       {:error, :decryption_failed} -> {:error, :decryption_failed}

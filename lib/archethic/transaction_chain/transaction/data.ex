@@ -3,6 +3,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   Represents any transaction data block
   """
 
+  alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
 
   alias __MODULE__.Ledger
@@ -34,7 +35,7 @@ defmodule Archethic.TransactionChain.TransactionData do
           contract:
             %{
               bytecode: binary(),
-              manifest: binary()
+              manifest: map()
             }
             | nil,
           ownerships: list(Ownership.t()),
@@ -112,20 +113,17 @@ defmodule Archethic.TransactionChain.TransactionData do
 
     smart_contract_binary =
       if tx_version >= 4 do
-        wasm_binary =
-          if contract != nil do
-            <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
-              byte_size(contract.manifest)::32, contract.manifest::binary>>
-          else
-            <<0::32>>
-          end
-
-        <<wasm_binary::binary>>
+        if contract != nil do
+          <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
+            TypedEncoding.serialize(contract.manifest, mode)::bitstring>>
+        else
+          <<0::32>>
+        end
       else
         <<byte_size(code)::32, code::binary>>
       end
 
-    <<smart_contract_binary::binary, byte_size(content)::32, content::binary,
+    <<smart_contract_binary::bitstring, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
       recipients_bin::bitstring>>
@@ -166,23 +164,20 @@ defmodule Archethic.TransactionChain.TransactionData do
     do: do_deserialize(rest, tx_version, serialization_mode)
 
   def deserialize(
-        <<bytecode_size::32, bytecode::binary-size(bytecode_size), manifest_size::32,
-          manifest_json::binary-size(manifest_size), rest::bitstring>>,
+        <<bytecode_size::32, bytecode::binary-size(bytecode_size), rest::bitstring>>,
         tx_version,
         serialization_mode
       ) do
+    {manifest, rest} = TypedEncoding.deserialize(rest, serialization_mode)
     {tx_data, rest} = do_deserialize(rest, tx_version, serialization_mode)
 
-    {
-      %{
-        tx_data
-        | contract: %{
-            bytecode: bytecode,
-            manifest: manifest_json
-          }
-      },
-      rest
-    }
+    {%{
+       tx_data
+       | contract: %{
+           bytecode: bytecode,
+           manifest: manifest
+         }
+     }, rest}
   end
 
   defp do_deserialize(
@@ -282,7 +277,27 @@ defmodule Archethic.TransactionChain.TransactionData do
             nil
 
           %{bytecode: bytecode, manifest: manifest} ->
-            %{bytecode: Base.encode16(bytecode), manifest: Jason.decode!(manifest)}
+            abi =
+              Map.get_and_update(manifest, "abi", fn %{"functions" => functions, "state" => state} ->
+                {nil, %{functions: functions, state: state}}
+              end)
+              |> elem(1)
+              |> Map.get("abi")
+
+            upgrade_opts =
+              Map.get_and_update(manifest, "upgradeOpts", fn %{"from" => from} ->
+                {nil, %{from: from}}
+              end)
+              |> elem(1)
+              |> Map.get("upgradeOpts")
+
+            %{
+              bytecode: Base.encode16(bytecode),
+              manifest: %{
+                abi: abi,
+                upgrade_opts: upgrade_opts
+              }
+            }
         end,
       ledger: Ledger.to_map(ledger),
       ownerships: Enum.map(ownerships, &Ownership.to_map/1),

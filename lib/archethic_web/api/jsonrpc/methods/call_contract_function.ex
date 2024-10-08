@@ -3,10 +3,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   JsonRPC method to call a public function
   """
 
+  alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts
 
-  alias Archethic.Contracts.InterpretedContract
-  alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.Contract.Failure
   alias ArchethicWeb.API.FunctionCallPayload
   alias ArchethicWeb.API.JsonRPC.Method
@@ -51,13 +50,21 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
          {:ok, inputs} <- get_inputs(contract_address, resolve?),
          {:ok, value, _logs} <-
-           Contracts.execute_function(contract, function_name, args, inputs) do
-      {:ok, value }
+           Contracts.execute_function(
+             contract,
+             function_name,
+             format_args(contract, args),
+             inputs
+           ) do
+      {:ok, value}
     else
       {:error, reason} ->
         format_reason(reason)
     end
   end
+
+  defp format_args(%WasmContract{}, []), do: %{}
+  defp format_args(_, args), do: args
 
   defp get_transaction(contract_address, _resolve? = true),
     do: Archethic.get_last_transaction(contract_address)

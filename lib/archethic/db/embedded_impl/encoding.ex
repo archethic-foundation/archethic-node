@@ -3,6 +3,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   Handle the encoding and decoding of the transaction and its fields
   """
 
+  alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -115,7 +116,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     contract_binary =
       if contract != nil do
         <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
-          :zlib.zip(contract.manifest)::binary>>
+          :zlib.zip(TypedEncoding.serialize(contract.manifest, :compact))::binary>>
       else
         <<>>
       end
@@ -186,9 +187,15 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
           contract_manifest_compressed::binary>>,
         acc
       ) do
+    manifest =
+      contract_manifest_compressed
+      |> :zlib.unzip()
+      |> TypedEncoding.deserialize(:compact)
+      |> elem(0)
+
     put_in(acc, [Access.key(:data, %{}), :contract], %{
       bytecode: contract_bytecode,
-      manifest: contract_manifest_compressed |> :zlib.unzip()
+      manifest: manifest
     })
   end
 

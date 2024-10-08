@@ -23,8 +23,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     :encrypted_secret_key,
     :origin_signature,
     :previous_public_key,
-    :previous_signature,
-    :bytecode
+    :previous_signature
   ]
 
   @doc """
@@ -34,7 +33,6 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
          :ok <- validate_code_size(params),
-         :ok <- validate_code_manifest(params),
          :ok <- validate_recipients_version(params) do
       :ok
     else
@@ -60,25 +58,6 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
            [
              {"Invalid transaction, code exceed max size.", "#/data/code"}
            ]}
-        end
-    end
-  end
-
-  defp validate_code_manifest(params) do
-    case get_in(params, ["data", "contract"]) do
-      nil ->
-        :ok
-
-      %{"manifest" => manifest} ->
-        with {:ok, manifest_json} <- Jason.decode(manifest),
-             :ok <- Archethic.Contracts.WasmSpec.validate_manifest(manifest_json) do
-          :ok
-        else
-          {:error, %Jason.DecodeError{}} ->
-            {:error, "Invalid transaction, contract manifest is not a valid json"}
-
-          {:error, errors} ->
-            {:error, format_errors(errors)}
         end
     end
   end
@@ -126,12 +105,14 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   def to_transaction(params) do
     # Remove recipient args to not convert them to atom
     {original_recipients, params} = remove_recipient_args(params)
+    {origin_contract, params} = remove_contract(params)
 
     params
     |> Utils.atomize_keys(to_snake_case?: true)
     |> Utils.hex2bin(keys_to_base_decode: @keys_to_base_decode)
     |> format_ownerships()
     |> put_original_recipients_args(original_recipients)
+    |> put_origin_contract(origin_contract)
     |> Transaction.cast()
   end
 
@@ -166,6 +147,21 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         {recipient, _} ->
           recipient
       end)
+    end)
+  end
+
+  defp remove_contract(params) do
+    get_and_update_in(params, ["data", "contract"], fn
+      nil -> {nil, nil}
+      contract -> {contract, nil}
+    end)
+  end
+
+  defp put_origin_contract(params, nil), do: params
+
+  defp put_origin_contract(params, %{"bytecode" => bytecode, "manifest" => manifest}) do
+    update_in(params, [:data, :contract], fn _ ->
+      %{bytecode: Base.decode16!(bytecode, case: :mixed), manifest: manifest}
     end)
   end
 
