@@ -5,8 +5,8 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
-  alias Archethic.Contracts.Contract
-
+  alias Archethic.Contracts.Contract.Context
+  alias Archethic.Contracts.InterpretedContract
   alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.Wasm.ReadResult
@@ -172,14 +172,14 @@ defmodule Archethic.Mining.SmartContractValidation do
   It also return the result because it's need to extract the state
   """
   @spec validate_contract_execution(
-          contract_context :: Contract.Context.t(),
+          contract_context :: Context.t(),
           prev_tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
           next_tx :: Transaction.t(),
           chain_unspent_outputs :: list(VersionedUnspentOutput.t())
         ) :: {:ok, State.encoded() | nil} | {:error, Error.t()}
   def validate_contract_execution(
-        contract_context = %Contract.Context{
+        contract_context = %Context{
           status: status,
           trigger: trigger,
           timestamp: timestamp
@@ -207,11 +207,11 @@ defmodule Archethic.Mining.SmartContractValidation do
         _chain_unspent_outputs
       )
       when code != "" do
-    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
+    # only contract without triggers (with only conditions) are allowed to NOT have a context
 
-    {:ok, contract} = Contracts.from_transaction(prev_tx)
+    {:ok, contract} = InterpretedContract.from_transaction(prev_tx)
 
-    if Contract.contains_trigger?(contract),
+    if InterpretedContract.contains_trigger?(contract),
       do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
       else: {:ok, nil}
   end
@@ -224,7 +224,7 @@ defmodule Archethic.Mining.SmartContractValidation do
         _chain_unspent_outputs
       )
       when contract != nil do
-    # only contract without triggers are allowed to NOT have a Contract.Context
+    # only contract without triggers are allowed to NOT have a Context
 
     {:ok, contract} = WasmContract.from_transaction(prev_tx)
 
@@ -406,14 +406,12 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
   defp trigger_to_recipient(_), do: nil
-
   defp trigger_to_trigger_type({:oracle, _}), do: :oracle
   defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
   defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
 
-  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}) do
-    Contract.get_trigger_for_recipient(recipient)
-  end
+  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}),
+    do: Recipient.get_trigger(recipient)
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,
@@ -445,7 +443,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   end
 
   defp execute_trigger(
-         %Contract.Context{trigger: trigger, inputs: contract_inputs},
+         %Context{trigger: trigger, inputs: contract_inputs},
          contract,
          maybe_trigger_tx
        ) do

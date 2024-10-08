@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Constants do
+defmodule Archethic.Contracts.Interpreter.Constants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """

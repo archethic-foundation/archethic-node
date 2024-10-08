@@ -4,8 +4,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   The difference is where the scope is stored (process dict VS global variable)
 
   """
-  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.Scope
 
   require Logger

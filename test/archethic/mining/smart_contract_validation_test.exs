@@ -660,7 +660,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
 
@@ -711,7 +711,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       next_contract_tx =
         ContractFactory.create_next_contract_tx(prev_contract_tx, content: "content")
@@ -753,7 +753,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
 

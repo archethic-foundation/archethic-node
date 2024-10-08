@@ -5,7 +5,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
-  alias Archethic.Contracts.Constants
+  alias Archethic.Contracts.Interpreter.Constants
 
   alias Archethic.Crypto
 

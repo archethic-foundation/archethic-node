@@ -6,9 +6,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @enforce_keys [:recipient, :transaction, :timestamp]
   defstruct [:recipient, :transaction, :timestamp]
 
-  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.Context
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -124,7 +123,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     case get_last_transaction(recipient_address) do
       {:ok, contract_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
         with {:ok, contract} <- parse_contract(contract_tx),
-             trigger = Contract.get_trigger_for_recipient(recipient),
+             trigger = Recipient.get_trigger(recipient),
              :ok <-
                execute_condition(
                  trigger,
@@ -226,7 +225,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp calculate_fee(
          %ActionWithTransaction{next_tx: next_tx, encoded_state: encoded_state},
-         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         contract = %{transaction: %Transaction{address: contract_address}},
          timestamp
        ) do
     index = TransactionChain.get_size(contract_address)

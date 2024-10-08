@@ -185,12 +185,13 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
         ) do
       %{
         bytecode: bytecode,
-        manifest: Jason.encode!(%{
-          "abi" => %{
-            "state" => state,
-            "functions" => Enum.into(functions, %{})
-          }
-        })
+        manifest:
+          Jason.encode!(%{
+            "abi" => %{
+              "state" => state,
+              "functions" => Enum.into(functions, %{})
+            }
+          })
       }
     end
   end

@@ -1,10 +1,10 @@
-defmodule Archethic.Contracts.ContractTest do
+defmodule Archethic.Contracts.InterpretedContractTest do
   use ArchethicCase
-  import ArchethicCase
+  # import ArchethicCase
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.InterpretedContract, as: Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
@@ -12,23 +12,23 @@ defmodule Archethic.Contracts.ContractTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.Recipient
+  # alias Archethic.TransactionChain.TransactionData.Recipient
 
-  describe "get_trigger_for_recipient/2" do
-    test "should return trigger" do
-      assert {:transaction, "vote", 1} =
-               Contract.get_trigger_for_recipient(%Recipient{
-                 address: random_address(),
-                 action: "vote",
-                 args: ["Julio"]
-               })
-    end
+  # describe "get_trigger_for_recipient/2" do
+  #   test "should return trigger" do
+  #     assert {:transaction, "vote", 1} =
+  #              Contract.get_trigger_for_recipient(%Recipient{
+  #                address: random_address(),
+  #                action: "vote",
+  #                args: ["Julio"]
+  #              })
+  #   end
 
-    test "should return {:transaction, nil, nil} when no action nor args" do
-      assert {:transaction, nil, nil} ==
-               Contract.get_trigger_for_recipient(%Recipient{address: random_address()})
-    end
-  end
+  #   test "should return {:transaction, nil, nil} when no action nor args" do
+  #     assert {:transaction, nil, nil} ==
+  #              Contract.get_trigger_for_recipient(%Recipient{address: random_address()})
+  #   end
+  # end
 
   describe "from_transaction/1" do
     test "should return Contract with contract_tx filled" do

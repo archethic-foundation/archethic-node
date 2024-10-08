@@ -46,7 +46,7 @@ defmodule Archethic.TransactionChain do
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
-  alias __MODULE__.MemTablesLoader
+  # alias __MODULE__.MemTablesLoader
 
   alias Archethic.TaskSupervisor
 
@@ -1354,11 +1354,11 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  @doc """
-  Load the transaction into the TransactionChain context filling the memory tables
-  """
-  @spec load_transaction(Transaction.t()) :: :ok
-  defdelegate load_transaction(tx), to: MemTablesLoader
+  # @doc """
+  # Load the transaction into the TransactionChain context filling the memory tables
+  # """
+  # @spec load_transaction(Transaction.t()) :: :ok
+  # defdelegate load_transaction(tx), to: MemTablesLoader
 
   @doc """
   Return the list inputs for a given transaction

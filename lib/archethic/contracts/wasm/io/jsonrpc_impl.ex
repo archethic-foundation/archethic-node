@@ -154,39 +154,30 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
         },
         opts
       ) do
-    case Keyword.get(opts, :seed) do
+    case Keyword.get(opts, :encrypted_contract_seed) do
       nil ->
         Result.wrap_error("Missing contract seed")
 
-      contract_seed ->
-        key = :crypto.hash(:sha256, Crypto.storage_nonce() <> contract_seed)
+      {encrypted_seed, encrypted_key} ->
+        with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
+             {:ok, seed} <- Crypto.aes_decrypt(encrypted_seed, aes_key) do
+          key = :crypto.hash(:sha256, Crypto.storage_nonce() <> seed)
 
-        hash_function =
-          case hash_function do
-            0 ->
-              :sha256
-
-            1 ->
-              :sha512
-
-            2 ->
-              :sha3_256
-
-            3 ->
-              :sha3_512
+          # TODO: KECCAK256
+          # TODO: BLAKE2B
+          case [{0, :sha256}, {1, :sha512}, {2, :sha3_256}, {3, :sha3_512}]
+               |> Map.new()
+               |> Map.get(hash_function) do
+            nil ->
+              Result.wrap_error("Invalid hash function")
 
             _ ->
-              # TODO: KECCAK256
-              # TODO: BLAKE2B
-              nil
+              :crypto.mac(:hmac, hash_function, key, data |> Base.decode16!())
+              |> transform_hex()
+              |> Result.wrap_ok()
           end
-
-        if hash_function == nil do
-          Result.wrap_error("Invalid hash function")
         else
-          :crypto.mac(:hmac, hash_function, key, data |> Base.decode16!())
-          |> transform_hex()
-          |> Result.wrap_ok()
+          _ -> Result.wrap_error("Unable to decrypt seed for hmacWithStorageNonce")
         end
     end
   end
@@ -198,25 +189,30 @@ defmodule Archethic.Contracts.Wasm.IO.JSONRPCImpl do
         },
         opts
       ) do
-    case Keyword.get(opts, :seed) do
+    case Keyword.get(opts, :encrypted_contract_seed) do
       nil ->
         Result.wrap_error("Missing contract seed")
 
-      seed ->
-        data = Base.decode16!(data, case: :mixed)
+      {encrypted_seed, encrypted_key} ->
+        with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
+             {:ok, seed} <- Crypto.aes_decrypt(encrypted_seed, aes_key) do
+          data = Base.decode16!(data, case: :mixed)
 
-        {_pub, <<_::16, priv::binary>>} = Crypto.derive_keypair(seed, 0, :secp256k1)
+          {_pub, <<_::16, priv::binary>>} = Crypto.derive_keypair(seed, 0, :secp256k1)
 
-        case ExSecp256k1.sign(data, priv) do
-          {:ok, {r, s, v}} ->
-            Result.wrap_ok(%{
-              "r" => transform_hex(r),
-              "s" => transform_hex(s),
-              "v" => v
-            })
+          case ExSecp256k1.sign(data, priv) do
+            {:ok, {r, s, v}} ->
+              Result.wrap_ok(%{
+                "r" => transform_hex(r),
+                "s" => transform_hex(s),
+                "v" => v
+              })
 
-          {:error, err} ->
-            err |> inspect() |> Result.wrap_error()
+            {:error, err} ->
+              err |> inspect() |> Result.wrap_error()
+          end
+        else
+          _ -> Result.wrap_error("Unable to decrypt seed for signWithRecovery")
         end
     end
   end

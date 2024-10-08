@@ -4,7 +4,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   """
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
@@ -81,7 +80,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
          {:ok, contract} <- validate_and_parse_contract_tx(contract_tx),
          {:ok, genesis_address} <- Archethic.fetch_genesis_address(contract_tx.address),
          inputs = Archethic.get_unspent_outputs(genesis_address),
-         trigger <- Contract.get_trigger_for_recipient(recipient),
+         trigger <- Recipient.get_trigger(recipient),
          :ok <-
            validate_contract_condition(
              trigger,

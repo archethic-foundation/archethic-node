@@ -1,17 +1,14 @@
-defmodule Archethic.Contracts.Contract do
+defmodule Archethic.Contracts.InterpretedContract do
   @moduledoc """
   Represents a smart contract
   """
 
-  alias __MODULE__.State
-  alias Archethic.Contracts
-  alias Archethic.Contracts.Conditions
-  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
-  alias Archethic.Crypto
+  alias Archethic.Contracts.Interpreter.Conditions
+  alias Archethic.Contracts.Interpreter.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -39,22 +36,13 @@ defmodule Archethic.Contracts.Contract do
           | {:transaction, nil, nil}
           | {:transaction, String.t(), list(String.t())}
 
-  @type trigger_key() ::
-          :oracle
-          | trigger_recipient()
-          | {:datetime, DateTime.t()}
-          | {:interval, String.t()}
-
-  @type trigger_recipient :: {:transaction, nil | String.t(), nil | non_neg_integer()}
-
   @type condition_key() ::
           :oracle
           | :inherit
-          | {:transaction, nil, nil}
-          | {:transaction, String.t(), non_neg_integer()}
+          | Recipient.trigger_key()
 
   @type t() :: %__MODULE__{
-          triggers: %{trigger_key() => %{args: list(binary()), ast: Macro.t()}},
+          triggers: %{Recipient.trigger_key() => %{args: list(binary()), ast: Macro.t()}},
           version: integer(),
           conditions: %{condition_key() => Conditions.t()},
           state: State.t(),
@@ -173,37 +161,5 @@ defmodule Archethic.Contracts.Contract do
       :functions,
       &Map.put(&1, {function_name, length(args)}, %{args: args, ast: ast, visibility: visibility})
     )
-  end
-
-  @doc """
-  Return the args names for this recipient or nil
-  """
-  @spec get_trigger_for_recipient(Recipient.t()) :: trigger_key()
-  def get_trigger_for_recipient(%Recipient{action: nil, args: nil}), do: {:transaction, nil, nil}
-
-  def get_trigger_for_recipient(%Recipient{action: action, args: args_values})
-      when is_list(args_values),
-      do: {:transaction, action, length(args_values)}
-
-  def get_trigger_for_recipient(%Recipient{action: action, args: args_values})
-      when is_map(args_values),
-      do: {:transaction, action, map_size(args_values)}
-
-  @doc """
-  Return the encrypted seed and encrypted aes key
-  """
-  @spec get_encrypted_seed(contract :: t()) :: {binary(), binary()} | nil
-  def get_encrypted_seed(%__MODULE__{transaction: tx}) do
-    storage_nonce_public_key = Crypto.storage_nonce_public_key()
-
-    case Contracts.get_seed_ownership(tx, storage_nonce_public_key) do
-      %Ownership{secret: secret, authorized_keys: authorized_keys} ->
-        encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
-
-        {secret, encrypted_key}
-
-      nil ->
-        nil
-    end
   end
 end

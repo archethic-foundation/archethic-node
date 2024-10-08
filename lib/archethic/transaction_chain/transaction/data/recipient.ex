@@ -153,4 +153,20 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   @spec to_address(recipient :: t()) :: list(binary())
   def to_address(%{address: address}), do: address
+
+  @type trigger_key :: {:transaction, nil | String.t(), nil | non_neg_integer()}
+
+  @doc """
+  Return the args names for this recipient or nil
+  """
+  @spec get_trigger(t()) :: trigger_key()
+  def get_trigger(%__MODULE__{action: nil, args: nil}), do: {:transaction, nil, nil}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_list(args_values),
+      do: {:transaction, action, length(args_values)}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_map(args_values),
+      do: {:transaction, action, map_size(args_values)}
 end

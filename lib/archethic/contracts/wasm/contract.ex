@@ -3,22 +3,18 @@ defmodule Archethic.Contracts.WasmContract do
   Represents a smart contract using WebAssembly
   """
 
-  alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.WasmSpec
-  alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
-  defstruct version: 2,
+  defstruct version: 1,
             module: nil,
             state: %{},
             transaction: %Transaction{}
@@ -116,34 +112,4 @@ defmodule Archethic.Contracts.WasmContract do
   @spec contains_trigger?(contract :: t()) :: boolean()
   def contains_trigger?(%__MODULE__{module: %WasmModule{spec: %WasmSpec{triggers: triggers}}}),
     do: length(triggers) > 0
-
-  @doc """
-  Return the args names for this recipient or nil
-  """
-  def get_trigger_for_recipient(%Recipient{action: action, args: _args_values}),
-    do: {:transaction, action, nil}
-
-  @doc """
-  Return the encrypted seed and encrypted aes key
-  """
-  @spec get_encrypted_seed(contract :: t()) :: binary() | nil
-  def get_encrypted_seed(%__MODULE__{transaction: tx}) do
-    storage_nonce_public_key = Crypto.storage_nonce_public_key()
-
-    case Contracts.get_seed_ownership(tx, storage_nonce_public_key) do
-      %Ownership{secret: secret, authorized_keys: authorized_keys} ->
-        encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
-
-        with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
-             {:ok, seed} <- Crypto.aes_decrypt(secret, aes_key) do
-          seed
-        else
-          _ ->
-            nil
-        end
-
-      nil ->
-        nil
-    end
-  end
 end

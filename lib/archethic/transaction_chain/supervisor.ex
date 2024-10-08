@@ -6,7 +6,7 @@ defmodule Archethic.TransactionChain.Supervisor do
   alias Archethic.TransactionChain.DBLedger.Supervisor, as: DBLedgerSupervisor
   alias Archethic.TransactionChain.MemTables.KOLedger
   alias Archethic.TransactionChain.MemTables.PendingLedger
-  alias Archethic.TransactionChain.MemTablesLoader
+  # alias Archethic.TransactionChain.MemTablesLoader
 
   alias Archethic.Utils
 
@@ -15,7 +15,12 @@ defmodule Archethic.TransactionChain.Supervisor do
   end
 
   def init(_args) do
-    optional_children = [PendingLedger, KOLedger, MemTablesLoader, DBLedgerSupervisor]
+    optional_children = [
+      PendingLedger,
+      KOLedger,
+      # MemTablesLoader,
+      DBLedgerSupervisor
+    ]
 
     children = Utils.configurable_children(optional_children)
 

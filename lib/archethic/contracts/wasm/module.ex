@@ -32,7 +32,8 @@ defmodule Archethic.Contracts.WasmModule do
                 token_id: pos_integer(),
                 amount: pos_integer()
               })
-          }
+          },
+          encrypted_seed: {encrypted_seed :: binary(), encrypted_key :: binary()}
         ]
 
   @doc """
@@ -181,7 +182,7 @@ defmodule Archethic.Contracts.WasmModule do
       }
       |> Jason.encode!()
 
-    {:ok, io_mem_pid} = WasmMemory.start_link(Keyword.get(opts, :seed))
+    {:ok, io_mem_pid} = WasmMemory.start_link(Keyword.get(opts, :encrypted_seed))
     WasmMemory.set_input(io_mem_pid, input)
 
     with {:ok, instance_pid} <-

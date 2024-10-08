@@ -4,9 +4,9 @@ defmodule Archethic.Contracts do
   Each smart contract is register and supervised as long running process to interact with later on.
   """
 
-  alias __MODULE__.Conditions
-  alias __MODULE__.Constants
-  alias __MODULE__.Contract
+  alias __MODULE__.InterpretedContract
+  alias __MODULE__.Interpreter.Conditions, as: ConditionsInterpreter
+  alias __MODULE__.Interpreter.Constants, as: ConstantsInterpreter
   alias __MODULE__.Contract.ActionWithoutTransaction
   alias __MODULE__.Contract.ActionWithTransaction
   alias __MODULE__.Contract.ConditionRejected
@@ -55,7 +55,8 @@ defmodule Archethic.Contracts do
   @doc """
   Parse a smart contract code and return a contract struct
   """
-  @spec parse(binary()) :: {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
+  @spec parse(binary()) ::
+          {:ok, InterpretedContract.t() | WasmContract.t()} | {:error, String.t()}
   def parse(contract_code) do
     case Jason.decode(contract_code) do
       {:ok, contract_json} ->
@@ -69,7 +70,7 @@ defmodule Archethic.Contracts do
   @doc """
   Same a `parse/1` but raise if the contract is not valid
   """
-  @spec parse!(binary()) :: Contract.t() | WasmContract.t()
+  @spec parse!(binary()) :: InterpretedContract.t() | WasmContract.t()
   def parse!(contract_code) when is_binary(contract_code) do
     case parse(contract_code) do
       {:ok, contract} -> contract
@@ -81,8 +82,8 @@ defmodule Archethic.Contracts do
   Execute the contract trigger.
   """
   @spec execute_trigger(
-          trigger :: Contract.trigger_type() | WasmContract.trigger_type(),
-          contract :: Contract.t() | WasmContract.t(),
+          trigger :: InterpretedContract.trigger_type() | WasmContract.trigger_type(),
+          contract :: InterpretedContract.t() | WasmContract.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           inputs :: list(UnspentOutput.t()),
@@ -217,7 +218,7 @@ defmodule Archethic.Contracts do
   end
 
   defp exec_wasm(
-         contract = %WasmContract{
+         %WasmContract{
            state: state,
            module: module = %WasmModule{spec: %WasmSpec{triggers: triggers}},
            transaction: contract_tx
@@ -278,7 +279,7 @@ defmodule Archethic.Contracts do
               |> Archethic.fetch_genesis_address()
               |> elem(1)
             ),
-          seed: WasmContract.get_encrypted_seed(contract)
+          encrypted_seed: get_encrypted_seed(contract_tx)
         )
       else
         {:error, reason} ->
@@ -433,7 +434,7 @@ defmodule Archethic.Contracts do
   Execute contract's function
   """
   @spec execute_function(
-          contract :: Contract.t() | WasmContract.t(),
+          contract :: InterpretedContract.t() | WasmContract.t(),
           function_name :: String.t(),
           args_values :: list() | map(),
           inputs :: list(UnspentOutput.t())
@@ -441,7 +442,7 @@ defmodule Archethic.Contracts do
           {:ok, value :: any(), logs :: list(String.t())}
           | {:error, Failure.t()}
   def execute_function(
-        contract = %WasmContract{
+        %WasmContract{
           module: module = %WasmModule{spec: %WasmSpec{public_functions: functions}},
           state: state,
           transaction: contract_tx
@@ -468,7 +469,7 @@ defmodule Archethic.Contracts do
                  state: state,
                  balance: UTXO.get_balance(inputs),
                  arguments: arg,
-                 seed: WasmContract.get_encrypted_seed(contract),
+                 encrypted_seed: get_encrypted_seed(contract_tx),
                  contract:
                    Map.put(
                      contract_tx,
@@ -500,7 +501,7 @@ defmodule Archethic.Contracts do
        }}
 
   def execute_function(
-        contract = %Contract{
+        contract = %InterpretedContract{
           transaction: contract_tx,
           version: contract_version,
           state: state
@@ -527,13 +528,13 @@ defmodule Archethic.Contracts do
       {:ok, function} ->
         contract_constants =
           contract_tx
-          |> Constants.from_transaction(contract_version)
-          |> Constants.set_balance(inputs)
+          |> ConstantsInterpreter.from_transaction(contract_version)
+          |> ConstantsInterpreter.set_balance(inputs)
 
         constants = %{
           "contract" => contract_constants,
           :time_now => DateTime.utc_now() |> DateTime.to_unix(),
-          :encrypted_seed => Contract.get_encrypted_seed(contract),
+          :encrypted_seed => get_encrypted_seed(contract_tx),
           :state => state
         }
 
@@ -638,8 +639,8 @@ defmodule Archethic.Contracts do
   The transaction and datetime depends on the condition.
   """
   @spec execute_condition(
-          condition_type :: Contract.condition_type(),
-          contract :: Contract.t() | WasmContract.t(),
+          condition_type :: InterpretedContract.condition_type(),
+          contract :: InterpretedContract.t() | WasmContract.t(),
           incoming_transaction :: Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           validation_time :: DateTime.t(),
@@ -717,7 +718,7 @@ defmodule Archethic.Contracts do
 
   def execute_condition(
         condition_key,
-        contract = %Contract{conditions: conditions},
+        contract = %InterpretedContract{conditions: conditions},
         transaction = %Transaction{},
         maybe_recipient,
         datetime,
@@ -750,9 +751,9 @@ defmodule Archethic.Contracts do
   end
 
   defp do_execute_condition(
-         %Conditions{args: args, subjects: subjects},
+         %ConditionsInterpreter{args: args, subjects: subjects},
          condition_key,
-         contract = %Contract{
+         contract = %InterpretedContract{
            version: version,
            transaction: %Transaction{address: contract_address}
          },
@@ -798,10 +799,10 @@ defmodule Archethic.Contracts do
   Returns a contract instance from a transaction
   """
   @spec from_transaction(Transaction.t()) ::
-          {:ok, Contract.t() | WasmContract.t()} | {:error, String.t()}
+          {:ok, InterpretedContract.t() | WasmContract.t()} | {:error, String.t()}
   def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
     if code != "" do
-      Contract.from_transaction(tx)
+      InterpretedContract.from_transaction(tx)
     else
       WasmContract.from_transaction(tx)
     end
@@ -809,7 +810,7 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         contract = %Contract{
+         %InterpretedContract{
            transaction: contract_tx,
            functions: functions,
            version: contract_version,
@@ -838,27 +839,27 @@ defmodule Archethic.Contracts do
 
     next_constants =
       transaction
-      |> Constants.from_transaction(contract_version)
-      |> Constants.set_balance(new_inputs)
+      |> ConstantsInterpreter.from_transaction(contract_version)
+      |> ConstantsInterpreter.set_balance(new_inputs)
 
     previous_contract_constants =
       contract_tx
-      |> Constants.from_transaction(contract_version)
-      |> Constants.set_balance(inputs)
+      |> ConstantsInterpreter.from_transaction(contract_version)
+      |> ConstantsInterpreter.set_balance(inputs)
 
     %{
       "previous" => previous_contract_constants,
       "next" => next_constants,
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :encrypted_seed => get_encrypted_seed(contract_tx),
       :state => state
     }
   end
 
   defp get_condition_constants(
          _,
-         contract = %Contract{
+          %InterpretedContract{
            transaction: contract_tx,
            functions: functions,
            version: contract_version,
@@ -870,15 +871,15 @@ defmodule Archethic.Contracts do
        ) do
     contract_constants =
       contract_tx
-      |> Constants.from_transaction(contract_version)
-      |> Constants.set_balance(inputs)
+      |> ConstantsInterpreter.from_transaction(contract_version)
+      |> ConstantsInterpreter.set_balance(inputs)
 
     %{
-      "transaction" => Constants.from_transaction(transaction, contract_version),
+      "transaction" => ConstantsInterpreter.from_transaction(transaction, contract_version),
       "contract" => contract_constants,
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :encrypted_seed => get_encrypted_seed(contract_tx),
       :state => state
     }
   end
@@ -985,7 +986,7 @@ defmodule Archethic.Contracts do
   Sign a next transaction in the contract chain
   """
   @spec sign_next_transaction(
-          contract :: Contract.t() | WasmContract.t(),
+          contract :: InterpretedContract.t() | WasmContract.t(),
           next_tx :: Transaction.t(),
           index :: non_neg_integer()
         ) :: {:ok, Transaction.t()} | {:error, :decryption_failed}
@@ -1062,28 +1063,47 @@ defmodule Archethic.Contracts do
   @doc """
   Determines if a contract has any triggers
   """
-  @spec contains_trigger?(Contract.t() | WasmContract.t()) :: boolean()
-  def contains_trigger?(contract = %Contract{}), do: Contract.contains_trigger?(contract)
+  @spec contains_trigger?(InterpretedContract.t() | WasmContract.t()) :: boolean()
+  def contains_trigger?(contract = %InterpretedContract{}),
+    do: InterpretedContract.contains_trigger?(contract)
+
   def contains_trigger?(contract = %WasmContract{}), do: WasmContract.contains_trigger?(contract)
 
+  @doc """
+  Return the ownership related to the storage nonce public key
+  """
+  @spec get_seed_ownership(Transaction.t()) :: Ownership.t() | nil
   def get_seed_ownership(
-        %Transaction{data: %TransactionData{ownerships: ownerships}},
-        storage_nonce_public_key
+        %Transaction{data: %TransactionData{ownerships: ownerships}}
       ) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
     Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+  end
+
+  @doc """
+  Return the encrypted seed and encrypted aes key
+  """
+  @spec get_encrypted_seed(Transaction.t()) :: {binary(), binary()} | nil
+  def get_encrypted_seed(tx = %Transaction{}) do
+    case get_seed_ownership(tx) do
+      %Ownership{secret: secret, authorized_keys: authorized_keys} ->
+
+        storage_nonce_public_key = Crypto.storage_nonce_public_key()
+        encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
+
+        {secret, encrypted_key}
+
+      nil ->
+        nil
+    end
   end
 
   @doc """
   Try to find the contract's seed in the transaction's ownerships
   """
   @spec get_contract_seed(Transaction.t()) :: {:ok, binary()} | {:error, :decryption_failed}
-  def get_contract_seed(tx) do
-    storage_nonce_public_key = Crypto.storage_nonce_public_key()
-
-    ownership = %Ownership{secret: secret} = get_seed_ownership(tx, storage_nonce_public_key)
-
-    encrypted_key = Ownership.get_encrypted_key(ownership, storage_nonce_public_key)
-
+  def get_contract_seed(tx = %Transaction{}) do
+    { secret, encrypted_key} = get_encrypted_seed(tx)
     case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
       {:ok, aes_key} -> Crypto.aes_decrypt(secret, aes_key)
       {:error, :decryption_failed} -> {:error, :decryption_failed}
