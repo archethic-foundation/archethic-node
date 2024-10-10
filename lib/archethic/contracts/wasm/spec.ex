@@ -222,7 +222,10 @@ defmodule Archethic.Contracts.WasmSpec do
         end
 
       {k, v} ->
-        {k, cast_wasm_output(v, Map.get(output, k))}
+        case Map.get(output, k) do
+          nil -> {k, v}
+          output -> {k, cast_wasm_output(v, output)}
+        end
     end)
     |> Enum.into(%{})
   end
