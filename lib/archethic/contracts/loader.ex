@@ -49,13 +49,14 @@ defmodule Archethic.Contracts.Loader do
     |> Stream.filter(&Election.chain_storage_node?(&1, node_key, authorized_nodes))
     |> Stream.chunk_every(100)
     |> Task.async_stream(
+
       fn genesis_addresses ->
         genesis_addresses
         |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
         |> Stream.reject(fn
           {_,
            {:ok, %Transaction{type: type, data: %TransactionData{code: code, contract: contract}}}} ->
-            Transaction.network_type?(type) or code == "" or contract == nil
+            Transaction.network_type?(type) or (code == "" and contract == nil)
 
           {_, {:error, _}} ->
             true
