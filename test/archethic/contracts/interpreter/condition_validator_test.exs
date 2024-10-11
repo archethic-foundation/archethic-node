@@ -2,8 +2,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
   use ArchethicCase
 
   alias Archethic.ContractFactory
-  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Constants
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
   alias Archethic.Contracts.Interpreter.ConditionValidator
   alias Archethic.Contracts.Interpreter.Library

@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @type t :: %__MODULE__{
           address: Crypto.prepended_hash(),
           action: String.t() | nil,
-          args: list(any()) | nil
+          args: list(any()) | map()
         }
 
   @doc """
@@ -67,14 +67,14 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   def serialize(
         %__MODULE__{address: address, action: action, args: args},
-        _version = 3,
+        version,
         serialization_mode
       ) do
     # action is stored on 8 bytes which means 255 characters
     # we force that in the interpreters (action & condition)
     action_bytes = byte_size(action)
 
-    serialized_args = ArgumentsEncoding.serialize(args, serialization_mode)
+    serialized_args = ArgumentsEncoding.serialize(args, serialization_mode, version)
 
     <<@named_action::8, address::binary, action_bytes::8, action::binary,
       serialized_args::bitstring>>
@@ -121,10 +121,10 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     }
   end
 
-  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 3, serialization_mode) do
+  def deserialize(<<@named_action::8, rest::bitstring>>, version, serialization_mode) do
     {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
     <<action::binary-size(action_bytes), rest::bitstring>> = rest
-    {args, rest} = ArgumentsEncoding.deserialize(rest, serialization_mode)
+    {args, rest} = ArgumentsEncoding.deserialize(rest, serialization_mode, version)
 
     {
       %__MODULE__{
@@ -153,4 +153,20 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   @spec to_address(recipient :: t()) :: list(binary())
   def to_address(%{address: address}), do: address
+
+  @type trigger_key :: {:transaction, nil | String.t(), nil | non_neg_integer()}
+
+  @doc """
+  Return the args names for this recipient or nil
+  """
+  @spec get_trigger(t()) :: trigger_key()
+  def get_trigger(%__MODULE__{action: nil, args: nil}), do: {:transaction, nil, nil}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_list(args_values),
+      do: {:transaction, action, length(args_values)}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_map(args_values),
+      do: {:transaction, action, map_size(args_values)}
 end

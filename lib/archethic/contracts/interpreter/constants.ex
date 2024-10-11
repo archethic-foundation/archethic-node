@@ -1,10 +1,9 @@
-defmodule Archethic.Contracts.Constants do
+defmodule Archethic.Contracts.Interpreter.Constants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """
 
-  alias Archethic.Contracts.Contract
-
+  alias Archethic.Contracts
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -32,7 +31,7 @@ defmodule Archethic.Contracts.Constants do
         ) ::
           map()
   def from_contract_transaction(contract_tx, contract_version \\ 1),
-    do: contract_tx |> Contract.remove_seed_ownership() |> from_transaction(contract_version)
+    do: contract_tx |> Contracts.remove_seed_ownership() |> from_transaction(contract_version)
 
   @doc """
   Extract constants from a transaction into a map

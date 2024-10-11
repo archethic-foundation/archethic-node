@@ -46,7 +46,10 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Legacy do
 
     balance = Api.get_uco_balance(recipient_address, endpoint)
 
-    SmartContract.trigger(trigger_seed, contract_address, endpoint, content: "CLOSE_CONTRACT")
+    SmartContract.trigger(trigger_seed, contract_address, endpoint,
+      content: "CLOSE_CONTRACT",
+      version: 3
+    )
 
     # there's a slight change there will be 1 more tick due to playbook code
     if balance in [ticks_count * amount_to_send, (1 + ticks_count) * amount_to_send] do

@@ -5,9 +5,10 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.ContractRegistry
   alias Archethic.ContractSupervisor
 
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.InterpretedContract, as: Contract
   alias Archethic.Contracts.Loader
   alias Archethic.Contracts.Worker
+  alias Archethic.Contracts.Contract.Context
 
   alias Archethic.Crypto
 
@@ -143,7 +144,8 @@ defmodule Archethic.Contracts.LoaderTest do
           seed: random_seed(),
           recipients: [
             %Recipient{address: contract_genesis, action: "test", args: []}
-          ]
+          ],
+          version: 3
         )
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
@@ -333,7 +335,7 @@ defmodule Archethic.Contracts.LoaderTest do
         %UnspentOutput{from: trigger_tx1.address, type: :call, timestamp: DateTime.utc_now()}
       ]
 
-      contract_context = %Contract.Context{
+      contract_context = %Context{
         trigger: {:transaction, trigger_tx1.address, recipient},
         timestamp: DateTime.utc_now(),
         status: :tx_output,

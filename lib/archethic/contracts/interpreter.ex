@@ -10,9 +10,10 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.FunctionKeys
   alias __MODULE__.Legacy
   alias __MODULE__.Scope
-  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
-  alias Archethic.Contracts.Constants
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Intepreter.Conditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Interpreter.Constants
+  alias Archethic.Contracts.InterpretedContract, as: Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -137,7 +138,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   def execute_trigger(
         trigger_key,
-        contract = %Contract{
+        %Contract{
           transaction: contract_tx,
           version: version,
           triggers: triggers,
@@ -177,7 +178,7 @@ defmodule Archethic.Contracts.Interpreter do
             "contract" => contract_constants,
             :time_now => timestamp_now,
             :functions => functions,
-            :encrypted_seed => Contract.get_encrypted_seed(contract),
+            :encrypted_seed => Contracts.get_encrypted_seed(contract_tx),
             :state => state,
             :logs => []
           })

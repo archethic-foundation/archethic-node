@@ -50,7 +50,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
     test "should work with named action" do
       msg = %ValidateSmartContractCall{
-        recipient: %Recipient{address: random_address(), action: "do_it", args: []},
+        recipient: %Recipient{address: random_address(), action: "do_it", args: %{}},
         transaction: Archethic.TransactionFactory.create_valid_transaction(),
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
@@ -207,7 +207,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                  recipient: %Recipient{
                    address: "@SC1_for_contract_with_named_action_and_valid_message",
                    action: "upgrade",
-                   args: []
+                   args: %{}
                  },
                  transaction: incoming_tx,
                  timestamp: DateTime.utc_now()

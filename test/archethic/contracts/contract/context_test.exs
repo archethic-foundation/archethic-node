@@ -75,7 +75,7 @@ defmodule Archethic.Contracts.Contract.ContextTest do
            %Recipient{
              address: random_address(),
              action: "add",
-             args: [1, 2, 3, 4, 5]
+             args: %{"a" => 1, "b" => 2, "c" =>3, "d" => 4, "e" => 5}
            }},
         timestamp: now |> DateTime.truncate(:millisecond)
       }

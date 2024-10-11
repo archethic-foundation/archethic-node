@@ -3,6 +3,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   Represents any transaction data block
   """
 
+  alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
 
   alias __MODULE__.Ledger
@@ -11,13 +12,19 @@ defmodule Archethic.TransactionChain.TransactionData do
 
   alias Archethic.Utils.VarInt
 
-  defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
+  defstruct recipients: [],
+            ledger: %Ledger{},
+            code: "",
+            ownerships: [],
+            content: "",
+            contract: nil
 
   @typedoc """
   Transaction data is composed from:
   - Recipients: list of recipients for smart contract interactions
   - Ledger: Movement operations on UCO TOKEN or Stock ledger
   - Code: Contains the smart contract code including triggers, conditions and actions
+  - Contract: Contains the webassembly smart contract code and its manifest
   - Ownerships: List of the authorizations and delegations to proof ownership of secrets
   - Content: Free content to store any data as binary
   """
@@ -25,6 +32,12 @@ defmodule Archethic.TransactionChain.TransactionData do
           recipients: list(Recipient.t()),
           ledger: Ledger.t(),
           code: binary(),
+          contract:
+            %{
+              bytecode: binary(),
+              manifest: map()
+            }
+            | nil,
           ownerships: list(Ownership.t()),
           content: binary()
         }
@@ -45,9 +58,13 @@ defmodule Archethic.TransactionChain.TransactionData do
     :zlib.unzip(code)
   end
 
-  @spec code_size_valid?(String.t()) :: bool()
-  def code_size_valid?(code) do
-    compress_code(code) |> byte_size() < @code_max_size
+  @spec code_size_valid?(code :: binary(), compressed :: boolean()) :: boolean()
+  def code_size_valid?(code, compressed? \\ true) do
+    if compressed? do
+      code |> byte_size() < @code_max_size
+    else
+      compress_code(code) |> byte_size() < @code_max_size
+    end
   end
 
   @doc """
@@ -61,6 +78,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   def serialize(
         %__MODULE__{
           code: code,
+          contract: contract,
           content: content,
           ownerships: ownerships,
           ledger: ledger,
@@ -93,7 +111,19 @@ defmodule Archethic.TransactionChain.TransactionData do
           code
       end
 
-    <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
+    smart_contract_binary =
+      if tx_version >= 4 do
+        if contract != nil do
+          <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
+            TypedEncoding.serialize(contract.manifest, mode)::bitstring>>
+        else
+          <<0::32>>
+        end
+      else
+        <<byte_size(code)::32, code::binary>>
+      end
+
+    <<smart_contract_binary::bitstring, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
       recipients_bin::bitstring>>
@@ -107,22 +137,14 @@ defmodule Archethic.TransactionChain.TransactionData do
           tx_version :: pos_integer(),
           serialization_mode :: Transaction.serialization_mode()
         ) :: {t(), bitstring()}
+  def deserialize(bin, tx_version, serialization_mode \\ :compact)
+
   def deserialize(
-        <<code_size::32, code::binary-size(code_size), content_size::32,
-          content::binary-size(content_size), rest::bitstring>>,
+        <<code_size::32, code::binary-size(code_size), rest::bitstring>>,
         tx_version,
-        serialization_mode \\ :compact
-      ) do
-    {nb_ownerships, rest} = VarInt.get_value(rest)
-
-    {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [], tx_version)
-    {ledger, rest} = Ledger.deserialize(rest, tx_version)
-
-    {nb_recipients, rest} = rest |> VarInt.get_value()
-
-    {recipients, rest} =
-      reduce_recipients(rest, nb_recipients, [], tx_version, serialization_mode)
-
+        serialization_mode
+      )
+      when tx_version <= 3 do
     # no need to check for serialization_mode because we never deserialize(:extended)
     code =
       try do
@@ -134,9 +156,47 @@ defmodule Archethic.TransactionChain.TransactionData do
           code
       end
 
+    {tx_data, rest} = do_deserialize(rest, tx_version, serialization_mode)
+    {%{tx_data | code: code}, rest}
+  end
+
+  def deserialize(<<0::32, rest::bitstring>>, tx_version, serialization_mode),
+    do: do_deserialize(rest, tx_version, serialization_mode)
+
+  def deserialize(
+        <<bytecode_size::32, bytecode::binary-size(bytecode_size), rest::bitstring>>,
+        tx_version,
+        serialization_mode
+      ) do
+    {manifest, rest} = TypedEncoding.deserialize(rest, serialization_mode)
+    {tx_data, rest} = do_deserialize(rest, tx_version, serialization_mode)
+
+    {%{
+       tx_data
+       | contract: %{
+           bytecode: bytecode,
+           manifest: manifest
+         }
+     }, rest}
+  end
+
+  defp do_deserialize(
+         <<content_size::32, content::binary-size(content_size), rest::bitstring>>,
+         tx_version,
+         serialization_mode
+       ) do
+    {nb_ownerships, rest} = VarInt.get_value(rest)
+
+    {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [], tx_version)
+    {ledger, rest} = Ledger.deserialize(rest, tx_version)
+
+    {nb_recipients, rest} = rest |> VarInt.get_value()
+
+    {recipients, rest} =
+      reduce_recipients(rest, nb_recipients, [], tx_version, serialization_mode)
+
     {
       %__MODULE__{
-        code: code,
         content: content,
         ownerships: ownerships,
         ledger: ledger,
@@ -181,6 +241,7 @@ defmodule Archethic.TransactionChain.TransactionData do
     %__MODULE__{
       content: Map.get(data, :content, ""),
       code: code,
+      contract: Map.get(data, :contract),
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.cast(),
       ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.cast/1),
       recipients: Map.get(data, :recipients, []) |> Enum.map(&Recipient.cast/1)
@@ -192,6 +253,7 @@ defmodule Archethic.TransactionChain.TransactionData do
     %{
       content: "",
       code: "",
+      contract: nil,
       ledger: Ledger.to_map(nil),
       ownerships: [],
       recipients: []
@@ -201,6 +263,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   def to_map(%__MODULE__{
         content: content,
         code: code,
+        contract: contract,
         ledger: ledger,
         ownerships: ownerships,
         recipients: recipients
@@ -208,6 +271,34 @@ defmodule Archethic.TransactionChain.TransactionData do
     %{
       content: content,
       code: code,
+      contract:
+        case contract do
+          nil ->
+            nil
+
+          %{bytecode: bytecode, manifest: manifest} ->
+            abi =
+              Map.get_and_update(manifest, "abi", fn %{"functions" => functions, "state" => state} ->
+                {nil, %{functions: functions, state: state}}
+              end)
+              |> elem(1)
+              |> Map.get("abi")
+
+            upgrade_opts =
+              Map.get_and_update(manifest, "upgradeOpts", fn %{"from" => from} ->
+                {nil, %{from: from}}
+              end)
+              |> elem(1)
+              |> Map.get("upgradeOpts")
+
+            %{
+              bytecode: Base.encode16(bytecode),
+              manifest: %{
+                abi: abi,
+                upgrade_opts: upgrade_opts
+              }
+            }
+        end,
       ledger: Ledger.to_map(ledger),
       ownerships: Enum.map(ownerships, &Ownership.to_map/1),
       recipients: Enum.map(recipients, &Recipient.to_address/1),

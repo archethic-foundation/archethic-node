@@ -1,9 +1,9 @@
-defmodule Archethic.Contracts.ConstantsTest do
+defmodule Archethic.Contracts.Interpreter.ConstantsTest do
   use ArchethicCase
 
   import ArchethicCase
 
-  alias Archethic.Contracts.Constants
+  alias Archethic.Contracts.Interpreter.Constants
 
   alias Archethic.Reward.MemTables.RewardTokens
 
