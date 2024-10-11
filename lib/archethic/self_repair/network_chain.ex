@@ -165,7 +165,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
 
     case TransactionChain.fetch_last_address(genesis_address, nodes,
            consistency_level: 8,
-           acceptance_resolver: &(&1.timestamp > local_last_address_timestamp)
+           acceptance_resolver:
+             &(DateTime.compare(&1.timestamp, local_last_address_timestamp) == :gt)
          ) do
       {:ok, remote_last_address} ->
         {:error, {genesis_address, remote_last_address}}
