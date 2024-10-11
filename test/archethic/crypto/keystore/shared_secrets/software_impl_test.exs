@@ -50,38 +50,22 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
       daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
-      unix_timestamp = DateTime.to_unix(~U[2021-10-10 00:00:00Z])
+      assert 1 == Keystore.get_node_shared_key_index()
+      assert 2 == Keystore.get_reward_key_index()
 
-      assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
-      assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :reward_index)
-
-      assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
-      assert sign_fun.("hello") == Crypto.sign("hello", elem(daily_nonce_keypair, 1))
+      assert Keystore.sign_with_daily_nonce_key("hello", ~U[2021-10-10 00:00:00Z]) ==
+               Crypto.sign("hello", elem(daily_nonce_keypair, 1))
     end
   end
 
   test "unwrap_secrets/3 should load encrypted secrets by decrypting them" do
     {:ok, _pid} = Keystore.start_link()
+    {_daily_nonce_seed, transaction_seed, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
 
-    timestamp = ~U[2021-04-08 06:35:17Z]
+    assert transaction_seed |> Crypto.derive_keypair(0) |> elem(0) ==
+             Keystore.node_shared_secrets_public_key(0)
 
-    {daily_nonce_seed, transaction_seed, reward_seed} = load_secrets(~U[2021-04-08 06:35:17Z])
-
-    unix_timestamp = DateTime.to_unix(timestamp)
-
-    assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
-    [{_, tx_sign_fun}] = :ets.lookup(:archethic_shared_secrets_keystore, :transaction_sign_fun)
-
-    [{_, reward_sign_fun}] = :ets.lookup(:archethic_shared_secrets_keystore, :reward_sign_fun)
-
-    {_, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
-    assert sign_fun.("hello") == Crypto.sign("hello", pv)
-
-    {_, pv} = Crypto.derive_keypair(transaction_seed, 0)
-    assert tx_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
-
-    {_, pv} = Crypto.derive_keypair(reward_seed, 0)
-    assert reward_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
+    assert reward_seed |> Crypto.derive_keypair(0) |> elem(0) == Keystore.reward_public_key(0)
   end
 
   test "sign_with_node_shared_secrets_key/1 should sign the data with the latest node shared secrets private key" do

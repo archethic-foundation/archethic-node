@@ -18,6 +18,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.Mining.DistributedWorkflow, as: Workflow
   alias Archethic.Mining.Error
   alias Archethic.Mining.Fee
+  alias Archethic.Mining.LedgerValidation
   alias Archethic.Mining.ValidationContext
 
   alias Archethic.P2P
@@ -46,7 +47,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -112,7 +112,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
               234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
             origin_public_key,
-            certificate
+            certificate,
+            Crypto.generate_random_keypair(:bls) |> elem(0)
           )
       })
 
@@ -1057,16 +1058,13 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     end
 
     test "should not replicate if there is a validation error", %{tx: tx} do
-      validation_context = create_context(tx)
-
       error = Error.new(:invalid_pending_transaction, "Transactiion already exists")
+
+      validation_context = %ValidationContext{create_context(tx) | mining_error: error}
       validation_stamp = create_validation_stamp(validation_context)
       validation_stamp = %ValidationStamp{validation_stamp | error: Error.to_stamp_error(error)}
 
-      context =
-        validation_context
-        |> ValidationContext.add_validation_stamp(validation_stamp)
-        |> ValidationContext.set_mining_error(error)
+      context = validation_context |> ValidationContext.add_validation_stamp(validation_stamp)
 
       me = self()
 
@@ -1346,22 +1344,22 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    protocol_version = current_protocol_version()
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
+    contract_context = nil
+    encoded_state = nil
 
     movements = Transaction.get_movements(tx)
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{fee: fee}
-      |> LedgerOperations.consume_inputs(
-        tx.address,
-        timestamp,
-        unspent_outputs,
-        movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp, current_protocol_version())
-      )
-      |> elem(1)
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
       timestamp: timestamp,

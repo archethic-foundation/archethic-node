@@ -91,6 +91,9 @@ defmodule Archethic.Contracts.Worker do
       ) do
     triggers_type = get_contract_trigger_types(contract)
 
+    # stop all existing timers
+    data = cancel_schedulers(data)
+
     new_data =
       Enum.reduce(triggers_type, data, fn trigger_type, acc ->
         case schedule_trigger(trigger_type, triggers_type) do
@@ -237,7 +240,7 @@ defmodule Archethic.Contracts.Worker do
     end
 
     new_data = Map.delete(data, :last_call_processed)
-    {:keep_state, new_data, @process_trigger}
+    {:keep_state, new_data, @schedule_and_process_trigger}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}

@@ -21,6 +21,11 @@ defmodule Archethic.P2P.Client.Transport.TCPImpl do
   end
 
   @impl Transport
+  def handle_close(socket) do
+    :gen_tcp.close(socket)
+  end
+
+  @impl Transport
   def handle_message({:tcp, socket, data}) do
     :inet.setopts(socket, active: :once)
     {:ok, data}

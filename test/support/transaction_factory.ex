@@ -6,12 +6,12 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.Election
 
   alias Archethic.Mining.Fee
+  alias Archethic.Mining.LedgerValidation
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -101,23 +101,14 @@ defmodule Archethic.TransactionFactory do
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
-    ledger_operations = %LedgerOperations{fee: fee}
-
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version),
-             encoded_state,
-             contract_context
-           ) do
-        {:ok, ledger_operations} -> ledger_operations
-        {:error, _} -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     poi =
       case prev_tx do
@@ -166,22 +157,17 @@ defmodule Archethic.TransactionFactory do
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: fee}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -216,22 +202,17 @@ defmodule Archethic.TransactionFactory do
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: fee}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -269,22 +250,17 @@ defmodule Archethic.TransactionFactory do
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: fee}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -306,7 +282,7 @@ defmodule Archethic.TransactionFactory do
   end
 
   def create_transaction_with_invalid_fee(inputs \\ []) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    tx = Transaction.new(:data, %TransactionData{content: "content"}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     protocol_version = current_protocol_version()
@@ -315,22 +291,17 @@ defmodule Archethic.TransactionFactory do
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: 1_000_000_000}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: 1_000_000_000}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -364,22 +335,17 @@ defmodule Archethic.TransactionFactory do
     movements = [%TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}]
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: fee}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{
@@ -430,22 +396,17 @@ defmodule Archethic.TransactionFactory do
     movements = Transaction.get_movements(tx)
 
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-
-    ledger_operations = %LedgerOperations{fee: fee}
+    contract_context = nil
+    encoded_state = nil
 
     ledger_operations =
-      case LedgerOperations.consume_inputs(
-             ledger_operations,
-             tx.address,
-             timestamp,
-             inputs,
-             movements,
-             LedgerOperations.get_utxos_from_transaction(tx, timestamp, protocol_version)
-           ) do
-        {:ok, ops} -> ops
-        _ -> ledger_operations
-      end
-      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+      %LedgerValidation{fee: fee}
+      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
+      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
       %ValidationStamp{

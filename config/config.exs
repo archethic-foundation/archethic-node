@@ -71,7 +71,8 @@ config :archethic, Archethic.Crypto,
   supported_curves: [
     :ed25519,
     :secp256r1,
-    :secp256k1
+    :secp256k1,
+    :bls
   ],
   supported_hashes: [
     :sha256,

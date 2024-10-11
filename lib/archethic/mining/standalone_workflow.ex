@@ -16,7 +16,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.Election
 
   alias Archethic.Mining.Error
-  alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.TransactionContext
   alias Archethic.Mining.ValidationContext
   alias Archethic.Mining.WorkflowRegistry
@@ -131,11 +130,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         genesis_address: genesis_address
       )
 
-    validation_context =
-      case PendingTransactionValidation.validate(tx, validation_time) do
-        :ok -> validation_context
-        {:error, error} -> ValidationContext.set_mining_error(validation_context, error)
-      end
+    validation_context = ValidationContext.validate_pending_transaction(validation_context)
 
     validation_context =
       %ValidationContext{mining_error: mining_error} =

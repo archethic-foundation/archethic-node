@@ -313,9 +313,10 @@ defmodule Archethic.Bootstrap.SyncTest do
               3000,
               4000,
               :tcp,
-              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-              :crypto.strong_rand_bytes(64)
+              ArchethicCase.random_public_key(),
+              ArchethicCase.random_public_key(),
+              :crypto.strong_rand_bytes(64),
+              Crypto.generate_random_keypair(:bls) |> elem(0)
             )
         })
 
