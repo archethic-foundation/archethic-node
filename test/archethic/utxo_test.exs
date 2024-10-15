@@ -55,7 +55,7 @@ defmodule Archethic.UTXOTest do
   end
 
   describe "load_transaction/2" do
-    test "should load outputs as io storage nodes but not for chain" do
+    test "should load outputs as io storage nodes and chain even if not genesis node" do
       destination_previous_address = random_address()
       destination_genesis_address = random_address()
 
@@ -85,10 +85,20 @@ defmodule Archethic.UTXOTest do
                 timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
-            consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO}
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: transaction_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                },
+                %UnspentOutput{
+                  from: destination_previous_address,
+                  amount: 200_000_000,
+                  type: :UCO
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
@@ -119,7 +129,16 @@ defmodule Archethic.UTXOTest do
                  }
                ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
-        assert [] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+        assert [
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
+                     from: transaction_address,
+                     amount: 300_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2023-09-10 05:00:00.000Z]
+                   }
+                 }
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
         assert_receive {:append_utxo, ^destination_genesis_address,
                         %VersionedUnspentOutput{
@@ -428,14 +447,16 @@ defmodule Archethic.UTXOTest do
               %TransactionMovement{to: destination3_genesis, amount: 200_000, type: token_type}
             ],
             unspent_outputs: [],
-            consumed_inputs: [
-              %UnspentOutput{
-                from: random_address(),
-                amount: 1_000_000,
-                type: token_type,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ]
+            consumed_inputs:
+              [
+                %UnspentOutput{
+                  from: random_address(),
+                  amount: 1_000_000,
+                  type: token_type,
+                  timestamp: ~U[2023-09-10 05:00:00.000Z]
+                }
+              ]
+              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
           }
         },
         previous_public_key: random_public_key()
