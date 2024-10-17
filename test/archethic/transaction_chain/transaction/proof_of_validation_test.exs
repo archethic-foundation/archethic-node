@@ -276,12 +276,11 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidationTest do
        ) do
     raw_data = CrossValidationStamp.get_raw_data_to_sign(stamp, inconsistencies)
 
-    cross_stamp = %CrossValidationStamp{
-      node_public_key: mining_public_key,
+    %CrossValidationStamp{
+      node_public_key: first_public_key,
+      node_mining_key: mining_public_key,
       signature: Crypto.sign(raw_data, pv),
       inconsistencies: inconsistencies
     }
-
-    {first_public_key, cross_stamp}
   end
 end

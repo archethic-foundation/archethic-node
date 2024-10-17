@@ -96,10 +96,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   @doc """
   Construct the proof of validation aggregating valid cross stamps signatures
   """
-  @spec create(
-          nodes :: ElectedNodes.t(),
-          stamps :: list({Crypto.key(), CrossValidationStamp.t()})
-        ) :: t()
+  @spec create(nodes :: ElectedNodes.t(), stamps :: list(CrossValidationStamp.t())) :: t()
   def create(%ElectedNodes{validation_nodes: nodes}, stamps) do
     valid_cross = filter_valid_cross_stamps(stamps, nodes)
 
@@ -107,17 +104,17 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
       Enum.reduce(
         valid_cross,
         {[], []},
-        fn {_from, %CrossValidationStamp{node_public_key: public_key, signature: signature}},
+        fn %CrossValidationStamp{node_mining_key: key, signature: signature},
            {public_keys, signatures} ->
-          {[public_key | public_keys], [signature | signatures]}
+          {[key | public_keys], [signature | signatures]}
         end
       )
 
     aggregated_signature = Crypto.aggregate_signatures(signatures, public_keys)
 
     bitmask =
-      Enum.reduce(valid_cross, <<>>, fn {from, _}, acc ->
-        index = Enum.find_index(nodes, &(&1.first_public_key == from))
+      Enum.reduce(valid_cross, <<>>, fn %CrossValidationStamp{node_public_key: key}, acc ->
+        index = Enum.find_index(nodes, &(&1.first_public_key == key))
         Utils.set_bitstring_bit(acc, index)
       end)
 
@@ -172,9 +169,12 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   end
 
   defp filter_valid_cross_stamps(stamps, validation_nodes) do
-    Enum.filter(stamps, fn {from, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
-      Enum.empty?(inconsistencies) and Utils.key_in_node_list?(validation_nodes, from)
-    end)
+    Enum.filter(
+      stamps,
+      fn %CrossValidationStamp{node_public_key: node_key, inconsistencies: inconsistencies} ->
+        Enum.empty?(inconsistencies) and Utils.key_in_node_list?(validation_nodes, node_key)
+      end
+    )
   end
 
   defp get_nb_required_validations(nodes) do

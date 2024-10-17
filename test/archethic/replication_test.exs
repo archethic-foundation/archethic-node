@@ -64,8 +64,11 @@ defmodule Archethic.ReplicationTest do
 
     p2p_context()
 
-    tx =
-      TransactionFactory.create_valid_transaction(unspent_outputs, type: :data, content: "content")
+    {tx, cross_stamps} =
+      TransactionFactory.create_valid_transaction_with_cross_stamps(unspent_outputs,
+        type: :data,
+        content: "content"
+      )
 
     MockClient
     |> stub(:send_message, fn
@@ -73,20 +76,14 @@ defmodule Archethic.ReplicationTest do
         {:ok, %NotFound{}}
     end)
 
+    v_utxos =
+      VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
     with_mock(TransactionContext, [:passthrough],
-      fetch_transaction_unspent_outputs: fn _ ->
-        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
-      end
+      fetch_transaction_unspent_outputs: fn _ -> v_utxos end
     ) do
       assert %CrossValidationStamp{inconsistencies: []} =
-               Replication.validate_transaction(
-                 tx,
-                 nil,
-                 VersionedUnspentOutput.wrap_unspent_outputs(
-                   unspent_outputs,
-                   current_protocol_version()
-                 )
-               )
+               Replication.validate_transaction(tx, nil, v_utxos, cross_stamps)
 
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
     end
@@ -125,8 +122,8 @@ defmodule Archethic.ReplicationTest do
     prev_tx = ContractFactory.create_valid_contract_tx(code)
     previous_address = prev_tx.address
 
-    next_tx =
-      ContractFactory.create_next_contract_tx(prev_tx,
+    {next_tx, cross_stamps} =
+      ContractFactory.create_next_contract_tx_with_cross_stamps(prev_tx,
         content: "ok",
         state: encoded_state,
         inputs: unspent_outputs
@@ -155,7 +152,8 @@ defmodule Archethic.ReplicationTest do
                    timestamp: now,
                    inputs: v_unspent_outputs
                  },
-                 v_unspent_outputs
+                 v_unspent_outputs,
+                 cross_stamps
                )
 
       assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))

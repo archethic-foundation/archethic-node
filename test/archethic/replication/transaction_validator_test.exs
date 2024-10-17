@@ -287,7 +287,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
                ]
              } = TransactionValidator.validate(validation_context)
     end
@@ -364,7 +364,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
                ]
              } = TransactionValidator.validate(validation_context)
     end

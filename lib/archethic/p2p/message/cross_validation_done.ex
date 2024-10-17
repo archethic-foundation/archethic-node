@@ -10,8 +10,12 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.Mining
+  alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Node
   alias Archethic.Utils
+
+  require Logger
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
@@ -21,7 +25,7 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {stamp, rest} = CrossValidationStamp.deserialize(rest)
+    {stamp, rest} = CrossValidationStamp.deserialize(rest, Mining.protocol_version())
 
     {%__MODULE__{
        address: address,
@@ -31,12 +35,32 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{address: address, cross_validation_stamp: stamp}) do
-    <<address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
+    <<address::binary,
+      CrossValidationStamp.serialize(stamp, Mining.protocol_version())::bitstring>>
   end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
-  def process(%__MODULE__{address: tx_address, cross_validation_stamp: stamp}, from) do
-    Mining.add_cross_validation_stamp(tx_address, stamp, from)
+  def process(
+        %__MODULE__{
+          address: tx_address,
+          cross_validation_stamp:
+            stamp = %CrossValidationStamp{
+              node_public_key: node_public_key,
+              node_mining_key: node_mining_key
+            }
+        },
+        from
+      ) do
+    with true <- node_public_key == from,
+         %Node{mining_public_key: ^node_mining_key} <- P2P.get_node_info!(from) do
+      Mining.add_cross_validation_stamp(tx_address, stamp)
+    else
+      _ ->
+        Logger.warning(
+          "Received invalid cross validation done message from #{Base.encode16(from)}"
+        )
+    end
+
     %Ok{}
   end
 end

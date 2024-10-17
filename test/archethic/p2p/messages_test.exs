@@ -349,13 +349,10 @@ defmodule Archethic.P2P.MessageTest do
 
     test "CrossValidationDone message" do
       msg = %CrossValidationDone{
-        address:
-          <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
-            65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
+        address: random_address(),
         cross_validation_stamp: %CrossValidationStamp{
-          node_public_key:
-            <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99, 217, 105,
-              80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
+          node_public_key: random_public_key(),
+          node_mining_key: random_public_key(:bls),
           signature:
             <<231, 4, 252, 234, 6, 126, 91, 87, 41, 70, 76, 220, 116, 238, 128, 189, 94, 124, 207,
               90, 32, 143, 239, 153, 101, 148, 189, 125, 25, 235, 20, 207, 168, 10, 86, 59, 14,

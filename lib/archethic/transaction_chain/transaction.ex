@@ -623,8 +623,8 @@ defmodule Archethic.TransactionChain.Transaction do
     do:
       Enum.all?(
         cross_stamps,
-        fn cross_stamp = %CrossValidationStamp{node_public_key: node_public_key} ->
-          Enum.any?(public_keys, &(&1 == node_public_key)) and
+        fn cross_stamp = %CrossValidationStamp{node_mining_key: key} ->
+          Enum.any?(public_keys, &(&1 == key)) and
             CrossValidationStamp.valid_signature?(cross_stamp, stamp)
         end
       )
@@ -699,7 +699,7 @@ defmodule Archethic.TransactionChain.Transaction do
        when protocol_version <= 8 do
     cross_validation_stamps_bin =
       cross_validation_stamps
-      |> Enum.map(&CrossValidationStamp.serialize/1)
+      |> Enum.map(&CrossValidationStamp.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
     <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring,
@@ -769,7 +769,7 @@ defmodule Archethic.TransactionChain.Transaction do
        )
        when protocol_version <= 8 do
     {cross_validation_stamps, rest} =
-      reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])
+      reduce_cross_validation_stamps(rest, protocol_version, nb_cross_validations_stamps, [])
 
     tx = %__MODULE__{tx | cross_validation_stamps: cross_validation_stamps}
 
@@ -785,15 +785,15 @@ defmodule Archethic.TransactionChain.Transaction do
     {tx, rest}
   end
 
-  defp reduce_cross_validation_stamps(rest, 0, _), do: {[], rest}
+  defp reduce_cross_validation_stamps(rest, _, 0, _), do: {[], rest}
 
-  defp reduce_cross_validation_stamps(rest, nb_stamps, acc) when length(acc) == nb_stamps do
+  defp reduce_cross_validation_stamps(rest, _, nb_stamps, acc) when length(acc) == nb_stamps do
     {Enum.reverse(acc), rest}
   end
 
-  defp reduce_cross_validation_stamps(rest, nb_stamps, acc) do
-    {stamp, rest} = CrossValidationStamp.deserialize(rest)
-    reduce_cross_validation_stamps(rest, nb_stamps, [stamp | acc])
+  defp reduce_cross_validation_stamps(rest, protocol_version, nb_stamps, acc) do
+    {stamp, rest} = CrossValidationStamp.deserialize(rest, protocol_version)
+    reduce_cross_validation_stamps(rest, protocol_version, nb_stamps, [stamp | acc])
   end
 
   @spec to_map(t()) :: map()

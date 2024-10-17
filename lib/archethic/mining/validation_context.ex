@@ -103,7 +103,7 @@ defmodule Archethic.Mining.ValidationContext do
             beacon: bitstring(),
             IO: bitstring()
           },
-          cross_validation_stamps: list({Crypto.key(), CrossValidationStamp.t()}),
+          cross_validation_stamps: list(CrossValidationStamp.t()),
           proof_of_validation: nil | ProofOfValidation.t(),
           proof_elected_nodes: nil | ElectedNodes.t(),
           chain_storage_nodes_view: bitstring(),
@@ -336,9 +336,9 @@ defmodule Archethic.Mining.ValidationContext do
 
     iex> %ValidationContext{
     ...>   cross_validation_stamps: [
-    ...>     {random_public_key(), %CrossValidationStamp{}},
-    ...>     {random_public_key(), %CrossValidationStamp{}},
-    ...>     {random_public_key(), %CrossValidationStamp{}}
+    ...>     %CrossValidationStamp{},
+    ...>     %CrossValidationStamp{},
+    ...>     %CrossValidationStamp{}
     ...>   ],
     ...>   cross_validation_nodes: [
     ...>     %Node{},
@@ -362,27 +362,23 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec atomic_commitment?(t()) :: boolean()
   def atomic_commitment?(%__MODULE__{transaction: tx, cross_validation_stamps: stamps}) do
-    stamps = Enum.map(stamps, &elem(&1, 1))
     %Transaction{tx | cross_validation_stamps: stamps} |> Transaction.atomic_commitment?()
   end
 
   @doc """
   Add a cross validation stamp if not exists
   """
-  @spec add_cross_validation_stamp(t(), CrossValidationStamp.t(), from :: Crypto.key()) :: t()
+  @spec add_cross_validation_stamp(t(), CrossValidationStamp.t()) :: t()
   def add_cross_validation_stamp(
         context = %__MODULE__{validation_stamp: validation_stamp},
-        cross_stamp = %CrossValidationStamp{node_public_key: mining_public_key},
-        from
+        cross_stamp = %CrossValidationStamp{node_public_key: node_public_key}
       ) do
-    %Node{last_public_key: last_public_key, mining_public_key: expected_mining_public_key} =
-      P2P.get_node_info!(from)
+    %Node{last_public_key: last_public_key} = P2P.get_node_info!(node_public_key)
 
-    with true <- mining_public_key == expected_mining_public_key,
-         true <- cross_validation_node?(context, last_public_key),
-         false <- cross_validation_stamp_exists?(context, from),
+    with true <- cross_validation_node?(context, last_public_key),
+         false <- cross_validation_stamp_exists?(context, node_public_key),
          true <- CrossValidationStamp.valid_signature?(cross_stamp, validation_stamp) do
-      Map.update!(context, :cross_validation_stamps, &[{from, cross_stamp} | &1])
+      Map.update!(context, :cross_validation_stamps, &[cross_stamp | &1])
     else
       _ -> context
     end
@@ -393,10 +389,7 @@ defmodule Archethic.Mining.ValidationContext do
          node_public_key
        )
        when is_binary(node_public_key) do
-    Enum.any?(stamps, fn
-      {^node_public_key, _} -> true
-      _ -> false
-    end)
+    Enum.any?(stamps, &(&1.node_public_key == node_public_key))
   end
 
   @doc """
@@ -1176,10 +1169,7 @@ defmodule Archethic.Mining.ValidationContext do
       %CrossValidationStamp{inconsistencies: inconsistencies}
       |> CrossValidationStamp.sign(stamp)
 
-    %__MODULE__{
-      context
-      | cross_validation_stamps: [{Crypto.first_node_public_key(), cross_stamp}]
-    }
+    %__MODULE__{context | cross_validation_stamps: [cross_stamp]}
   end
 
   defp validation_stamp_inconsistencies(

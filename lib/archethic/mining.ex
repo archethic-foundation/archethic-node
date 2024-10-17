@@ -227,12 +227,11 @@ defmodule Archethic.Mining do
   """
   @spec add_cross_validation_stamp(
           tx_address :: Crypto.prepended_hash(),
-          stamp :: CrossValidationStamp.t(),
-          from :: Crypto.key()
+          stamp :: CrossValidationStamp.t()
         ) :: :ok
-  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}, from) do
+  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}) do
     pid = get_mining_process!(tx_address)
-    if pid, do: send(pid, {:add_cross_validation_stamp, stamp, from})
+    if pid, do: send(pid, {:add_cross_validation_stamp, stamp})
     :ok
   end
 

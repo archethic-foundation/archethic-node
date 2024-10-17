@@ -50,7 +50,7 @@ defmodule Archethic.TransactionFactory do
     )
   end
 
-  def create_valid_transaction(
+  def create_valid_transaction_with_cross_stamps(
         inputs \\ [
           %UnspentOutput{
             type: :UCO,
@@ -126,24 +126,50 @@ defmodule Archethic.TransactionFactory do
       }
       |> ValidationStamp.sign()
 
-    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
+    cross_validation_stamps =
+      CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp) |> List.wrap()
 
-    if protocol_version <= 8 do
-      %Transaction{
-        tx
-        | validation_stamp: validation_stamp,
-          cross_validation_stamps: [cross_validation_stamp]
+      cross_validation_stamp = %CrossValidationStamp{
+        cross_validation_stamp
+        | node_mining_key: cross_validation_stamp.node_public_key
       }
-    else
-      stamps = [{Crypto.first_node_public_key(), cross_validation_stamp}]
-      proof = [new_node()] |> ProofOfValidation.sort_nodes() |> ProofOfValidation.create(stamps)
 
-      %Transaction{
-        tx
-        | validation_stamp: validation_stamp,
-          proof_of_validation: proof
-      }
-    end
+    tx =
+      if protocol_version <= 8 do
+        %Transaction{
+          tx
+          | validation_stamp: validation_stamp,
+            cross_validation_stamps: cross_validation_stamps
+        }
+      else
+        proof =
+          [new_node()]
+          |> ProofOfValidation.get_election(tx.address)
+          |> ProofOfValidation.create(cross_validation_stamps)
+
+        %Transaction{
+          tx
+          | validation_stamp: validation_stamp,
+            proof_of_validation: proof
+        }
+      end
+
+    {tx, cross_validation_stamps}
+  end
+
+  def create_valid_transaction(
+        inputs \\ [
+          %UnspentOutput{
+            type: :UCO,
+            amount: 1_000_000_000,
+            from: random_address(),
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          }
+        ],
+        opts \\ []
+      ) do
+    {tx, _cross_stamps} = create_valid_transaction_with_cross_stamps(inputs, opts)
+    tx
   end
 
   def create_transaction_with_not_atomic_commitment(unspent_outputs \\ []) do

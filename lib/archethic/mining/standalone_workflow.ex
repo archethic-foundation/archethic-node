@@ -212,7 +212,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   end
 
   def handle_info(
-        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         state = %{
           context:
             context = %ValidationContext{
@@ -225,8 +225,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: type
     )
 
-    new_context =
-      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
+    new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
     new_state = Map.put(state, :context, new_context)
 

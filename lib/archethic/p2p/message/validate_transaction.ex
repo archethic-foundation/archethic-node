@@ -113,7 +113,8 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) when is_bitstring(bin) do
-    {tx, rest} = Transaction.deserialize(bin)
+    {tx = %Transaction{validation_stamp: %ValidationStamp{protocol_version: protocol_version}},
+     rest} = Transaction.deserialize(bin)
 
     {contract_context, rest} =
       case rest do
