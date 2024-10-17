@@ -4,12 +4,13 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   """
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -27,37 +28,38 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   Encode a transaction
   """
   @spec encode(Transaction.t()) :: binary()
-  def encode(%Transaction{
-        version: tx_version,
-        address: address,
-        type: type,
-        data: %TransactionData{
-          content: content,
-          code: code,
-          ownerships: ownerships,
-          ledger: %Ledger{uco: uco_ledger, token: token_ledger},
-          recipients: recipients
-        },
-        previous_public_key: previous_public_key,
-        previous_signature: previous_signature,
-        origin_signature: origin_signature,
-        validation_stamp: %ValidationStamp{
-          timestamp: timestamp,
-          proof_of_work: proof_of_work,
-          proof_of_integrity: proof_of_integrity,
-          proof_of_election: proof_of_election,
-          ledger_operations: %LedgerOperations{
-            fee: fee,
-            transaction_movements: transaction_movements,
-            unspent_outputs: unspent_outputs,
-            consumed_inputs: consumed_inputs
+  def encode(
+        tx = %Transaction{
+          version: tx_version,
+          address: address,
+          type: type,
+          data: %TransactionData{
+            content: content,
+            code: code,
+            ownerships: ownerships,
+            ledger: %Ledger{uco: uco_ledger, token: token_ledger},
+            recipients: recipients
           },
-          recipients: resolved_recipients,
-          signature: validation_stamp_sig,
-          protocol_version: protocol_version
-        },
-        cross_validation_stamps: cross_validation_stamps
-      }) do
+          previous_public_key: previous_public_key,
+          previous_signature: previous_signature,
+          origin_signature: origin_signature,
+          validation_stamp: %ValidationStamp{
+            timestamp: timestamp,
+            proof_of_work: proof_of_work,
+            proof_of_integrity: proof_of_integrity,
+            proof_of_election: proof_of_election,
+            ledger_operations: %LedgerOperations{
+              fee: fee,
+              transaction_movements: transaction_movements,
+              unspent_outputs: unspent_outputs,
+              consumed_inputs: consumed_inputs
+            },
+            recipients: resolved_recipients,
+            signature: validation_stamp_sig,
+            protocol_version: protocol_version
+          }
+        }
+      ) do
     ownerships_encoding =
       ownerships
       |> Enum.map(&Ownership.serialize(&1, tx_version))
@@ -82,11 +84,6 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       consumed_inputs
       |> Enum.map(&VersionedUnspentOutput.serialize(&1))
       |> :erlang.list_to_bitstring()
-
-    cross_validation_stamps_encoding =
-      cross_validation_stamps
-      |> Enum.map(&CrossValidationStamp.serialize/1)
-      |> :erlang.list_to_binary()
 
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
     encoded_ownerships_len = length(ownerships) |> VarInt.from_value()
@@ -139,10 +136,9 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
          <<encoded_resolved_recipients_len::binary,
            :erlang.list_to_binary(resolved_recipients)::binary>>},
         {"validation_stamp.signature", validation_stamp_sig},
-        {"validation_stamp.protocol_version", <<protocol_version::32>>},
-        {"cross_validation_stamps",
-         <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
+        {"validation_stamp.protocol_version", <<protocol_version::32>>}
       ]
+      |> Enum.concat(encode_validation_fields(tx))
       |> Enum.map(fn {column, value} ->
         wrapped_value = Utils.wrap_binary(value)
 
@@ -153,6 +149,26 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     binary_encoding = :erlang.list_to_binary(encoding)
     tx_size = byte_size(binary_encoding)
     <<tx_size::32, tx_version::32, binary_encoding::binary>>
+  end
+
+  defp encode_validation_fields(%Transaction{
+         validation_stamp: %ValidationStamp{protocol_version: protocol_version},
+         cross_validation_stamps: cross_validation_stamps
+       })
+       when protocol_version <= 8 do
+    cross_validation_stamps_encoding =
+      cross_validation_stamps
+      |> Enum.map(&CrossValidationStamp.serialize/1)
+      |> :erlang.list_to_binary()
+
+    [
+      {"cross_validation_stamps",
+       <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
+    ]
+  end
+
+  defp encode_validation_fields(%Transaction{proof_of_validation: proof_of_validation}) do
+    [{"proof_of_validation", ProofOfValidation.serialize(proof_of_validation)}]
   end
 
   def decode(_version, "type", <<type::8>>, acc),
@@ -287,6 +303,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   def decode(_version, "cross_validation_stamps", <<nb::8, rest::bitstring>>, acc) do
     stamps = deserialize_cross_validation_stamps(rest, nb, [])
     Map.put(acc, :cross_validation_stamps, stamps)
+  end
+
+  def decode(_version, "proof_of_validation", <<rest::bitstring>>, acc) do
+    {proof_of_validation, _} = ProofOfValidation.deserialize(rest)
+    Map.put(acc, :proof_of_validation, proof_of_validation)
   end
 
   def decode(_version, column, data, acc), do: Map.put(acc, column, data)

@@ -815,14 +815,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def cast(tx = %{}) do
     type =
       case Map.get(tx, :type) do
-        nil ->
-          nil
-
-        type when is_binary(type) ->
-          String.to_existing_atom(type)
-
-        type when is_atom(type) ->
-          type
+        nil -> nil
+        type when is_binary(type) -> String.to_existing_atom(type)
+        type when is_atom(type) -> type
       end
 
     %__MODULE__{
@@ -835,8 +830,8 @@ defmodule Archethic.TransactionChain.Transaction do
       origin_signature: Map.get(tx, :origin_signature),
       validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.cast(),
       cross_validation_stamps:
-        (Map.get(tx, :cross_validation_stamps) || [])
-        |> Enum.map(&CrossValidationStamp.cast/1)
+        Map.get(tx, :cross_validation_stamps, []) |> Enum.map(&CrossValidationStamp.cast/1),
+      proof_of_validation: Map.get(tx, :proof_of_validation) |> ProofOfValidation.cast()
     }
   end
 

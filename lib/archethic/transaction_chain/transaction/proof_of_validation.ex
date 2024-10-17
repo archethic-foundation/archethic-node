@@ -194,4 +194,12 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
     {%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}, rest}
   end
+
+  @spec cast(nil | map() | t()) :: t()
+  def cast(nil), do: nil
+  def cast(proof = %__MODULE__{}), do: proof
+
+  def cast(map = %{}) do
+    %__MODULE__{signature: Map.get(map, :signature), nodes_bitmask: Map.get(map, :nodes_bitmask)}
+  end
 end
