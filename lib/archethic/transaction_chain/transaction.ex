@@ -8,6 +8,7 @@ defmodule Archethic.TransactionChain.Transaction do
   alias Archethic.Crypto
 
   alias __MODULE__.CrossValidationStamp
+  alias __MODULE__.ProofOfValidation
   alias __MODULE__.ValidationStamp
   alias __MODULE__.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -46,6 +47,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :previous_signature,
     :origin_signature,
     :validation_stamp,
+    :proof_of_validation,
     cross_validation_stamps: [],
     version: @version
   ]
@@ -58,11 +60,12 @@ defmodule Archethic.TransactionChain.Transaction do
   - Previous signature: signature from the previous public key
   - Previous public key: previous generated public key matching the previous signature
   - Origin signature: signature from the device which originated the transaction (used in the Proof of work)
-  - Version: version of the transaction (used for backward compatiblity)
+  - Version: version of the transaction used for user datas (used for backward compatiblity)
 
   When the transaction is validated the following fields are filled:
   - Validation stamp: coordinator work result
-  - Cross validation stamps: endorsements of the validation stamp from the coordinator
+  - Cross validation stamps (protocol_version <= 8): endorsements of the validation stamp from the coordinator
+  - Proof of validation (protocol_version > 9): Aggregated signatures of cross validation stamps
   """
   @type t() :: %__MODULE__{
           address: binary(),
@@ -72,7 +75,8 @@ defmodule Archethic.TransactionChain.Transaction do
           previous_signature: nil | binary(),
           origin_signature: nil | binary(),
           validation_stamp: nil | ValidationStamp.t(),
-          cross_validation_stamps: nil | list(CrossValidationStamp.t()),
+          proof_of_validation: nil | ProofOfValidation.t(),
+          cross_validation_stamps: list(CrossValidationStamp.t()),
           version: pos_integer()
         }
 
@@ -460,7 +464,7 @@ defmodule Archethic.TransactionChain.Transaction do
   """
   @spec to_pending(t()) :: t()
   def to_pending(tx = %__MODULE__{}) do
-    %{tx | validation_stamp: nil, cross_validation_stamps: nil}
+    %{tx | validation_stamp: nil, cross_validation_stamps: []}
   end
 
   @doc """
@@ -665,49 +669,54 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   def serialize(
-        %__MODULE__{
+        tx = %__MODULE__{
           version: version,
           address: address,
           type: type,
           data: data,
           previous_public_key: previous_public_key,
           previous_signature: previous_signature,
-          origin_signature: origin_signature,
-          validation_stamp: nil
+          origin_signature: origin_signature
         },
         serialization_mode
       ) do
     <<version::32, address::binary, serialize_type(type)::8,
       TransactionData.serialize(data, version, serialization_mode)::bitstring,
       previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
-      byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
+      byte_size(origin_signature)::8, origin_signature::binary,
+      serialize_validation_data(tx)::bitstring>>
   end
 
-  def serialize(
-        %__MODULE__{
-          version: version,
-          address: address,
-          type: type,
-          data: data,
-          previous_public_key: previous_public_key,
-          previous_signature: previous_signature,
-          origin_signature: origin_signature,
-          validation_stamp: validation_stamp,
-          cross_validation_stamps: cross_validation_stamps
-        },
-        serialization_mode
-      ) do
+  defp serialize_validation_data(%__MODULE__{validation_stamp: nil}), do: <<0::8>>
+
+  defp serialize_validation_data(%__MODULE__{
+         validation_stamp:
+           validation_stamp = %ValidationStamp{protocol_version: protocol_version},
+         cross_validation_stamps: cross_validation_stamps
+       })
+       when protocol_version <= 8 do
     cross_validation_stamps_bin =
       cross_validation_stamps
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data, version, serialization_mode)::bitstring,
-      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
-      byte_size(origin_signature)::8, origin_signature::binary, 1::8,
-      ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
-      cross_validation_stamps_bin::binary>>
+    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring,
+      length(cross_validation_stamps)::8, cross_validation_stamps_bin::binary>>
+  end
+
+  defp serialize_validation_data(%__MODULE__{
+         validation_stamp: validation_stamp,
+         proof_of_validation: nil
+       }) do
+    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring, 0::8>>
+  end
+
+  defp serialize_validation_data(%__MODULE__{
+         validation_stamp: validation_stamp,
+         proof_of_validation: proof_of_validation
+       }) do
+    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring, 1::8,
+      ProofOfValidation.serialize(proof_of_validation)::bitstring>>
   end
 
   @doc """
@@ -725,7 +734,7 @@ defmodule Archethic.TransactionChain.Transaction do
     {previous_public_key,
      <<previous_signature_size::8, previous_signature::binary-size(previous_signature_size),
        origin_signature_size::8, origin_signature::binary-size(origin_signature_size),
-       validated::8, rest::bitstring>>} = Utils.deserialize_public_key(rest)
+       rest::bitstring>>} = Utils.deserialize_public_key(rest)
 
     tx = %__MODULE__{
       version: version,
@@ -737,26 +746,41 @@ defmodule Archethic.TransactionChain.Transaction do
       origin_signature: origin_signature
     }
 
-    case validated do
-      0 ->
-        {tx, rest}
+    deserialize_validation_data(tx, rest)
+  end
 
-      1 ->
-        {validation_stamp, <<nb_cross_validations_stamps::8, rest::bitstring>>} =
-          ValidationStamp.deserialize(rest)
+  defp deserialize_validation_data(tx, <<0::8, rest::bitstring>>), do: {tx, rest}
 
-        {cross_validation_stamps, rest} =
-          reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])
+  defp deserialize_validation_data(tx, <<1::8, rest::bitstring>>) do
+    {validation_stamp = %ValidationStamp{protocol_version: protocol_version}, rest} =
+      ValidationStamp.deserialize(rest)
 
-        {
-          %{
-            tx
-            | validation_stamp: validation_stamp,
-              cross_validation_stamps: cross_validation_stamps
-          },
-          rest
-        }
-    end
+    tx = %__MODULE__{tx | validation_stamp: validation_stamp}
+
+    do_deserialize_validation_data(tx, rest, protocol_version)
+  end
+
+  defp do_deserialize_validation_data(
+         tx,
+         <<nb_cross_validations_stamps::8, rest::bitstring>>,
+         protocol_version
+       )
+       when protocol_version <= 8 do
+    {cross_validation_stamps, rest} =
+      reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])
+
+    tx = %__MODULE__{tx | cross_validation_stamps: cross_validation_stamps}
+
+    {tx, rest}
+  end
+
+  defp do_deserialize_validation_data(tx, <<0::8, rest::bitstring>>, _), do: {tx, rest}
+
+  defp do_deserialize_validation_data(tx, <<1::8, rest::bitstring>>, _) do
+    {proof, rest} = ProofOfValidation.deserialize(rest)
+    tx = %__MODULE__{tx | proof_of_validation: proof}
+
+    {tx, rest}
   end
 
   defp reduce_cross_validation_stamps(rest, 0, _), do: {[], rest}
@@ -783,7 +807,7 @@ defmodule Archethic.TransactionChain.Transaction do
       origin_signature: tx.origin_signature,
       validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
       cross_validation_stamps:
-        Enum.map(tx.cross_validation_stamps || [], &CrossValidationStamp.to_map/1)
+        Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
     }
   end
 
