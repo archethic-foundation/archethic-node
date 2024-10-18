@@ -65,7 +65,9 @@ defmodule Mix.Tasks.Archethic.Migrate do
       migration_version = Regex.run(~r/.*(?=@)/, file_name) |> List.first()
       {migration_version, migration_path}
     end)
-    |> Enum.filter(fn {migration_version, _} -> last_version < migration_version end)
+    |> Enum.filter(fn {migration_version, _} ->
+      Version.compare(last_version, migration_version) == :lt
+    end)
     |> Enum.map(fn {version, path} -> {version, Code.eval_file(path)} end)
     |> Enum.filter(fn
       {_version, {{:module, module, _, _}, _}} ->
@@ -80,6 +82,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
         false
     end)
     |> Enum.map(fn {version, {{_, module, _, _}, _}} -> {version, module} end)
+    |> Enum.sort_by(&elem(&1, 0), Version)
   end
 
   defp get_migrations_path() do

@@ -6,6 +6,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
   alias Archethic.Mining.Error
+  alias Archethic.Mining.ValidationContext
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
@@ -86,7 +87,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
      }}
   end
 
-  describe "validate/1" do
+  describe "validate_consensus/1" do
     test "should return error when the atomic commitment is not reached" do
       unspent_outputs = [
         %UnspentOutput{
@@ -97,27 +98,39 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert {:error, %Error{data: "Invalid atomic commitment"}} =
-               TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
-               |> TransactionValidator.validate()
+      tx = TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
+
+      validation_context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: tx.validation_stamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: "Invalid atomic commitment"}} =
+               TransactionValidator.validate_consensus(validation_context)
     end
 
     test "should return error when an invalid proof of work" do
-      assert {:error, %Error{data: "Invalid proof of work"}} =
-               TransactionFactory.create_transaction_with_invalid_proof_of_work()
-               |> TransactionValidator.validate()
+      tx = TransactionFactory.create_transaction_with_invalid_proof_of_work()
+
+      validation_context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: tx.validation_stamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: "Invalid proof of work"}} =
+               TransactionValidator.validate_consensus(validation_context)
     end
 
     test "should return error when the validation stamp signature is invalid" do
-      assert {:error, %Error{data: "Invalid election"}} =
-               TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
-               |> TransactionValidator.validate()
-    end
+      tx = TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
 
-    test "should return error when the transaction movements are invalid" do
-      assert {:error, %Error{data: "Invalid transaction movements"}} =
-               TransactionFactory.create_transaction_with_invalid_transaction_movements()
-               |> TransactionValidator.validate()
+      validation_context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: tx.validation_stamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: "Invalid election"}} =
+               TransactionValidator.validate_consensus(validation_context)
     end
 
     test "should return error when there is an atomic commitment but with inconsistencies" do
@@ -130,9 +143,15 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert {:error, %Error{data: "Invalid atomic commitment"}} =
-               TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
-               |> TransactionValidator.validate()
+      tx = TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
+
+      validation_context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: tx.validation_stamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: "Invalid atomic commitment"}} =
+               TransactionValidator.validate_consensus(validation_context)
     end
 
     test "should return :ok when the transaction is valid" do
@@ -145,13 +164,19 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      assert :ok =
-               TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate()
+      tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+
+      validation_context = %ValidationContext{
+        transaction: tx,
+        validation_stamp: tx.validation_stamp
+      }
+
+      assert %ValidationContext{mining_error: nil} =
+               TransactionValidator.validate_consensus(validation_context)
     end
   end
 
-  describe "validate/5" do
+  describe "validate/1" do
     test "should return :ok when the transaction is valid" do
       unspent_outputs = [
         %UnspentOutput{
@@ -165,10 +190,27 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
-      tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+      tx =
+        TransactionFactory.create_valid_transaction(unspent_outputs,
+          type: :data,
+          content: "content"
+        )
+
       genesis = Transaction.previous_address(tx)
 
-      assert :ok = TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
+      validation_context = %ValidationContext{
+        transaction: tx,
+        previous_transaction: nil,
+        genesis_address: genesis,
+        aggregated_utxos: v_unspent_outputs,
+        unspent_outputs: v_unspent_outputs,
+        contract_context: nil,
+        validation_stamp: tx.validation_stamp,
+        validation_time: tx.validation_stamp.timestamp
+      }
+
+      assert %ValidationContext{mining_error: nil} =
+               TransactionValidator.validate(validation_context)
     end
 
     test "should validate when the transaction coming from a contract is valid" do
@@ -208,19 +250,26 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       genesis = Transaction.previous_address(prev_tx)
 
-      assert :ok =
-               TransactionValidator.validate(
-                 next_tx,
-                 prev_tx,
-                 genesis,
-                 versioned_inputs,
-                 %Contract.Context{
-                   status: :tx_output,
-                   timestamp: now,
-                   trigger: {:datetime, now},
-                   inputs: versioned_inputs
-                 }
-               )
+      contract_context = %Contract.Context{
+        status: :tx_output,
+        timestamp: now,
+        trigger: {:datetime, now},
+        inputs: versioned_inputs
+      }
+
+      validation_context = %ValidationContext{
+        transaction: next_tx,
+        previous_transaction: prev_tx,
+        genesis_address: genesis,
+        aggregated_utxos: versioned_inputs,
+        unspent_outputs: versioned_inputs,
+        contract_context: contract_context,
+        validation_stamp: next_tx.validation_stamp,
+        validation_time: next_tx.validation_stamp.timestamp
+      }
+
+      assert %ValidationContext{mining_error: nil} =
+               TransactionValidator.validate(validation_context)
     end
 
     test "should return error when the fees are invalid" do
@@ -239,8 +288,19 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
-      assert {:error, %Error{data: "Invalid transaction fee"}} =
-               TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
+      validation_context = %ValidationContext{
+        transaction: tx,
+        previous_transaction: nil,
+        genesis_address: genesis,
+        aggregated_utxos: v_unspent_outputs,
+        unspent_outputs: v_unspent_outputs,
+        contract_context: nil,
+        validation_stamp: tx.validation_stamp,
+        validation_time: tx.validation_stamp.timestamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
+               TransactionValidator.validate(validation_context)
     end
 
     test "should return error when the fees are invalid using contract context" do
@@ -302,14 +362,19 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, trigger_tx}
       end)
 
-      assert {:error, %Error{data: "Invalid transaction fee"}} =
-               TransactionValidator.validate(
-                 next_tx,
-                 prev_tx,
-                 contract_genesis,
-                 v_unspent_outputs,
-                 contract_context
-               )
+      validation_context = %ValidationContext{
+        transaction: next_tx,
+        previous_transaction: prev_tx,
+        genesis_address: contract_genesis,
+        aggregated_utxos: v_unspent_outputs,
+        unspent_outputs: v_unspent_outputs,
+        contract_context: contract_context,
+        validation_stamp: next_tx.validation_stamp,
+        validation_time: next_tx.validation_stamp.timestamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
+               TransactionValidator.validate(validation_context)
     end
 
     test "should return error if recipient contract execution invalid" do
@@ -348,7 +413,20 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, %GenesisAddress{address: recipient_genesis, timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:error, _} = TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
+      validation_context = %ValidationContext{
+        transaction: tx,
+        previous_transaction: nil,
+        genesis_address: genesis,
+        aggregated_utxos: v_unspent_outputs,
+        unspent_outputs: v_unspent_outputs,
+        contract_context: nil,
+        validation_stamp: tx.validation_stamp,
+        validation_time: tx.validation_stamp.timestamp,
+        resolved_addresses: %{recipient_address => recipient_genesis}
+      }
+
+      assert %ValidationContext{mining_error: %Error{message: "Invalid recipients execution"}} =
+               TransactionValidator.validate(validation_context)
     end
 
     test "should return error when the inputs are invalid using contract context" do
@@ -410,14 +488,19 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, trigger_tx}
       end)
 
-      assert {:error, %Error{message: "Invalid contract context inputs"}} =
-               TransactionValidator.validate(
-                 next_tx,
-                 prev_tx,
-                 contract_genesis,
-                 v_unspent_outputs,
-                 contract_context
-               )
+      validation_context = %ValidationContext{
+        transaction: next_tx,
+        previous_transaction: prev_tx,
+        genesis_address: contract_genesis,
+        aggregated_utxos: v_unspent_outputs,
+        unspent_outputs: v_unspent_outputs,
+        contract_context: contract_context,
+        validation_stamp: next_tx.validation_stamp,
+        validation_time: next_tx.validation_stamp.timestamp
+      }
+
+      assert %ValidationContext{mining_error: %Error{message: "Invalid contract context inputs"}} =
+               TransactionValidator.validate(validation_context)
     end
   end
 end

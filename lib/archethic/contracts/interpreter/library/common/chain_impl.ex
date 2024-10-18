@@ -9,9 +9,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
 
   alias Archethic.Crypto
 
-  alias Archethic.Tag
+  alias Archethic.Mining.LedgerValidation
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.Tag
 
   alias Archethic.Utils
 
@@ -85,7 +85,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   end
 
   @impl Chain
-  def get_burn_address(), do: LedgerOperations.burning_address() |> Base.encode16()
+  def get_burn_address(), do: LedgerValidation.burning_address() |> Base.encode16()
 
   @impl Chain
   def get_previous_address(previous_public_key) when is_binary(previous_public_key),
