@@ -268,6 +268,11 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
+        "IMAGE2.png":{
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
         "ungzip.png":{
           "encoding":"gzip",
           "addresses":[
@@ -286,6 +291,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
         "raw.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
         "no_content.html":"unsupported",
         "image.png":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "IMAGE2.png":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
         "ungzip.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
       }
       """
@@ -381,6 +387,32 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+
+    test "should downcase url_path before processing", %{conn: conn} do
+      conn1 =
+        get(
+          conn,
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/IMage.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn1, 200)
+
+      conn2 =
+        get(
+          conn,
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/image2.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn2, 200)
+
+      conn3 =
+        get(
+          conn,
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/image.jpeg"
+        )
+
+      assert "Cannot find file content" = response(conn3, 404)
     end
 
     test "should return raw file content", %{conn: conn} do

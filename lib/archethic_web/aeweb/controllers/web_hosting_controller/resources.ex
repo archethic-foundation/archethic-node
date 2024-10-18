@@ -79,6 +79,8 @@ defmodule ArchethicWeb.AEWeb.WebHostingController.Resources do
   defp get_file(metadata, url_path) do
     resource_path = Enum.join(url_path, "/")
 
+    metadata = normalise_downcase_key(metadata)
+
     case Map.get(metadata, resource_path) do
       nil ->
         if is_a_directory?(metadata, resource_path) do
@@ -141,7 +143,8 @@ defmodule ArchethicWeb.AEWeb.WebHostingController.Resources do
 
             {:ok, decoded_content} = Jason.decode(tx_content)
 
-            {:ok, res_content} = access(decoded_content, resource_path)
+            {:ok, res_content} =
+              decoded_content |> normalise_downcase_key() |> access(resource_path)
 
             acc <> res_content
           end)
@@ -208,5 +211,13 @@ defmodule ArchethicWeb.AEWeb.WebHostingController.Resources do
     Enum.any?(Map.keys(metadata), fn key ->
       String.starts_with?(key, file_path)
     end)
+  end
+
+  # Normalise/downcase map keys
+  defp normalise_downcase_key(map) do
+    Enum.map(map, fn {key, value} ->
+      {String.downcase(key), value}
+    end)
+    |> Map.new()
   end
 end
