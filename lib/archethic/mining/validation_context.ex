@@ -603,12 +603,12 @@ defmodule Archethic.Mining.ValidationContext do
   def get_validated_transaction(%__MODULE__{
         transaction: transaction,
         validation_stamp: validation_stamp,
-        cross_validation_stamps: cross_validation_stamps
+        proof_of_validation: proof_of_validation
       }) do
-    %{
+    %Transaction{
       transaction
       | validation_stamp: validation_stamp,
-        cross_validation_stamps: Enum.map(cross_validation_stamps, &elem(&1, 1))
+        proof_of_validation: proof_of_validation
     }
   end
 

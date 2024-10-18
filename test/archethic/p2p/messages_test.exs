@@ -50,7 +50,6 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -371,15 +370,7 @@ defmodule Archethic.P2P.MessageTest do
 
     test "ReplicateTransaction message" do
       tx = TransactionFactory.create_valid_transaction()
-
-      msg = %ReplicateTransaction{
-        transaction: tx,
-        genesis_address: random_address(),
-        proof_of_validation: %ProofOfValidation{
-          signature: :crypto.strong_rand_bytes(96),
-          nodes_bitmask: <<1::1>>
-        }
-      }
+      msg = %ReplicateTransaction{transaction: tx, genesis_address: random_address()}
 
       assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end

@@ -84,11 +84,13 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      tx = TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
+      {tx, cross_stamps} =
+        TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
 
       validation_context = %ValidationContext{
         transaction: tx,
-        validation_stamp: tx.validation_stamp
+        validation_stamp: tx.validation_stamp,
+        cross_validation_stamps: cross_stamps
       }
 
       assert %ValidationContext{mining_error: %Error{data: "Invalid atomic commitment"}} =
@@ -116,27 +118,6 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       }
 
       assert %ValidationContext{mining_error: %Error{data: "Invalid election"}} =
-               TransactionValidator.validate_consensus(validation_context)
-    end
-
-    test "should return error when there is an atomic commitment but with inconsistencies" do
-      unspent_outputs = [
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 1_000_000_000,
-          type: :UCO,
-          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-        }
-      ]
-
-      tx = TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
-
-      validation_context = %ValidationContext{
-        transaction: tx,
-        validation_stamp: tx.validation_stamp
-      }
-
-      assert %ValidationContext{mining_error: %Error{data: "Invalid atomic commitment"}} =
                TransactionValidator.validate_consensus(validation_context)
     end
 
@@ -176,8 +157,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
-      tx =
-        TransactionFactory.create_valid_transaction(unspent_outputs,
+      {tx, cross_stamps} =
+        TransactionFactory.create_valid_transaction_with_cross_stamps(unspent_outputs,
           type: :data,
           content: "content"
         )
@@ -192,7 +173,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         unspent_outputs: v_unspent_outputs,
         contract_context: nil,
         validation_stamp: tx.validation_stamp,
-        validation_time: tx.validation_stamp.timestamp
+        validation_time: tx.validation_stamp.timestamp,
+        cross_validation_stamps: cross_stamps
       }
 
       assert %ValidationContext{mining_error: nil} =
@@ -227,8 +209,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       versioned_inputs =
         VersionedUnspentOutput.wrap_unspent_outputs(inputs, current_protocol_version())
 
-      next_tx =
-        ContractFactory.create_next_contract_tx(prev_tx,
+      {next_tx, cross_stamps} =
+        ContractFactory.create_next_contract_tx_with_cross_stamps(prev_tx,
           content: "ok",
           state: encoded_state,
           inputs: inputs
@@ -251,7 +233,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         unspent_outputs: versioned_inputs,
         contract_context: contract_context,
         validation_stamp: next_tx.validation_stamp,
-        validation_time: next_tx.validation_stamp.timestamp
+        validation_time: next_tx.validation_stamp.timestamp,
+        cross_validation_stamps: cross_stamps
       }
 
       assert %ValidationContext{mining_error: nil} =

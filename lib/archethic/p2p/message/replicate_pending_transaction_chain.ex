@@ -48,6 +48,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
            true <- Election.chain_storage_node?(address, node_public_key, authorized_nodes),
            elected_nodes <- ProofOfValidation.get_election(authorized_nodes, address),
            true <- ProofOfValidation.valid?(elected_nodes, proof, tx.validation_stamp) do
+        tx = %Transaction{tx | proof_of_validation: proof}
         replicate_transaction(tx, validation_inputs, genesis_address, sender_public_key)
       else
         _ -> :skip

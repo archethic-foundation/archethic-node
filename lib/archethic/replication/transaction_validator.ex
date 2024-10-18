@@ -34,7 +34,6 @@ defmodule Archethic.Replication.TransactionValidator do
   def validate_consensus(context) do
     context
     |> validate_atomic_commitment()
-    |> validate_cross_validation_stamps_inconsistencies()
     |> validate_proof_of_work()
     |> validate_node_election()
     |> validate_no_additional_error()
@@ -43,37 +42,14 @@ defmodule Archethic.Replication.TransactionValidator do
   defp validate_atomic_commitment(context = %ValidationContext{mining_error: %Error{}}),
     do: context
 
-  defp validate_atomic_commitment(context = %ValidationContext{transaction: tx}) do
-    if Transaction.atomic_commitment?(tx) do
+  defp validate_atomic_commitment(context) do
+    if ValidationContext.atomic_commitment?(context) do
       context
     else
       ValidationContext.set_mining_error(
         context,
         Error.new(:consensus_not_reached, "Invalid atomic commitment")
       )
-    end
-  end
-
-  defp validate_cross_validation_stamps_inconsistencies(
-         context = %ValidationContext{mining_error: %Error{}}
-       ),
-       do: context
-
-  defp validate_cross_validation_stamps_inconsistencies(
-         context = %ValidationContext{transaction: %Transaction{cross_validation_stamps: stamps}}
-       ) do
-    if Enum.all?(stamps, &(&1.inconsistencies == [])) do
-      context
-    else
-      Logger.error("Inconsistencies: #{inspect(Enum.map(stamps, & &1.inconsistencies))}")
-
-      error_data =
-        stamps
-        |> Enum.flat_map(& &1.inconsistencies)
-        |> Enum.uniq()
-        |> Enum.map(&(&1 |> Atom.to_string() |> String.replace("_", " ")))
-
-      ValidationContext.set_mining_error(context, Error.new(:consensus_not_reached, error_data))
     end
   end
 
@@ -111,7 +87,8 @@ defmodule Archethic.Replication.TransactionValidator do
                  proof_of_election: proof_of_election
                }
              },
-           validation_stamp: stamp
+           validation_stamp: stamp,
+           cross_validation_stamps: cross_stamps
          }
        ) do
     authorized_nodes = P2P.authorized_and_available_nodes(tx_timestamp)
@@ -146,6 +123,8 @@ defmodule Archethic.Replication.TransactionValidator do
           Enum.map(validation_nodes, fn %Node{mining_public_key: mining_public_key} ->
             [mining_public_key]
           end)
+
+        tx = %Transaction{tx | cross_validation_stamps: cross_stamps}
 
         if Transaction.valid_stamps_signature?(tx, validation_nodes_mining_key) do
           coordinator_key =
