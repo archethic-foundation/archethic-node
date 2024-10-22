@@ -412,7 +412,9 @@ defmodule Archethic.SelfRepair.Sync do
       Task.async(fn ->
         storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
 
-        case TransactionChain.fetch_genesis_address(tx_address, storage_nodes) do
+        case TransactionChain.fetch_genesis_address(tx_address, storage_nodes,
+               acceptance_resolver: :accept_different_genesis
+             ) do
           {:ok, genesis_address} ->
             genesis_address
 
@@ -516,7 +518,9 @@ defmodule Archethic.SelfRepair.Sync do
         fn recipient ->
           genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
 
-          case TransactionChain.fetch_genesis_address(recipient, genesis_nodes) do
+          case TransactionChain.fetch_genesis_address(recipient, genesis_nodes,
+                 acceptance_resolver: :accept_different_genesis
+               ) do
             {:ok, genesis_address} ->
               [recipient, genesis_address]
 

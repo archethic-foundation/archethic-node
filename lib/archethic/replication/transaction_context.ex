@@ -1,30 +1,26 @@
 defmodule Archethic.Replication.TransactionContext do
   @moduledoc false
 
-  alias Archethic.Crypto
-
   alias Archethic.BeaconChain
-
+  alias Archethic.Crypto
   alias Archethic.Election
-
+  alias Archethic.P2P
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.P2P
 
   require Logger
 
   @doc """
   Fetch transaction
   """
-  @spec fetch_transaction(address :: Crypto.versioned_hash()) ::
+  @spec fetch_transaction(address :: Crypto.versioned_hash(), opts :: Keyword.t()) ::
           Transaction.t() | nil
-  def fetch_transaction(address) when is_binary(address) do
+  def fetch_transaction(address, opts \\ []) when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
+    case TransactionChain.fetch_transaction(address, storage_nodes, opts) do
       {:ok, tx} ->
         tx
 
@@ -36,12 +32,12 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch genesis address
   """
-  @spec fetch_genesis_address(address :: Crypto.prepended_hash()) ::
+  @spec fetch_genesis_address(address :: Crypto.prepended_hash(), opts :: Keyword.t()) ::
           genesis_address :: Crypto.prepended_hash()
-  def fetch_genesis_address(address) do
+  def fetch_genesis_address(address, opts \\ []) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_genesis_address(address, storage_nodes) do
+    case TransactionChain.fetch_genesis_address(address, storage_nodes, opts) do
       {:ok, genesis_address} -> genesis_address
       {:error, _} -> address
     end
