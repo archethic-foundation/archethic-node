@@ -105,7 +105,8 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
         end
 
       _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+        {:ok,
+         %GenesisAddress{address: Transaction.previous_address(tx), timestamp: DateTime.utc_now()}}
 
       _, %ValidateTransaction{transaction: tx}, _ ->
         Agent.update(agent_pid, fn _ -> tx end)

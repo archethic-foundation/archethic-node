@@ -69,7 +69,7 @@ defmodule Archethic.TransactionChain do
 
   @type search_options :: [
           timeout: non_neg_integer(),
-          acceptance_resolver: (any() -> boolean()),
+          acceptance_resolver: (any() -> boolean()) | atom(),
           consistency_level: pos_integer(),
           search_mode: search_mode()
         ]
@@ -366,7 +366,7 @@ defmodule Archethic.TransactionChain do
   @spec fetch_transaction(
           address :: Crypto.prepended_hash(),
           storage_nodes :: list(Node.t()),
-          search_options()
+          opts :: search_options()
         ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
@@ -379,7 +379,18 @@ defmodule Archethic.TransactionChain do
     else
       _ ->
         timeout = Keyword.get(opts, :timeout, Message.get_max_timeout())
-        acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
+
+        acceptance_resolver =
+          case Keyword.get(opts, :acceptance_resolver, fn _ -> true end) do
+            fun when is_function(fun, 1) ->
+              fun
+
+            :accept_transaction ->
+              fn
+                %Transaction{address: ^address} -> true
+                _ -> false
+              end
+          end
 
         conflict_resolver = fn results ->
           Enum.reduce(results, fn
@@ -811,16 +822,37 @@ defmodule Archethic.TransactionChain do
   Retrieve the genesis address for a chain from P2P Quorom
   It queries the the network for genesis address.
   """
-  @spec fetch_genesis_address(address :: binary(), list(Node.t())) ::
+  @spec fetch_genesis_address(address :: binary(), nodes :: list(Node.t()), opts :: Keyword.t()) ::
           {:ok, binary()} | {:error, :network_issue}
-  def fetch_genesis_address(address, nodes) when is_binary(address) do
+  def fetch_genesis_address(address, nodes, opts \\ []) when is_binary(address) do
     case find_genesis_address(address) do
       {:error, :not_found} ->
         conflict_resolver = fn results ->
           Enum.min_by(results, & &1.timestamp, DateTime)
         end
 
-        case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
+        timeout = Keyword.get(opts, :timeout, 0)
+
+        acceptance_resolver =
+          case Keyword.get(opts, :acceptance_resolver, fn _ -> true end) do
+            fun when is_function(fun, 1) ->
+              fun
+
+            :accept_different_genesis ->
+              # credo:disable-for-next-line
+              fn
+                %GenesisAddress{address: ^address} -> false
+                %GenesisAddress{address: _} -> true
+              end
+          end
+
+        case P2P.quorum_read(
+               nodes,
+               %GetGenesisAddress{address: address},
+               conflict_resolver,
+               timeout,
+               acceptance_resolver
+             ) do
           {:ok, %GenesisAddress{address: genesis_address}} ->
             {:ok, genesis_address}
 
@@ -1223,6 +1255,17 @@ defmodule Archethic.TransactionChain do
     |> Transaction.to_pending()
     |> Transaction.serialize(:extended)
     |> Crypto.hash()
+  end
+
+  @doc """
+  By checking at the proof of integrity (determined by the coordinator) we can ensure a transaction is not the first
+  (because the poi contains the hash of the previous if any)
+  """
+  @spec first_transaction?(Transaction.t()) :: boolean()
+  def first_transaction?(
+        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
+      ) do
+    poi == proof_of_integrity([tx])
   end
 
   @doc """

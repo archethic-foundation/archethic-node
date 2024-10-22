@@ -57,7 +57,13 @@ defmodule Archethic.Mining.TransactionContext do
       |> List.flatten()
       |> Enum.uniq()
 
-    prev_tx_task = request_previous_tx(previous_address, authorized_nodes)
+    prev_tx_task =
+      if previous_address == genesis_address do
+        Task.completed(nil)
+      else
+        request_previous_tx(previous_address, authorized_nodes)
+      end
+
     utxos_task = request_utxos(genesis_address, authorized_nodes)
     nodes_view_task = request_nodes_view(node_public_keys)
 
@@ -88,7 +94,7 @@ defmodule Archethic.Mining.TransactionContext do
         # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
         # from the cross validation nodes
         case TransactionChain.fetch_transaction(previous_address, previous_storage_nodes,
-               search_mode: :remote,
+               acceptance_resolver: :accept_transaction,
                timeout: 4000
              ) do
           {:ok, tx} ->
