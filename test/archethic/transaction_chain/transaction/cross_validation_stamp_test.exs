@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
             poe <- StreamData.binary(length: 64),
             signature <- StreamData.binary(length: 64)
           ) do
-      pub = Crypto.last_node_public_key()
+      pub = Crypto.mining_node_public_key()
 
       validation_stamp = %ValidationStamp{
         timestamp: DateTime.utc_now(),

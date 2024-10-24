@@ -10,7 +10,6 @@ defmodule Archethic.Mining do
   alias Archethic.Election
 
   alias __MODULE__.DistributedWorkflow
-  alias __MODULE__.Error
   alias __MODULE__.Fee
   alias __MODULE__.StandaloneWorkflow
   alias __MODULE__.WorkerSupervisor
@@ -23,6 +22,7 @@ defmodule Archethic.Mining do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -224,11 +224,29 @@ defmodule Archethic.Mining do
   @doc """
   Add a cross validation stamp to the transaction mining process
   """
-  @spec add_cross_validation_stamp(binary(), stamp :: CrossValidationStamp.t()) :: :ok
-  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}) do
+  @spec add_cross_validation_stamp(
+          tx_address :: Crypto.prepended_hash(),
+          stamp :: CrossValidationStamp.t(),
+          from :: Crypto.key()
+        ) :: :ok
+  def add_cross_validation_stamp(tx_address, stamp = %CrossValidationStamp{}, from) do
+    pid = get_mining_process!(tx_address)
+    if pid, do: send(pid, {:add_cross_validation_stamp, stamp, from})
+    :ok
+  end
+
+  @doc """
+  Add a proof of validation to the transaction mining process
+  """
+  @spec add_proof_of_validation(
+          tx_address :: Crypto.prepended_hash(),
+          proof_of_validation :: ProofOfValidation.t(),
+          from :: Crypto.key()
+        ) :: :ok
+  def add_proof_of_validation(tx_address, proof, from) do
     tx_address
     |> get_mining_process!()
-    |> DistributedWorkflow.add_cross_validation_stamp(stamp)
+    |> DistributedWorkflow.add_proof_of_validation(proof, from)
   end
 
   @doc """
@@ -238,41 +256,14 @@ defmodule Archethic.Mining do
           address :: binary(),
           signature :: binary(),
           node_public_key :: Crypto.key()
-        ) ::
-          :ok
+        ) :: :ok
   def confirm_replication(tx_address, signature, node_public_key) do
-    pid = get_mining_process!(tx_address, 1000)
+    pid = get_mining_process!(tx_address)
     if pid, do: send(pid, {:ack_replication, signature, node_public_key})
     :ok
   end
 
-  @doc """
-  Notify replication to the mining process
-  """
-  @spec notify_replication_error(
-          address :: binary(),
-          error :: Error.t(),
-          Crypto.key()
-        ) :: :ok
-  def notify_replication_error(tx_address, error, node_public_key) do
-    pid = get_mining_process!(tx_address, 1_000)
-
-    if pid, do: DistributedWorkflow.replication_error(pid, error, node_public_key)
-
-    :ok
-  end
-
-  @doc """
-  Notify about the validation from a replication node
-  """
-  @spec notify_replication_validation(binary(), Crypto.key()) :: :ok
-  def notify_replication_validation(tx_address, node_public_key) do
-    pid = get_mining_process!(tx_address, 1_000)
-    if pid, do: DistributedWorkflow.add_replication_validation(pid, node_public_key)
-    :ok
-  end
-
-  defp get_mining_process!(tx_address, timeout \\ 3_000) do
+  defp get_mining_process!(tx_address, timeout \\ 1000) do
     retry_while with: constant_backoff(100) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
         [{pid, _}] ->
