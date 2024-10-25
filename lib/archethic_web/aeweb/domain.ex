@@ -9,6 +9,8 @@ defmodule ArchethicWeb.AEWeb.Domain do
 
   alias ArchethicWeb.AEWeb.WebHostingController.ReferenceTransaction
 
+  alias ArchethicWeb.AEWeb.DNSClient
+
   require Logger
 
   @doc """
@@ -22,7 +24,7 @@ defmodule ArchethicWeb.AEWeb.Domain do
       |> String.split(":")
       |> List.first()
 
-    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt,
+    case DNSClient.lookup('_dnslink.#{dns_name}', :in, :txt,
            # Allow local dns to test dnslink redirection
            alt_nameservers: [{{127, 0, 0, 1}, 53}]
          ) do
@@ -56,9 +58,9 @@ defmodule ArchethicWeb.AEWeb.Domain do
             ownerships: [ownership = %Ownership{secret: secret} | _]
           }} <- ReferenceTransaction.fetch_last(tx_address),
          {:ok, cert_pem} <- Map.fetch(json_content, "sslCertificate"),
-         %{extensions: extensions} <- EasySSL.parse_pem(cert_pem),
-         {:ok, san} <- Map.fetch(extensions, :subjectAltName),
-         ^domain <- String.split(san, ":") |> List.last(),
+         %{all_domains: all_domain_names} <-
+           EasySSL.parse_pem(cert_pem, all_domains: true),
+         true <- match_domain(all_domain_names, domain),
          encrypted_secret_key <-
            Ownership.get_encrypted_key(ownership, Crypto.storage_nonce_public_key()),
          {:ok, secret_key} <-
@@ -106,4 +108,21 @@ defmodule ArchethicWeb.AEWeb.Domain do
       {type, :public_key.der_encode(type, entry)}
     end)
   end
+
+  defp match_domain(all_domain_names, domain) do
+    Enum.any?(all_domain_names, fn cert_domain -> do_match_domain(cert_domain, domain) end)
+  end
+
+  # Exact domain match
+  defp do_match_domain(cert_domain, domain) when cert_domain == domain do
+    true
+  end
+
+  # Wildcards
+  defp do_match_domain("*." <> cert_domain_suffix, domain) do
+    String.ends_with?(domain, cert_domain_suffix) and String.split(domain, ".") |> length() > 2
+  end
+
+  # no match for other cases
+  defp do_match_domain(_, _), do: false
 end

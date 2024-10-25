@@ -187,6 +187,7 @@ config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: false
 config :archethic, ArchethicWeb.TransactionSubscriber, enabled: false
 config :archethic, ArchethicWeb.DashboardMetrics, enabled: false
 config :archethic, ArchethicWeb.DashboardMetricsAggregator, enabled: false
+config :archethic, ArchethicWeb.AEWeb.DNSClient, MockDNSClient
 
 config :archethic, Archethic.UTXO.MemoryLedger, size_threshold: 2000
 
@@ -195,6 +196,14 @@ config :archethic, Archethic.UTXO.MemoryLedger, size_threshold: 2000
 config :archethic, ArchethicWeb.Endpoint,
   explorer_url: "",
   http: [port: 4002],
+  https: [
+    cipher_suite: :strong,
+    otp_app: :archethic,
+    port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
+    sni_fun: &ArchethicWeb.AEWeb.Domain.sni/1,
+    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", "priv/cert/selfsigned_key.pem"),
+    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "priv/cert/selfsigned.pem")
+  ],
   server: false
 
 config :archethic, :throttle,

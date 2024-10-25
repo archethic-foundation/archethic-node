@@ -226,6 +226,11 @@ defmodule ArchethicCase do
     end)
     |> stub(:connected?, fn _ -> true end)
 
+    MockDNSClient
+    |> stub(:lookup, fn _, _, _, _options ->
+      []
+    end)
+
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)
     start_supervised!(OriginKeyLookup)
