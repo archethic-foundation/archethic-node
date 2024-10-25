@@ -764,122 +764,52 @@ defmodule Archethic.P2P do
     |> Enum.filter(&node_connected?/1)
     |> sort_by_nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
-    |> do_quorum_read(
-      message,
-      conflict_resolver,
-      acceptance_resolver,
-      timeout,
-      consistency_level,
-      0,
-      nil
-    )
-  end
-
-  defp do_quorum_read([], _, _, _, _, _, 0, nil), do: {:error, :network_issue}
-  defp do_quorum_read([], _, _, _, _, _, _, nil), do: {:error, :acceptance_failed}
-  defp do_quorum_read([], _, _, _, _, _, _, previous_result), do: {:ok, previous_result}
-
-  defp do_quorum_read(
-         nodes,
-         message,
-         conflict_resolver,
-         acceptance_resolver,
-         timeout,
-         consistency_level,
-         acceptance_failures_count,
-         previous_result
-       ) do
-    # We determine how many nodes to fetch for the quorum from the consistency level
-    {group, rest} = Enum.split(nodes, consistency_level)
-
-    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
-
-    results =
-      Task.Supervisor.async_stream_nolink(
-        TaskSupervisor,
-        group,
-        &send_message(&1, message, timeout),
-        ordered: false,
-        on_timeout: :kill_task,
-        timeout: timeout + 2000
-      )
-      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
-      |> Enum.to_list()
-
-    # If no nodes answered we try another group
-    case length(results) do
-      0 ->
-        do_quorum_read(
-          rest,
-          message,
-          conflict_resolver,
-          acceptance_resolver,
-          timeout,
-          consistency_level,
-          acceptance_failures_count,
-          previous_result
+    |> Enum.chunk_every(consistency_level)
+    |> Enum.reduce_while(nil, fn nodes, previous_result ->
+      results =
+        Task.Supervisor.async_stream_nolink(
+          TaskSupervisor,
+          nodes,
+          &send_message(&1, message, timeout),
+          ordered: false,
+          on_timeout: :kill_task,
+          timeout: timeout + 2000
         )
+        |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+        |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+        |> Enum.to_list()
 
-      1 ->
-        quorum_result =
-          if previous_result do
-            do_quorum([previous_result | results], conflict_resolver)
+      if Enum.empty?(results) do
+        {:cont, previous_result}
+      else
+        result =
+          if previous_result == nil do
+            reduce_results(results, conflict_resolver)
           else
-            List.first(results)
+            reduce_results([previous_result | results], conflict_resolver)
           end
 
-        with true <- acceptance_resolver.(quorum_result),
-             nil <- previous_result do
-          do_quorum_read(
-            rest,
-            message,
-            conflict_resolver,
-            acceptance_resolver,
-            timeout,
-            consistency_level,
-            acceptance_failures_count,
-            quorum_result
-          )
+        if acceptance_resolver.(result) do
+          {:halt, result}
         else
-          false ->
-            do_quorum_read(
-              rest,
-              message,
-              conflict_resolver,
-              acceptance_resolver,
-              timeout,
-              consistency_level,
-              acceptance_failures_count + 1,
-              previous_result
-            )
-
-          _ ->
-            {:ok, quorum_result}
+          {:cont, result}
         end
+      end
+    end)
+    |> then(fn
+      nil ->
+        {:error, :network_issue}
 
-      _ ->
-        results = if previous_result != nil, do: [previous_result | results], else: results
-        quorum_result = do_quorum(results, conflict_resolver)
-
-        if acceptance_resolver.(quorum_result) do
-          {:ok, quorum_result}
+      result ->
+        if acceptance_resolver.(result) do
+          {:ok, result}
         else
-          do_quorum_read(
-            rest,
-            message,
-            conflict_resolver,
-            acceptance_resolver,
-            timeout,
-            consistency_level,
-            acceptance_failures_count + 1,
-            previous_result
-          )
+          {:error, :acceptance_failed}
         end
-    end
+    end)
   end
 
-  defp do_quorum(results, conflict_resolver) do
+  defp reduce_results(results, conflict_resolver) do
     distinct_elems = Enum.dedup(results)
 
     # If the results are the same, then we reached consistency
