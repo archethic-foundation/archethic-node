@@ -445,11 +445,11 @@ defmodule Archethic.P2P do
   @doc """
   Return the nearest storages nodes from the local node
   """
-  @spec nearest_nodes(list(Node.t())) :: list(Node.t())
-  def nearest_nodes(storage_nodes) when is_list(storage_nodes) do
+  @spec sort_by_nearest_nodes(list(Node.t())) :: list(Node.t())
+  def sort_by_nearest_nodes(storage_nodes) when is_list(storage_nodes) do
     case get_node_info(Crypto.first_node_public_key()) do
       {:ok, %Node{network_patch: network_patch}} ->
-        nearest_nodes(storage_nodes, network_patch)
+        sort_by_nearest_nodes(storage_nodes, network_patch)
 
       {:error, :not_found} ->
         storage_nodes
@@ -467,7 +467,7 @@ defmodule Archethic.P2P do
      ...>   %Node{network_patch: "3A2"}
      ...> ]
      ...> 
-     ...> P2P.nearest_nodes(list_nodes, "12F")
+     ...> P2P.sort_by_nearest_nodes(list_nodes, "12F")
      [
        %Node{network_patch: "3A2"},
        %Node{network_patch: "AA0"},
@@ -480,15 +480,16 @@ defmodule Archethic.P2P do
      ...>   %Node{network_patch: "3A2"}
      ...> ]
      ...> 
-     ...> P2P.nearest_nodes(list_nodes, "C3A")
+     ...> P2P.sort_by_nearest_nodes(list_nodes, "C3A")
      [
        %Node{network_patch: "F50"},
        %Node{network_patch: "AA0"},
        %Node{network_patch: "3A2"}
      ]
   """
-  @spec nearest_nodes(node_list :: Enumerable.t(), network_patch :: binary()) :: Enumerable.t()
-  def nearest_nodes(storage_nodes, network_patch) when is_binary(network_patch) do
+  @spec sort_by_nearest_nodes(node_list :: Enumerable.t(), network_patch :: binary()) ::
+          Enumerable.t()
+  def sort_by_nearest_nodes(storage_nodes, network_patch) when is_binary(network_patch) do
     Enum.sort_by(storage_nodes, &network_distance(&1.network_patch, network_patch))
   end
 
@@ -761,7 +762,7 @@ defmodule Archethic.P2P do
       ) do
     nodes
     |> Enum.filter(&node_connected?/1)
-    |> nearest_nodes()
+    |> sort_by_nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
     |> do_quorum_read(
       message,

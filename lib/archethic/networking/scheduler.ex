@@ -153,7 +153,7 @@ defmodule Archethic.Networking.Scheduler do
     nodes =
       P2P.authorized_and_available_nodes()
       |> Enum.filter(&P2P.node_connected?/1)
-      |> P2P.nearest_nodes()
+      |> P2P.sort_by_nearest_nodes()
 
     case Utils.await_confirmation(tx_address, nodes) do
       {:ok, validated_transaction = %Transaction{address: ^tx_address, data: ^transaction_data}} ->

@@ -404,7 +404,7 @@ defmodule Archethic.BeaconChain do
       subset
       |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
       |> Enum.filter(&P2P.node_connected?/1)
-      |> P2P.nearest_nodes()
+      |> P2P.sort_by_nearest_nodes()
       |> Enum.take(3)
       |> Enum.map(&{&1, subset})
     end)

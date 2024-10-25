@@ -23,7 +23,7 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
 
     closest_nodes =
       top_nodes
-      |> P2P.nearest_nodes(patch)
+      |> P2P.sort_by_nearest_nodes(patch)
       |> Enum.take(5)
 
     %BootstrappingNodes{
