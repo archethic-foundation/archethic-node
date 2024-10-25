@@ -3,28 +3,20 @@ defmodule Archethic.SelfRepair do
   Synchronization for all the Archethic nodes relies on the self-repair mechanism started during
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
+  alias __MODULE__.Notifier
+  alias __MODULE__.NotifierSupervisor
+  alias __MODULE__.RepairWorker
+  alias __MODULE__.Scheduler
+  alias __MODULE__.Sync
   alias Archethic.BeaconChain
-
   alias Archethic.Crypto
-
   alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Node
-
   alias Archethic.Replication
-
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-
   alias Archethic.Utils
-
-  alias __MODULE__.Notifier
-  alias __MODULE__.NotifierSupervisor
-  alias __MODULE__.Scheduler
-  alias __MODULE__.Sync
-  alias __MODULE__.RepairWorker
 
   require Logger
 
@@ -287,11 +279,6 @@ defmodule Archethic.SelfRepair do
   defp fetch_transaction_data(address, authorized_nodes) do
     timeout = Message.get_max_timeout()
 
-    acceptance_resolver = fn
-      %Transaction{address: ^address} -> true
-      _ -> false
-    end
-
     storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
 
     [
@@ -299,7 +286,7 @@ defmodule Archethic.SelfRepair do
         TransactionChain.fetch_transaction(address, storage_nodes,
           search_mode: :remote,
           timeout: timeout,
-          acceptance_resolver: acceptance_resolver
+          acceptance_resolver: :accept_transaction
         )
       end),
       Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)

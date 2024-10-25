@@ -4,13 +4,16 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   alias Archethic.Crypto
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
   alias Archethic.Replication.TransactionContext
   alias Archethic.TransactionChain.Transaction
@@ -22,25 +25,67 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   import Mox
 
-  test "fetch_transaction/1 should retrieve the transaction" do
-    MockClient
-    |> stub(:send_message, fn _, %GetTransaction{}, _ ->
-      {:ok, %Transaction{}}
-    end)
+  describe "fetch_transaction/2" do
+    test "should retrieve the transaction" do
+      address = random_address()
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: Crypto.last_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      MockClient
+      |> expect(:send_message, 3, fn _, %GetTransaction{}, _ ->
+        {:ok, %Transaction{address: address}}
+      end)
 
-    assert %Transaction{} = TransactionContext.fetch_transaction("@Alice1")
+      connect_to_n_nodes(5)
+
+      assert %Transaction{} = TransactionContext.fetch_transaction(address)
+    end
+
+    test "should ask every node if acceptance_resolver is :accept_transaction" do
+      address = random_address()
+
+      MockClient
+      |> expect(:send_message, 5, fn _, %GetTransaction{}, _ ->
+        # acceptance will fail
+        {:ok, %NotFound{}}
+      end)
+
+      connect_to_n_nodes(5)
+
+      # no assert, we use expect(5) in the mock
+      TransactionContext.fetch_transaction(address, acceptance_resolver: :accept_transaction)
+    end
+  end
+
+  describe "fetch_genesis_address/2" do
+    test "should retrieve the genesis" do
+      address = random_address()
+      genesis = random_address()
+
+      MockClient
+      |> expect(:send_message, 3, fn _, %GetGenesisAddress{}, _ ->
+        {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
+      end)
+
+      connect_to_n_nodes(5)
+
+      assert genesis == TransactionContext.fetch_genesis_address(address)
+    end
+
+    test "should ask every node if acceptance_resolver is :accept_different_genesis" do
+      address = random_address()
+
+      MockClient
+      |> expect(:send_message, 5, fn _, %GetGenesisAddress{}, _ ->
+        # acceptance will fail
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
+
+      connect_to_n_nodes(5)
+
+      # no assert, we use expect(5) in the mock
+      TransactionContext.fetch_genesis_address(address,
+        acceptance_resolver: :accept_different_genesis
+      )
+    end
   end
 
   describe "stream_transaction_chain/3" do
@@ -198,5 +243,21 @@ defmodule Archethic.Replication.TransactionContextTest do
     })
 
     assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(genesis_address)
+  end
+
+  def connect_to_n_nodes(n) do
+    Enum.each(1..n, fn i ->
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000 + i,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+    end)
   end
 end

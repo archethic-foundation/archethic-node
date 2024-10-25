@@ -280,6 +280,8 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
+  # TODO: instead of address we could have a transaction_summary with proof of validation/replication
+  # TODO: to avoid downloading the tx
   defp validate_trigger({:transaction, address, recipient}, _, contract_genesis_address, inputs) do
     storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
 
@@ -288,7 +290,10 @@ defmodule Archethic.Mining.SmartContractValidation do
              inputs,
              &(&1.type == :call and &1.from == address)
            ),
-         {:ok, tx} <- TransactionChain.fetch_transaction(address, storage_nodes),
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction(address, storage_nodes,
+             acceptance_resolver: :accept_transaction
+           ),
          true <- Enum.member?(tx.data.recipients, recipient) do
       {:ok, tx}
     else
@@ -311,7 +316,9 @@ defmodule Archethic.Mining.SmartContractValidation do
   defp validate_trigger({:oracle, address}, _, _, _) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
+    case TransactionChain.fetch_transaction(address, storage_nodes,
+           acceptance_resolver: :accept_transaction
+         ) do
       {:ok, tx} ->
         {:ok, tx}
 
