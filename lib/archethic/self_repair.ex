@@ -284,6 +284,7 @@ defmodule Archethic.SelfRepair do
     [
       Task.async(fn ->
         TransactionChain.fetch_transaction(address, storage_nodes,
+          search_mode: :remote,
           timeout: timeout,
           acceptance_resolver: :accept_transaction
         )
