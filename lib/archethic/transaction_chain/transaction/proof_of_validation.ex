@@ -32,6 +32,8 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
           nodes_bitmask: bitstring()
         }
 
+  @bls_signature_size 96
+
   defmodule SortedNode do
     @moduledoc """
     Struct holding sorted authorized nodes created for ProofOfValidation
@@ -161,13 +163,12 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}) do
-    <<version::8, byte_size(signature)::8, signature::binary, bit_size(bitmask)::8,
-      bitmask::bitstring>>
+    <<version::8, signature::binary, bit_size(bitmask)::8, bitmask::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) do
-    <<version::8, signature_size::8, signature::binary-size(signature_size), bitmask_size::8,
+    <<version::8, signature::binary-size(@bls_signature_size), bitmask_size::8,
       bitmask::bitstring-size(bitmask_size), rest::bitstring>> = bin
 
     {%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}, rest}
