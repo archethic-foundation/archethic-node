@@ -740,7 +740,8 @@ defmodule Archethic.P2P do
           conflict_resolver :: (list(Message.t()) -> Message.t()),
           timeout :: non_neg_integer(),
           acceptance_resolver :: (Message.t() -> boolean()),
-          consistency_level :: pos_integer()
+          consistency_level :: pos_integer(),
+          repair_fun :: (list(Message.t()) -> :ok)
         ) ::
           {:ok, Message.t()} | {:error, :network_issue} | {:error, :acceptance_failed}
   def quorum_read(
@@ -749,7 +750,8 @@ defmodule Archethic.P2P do
         conflict_resolver \\ fn results -> List.first(results) end,
         timeout \\ 0,
         acceptance_resolver \\ fn _ -> true end,
-        consistency_level \\ 3
+        consistency_level \\ 3,
+        repair_fun \\ fn _ -> :ok end
       )
 
   def quorum_read(
@@ -758,67 +760,93 @@ defmodule Archethic.P2P do
         conflict_resolver,
         timeout,
         acceptance_resolver,
-        consistency_level
+        consistency_level,
+        repair_fun
       ) do
     nodes
     |> Enum.filter(&node_connected?/1)
     |> sort_by_nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
     |> Enum.chunk_every(consistency_level)
-    |> Enum.reduce_while(nil, fn nodes, previous_result ->
-      results =
-        Task.Supervisor.async_stream_nolink(
-          TaskSupervisor,
-          nodes,
-          &send_message(&1, message, timeout),
-          ordered: false,
-          on_timeout: :kill_task,
-          timeout: timeout + 2000
-        )
-        |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-        |> Stream.map(fn {:ok, {:ok, res}} -> res end)
-        |> Enum.to_list()
+    |> Enum.reduce_while({nil, []}, fn nodes, {previous_result_acc, all_results_acc} ->
+      results_by_node = send_message_and_filter_results(nodes, message, timeout)
 
-      if Enum.empty?(results) do
-        {:cont, previous_result}
+      with :ok <- enough_results?(previous_result_acc, results_by_node),
+           result <- resolve_conflicts(previous_result_acc, results_by_node, conflict_resolver),
+           :ok <- result_accepted?(result, acceptance_resolver) do
+        {:halt, {result, all_results_acc ++ results_by_node}}
       else
-        result =
-          if previous_result == nil do
-            reduce_results(results, conflict_resolver)
-          else
-            reduce_results([previous_result | results], conflict_resolver)
-          end
-
-        if acceptance_resolver.(result) do
-          {:halt, result}
-        else
-          {:cont, result}
-        end
+        {:error, previous_result} ->
+          {:cont, {previous_result, all_results_acc ++ results_by_node}}
       end
     end)
-    |> then(fn
-      nil ->
-        {:error, :network_issue}
+    |> then(fn {result, all_results} ->
+      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(all_results) end)
 
-      result ->
-        if acceptance_resolver.(result) do
+      cond do
+        is_nil(result) ->
+          {:error, :network_issue}
+
+        acceptance_resolver.(result) ->
           {:ok, result}
-        else
+
+        true ->
           {:error, :acceptance_failed}
-        end
+      end
     end)
   end
 
-  defp reduce_results(results, conflict_resolver) do
-    distinct_elems = Enum.dedup(results)
+  defp send_message_and_filter_results(nodes, message, timeout) do
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
+      nodes,
+      &{&1.first_public_key, send_message(&1, message, timeout)},
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: timeout + 2000
+    )
+    |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
+    |> Stream.map(fn {:ok, {node_public_key, {:ok, res}}} -> {node_public_key, res} end)
+    |> Enum.to_list()
+  end
 
-    # If the results are the same, then we reached consistency
-    if length(distinct_elems) == 1 do
-      List.first(distinct_elems)
+  # returns ok if we have 2 results
+  # we should probably use the consistency level
+  defp enough_results?(nil, results_by_node) do
+    case results_by_node do
+      [] -> {:error, nil}
+      [{_node, result}] -> {:error, result}
+      _ -> :ok
+    end
+  end
+
+  defp enough_results?(previous_result, results_by_node) do
+    case results_by_node do
+      [] -> {:error, previous_result}
+      _ -> :ok
+    end
+  end
+
+  defp resolve_conflicts(nil, results_by_node, conflict_resolver) do
+    results_by_node
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.dedup()
+    |> conflict_resolver.()
+  end
+
+  defp resolve_conflicts(previous_result, results_by_node, conflict_resolver) do
+    results_by_node
+    |> Enum.map(&elem(&1, 1))
+    |> Kernel.++([previous_result])
+    |> Enum.dedup()
+    |> conflict_resolver.()
+  end
+
+  defp result_accepted?(result, acceptance_resolver) do
+    if acceptance_resolver.(result) do
+      :ok
     else
-      # If the results differ, we can apply a conflict resolver to merge the result into
-      # a consistent response
-      conflict_resolver.(distinct_elems)
+      {:error, result}
     end
   end
 

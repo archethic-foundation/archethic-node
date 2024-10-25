@@ -1,0 +1,168 @@
+commit 7de9ac53236b308d3cd964df9914f78b580add97
+Author: bchamagne <bastien@archethic.net>
+Date:   Wed May 29 11:33:41 2024 +0200
+
+    Fix the execution's errors when cache? is false
+
+diff --git a/lib/archethic/contracts.ex b/lib/archethic/contracts.ex
+index da72f355..33f4e1ca 100644
+--- a/lib/archethic/contracts.ex
++++ b/lib/archethic/contracts.ex
+@@ -560,26 +560,31 @@ defmodule Archethic.Contracts do
+   end
+ 
+   defp cache_interpreter_execute(fun, key, opts) do
+-    if Keyword.get(opts, :cache?) do
+-      timeout = Keyword.get(opts, :timeout, 5_000)
+-
+-      func = fn ->
+-        try do
+-          fun.()
+-        rescue
+-          err ->
+-            # error from the code (ex: 1 + "abc")
+-            {:error, err, __STACKTRACE__}
+-        end
++    func = fn ->
++      try do
++        fun.()
++      rescue
++        err ->
++          # error or throw from the user's code (ex: 1 + "abc")
++          {:error, err, __STACKTRACE__}
+       end
++    end
+ 
+-      # We set the maximum timeout for a transaction to be processed before the kill the cache
+-      case Utils.JobCache.get!(key, function: func, timeout: timeout, ttl: 60_000) do
+-        {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
+-        result -> result
++    result =
++      if Keyword.get(opts, :cache?) do
++        # We set the maximum timeout for a transaction to be processed before the kill the cache
++        Utils.JobCache.get!(key,
++          function: func,
++          timeout: Keyword.get(opts, :timeout, 5_000),
++          ttl: 60_000
++        )
++      else
++        func.()
+       end
+-    else
+-      fun.()
++
++    case result do
++      {:error, err, stacktrace} -> {:error, raise_to_failure(err, stacktrace)}
++      result -> result
+     end
+   rescue
+     _ ->
+diff --git a/test/archethic/contracts_test.exs b/test/archethic/contracts_test.exs
+index 50414cf7..6c128a55 100644
+--- a/test/archethic/contracts_test.exs
++++ b/test/archethic/contracts_test.exs
+@@ -293,7 +293,7 @@ defmodule Archethic.ContractsTest do
+ 
+       trigger_tx = TransactionFactory.create_valid_transaction()
+ 
+-      assert {:error, %Failure{}} =
++      assert {:error, %Failure{user_friendly_error: "bad argument in arithmetic expression - L3"}} =
+                Contracts.execute_condition(
+                  {:transaction, nil, nil},
+                  Contract.from_transaction!(contract_tx),
+@@ -302,6 +302,55 @@ defmodule Archethic.ContractsTest do
+                  DateTime.utc_now(),
+                  []
+                )
++
++      assert {:error, %Failure{user_friendly_error: "bad argument in arithmetic expression - L3"}} =
++               Contracts.execute_condition(
++                 {:transaction, nil, nil},
++                 Contract.from_transaction!(contract_tx),
++                 trigger_tx,
++                 nil,
++                 DateTime.utc_now(),
++                 [],
++                 cache?: false
++               )
++    end
++
++    test "should return Error if condition throws" do
++      code = """
++        @version 1
++        condition triggered_by: transaction do
++          throw code: 12, message: "oh no"
++        end
++
++        actions triggered_by: transaction do
++          Contract.set_content "hello"
++        end
++      """
++
++      contract_tx = ContractFactory.create_valid_contract_tx(code)
++
++      trigger_tx = TransactionFactory.create_valid_transaction()
++
++      assert {:error, %Failure{user_friendly_error: "oh no - L3"}} =
++               Contracts.execute_condition(
++                 {:transaction, nil, nil},
++                 Contract.from_transaction!(contract_tx),
++                 trigger_tx,
++                 nil,
++                 DateTime.utc_now(),
++                 []
++               )
++
++      assert {:error, %Failure{user_friendly_error: "oh no - L3"}} =
++               Contracts.execute_condition(
++                 {:transaction, nil, nil},
++                 Contract.from_transaction!(contract_tx),
++                 trigger_tx,
++                 nil,
++                 DateTime.utc_now(),
++                 [],
++                 cache?: false
++               )
+     end
+ 
+     test "should be able to use a custom function call as parameter in condition block" do
+@@ -603,6 +652,39 @@ defmodule Archethic.ContractsTest do
+                )
+     end
+ 
++    test "should return the proper error when there is a throw" do
++      code = """
++        @version 1
++        condition triggered_by: transaction, as: []
++        actions triggered_by: transaction do
++          throw code: 1, message: "nope"
++        end
++      """
++
++      contract_tx = ContractFactory.create_valid_contract_tx(code)
++
++      incoming_tx = TransactionFactory.create_valid_transaction()
++
++      assert {:error, %Failure{user_friendly_error: "nope - L4"}} =
++               Contracts.execute_trigger(
++                 {:transaction, nil, nil},
++                 Contract.from_transaction!(contract_tx),
++                 incoming_tx,
++                 nil,
++                 []
++               )
++
++      assert {:error, %Failure{user_friendly_error: "nope - L4"}} =
++               Contracts.execute_trigger(
++                 {:transaction, nil, nil},
++                 Contract.from_transaction!(contract_tx),
++                 incoming_tx,
++                 nil,
++                 [],
++                 cache?: false
++               )
++    end
++
+     test "should fail if the state is too big" do
+       code = ~S"""
+         @version 1
