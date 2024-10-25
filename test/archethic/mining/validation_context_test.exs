@@ -466,7 +466,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> ValidationContext.cross_validate()
 
       signature =
-        stamp |> CrossValidationStamp.get_row_data_to_sign([]) |> Crypto.sign(mining_priv)
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(mining_priv)
 
       cross_stamp = %CrossValidationStamp{
         node_public_key: mining_pub,
@@ -505,7 +505,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> ValidationContext.cross_validate()
 
       signature =
-        stamp |> CrossValidationStamp.get_row_data_to_sign([]) |> Crypto.sign(mining_priv)
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(mining_priv)
 
       cross_stamp = %CrossValidationStamp{
         node_public_key: mining_pub,
@@ -560,7 +560,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       P2P.add_and_connect_node(other_node)
 
       signature =
-        stamp |> CrossValidationStamp.get_row_data_to_sign([]) |> Crypto.sign(wrong_mining_priv)
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(wrong_mining_priv)
 
       cross_stamp = %CrossValidationStamp{
         node_public_key: wrong_mining_pub,

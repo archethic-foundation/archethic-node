@@ -1003,7 +1003,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
                 node_public_key: public_key,
                 inconsistencies: [],
                 signature:
-                  CrossValidationStamp.get_row_data_to_sign(tx.validation_stamp, [])
+                  CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
                   |> Crypto.sign(private_key)
               }
 
@@ -1018,7 +1018,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
                 node_public_key: public_key,
                 inconsistencies: [],
                 signature:
-                  CrossValidationStamp.get_row_data_to_sign(tx.validation_stamp, [])
+                  CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
                   |> Crypto.sign(private_key)
               }
 

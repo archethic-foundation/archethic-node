@@ -137,7 +137,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
         |> Enum.map(& &1.mining_public_key)
         |> Crypto.aggregate_mining_public_keys()
 
-      raw_data = CrossValidationStamp.get_row_data_to_sign(validation_stamp, [])
+      raw_data = CrossValidationStamp.get_raw_data_to_sign(validation_stamp, [])
 
       Crypto.verify?(signature, raw_data, aggregated_public_key)
     else
@@ -146,12 +146,9 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   end
 
   defp filter_valid_cross_stamps(stamps) do
-    {valid_cross, _invalid_cross} =
-      Enum.split_with(stamps, fn {_from, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
-        Enum.empty?(inconsistencies)
-      end)
-
-    valid_cross
+    Enum.filter(stamps, fn {_from, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
+      Enum.empty?(inconsistencies)
+    end)
   end
 
   defp get_nb_required_validations(%SortedNode{nodes: nodes}) do
@@ -164,13 +161,13 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}) do
-    <<version::16, byte_size(signature)::8, signature::binary, bit_size(bitmask)::8,
+    <<version::8, byte_size(signature)::8, signature::binary, bit_size(bitmask)::8,
       bitmask::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) do
-    <<version::16, signature_size::8, signature::binary-size(signature_size), bitmask_size::8,
+    <<version::8, signature_size::8, signature::binary-size(signature_size), bitmask_size::8,
       bitmask::bitstring-size(bitmask_size), rest::bitstring>> = bin
 
     {%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}, rest}

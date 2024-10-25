@@ -752,11 +752,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :create_proof_of_validation,
         :wait_cross_replication_stamps,
         data = %{
-          node_public_key: node_public_key,
           context:
             context = %ValidationContext{
-              transaction: %Transaction{address: tx_address, type: type},
-              coordinator_node: coordinator_node
+              transaction: %Transaction{address: tx_address, type: type}
             }
         }
       ) do
@@ -774,11 +772,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
       proof_of_validation: proof_of_validation
     }
 
-    cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
-
-    [coordinator_node | cross_validation_nodes]
-    |> P2P.distinct_nodes()
-    |> Enum.reject(&(&1.last_public_key == node_public_key))
+    context
+    |> ValidationContext.get_confirmed_validation_nodes()
     |> P2P.broadcast_message(message)
 
     {:next_state, :replication, %{data | context: new_context}}

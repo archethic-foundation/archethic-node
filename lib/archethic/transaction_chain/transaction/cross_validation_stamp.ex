@@ -46,7 +46,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
       ) do
     signature =
       validation_stamp
-      |> get_row_data_to_sign(inconsistencies)
+      |> get_raw_data_to_sign(inconsistencies)
       |> Crypto.sign_with_mining_node_key()
 
     %__MODULE__{
@@ -59,11 +59,11 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @doc """
   returns raw data to sign
   """
-  @spec get_row_data_to_sign(
+  @spec get_raw_data_to_sign(
           validation_stamp :: ValidationStamp.t(),
           inconsistencies :: list(inconsistency())
         ) :: binary()
-  def get_row_data_to_sign(validation_stamp, inconsistencies) do
+  def get_raw_data_to_sign(validation_stamp, inconsistencies) do
     raw_stamp = ValidationStamp.serialize(validation_stamp)
     Utils.wrap_binary([raw_stamp, marshal_inconsistencies(inconsistencies)])
   end

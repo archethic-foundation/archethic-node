@@ -142,14 +142,14 @@ defmodule Archethic.Replication.TransactionValidator do
             Election.get_validation_constraints()
           )
 
-        validation_nodes_public_key =
+        validation_nodes_mining_key =
           Enum.map(validation_nodes, fn %Node{mining_public_key: mining_public_key} ->
             [mining_public_key]
           end)
 
-        if Transaction.valid_stamps_signature?(tx, validation_nodes_public_key) do
+        if Transaction.valid_stamps_signature?(tx, validation_nodes_mining_key) do
           coordinator_key =
-            validation_nodes_public_key
+            validation_nodes_mining_key
             |> List.flatten()
             |> Enum.find(&ValidationStamp.valid_signature?(stamp, &1))
 
