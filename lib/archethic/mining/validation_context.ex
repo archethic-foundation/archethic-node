@@ -13,7 +13,7 @@ defmodule Archethic.Mining.ValidationContext do
     :contract_context,
     :genesis_address,
     :proof_of_validation,
-    :sorted_nodes,
+    :proof_elected_nodes,
     resolved_addresses: %{},
     unspent_outputs: [],
     cross_validation_stamps: [],
@@ -67,7 +67,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
-  alias Archethic.TransactionChain.Transaction.ProofOfValidation.SortedNode
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation.ElectedNodes
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -105,7 +105,7 @@ defmodule Archethic.Mining.ValidationContext do
           },
           cross_validation_stamps: list({Crypto.key(), CrossValidationStamp.t()}),
           proof_of_validation: nil | ProofOfValidation.t(),
-          sorted_nodes: nil | SortedNode.t(),
+          proof_elected_nodes: nil | ElectedNodes.t(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
@@ -451,9 +451,9 @@ defmodule Archethic.Mining.ValidationContext do
   @spec get_cross_validation_state(t()) :: :reached | :not_reached | :error
   def get_cross_validation_state(%__MODULE__{
         cross_validation_stamps: stamps,
-        sorted_nodes: sorted_nodes
+        proof_elected_nodes: proof_elected_nodes
       }),
-      do: ProofOfValidation.get_state(sorted_nodes, stamps)
+      do: ProofOfValidation.get_state(proof_elected_nodes, stamps)
 
   @doc """
   Aggregate signature of the cross validation stamps
@@ -461,9 +461,15 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec create_proof_of_validation(context :: t()) :: t()
   def create_proof_of_validation(
-        context = %__MODULE__{cross_validation_stamps: stamps, sorted_nodes: sorted_nodes}
+        context = %__MODULE__{
+          cross_validation_stamps: stamps,
+          proof_elected_nodes: proof_elected_nodes
+        }
       ) do
-    %__MODULE__{context | proof_of_validation: ProofOfValidation.create(sorted_nodes, stamps)}
+    %__MODULE__{
+      context
+      | proof_of_validation: ProofOfValidation.create(proof_elected_nodes, stamps)
+    }
   end
 
   @doc """
@@ -471,20 +477,10 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec valid_proof_of_validation?(context :: t(), proof :: ProofOfValidation.t()) :: boolean()
   def valid_proof_of_validation?(
-        context = %__MODULE__{
-          chain_storage_nodes: storage_nodes,
-          sorted_nodes: sorted_nodes,
-          validation_stamp: stamp
-        },
+        %__MODULE__{proof_elected_nodes: proof_elected_nodes, validation_stamp: stamp},
         proof
       ) do
-    validation_nodes = ProofOfValidation.get_nodes(sorted_nodes, proof)
-
-    expected_validation_nodes =
-      context |> get_confirmed_validation_nodes() |> Enum.concat(storage_nodes) |> Enum.uniq()
-
-    Enum.all?(validation_nodes, &Enum.member?(expected_validation_nodes, &1)) and
-      ProofOfValidation.valid?(sorted_nodes, proof, stamp)
+    ProofOfValidation.valid?(proof_elected_nodes, proof, stamp)
   end
 
   @doc """

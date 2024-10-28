@@ -255,7 +255,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         resolved_addresses: resolved_addresses,
         contract_context: contract_context,
         genesis_address: genesis_address,
-        sorted_nodes: ProofOfValidation.sort_nodes(authorized_nodes)
+        proof_elected_nodes: ProofOfValidation.get_election(authorized_nodes, tx.address)
       )
 
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator

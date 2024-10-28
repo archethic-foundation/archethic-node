@@ -127,7 +127,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         resolved_addresses: resolved_addresses,
         contract_context: contract_context,
         genesis_address: genesis_address,
-        sorted_nodes: ProofOfValidation.sort_nodes(authorized_nodes)
+        proof_elected_nodes: ProofOfValidation.get_election(authorized_nodes, tx.address)
       )
 
     validation_context = ValidationContext.validate_pending_transaction(validation_context)

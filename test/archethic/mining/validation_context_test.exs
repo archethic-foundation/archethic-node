@@ -480,7 +480,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       proof =
         P2P.authorized_and_available_nodes()
-        |> ProofOfValidation.sort_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
         |> ProofOfValidation.create(cross_stamps)
 
       assert ValidationContext.valid_proof_of_validation?(ctx, proof)
@@ -519,14 +519,14 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       proof =
         P2P.authorized_and_available_nodes()
-        |> ProofOfValidation.sort_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
         |> ProofOfValidation.create(cross_stamps)
 
       assert ValidationContext.valid_proof_of_validation?(ctx, proof)
 
       proof =
         P2P.authorized_and_available_nodes()
-        |> ProofOfValidation.sort_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
         |> ProofOfValidation.create(Enum.take(cross_stamps, 1))
 
       refute ValidationContext.valid_proof_of_validation?(ctx, proof)
@@ -570,7 +570,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       proof =
         P2P.authorized_and_available_nodes()
-        |> ProofOfValidation.sort_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
         |> ProofOfValidation.create([{node_pub, cross_stamp} | cross_stamps])
 
       refute ValidationContext.valid_proof_of_validation?(ctx, proof)
@@ -632,15 +632,18 @@ defmodule Archethic.Mining.ValidationContextTest do
       ]
       |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
+    tx = TransactionFactory.create_non_valided_transaction()
+
     %ValidationContext{
-      transaction: TransactionFactory.create_non_valided_transaction(),
+      transaction: tx,
       unspent_outputs: unspent_outputs,
       aggregated_utxos: unspent_outputs,
       coordinator_node: coordinator_node,
       cross_validation_nodes: [cross_validation_node],
       chain_storage_nodes: [coordinator_node, cross_validation_node],
       validation_time: validation_time,
-      sorted_nodes: P2P.authorized_and_available_nodes() |> ProofOfValidation.sort_nodes()
+      proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
     }
   end
 
@@ -672,8 +675,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       ]
       |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
+    tx = TransactionFactory.create_non_valided_transaction()
+
     %ValidationContext{
-      transaction: TransactionFactory.create_non_valided_transaction(),
+      transaction: tx,
       previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: unspent_outputs,
       aggregated_utxos: unspent_outputs,
@@ -682,7 +687,8 @@ defmodule Archethic.Mining.ValidationContextTest do
       cross_validation_nodes: cross_validation_nodes,
       chain_storage_nodes: previous_storage_nodes,
       validation_time: validation_time,
-      sorted_nodes: P2P.authorized_and_available_nodes() |> ProofOfValidation.sort_nodes()
+      proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
     }
   end
 

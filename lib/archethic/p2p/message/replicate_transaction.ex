@@ -28,6 +28,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         %__MODULE__{
           transaction:
             tx = %Transaction{
+              address: tx_address,
               validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
             },
           genesis_address: genesis_address,
@@ -35,10 +36,12 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         },
         _
       ) do
-    sorted_nodes =
-      validation_time |> P2P.authorized_and_available_nodes() |> ProofOfValidation.sort_nodes()
+    elected_nodes =
+      validation_time
+      |> P2P.authorized_and_available_nodes()
+      |> ProofOfValidation.get_election(tx_address)
 
-    if ProofOfValidation.valid?(sorted_nodes, proof_of_validation, stamp) do
+    if ProofOfValidation.valid?(elected_nodes, proof_of_validation, stamp) do
       Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
         replicate_transaction(tx, genesis_address)
       end)

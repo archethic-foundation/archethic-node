@@ -21,7 +21,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
   alias Archethic.Utils
 
-  alias __MODULE__.SortedNode
+  alias __MODULE__.ElectedNodes
 
   @enforce_keys [:signature, :nodes_bitmask]
   defstruct [:signature, :nodes_bitmask, version: 1]
@@ -34,23 +34,37 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
   @bls_signature_size 96
 
-  defmodule SortedNode do
+  defmodule ElectedNodes do
     @moduledoc """
-    Struct holding sorted authorized nodes created for ProofOfValidation
+    Struct holding sorted validation nodes elected for the transaction
+    and the required number of validations
     """
     alias Archethic.P2P.Node
 
-    @enforce_keys [:nodes]
-    defstruct nodes: []
+    @enforce_keys [:required_validations, :validation_nodes]
+    defstruct [:required_validations, validation_nodes: []]
 
-    @type t :: %__MODULE__{nodes: list(Node.t())}
+    @type t :: %__MODULE__{
+            required_validations: non_neg_integer(),
+            validation_nodes: list(Node.t())
+          }
   end
 
   @doc """
-  Returns the sorted list of nodes
+  Returns the sorted list of nodes and the required number of validation nodes
+  The input nodes list needs to be the authorized and available nodes at the time of the transaction
   """
-  @spec sort_nodes(nodes :: list(Node.t())) :: SortedNode.t()
-  def sort_nodes(nodes), do: %SortedNode{nodes: Enum.sort_by(nodes, & &1.first_public_key)}
+  @spec get_election(nodes :: list(Node.t()), tx_address :: Crypto.prepended_hash()) ::
+          ElectedNodes.t()
+  def get_election(nodes, tx_address) do
+    required_validations = get_nb_required_validations(nodes)
+    validation_nodes = Election.storage_nodes(tx_address, nodes)
+
+    %ElectedNodes{
+      required_validations: required_validations,
+      validation_nodes: Enum.sort_by(validation_nodes, & &1.first_public_key)
+    }
+  end
 
   @doc """
   Determines if enough cross validation stamps have been received to create the aggregated signature
@@ -59,31 +73,35 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
     - :not_reached if not enough stamps received yet
     - :error if it's not possible to reach the required validations
   """
-  @spec get_state(nodes :: SortedNode.t(), stamps :: list()) :: :reached | :not_reached | :error
-  def get_state(sorted_nodes = %SortedNode{}, stamps) do
-    nb_valid_stamps = stamps |> filter_valid_cross_stamps() |> Enum.count()
-    nb_required_stamps = get_nb_required_validations(sorted_nodes)
+  @spec get_state(nodes :: ElectedNodes.t(), stamps :: list()) ::
+          :reached | :not_reached | :error
+  def get_state(
+        %ElectedNodes{required_validations: required_validations, validation_nodes: nodes},
+        stamps
+      ) do
+    nb_valid_stamps = stamps |> filter_valid_cross_stamps(nodes) |> Enum.count()
 
-    if nb_valid_stamps >= nb_required_stamps do
+    if nb_valid_stamps >= required_validations do
       :reached
     else
-      nb_validation_nodes = get_nb_validation_nodes(sorted_nodes)
-      nb_remaining_stamps = nb_validation_nodes - Enum.count(stamps)
+      nb_remaining_stamps = Enum.count(nodes) - Enum.count(stamps)
 
       # If the remaining stamp to receive cannot reach the required validations we return an error
-      if nb_valid_stamps + nb_remaining_stamps >= nb_required_stamps,
+      if nb_valid_stamps + nb_remaining_stamps >= required_validations,
         do: :not_reached,
         else: :error
     end
   end
 
   @doc """
-  Construct the proof of validation aggregating valid cross stamps
+  Construct the proof of validation aggregating valid cross stamps signatures
   """
-  @spec create(nodes :: SortedNode.t(), stamps :: list({Crypto.key(), CrossValidationStamp.t()})) ::
-          t()
-  def create(%SortedNode{nodes: nodes}, stamps) do
-    valid_cross = filter_valid_cross_stamps(stamps)
+  @spec create(
+          nodes :: ElectedNodes.t(),
+          stamps :: list({Crypto.key(), CrossValidationStamp.t()})
+        ) :: t()
+  def create(%ElectedNodes{validation_nodes: nodes}, stamps) do
+    valid_cross = filter_valid_cross_stamps(stamps, nodes)
 
     {public_keys, signatures} =
       Enum.reduce(
@@ -109,8 +127,8 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   @doc """
   Returns the list of node that signed the proof of validation
   """
-  @spec get_nodes(nodes :: SortedNode.t(), proof :: t()) :: list(Node.t())
-  def get_nodes(%SortedNode{nodes: nodes}, %__MODULE__{nodes_bitmask: bitmask}) do
+  @spec get_nodes(nodes :: ElectedNodes.t(), proof :: t()) :: list(Node.t())
+  def get_nodes(%ElectedNodes{validation_nodes: nodes}, %__MODULE__{nodes_bitmask: bitmask}) do
     bitmask
     |> Utils.bitstring_to_integer_list()
     |> Enum.with_index()
@@ -123,19 +141,25 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   - Number of validation reach the threshold
   - aggregated signature is valid
   """
-  @spec valid?(nodes :: SortedNode.t(), proof :: t(), validation_stamp :: ValidationStamp.t()) ::
-          boolean()
+  @spec valid?(
+          nodes :: ElectedNodes.t(),
+          proof :: t(),
+          validation_stamp :: ValidationStamp.t()
+        ) :: boolean()
   def valid?(
-        sorted_nodes = %SortedNode{},
+        elected_nodes = %ElectedNodes{
+          required_validations: required_validations,
+          validation_nodes: validation_nodes
+        },
         proof = %__MODULE__{signature: signature},
         validation_stamp
       ) do
-    nb_required_stamps = get_nb_required_validations(sorted_nodes)
-    validation_nodes = get_nodes(sorted_nodes, proof)
+    signer_nodes = get_nodes(elected_nodes, proof)
 
-    if Enum.count(validation_nodes) >= nb_required_stamps do
+    with true <- Enum.count(signer_nodes) >= required_validations,
+         true <- signer_nodes |> MapSet.new() |> MapSet.subset?(MapSet.new(validation_nodes)) do
       aggregated_public_key =
-        validation_nodes
+        signer_nodes
         |> Enum.map(& &1.mining_public_key)
         |> Crypto.aggregate_mining_public_keys()
 
@@ -143,23 +167,20 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
 
       Crypto.verify?(signature, raw_data, aggregated_public_key)
     else
-      false
+      _ -> false
     end
   end
 
-  defp filter_valid_cross_stamps(stamps) do
-    Enum.filter(stamps, fn {_from, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
-      Enum.empty?(inconsistencies)
+  defp filter_valid_cross_stamps(stamps, validation_nodes) do
+    Enum.filter(stamps, fn {from, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
+      Enum.empty?(inconsistencies) and Utils.key_in_node_list?(validation_nodes, from)
     end)
   end
 
-  defp get_nb_required_validations(%SortedNode{nodes: nodes}) do
+  defp get_nb_required_validations(nodes) do
     %StorageConstraints{number_replicas: nb_replicas_fn} = Election.get_storage_constraints()
     nb_replicas_fn.(nodes)
   end
-
-  # Will be usefull once overbooking will be implemented
-  defp get_nb_validation_nodes(%SortedNode{nodes: nodes}), do: Enum.count(nodes)
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{version: version, signature: signature, nodes_bitmask: bitmask}) do
