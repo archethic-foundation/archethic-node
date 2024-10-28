@@ -163,7 +163,7 @@ defmodule Archethic.P2P do
     case quorum_read(
            nodes,
            %ListNodes{authorized_and_available?: authorized_and_available?},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok, %NodeList{nodes: nodes}} ->
         {:ok, nodes}
@@ -733,36 +733,30 @@ defmodule Archethic.P2P do
 
   @doc """
   Send a message to a list of nodes and perform a read quorum
+
+  Opts:
+    timeout :: non_neg_integer(),
+    conflict_resolver :: (list(Message.t()) -> Message.t()),
+    acceptance_resolver :: (Message.t() -> boolean()),
+    consistency_level :: pos_integer(),
+    repair_fun :: (list(Message.t()) -> :ok)
   """
   @spec quorum_read(
           node_list :: list(Node.t()),
           message :: Message.t(),
-          conflict_resolver :: (list(Message.t()) -> Message.t()),
-          timeout :: non_neg_integer(),
-          acceptance_resolver :: (Message.t() -> boolean()),
-          consistency_level :: pos_integer(),
-          repair_fun :: (list(Message.t()) -> :ok)
-        ) ::
-          {:ok, Message.t()} | {:error, :network_issue} | {:error, :acceptance_failed}
+          opts :: Keyword.t()
+        ) :: {:ok, Message.t()} | {:error, :network_issue} | {:error, :acceptance_failed}
   def quorum_read(
         nodes,
         message,
-        conflict_resolver \\ fn results -> List.first(results) end,
-        timeout \\ 0,
-        acceptance_resolver \\ fn _ -> true end,
-        consistency_level \\ 3,
-        repair_fun \\ fn _ -> :ok end
-      )
-
-  def quorum_read(
-        nodes,
-        message,
-        conflict_resolver,
-        timeout,
-        acceptance_resolver,
-        consistency_level,
-        repair_fun
+        opts \\ []
       ) do
+    timeout = Keyword.get(opts, :timeout, 0)
+    conflict_resolver = Keyword.get(opts, :conflict_resolver, &List.first(&1))
+    acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
+    consistency_level = Keyword.get(opts, :consistency_level, 3)
+    repair_fun = Keyword.get(opts, :repair_fun, fn _ -> :ok end)
+
     nodes
     |> Enum.filter(&node_connected?/1)
     |> sort_by_nearest_nodes()

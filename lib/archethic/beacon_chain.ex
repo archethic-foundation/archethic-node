@@ -516,7 +516,7 @@ defmodule Archethic.BeaconChain do
         case P2P.quorum_read(
                nodes,
                %GetBeaconSummariesAggregate{date: summary_time},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, aggregate = %SummaryAggregate{}} ->
             {:ok, aggregate}

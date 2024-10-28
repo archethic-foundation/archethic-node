@@ -305,10 +305,10 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetLastTransactionAddress{address: address, timestamp: timestamp},
-           conflict_resolver,
-           timeout,
-           acceptance_resolver,
-           consistency_level
+           conflict_resolver: conflict_resolver,
+           timeout: timeout,
+           acceptance_resolver: acceptance_resolver,
+           consistency_level: consistency_level
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
@@ -343,7 +343,7 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetNextAddresses{address: address, limit: limit},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, %AddressList{addresses: addresses}} -> {:ok, addresses}
           {:error, :network_issue} = e -> e
@@ -422,9 +422,9 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetTransaction{address: address},
-               conflict_resolver,
-               timeout,
-               acceptance_resolver
+               conflict_resolver: conflict_resolver,
+               timeout: timeout,
+               acceptance_resolver: acceptance_resolver
              ) do
           {:ok, %NotFound{}} ->
             {:error, :transaction_not_exists}
@@ -612,8 +612,8 @@ defmodule Archethic.TransactionChain do
              paging_state: paging_state,
              order: order
            },
-           conflict_resolver,
-           timeout
+           conflict_resolver: conflict_resolver,
+           timeout: timeout
          ) do
       {:ok,
        %TransactionList{
@@ -696,7 +696,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransactionInputs{address: address, offset: offset, limit: limit},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok, %TransactionInputList{inputs: versioned_inputs, more?: more?, offset: offset}} ->
         {versioned_inputs, more?, offset}
@@ -775,7 +775,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetUnspentOutputs{address: address, offset: offset, limit: limit},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok,
        %UnspentOutputList{
@@ -808,7 +808,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransactionChainLength{address: address},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok, %TransactionChainLength{length: length}} ->
         {:ok, length}
@@ -849,9 +849,9 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetGenesisAddress{address: address},
-               conflict_resolver,
-               timeout,
-               acceptance_resolver
+               conflict_resolver: conflict_resolver,
+               timeout: timeout,
+               acceptance_resolver: acceptance_resolver
              ) do
           {:ok, %GenesisAddress{address: genesis_address}} ->
             {:ok, genesis_address}
@@ -903,7 +903,7 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetFirstTransactionAddress{address: address},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, %NotFound{}} ->
             {:error, :does_not_exist}
@@ -1138,7 +1138,9 @@ defmodule Archethic.TransactionChain do
         end
       end
 
-      case P2P.quorum_read(nodes, %GetTransactionSummary{address: address}, conflict_resolver) do
+      case P2P.quorum_read(nodes, %GetTransactionSummary{address: address},
+             conflict_resolver: conflict_resolver
+           ) do
         {:ok,
          %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
           true

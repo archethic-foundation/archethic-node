@@ -30,7 +30,7 @@ defmodule Archethic.P2PTest do
     assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info()
   end
 
-  describe "quorum_read/4" do
+  describe "quorum_read/3" do
     setup do
       pub1 = Crypto.generate_deterministic_keypair("node1") |> elem(0)
       pub2 = Crypto.generate_deterministic_keypair("node2") |> elem(0)
@@ -120,15 +120,17 @@ defmodule Archethic.P2PTest do
       end)
 
       assert {:ok, %Transaction{}} =
-               P2P.quorum_read(nodes, %GetTransaction{address: ""}, fn results ->
-                 case Enum.find(results, &match?(%Transaction{}, &1)) do
-                   nil ->
-                     %NotFound{}
+               P2P.quorum_read(nodes, %GetTransaction{address: ""},
+                 conflict_resolver: fn results ->
+                   case Enum.find(results, &match?(%Transaction{}, &1)) do
+                     nil ->
+                       %NotFound{}
 
-                   tx ->
-                     tx
+                     tx ->
+                       tx
+                   end
                  end
-               end)
+               )
     end
 
     test "should try all nodes and return error when no response match acceptance resolver",
@@ -156,9 +158,7 @@ defmodule Archethic.P2PTest do
                P2P.quorum_read(
                  nodes,
                  %GetTransaction{address: ""},
-                 fn results -> List.last(results) end,
-                 0,
-                 fn _ -> false end
+                 acceptance_resolver: fn _ -> false end
                )
     end
 
@@ -175,11 +175,8 @@ defmodule Archethic.P2PTest do
                P2P.quorum_read(
                  nodes,
                  %GetTransaction{address: ""},
-                 fn results -> List.first(results) end,
-                 0,
-                 fn _ -> false end,
-                 3,
-                 fn all_results ->
+                 acceptance_resolver: fn _ -> false end,
+                 repair_fun: fn all_results ->
                    assert match?([{_, _} | _], all_results)
                    Process.send(me, {:repairing, length(all_results)}, [])
                    Process.sleep(10_000)
