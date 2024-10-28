@@ -162,7 +162,7 @@ defmodule Archethic.P2PTest do
                )
     end
 
-    test "should call the repair function for every results", %{nodes: nodes} do
+    test "should call the repair function if provided", %{nodes: nodes} do
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{}, _timeout ->
@@ -176,16 +176,39 @@ defmodule Archethic.P2PTest do
                  nodes,
                  %GetTransaction{address: ""},
                  acceptance_resolver: fn _ -> false end,
-                 repair_fun: fn all_results ->
-                   assert match?([{_, _} | _], all_results)
-                   Process.send(me, {:repairing, length(all_results)}, [])
-                   Process.sleep(10_000)
+                 repair_fun: fn results_by_node ->
+                   assert match?([{_, _} | _], results_by_node)
+                   send(me, {:repairing, length(results_by_node)})
                    :ok
                  end
                )
 
       expected_size = length(nodes)
       assert_receive({:repairing, ^expected_size}, 100)
+    end
+
+    test "should call the repair function asynchronously", %{nodes: nodes} do
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{}, _timeout ->
+          {:ok, %Transaction{}}
+      end)
+
+      me = self()
+
+      assert {:error, :acceptance_failed} =
+               P2P.quorum_read(
+                 nodes,
+                 %GetTransaction{address: ""},
+                 acceptance_resolver: fn _ -> false end,
+                 repair_fun: fn _ ->
+                   Process.sleep(10_000)
+                   send(me, :repairing_done)
+                   :ok
+                 end
+               )
+
+      refute_received(:repairing_done)
     end
   end
 

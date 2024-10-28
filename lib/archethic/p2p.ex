@@ -764,18 +764,20 @@ defmodule Archethic.P2P do
     |> Enum.chunk_every(consistency_level)
     |> Enum.reduce_while({nil, []}, fn nodes, {previous_result_acc, all_results_acc} ->
       results_by_node = send_message_and_filter_results(nodes, message, timeout)
+      all_results_acc = all_results_acc ++ results_by_node
+      {_nodes, results} = Enum.unzip(results_by_node)
 
-      with :ok <- enough_results?(previous_result_acc, results_by_node),
-           result <- resolve_conflicts(previous_result_acc, results_by_node, conflict_resolver),
+      with {:ok, results} <- enough_results(previous_result_acc, results),
+           result <- resolve_conflicts(results, conflict_resolver),
            :ok <- result_accepted?(result, acceptance_resolver) do
-        {:halt, {result, all_results_acc ++ results_by_node}}
+        {:halt, {result, all_results_acc}}
       else
         {:error, previous_result} ->
-          {:cont, {previous_result, all_results_acc ++ results_by_node}}
+          {:cont, {previous_result, all_results_acc}}
       end
     end)
     |> then(fn {result, all_results} ->
-      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(all_results) end)
+      maybe_async_repair(all_results, repair_fun)
 
       cond do
         is_nil(result) ->
@@ -800,40 +802,33 @@ defmodule Archethic.P2P do
       timeout: timeout + 2000
     )
     |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
-    |> Stream.map(fn {:ok, {node_public_key, {:ok, res}}} -> {node_public_key, res} end)
-    |> Enum.to_list()
+    |> Enum.map(fn {:ok, {node_public_key, {:ok, res}}} -> {node_public_key, res} end)
   end
 
   # returns ok if we have 2 results
   # we should probably use the consistency level
-  defp enough_results?(nil, results_by_node) do
-    case results_by_node do
+  defp enough_results(nil, results) do
+    case results do
       [] -> {:error, nil}
       [{_node, result}] -> {:error, result}
-      _ -> :ok
+      _ -> {:ok, results}
     end
   end
 
-  defp enough_results?(previous_result, results_by_node) do
-    case results_by_node do
+  defp enough_results(previous_result, results) do
+    case results do
       [] -> {:error, previous_result}
-      _ -> :ok
+      _ -> {:ok, [previous_result | results]}
     end
   end
 
-  defp resolve_conflicts(nil, results_by_node, conflict_resolver) do
-    results_by_node
-    |> Enum.map(&elem(&1, 1))
+  defp resolve_conflicts(results, conflict_resolver) do
+    results
     |> Enum.dedup()
-    |> conflict_resolver.()
-  end
-
-  defp resolve_conflicts(previous_result, results_by_node, conflict_resolver) do
-    results_by_node
-    |> Enum.map(&elem(&1, 1))
-    |> Kernel.++([previous_result])
-    |> Enum.dedup()
-    |> conflict_resolver.()
+    |> then(fn
+      [result] -> result
+      results -> conflict_resolver.(results)
+    end)
   end
 
   defp result_accepted?(result, acceptance_resolver) do
@@ -841,6 +836,12 @@ defmodule Archethic.P2P do
       :ok
     else
       {:error, result}
+    end
+  end
+
+  defp maybe_async_repair(results, repair_fun) do
+    unless Enum.empty?(results) do
+      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(results) end)
     end
   end
 
