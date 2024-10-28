@@ -739,7 +739,7 @@ defmodule Archethic.P2P do
     conflict_resolver :: (list(Message.t()) -> Message.t()),
     acceptance_resolver :: (Message.t() -> boolean()),
     consistency_level :: pos_integer(),
-    repair_fun :: (list(Message.t()) -> :ok)
+    repair_fun :: (nil | Message.t(), list(Message.t()) -> :ok)
   """
   @spec quorum_read(
           node_list :: list(Node.t()),
@@ -755,7 +755,7 @@ defmodule Archethic.P2P do
     conflict_resolver = Keyword.get(opts, :conflict_resolver, &List.first(&1))
     acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
     consistency_level = Keyword.get(opts, :consistency_level, 3)
-    repair_fun = Keyword.get(opts, :repair_fun, fn _ -> :ok end)
+    repair_fun = Keyword.get(opts, :repair_fun, fn _, _ -> :ok end)
 
     nodes
     |> Enum.filter(&node_connected?/1)
@@ -777,16 +777,17 @@ defmodule Archethic.P2P do
       end
     end)
     |> then(fn {result, all_results} ->
-      maybe_async_repair(all_results, repair_fun)
-
       cond do
         is_nil(result) ->
+          maybe_async_repair(nil, all_results, repair_fun)
           {:error, :network_issue}
 
         acceptance_resolver.(result) ->
+          maybe_async_repair(result, all_results, repair_fun)
           {:ok, result}
 
         true ->
+          maybe_async_repair(nil, all_results, repair_fun)
           {:error, :acceptance_failed}
       end
     end)
@@ -839,9 +840,9 @@ defmodule Archethic.P2P do
     end
   end
 
-  defp maybe_async_repair(results, repair_fun) do
+  defp maybe_async_repair(result, results, repair_fun) do
     unless Enum.empty?(results) do
-      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(results) end)
+      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(result, results) end)
     end
   end
 
