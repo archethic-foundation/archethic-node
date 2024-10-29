@@ -2,29 +2,29 @@ defmodule Archethic.TransactionChainTest do
   use ArchethicCase
 
   alias Archethic.Crypto
-
   alias Archethic.P2P
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.FirstTransactionAddress
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.ShardRepair
   alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.TransactionSummaryMessage
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetFirstTransactionAddress
-  alias Archethic.P2P.Message.FirstTransactionAddress
-  alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.GenesisAddress
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.Error
-
-  alias Archethic.TransactionFactory
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -33,11 +33,12 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionFactory
 
@@ -1342,6 +1343,41 @@ defmodule Archethic.TransactionChainTest do
       date = DateTime.add(date1, -1, :second)
 
       assert {:error, :not_exists} = TransactionChain.resolve_paging_state(address3, date, :desc)
+    end
+  end
+
+  describe "transaction_exists_globally/2" do
+    test "should send a repair msg to node that missed the tx" do
+      address = random_address()
+      genesis = random_address()
+      nodes = [node | _] = add_and_connect_nodes(3)
+      now = DateTime.utc_now()
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetTransactionSummary{}, _ ->
+          {:ok,
+           %TransactionSummaryMessage{
+             transaction_summary: %TransactionSummary{
+               address: address,
+               genesis_address: genesis,
+               timestamp: now
+             }
+           }}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %ShardRepair{genesis_address: ^genesis, storage_address: ^address}, _ ->
+          send(me, :shardrepair)
+          {:ok, %Ok{}}
+      end)
+
+      assert TransactionChain.transaction_exists_globally?(address, nodes)
+
+      assert_receive :shardrepair, 100
+      assert_receive :shardrepair, 100
     end
   end
 end
