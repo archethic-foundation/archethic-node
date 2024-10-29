@@ -341,7 +341,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
 
   def nearest_endpoints(ip) do
     P2P.authorized_and_available_nodes()
-    |> P2P.nearest_nodes(P2P.get_geo_patch(ip))
+    |> P2P.sort_by_nearest_nodes(P2P.get_geo_patch(ip))
     |> Enum.map(&%{ip: :inet.ntoa(&1.ip), port: &1.http_port})
   end
 

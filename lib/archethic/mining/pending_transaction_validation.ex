@@ -978,7 +978,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     previous_address
     |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-    |> P2P.nearest_nodes()
+    |> P2P.sort_by_nearest_nodes()
     |> Enum.filter(&P2P.node_connected?/1)
     |> get_first_public_key(previous_address)
   end

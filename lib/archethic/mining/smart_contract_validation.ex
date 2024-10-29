@@ -83,7 +83,7 @@ defmodule Archethic.Mining.SmartContractValidation do
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
-    conflicts_resolver = fn results ->
+    conflict_resolver = fn results ->
       %SmartContractCallValidation{last_chain_sync_date: highest_date} =
         Enum.max_by(results, & &1.last_chain_sync_date, DateTime)
 
@@ -108,8 +108,8 @@ defmodule Archethic.Mining.SmartContractValidation do
              transaction: transaction,
              timestamp: validation_time
            },
-           conflicts_resolver,
-           @timeout
+           conflict_resolver: conflict_resolver,
+           timeout: @timeout
          ) do
       {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} ->
         {:ok, fee}

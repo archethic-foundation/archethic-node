@@ -44,7 +44,7 @@ defmodule Migration_1_5_9 do
       nodes =
         P2P.authorized_and_available_nodes()
         |> Enum.filter(&P2P.node_connected?/1)
-        |> P2P.nearest_nodes()
+        |> P2P.sort_by_nearest_nodes()
 
       case Utils.await_confirmation(tx.address, nodes) do
         {:ok, _} ->

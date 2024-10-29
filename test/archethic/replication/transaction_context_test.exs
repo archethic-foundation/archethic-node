@@ -34,7 +34,7 @@ defmodule Archethic.Replication.TransactionContextTest do
         {:ok, %Transaction{address: address}}
       end)
 
-      connect_to_n_nodes(5)
+      add_and_connect_nodes(5)
 
       assert %Transaction{} = TransactionContext.fetch_transaction(address)
     end
@@ -48,7 +48,7 @@ defmodule Archethic.Replication.TransactionContextTest do
         {:ok, %NotFound{}}
       end)
 
-      connect_to_n_nodes(5)
+      add_and_connect_nodes(5)
 
       # no assert, we use expect(5) in the mock
       TransactionContext.fetch_transaction(address, acceptance_resolver: :accept_transaction)
@@ -65,7 +65,7 @@ defmodule Archethic.Replication.TransactionContextTest do
         {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
       end)
 
-      connect_to_n_nodes(5)
+      add_and_connect_nodes(5)
 
       assert genesis == TransactionContext.fetch_genesis_address(address)
     end
@@ -79,7 +79,7 @@ defmodule Archethic.Replication.TransactionContextTest do
         {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
-      connect_to_n_nodes(5)
+      add_and_connect_nodes(5)
 
       # no assert, we use expect(5) in the mock
       TransactionContext.fetch_genesis_address(address,
@@ -243,21 +243,5 @@ defmodule Archethic.Replication.TransactionContextTest do
     })
 
     assert [^v_utxo] = TransactionContext.fetch_transaction_unspent_outputs(genesis_address)
-  end
-
-  def connect_to_n_nodes(n) do
-    Enum.each(1..n, fn i ->
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000 + i,
-        first_public_key: random_public_key(),
-        last_public_key: random_public_key(),
-        available?: true,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-    end)
   end
 end
