@@ -764,12 +764,12 @@ defmodule Archethic.P2P do
     |> Enum.chunk_every(consistency_level)
     |> Enum.reduce_while({nil, []}, fn nodes, {previous_result_acc, all_results_acc} ->
       results_by_node = send_message_and_filter_results(nodes, message, timeout)
-      all_results_acc = all_results_acc ++ results_by_node
+      all_results_acc = results_by_node ++ all_results_acc
       {_nodes, results} = Enum.unzip(results_by_node)
 
       with {:ok, results} <- enough_results(previous_result_acc, results),
            result <- resolve_conflicts(results, conflict_resolver),
-           :ok <- result_accepted?(result, acceptance_resolver) do
+           :ok <- result_accepted(result, acceptance_resolver) do
         {:halt, {result, all_results_acc}}
       else
         {:error, previous_result} ->
@@ -808,31 +808,20 @@ defmodule Archethic.P2P do
 
   # returns ok if we have 2 results
   # we should probably use the consistency level
-  defp enough_results(nil, results) do
-    case results do
-      [] -> {:error, nil}
-      [{_node, result}] -> {:error, result}
-      _ -> {:ok, results}
-    end
-  end
-
-  defp enough_results(previous_result, results) do
-    case results do
-      [] -> {:error, previous_result}
-      _ -> {:ok, [previous_result | results]}
-    end
-  end
+  defp enough_results(nil, []), do: {:error, nil}
+  defp enough_results(nil, [result]), do: {:error, result}
+  defp enough_results(nil, results), do: {:ok, results}
+  defp enough_results(previous_result, []), do: {:error, previous_result}
+  defp enough_results(previous_result, results), do: {:ok, [previous_result | results]}
 
   defp resolve_conflicts(results, conflict_resolver) do
-    results
-    |> Enum.dedup()
-    |> then(fn
+    case Enum.uniq(results) do
       [result] -> result
       results -> conflict_resolver.(results)
-    end)
+    end
   end
 
-  defp result_accepted?(result, acceptance_resolver) do
+  defp result_accepted(result, acceptance_resolver) do
     if acceptance_resolver.(result) do
       :ok
     else
@@ -840,10 +829,12 @@ defmodule Archethic.P2P do
     end
   end
 
+  defp maybe_async_repair(_result, [], _repair_fun), do: :ok
+
   defp maybe_async_repair(result, results, repair_fun) do
-    unless Enum.empty?(results) do
-      Task.Supervisor.start_child(TaskSupervisor, fn -> repair_fun.(result, results) end)
-    end
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      repair_fun.(result, results)
+    end)
   end
 
   @doc """

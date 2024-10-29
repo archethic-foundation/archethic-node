@@ -1,5 +1,6 @@
 defmodule Archethic.P2PTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Crypto
 
@@ -31,66 +32,9 @@ defmodule Archethic.P2PTest do
   end
 
   describe "quorum_read/3" do
-    setup do
-      pub1 = Crypto.generate_deterministic_keypair("node1") |> elem(0)
-      pub2 = Crypto.generate_deterministic_keypair("node2") |> elem(0)
-      pub3 = Crypto.generate_deterministic_keypair("node3") |> elem(0)
-      pub4 = Crypto.generate_deterministic_keypair("node4") |> elem(0)
-      pub5 = Crypto.generate_deterministic_keypair("node5") |> elem(0)
+    test "should return the first result when the same results are returned" do
+      nodes = add_and_connect_nodes(5)
 
-      nodes = [
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          first_public_key: pub1,
-          last_public_key: pub1,
-          available?: true,
-          network_patch: "AAA",
-          geo_patch: "AAA"
-        },
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3003,
-          first_public_key: pub2,
-          last_public_key: pub2,
-          available?: true,
-          network_patch: "AAA",
-          geo_patch: "AAA"
-        },
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3004,
-          first_public_key: pub3,
-          last_public_key: pub3,
-          available?: true,
-          network_patch: "AAA",
-          geo_patch: "AAA"
-        },
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3005,
-          first_public_key: pub4,
-          last_public_key: pub4,
-          available?: true,
-          network_patch: "AAA",
-          geo_patch: "AAA"
-        },
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3006,
-          first_public_key: pub5,
-          last_public_key: pub5,
-          available?: true,
-          network_patch: "AAA",
-          geo_patch: "AAA"
-        }
-      ]
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-      {:ok, %{nodes: nodes}}
-    end
-
-    test "should return the first result when the same results are returned", %{nodes: nodes} do
       MockClient
       |> expect(
         :send_message,
@@ -103,7 +47,9 @@ defmodule Archethic.P2PTest do
       assert {:ok, %Transaction{}} = P2P.quorum_read(nodes, %GetTransaction{address: ""})
     end
 
-    test "should run resolver conflicts when the results are different", %{nodes: nodes} do
+    test "should run resolver conflicts when the results are different" do
+      nodes = add_and_connect_nodes(5)
+
       MockClient
       |> stub(:send_message, fn
         %Node{port: 3004}, %GetTransaction{}, _timeout ->
@@ -133,10 +79,9 @@ defmodule Archethic.P2PTest do
                )
     end
 
-    test "should try all nodes and return error when no response match acceptance resolver",
-         %{
-           nodes: nodes
-         } do
+    test "should try all nodes and return error when no response match acceptance resolver" do
+      nodes = add_and_connect_nodes(5)
+
       MockClient
       |> expect(
         :send_message,
@@ -162,9 +107,56 @@ defmodule Archethic.P2PTest do
                )
     end
 
-    test "repair function should receive a nil accepted_result when no accepted response", %{
-      nodes: nodes
-    } do
+    test "should accept a single result for the entire set" do
+      nodes = [node | _] = add_and_connect_nodes(5)
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetTransaction{}, _timeout ->
+          {:ok, %Transaction{}}
+
+        _, %GetTransaction{}, _timeout ->
+          {:error, :timeout}
+      end)
+
+      assert {:ok, %Transaction{}} =
+               P2P.quorum_read(
+                 nodes,
+                 %GetTransaction{address: ""}
+               )
+    end
+
+    test "should not accept a single result if not gone through the entire set" do
+      nodes = [node, _, _, _, node5] = add_and_connect_nodes(5)
+
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetTransaction{}, _timeout ->
+          {:ok, %Transaction{}}
+
+        ^node5, %GetTransaction{}, _timeout ->
+          send(me, :node5_requested)
+
+          {:ok, %NotFound{}}
+
+        _, %GetTransaction{}, _timeout ->
+          {:error, :timeout}
+      end)
+
+      assert {:ok, %Transaction{}} =
+               P2P.quorum_read(
+                 nodes,
+                 %GetTransaction{address: ""}
+               )
+
+      assert_receive :node5_requested, 100
+    end
+
+    test "repair function should receive a nil accepted_result when no accepted response" do
+      nodes = add_and_connect_nodes(5)
+
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{}, _timeout ->
@@ -190,7 +182,9 @@ defmodule Archethic.P2PTest do
       assert_receive({:repairing, ^expected_size}, 100)
     end
 
-    test "repair function should receive the accepted_result", %{nodes: nodes} do
+    test "repair function should receive the accepted_result" do
+      nodes = add_and_connect_nodes(5)
+
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{}, _timeout ->
@@ -215,7 +209,9 @@ defmodule Archethic.P2PTest do
       assert_receive({:repairing, 3}, 100)
     end
 
-    test "should call the repair function asynchronously", %{nodes: nodes} do
+    test "should call the repair function asynchronously" do
+      nodes = add_and_connect_nodes(5)
+
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{}, _timeout ->
