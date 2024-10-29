@@ -71,7 +71,8 @@ defmodule Archethic.P2P.MessageId do
     GetDashboardData,
     DashboardData,
     RequestChainLock,
-    UnlockChain
+    UnlockChain,
+    UpdateLastAddress
   }
 
   alias Archethic.TransactionChain.{
@@ -128,6 +129,7 @@ defmodule Archethic.P2P.MessageId do
     GetDashboardData => 40,
     UnlockChain => 41,
     GetCurrentReplicationAttestations => 42,
+    UpdateLastAddress => 43,
 
     # Responses
     DashboardData => 225,
