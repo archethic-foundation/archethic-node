@@ -43,7 +43,9 @@ defmodule Archethic.TransactionChain do
     TransactionSummaryMessage,
     UnspentOutputList,
     GetFirstTransactionAddress,
-    FirstTransactionAddress
+    FirstTransactionAddress,
+    ShardRepair,
+    UpdateLastAddress
   }
 
   alias __MODULE__.MemTables.PendingLedger
@@ -268,8 +270,7 @@ defmodule Archethic.TransactionChain do
           address :: binary(),
           storage_nodes :: list(Node.t()),
           options :: [timestamp :: DateTime.t()] | search_options()
-        ) ::
-          {:ok, binary()} | {:error, :network_issue | :acceptance_failed}
+        ) :: {:ok, binary()} | {:error, :network_issue | :acceptance_failed}
   def fetch_last_address(address, nodes, opts \\ []) when is_binary(address) and is_list(nodes) do
     timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
     timeout = Keyword.get(opts, :timeout, 0)
@@ -280,13 +281,25 @@ defmodule Archethic.TransactionChain do
       Enum.max_by(results, &DateTime.to_unix(&1.timestamp, :millisecond))
     end
 
+    repair_fun = fn
+      res = %LastTransactionAddress{}, results_by_node ->
+        results_by_node
+        |> Enum.reject(&match?({_, ^res}, &1))
+        |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+        |> P2P.broadcast_message(%UpdateLastAddress{address: address})
+
+      _, _ ->
+        :ok
+    end
+
     case P2P.quorum_read(
            nodes,
            %GetLastTransactionAddress{address: address, timestamp: timestamp},
            conflict_resolver: conflict_resolver,
            timeout: timeout,
            acceptance_resolver: acceptance_resolver,
-           consistency_level: consistency_level
+           consistency_level: consistency_level,
+           repair_fun: repair_fun
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
@@ -393,12 +406,32 @@ defmodule Archethic.TransactionChain do
           end)
         end
 
+        repair_fun = fn
+          res = %Transaction{
+            address: ^address,
+            validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+          },
+          results_by_node ->
+            results_by_node
+            |> Enum.reject(&match?({_, ^res}, &1))
+            |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+            |> P2P.broadcast_message(%ShardRepair{
+              genesis_address: genesis_address,
+              storage_address: address,
+              io_addresses: []
+            })
+
+          _, _ ->
+            :ok
+        end
+
         case P2P.quorum_read(
                nodes,
                %GetTransaction{address: address},
                conflict_resolver: conflict_resolver,
                timeout: timeout,
-               acceptance_resolver: acceptance_resolver
+               acceptance_resolver: acceptance_resolver,
+               repair_fun: repair_fun
              ) do
           {:ok, %NotFound{}} -> {:error, :transaction_not_exists}
           res -> res
@@ -570,6 +603,29 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    repair_fun = fn
+      %TransactionList{transactions: []}, _ ->
+        :ok
+
+      res = %TransactionList{transactions: transactions}, results_by_node ->
+        %Transaction{
+          address: last_address,
+          validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+        } = if order == :asc, do: List.last(transactions), else: List.first(transactions)
+
+        results_by_node
+        |> Enum.reject(&match?({_, ^res}, &1))
+        |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+        |> P2P.broadcast_message(%ShardRepair{
+          genesis_address: genesis_address,
+          storage_address: last_address,
+          io_addresses: []
+        })
+
+      _, _ ->
+        :ok
+    end
+
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
@@ -581,6 +637,7 @@ defmodule Archethic.TransactionChain do
              order: order
            },
            conflict_resolver: conflict_resolver,
+           repair_fun: repair_fun,
            timeout: timeout
          ) do
       {:ok,
@@ -814,12 +871,28 @@ defmodule Archethic.TransactionChain do
               end
           end
 
+        repair_fun = fn
+          res = %GenesisAddress{address: genesis_address}, results_by_node ->
+            results_by_node
+            |> Enum.reject(&match?({_, ^res}, &1))
+            |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+            |> P2P.broadcast_message(%ShardRepair{
+              genesis_address: genesis_address,
+              storage_address: address,
+              io_addresses: []
+            })
+
+          _, _ ->
+            :ok
+        end
+
         case P2P.quorum_read(
                nodes,
                %GetGenesisAddress{address: address},
                conflict_resolver: conflict_resolver,
                timeout: timeout,
-               acceptance_resolver: acceptance_resolver
+               acceptance_resolver: acceptance_resolver,
+               repair_fun: repair_fun
              ) do
           {:ok, %GenesisAddress{address: genesis_address}} -> {:ok, genesis_address}
           error -> error
@@ -1093,8 +1166,27 @@ defmodule Archethic.TransactionChain do
         end
       end
 
+      repair_fun = fn
+        res = %TransactionSummaryMessage{
+          transaction_summary: %TransactionSummary{genesis_address: genesis_address}
+        },
+        results_by_node ->
+          results_by_node
+          |> Enum.reject(&match?({_, ^res}, &1))
+          |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+          |> P2P.broadcast_message(%ShardRepair{
+            genesis_address: genesis_address,
+            storage_address: address,
+            io_addresses: []
+          })
+
+        _, _ ->
+          :ok
+      end
+
       case P2P.quorum_read(nodes, %GetTransactionSummary{address: address},
-             conflict_resolver: conflict_resolver
+             conflict_resolver: conflict_resolver,
+             repair_fun: repair_fun
            ) do
         {:ok,
          %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->

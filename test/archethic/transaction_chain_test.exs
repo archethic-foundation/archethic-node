@@ -2,29 +2,30 @@ defmodule Archethic.TransactionChainTest do
   use ArchethicCase
 
   alias Archethic.Crypto
-
   alias Archethic.P2P
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.FirstTransactionAddress
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.UnspentOutputList
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetFirstTransactionAddress
-  alias Archethic.P2P.Message.FirstTransactionAddress
-  alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.Error
-
-  alias Archethic.TransactionFactory
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.ShardRepair
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.TransactionSummaryMessage
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.UpdateLastAddress
+  alias Archethic.P2P.Node
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -33,11 +34,12 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionFactory
 
@@ -341,9 +343,65 @@ defmodule Archethic.TransactionChainTest do
                  acceptance_resolver: acceptance_resolver
                )
     end
+
+    test "should send a repair message to nodes that have not the latest" do
+      address = random_address()
+      latest = random_address()
+      non_latest = random_address()
+      me = self()
+
+      nodes = [node1 | _] = add_and_connect_nodes(4)
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: non_latest, timestamp: ~U[2023-01-01 00:00:00Z]}}
+
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: latest, timestamp: ~U[2024-01-01 00:00:00Z]}}
+
+        node, %UpdateLastAddress{address: ^address}, _ ->
+          send(me, {:updatelastaddress, node.first_public_key})
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^latest} = TransactionChain.fetch_last_address(address, nodes)
+
+      expected_node_pkey = node1.first_public_key
+      assert_receive {:updatelastaddress, ^expected_node_pkey}, 100
+      refute_received _
+    end
   end
 
   describe "fetch_transaction/2" do
+    test "should send a repair message to nodes that does not have it" do
+      me = self()
+
+      nodes = [node1 | _] = add_and_connect_nodes(4)
+      tx = TransactionFactory.create_valid_transaction()
+      address = tx.address
+      genesis_address = tx.validation_stamp.genesis_address
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, tx}
+
+        node, %ShardRepair{storage_address: ^address, genesis_address: ^genesis_address}, _ ->
+          send(me, {:shardrepair, node.first_public_key})
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^tx} = TransactionChain.fetch_transaction(address, nodes)
+
+      expected_node_pkey = node1.first_public_key
+      assert_receive {:shardrepair, ^expected_node_pkey}, 100
+      refute_received _
+    end
+
     test "should get the transaction from DB" do
       nodes = [
         %Node{
@@ -548,6 +606,32 @@ defmodule Archethic.TransactionChainTest do
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
       %{nodes: nodes}
+    end
+
+    test "should send a repair message to nodes that does not have it", %{
+      nodes: nodes = [node1 | _]
+    } do
+      txs = Enum.map(0..3, &TransactionFactory.create_valid_transaction([], index: &1))
+
+      %Transaction{
+        address: last_address,
+        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+      } = List.last(txs)
+
+      MockClient
+      |> expect(:send_message, 3, fn
+        ^node1, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: txs}}
+
+        _, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: Enum.take(txs, 2)}}
+      end)
+      |> expect(:send_message, 2, fn
+        _, %ShardRepair{storage_address: ^last_address, genesis_address: ^genesis_address}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      assert ^txs = TransactionChain.fetch(last_address, nodes) |> Enum.to_list()
     end
 
     test "should get the transaction chain", %{nodes: nodes} do
@@ -1219,6 +1303,29 @@ defmodule Archethic.TransactionChainTest do
 
       assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
+
+    test "should send a repair msg to nodes that missed the tx", %{nodes: nodes = [node | _]} do
+      address = random_address()
+      genesis = random_address()
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: genesis, timestamp: ~U[2023-01-01 00:00:00Z]}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+
+        _, %ShardRepair{genesis_address: ^genesis, storage_address: ^address}, _ ->
+          send(me, :shardrepair)
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^genesis} = TransactionChain.fetch_genesis_address(address, nodes)
+      assert_receive :shardrepair, 100
+      assert_receive :shardrepair, 100
+    end
   end
 
   describe "resolve_paging_state/3" do
@@ -1342,6 +1449,41 @@ defmodule Archethic.TransactionChainTest do
       date = DateTime.add(date1, -1, :second)
 
       assert {:error, :not_exists} = TransactionChain.resolve_paging_state(address3, date, :desc)
+    end
+  end
+
+  describe "transaction_exists_globally/2" do
+    test "should send a repair msg to node that missed the tx" do
+      address = random_address()
+      genesis = random_address()
+      nodes = [node | _] = add_and_connect_nodes(3)
+      now = DateTime.utc_now()
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetTransactionSummary{}, _ ->
+          {:ok,
+           %TransactionSummaryMessage{
+             transaction_summary: %TransactionSummary{
+               address: address,
+               genesis_address: genesis,
+               timestamp: now
+             }
+           }}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %ShardRepair{genesis_address: ^genesis, storage_address: ^address}, _ ->
+          send(me, :shardrepair)
+          {:ok, %Ok{}}
+      end)
+
+      assert TransactionChain.transaction_exists_globally?(address, nodes)
+
+      assert_receive :shardrepair, 100
+      assert_receive :shardrepair, 100
     end
   end
 end
