@@ -1220,6 +1220,29 @@ defmodule Archethic.TransactionChainTest do
 
       assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
+
+    test "should send a repair msg to nodes that missed the tx", %{nodes: nodes = [node | _]} do
+      address = random_address()
+      genesis = random_address()
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: genesis, timestamp: ~U[2023-01-01 00:00:00Z]}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+
+        _, %ShardRepair{genesis_address: ^genesis, storage_address: ^address}, _ ->
+          send(me, :shardrepair)
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^genesis} = TransactionChain.fetch_genesis_address(address, nodes)
+      assert_receive :shardrepair, 100
+      assert_receive :shardrepair, 100
+    end
   end
 
   describe "resolve_paging_state/3" do
