@@ -25,39 +25,47 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   @doc """
   Encode a transaction
+
+  Opts:
+    storage_type: :io | :chain (default: :chain)
+
   """
-  @spec encode(Transaction.t()) :: binary()
-  def encode(%Transaction{
-        version: tx_version,
-        address: address,
-        type: type,
-        data: %TransactionData{
-          content: content,
-          code: code,
-          ownerships: ownerships,
-          ledger: %Ledger{uco: uco_ledger, token: token_ledger},
-          recipients: recipients
-        },
-        previous_public_key: previous_public_key,
-        previous_signature: previous_signature,
-        origin_signature: origin_signature,
-        validation_stamp: %ValidationStamp{
-          timestamp: timestamp,
-          proof_of_work: proof_of_work,
-          proof_of_integrity: proof_of_integrity,
-          proof_of_election: proof_of_election,
-          ledger_operations: %LedgerOperations{
-            fee: fee,
-            transaction_movements: transaction_movements,
-            unspent_outputs: unspent_outputs,
-            consumed_inputs: consumed_inputs
+  @spec encode(transaction :: Transaction.t(), opts :: Keyword.t()) :: binary()
+  def encode(
+        %Transaction{
+          version: tx_version,
+          address: address,
+          type: type,
+          data: %TransactionData{
+            content: content,
+            code: code,
+            ownerships: ownerships,
+            ledger: %Ledger{uco: uco_ledger, token: token_ledger},
+            recipients: recipients
           },
-          recipients: resolved_recipients,
-          signature: validation_stamp_sig,
-          protocol_version: protocol_version
+          previous_public_key: previous_public_key,
+          previous_signature: previous_signature,
+          origin_signature: origin_signature,
+          validation_stamp: %ValidationStamp{
+            genesis_address: genesis_address,
+            timestamp: timestamp,
+            proof_of_work: proof_of_work,
+            proof_of_integrity: proof_of_integrity,
+            proof_of_election: proof_of_election,
+            ledger_operations: %LedgerOperations{
+              fee: fee,
+              transaction_movements: transaction_movements,
+              unspent_outputs: unspent_outputs,
+              consumed_inputs: consumed_inputs
+            },
+            recipients: resolved_recipients,
+            signature: validation_stamp_sig,
+            protocol_version: protocol_version
+          },
+          cross_validation_stamps: cross_validation_stamps
         },
-        cross_validation_stamps: cross_validation_stamps
-      }) do
+        opts \\ []
+      ) do
     ownerships_encoding =
       ownerships
       |> Enum.map(&Ownership.serialize(&1, tx_version))
@@ -143,6 +151,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"cross_validation_stamps",
          <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
       ]
+      |> maybe_add_genesis_address(genesis_address, Keyword.get(opts, :storage_type, :chain))
       |> Enum.map(fn {column, value} ->
         wrapped_value = Utils.wrap_binary(value)
 
@@ -208,6 +217,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, "validation_stamp.proof_of_election", poe, acc) do
     put_in(acc, [Access.key(:validation_stamp, %{}), :proof_of_election], poe)
+  end
+
+  def decode(_version, "validation_stamp.genesis_address", genesis_address, acc) do
+    put_in(acc, [Access.key(:validation_stamp, %{}), :genesis_address], genesis_address)
   end
 
   def decode(_version, "validation_stamp.ledger_operations.fee", <<fee::64>>, acc) do
@@ -360,5 +373,13 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   defp deserialize_cross_validation_stamps(rest, nb, acc) do
     {stamp, rest} = CrossValidationStamp.deserialize(rest)
     deserialize_cross_validation_stamps(rest, nb, [stamp | acc])
+  end
+
+  defp maybe_add_genesis_address(encodings, _genesis_address, :chain) do
+    encodings
+  end
+
+  defp maybe_add_genesis_address(encodings, genesis_address, :io) do
+    [{"validation_stamp.genesis_address", genesis_address} | encodings]
   end
 end

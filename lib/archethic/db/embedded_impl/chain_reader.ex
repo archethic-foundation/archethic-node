@@ -51,6 +51,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           |> read_transaction(column_names, size, 0)
           |> Enum.into(%{})
           |> decode_transaction_columns(version)
+          |> set_genesis_address(genesis_address)
 
         File.close(fd)
 
@@ -163,12 +164,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     case File.open(filepath, [:binary, :read]) do
       {:ok, fd} ->
         Stream.resource(
-          fn -> process_get_chain(fd, fields, [], db_path) end,
+          fn -> process_get_chain(fd, genesis_address, fields, [], db_path) end,
           fn
             {transactions, true, paging_address} ->
               next_transactions =
                 process_get_chain(
                   fd,
+                  genesis_address,
                   fields,
                   [paging_address: paging_address],
                   db_path
@@ -273,14 +275,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
               _ -> opts
             end
 
-          process_get_chain(fd, fields, opts, db_path)
+          process_get_chain(fd, genesis_address, fields, opts, db_path)
 
         :desc ->
           # if the paging_address=genesis_address,
           # we return empty
           case Keyword.get(opts, :paging_address) do
-            ^genesis_address -> {[], false, nil}
-            _ -> process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+            ^genesis_address ->
+              {[], false, nil}
+
+            _ ->
+              process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
           end
       end
 
@@ -288,18 +293,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     {transactions, more?, paging_address}
   end
 
-  defp process_get_chain(fd, fields, opts, db_path) do
+  defp process_get_chain(fd, genesis_address, fields, opts, db_path) do
     # Set the file cursor position to the paging state
     case Keyword.get(opts, :paging_address) do
       nil ->
         :file.position(fd, 0)
-        do_process_get_chain(fd, fields)
+        do_process_get_chain(fd, genesis_address, fields)
 
       paging_address ->
         case ChainIndex.get_tx_entry(paging_address, db_path) do
           {:ok, %{offset: offset, size: size}} ->
             :file.position(fd, offset + size)
-            do_process_get_chain(fd, fields)
+            do_process_get_chain(fd, genesis_address, fields)
 
           {:error, :not_exists} ->
             {[], false, nil}
@@ -307,7 +312,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp do_process_get_chain(fd, fields) do
+  defp do_process_get_chain(fd, genesis_address, fields) do
     # Always return transaction address
     fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
 
@@ -328,7 +333,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       end
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-    {transactions, more?, paging_address} = get_paginated_chain(fd, column_names)
+    {transactions, more?, paging_address} = get_paginated_chain(fd, genesis_address, column_names)
 
     {transactions, more?, paging_address}
   end
@@ -376,14 +381,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
     # call the ASC function and ignore the more? and paging_address
     {transactions, _more?, _paging_address} =
-      process_get_chain(fd, fields, [paging_address: paging_address], db_path)
+      process_get_chain(fd, genesis_address, fields, [paging_address: paging_address], db_path)
 
     transactions = Enum.take(transactions, nb_to_take)
 
     {Enum.reverse(transactions), more?, new_paging_address}
   end
 
-  defp get_paginated_chain(fd, fields, acc \\ []) do
+  defp get_paginated_chain(fd, genesis_address, fields, acc \\ []) do
     case :file.read(fd, 8) do
       {:ok, <<size::32, version::32>>} ->
         if length(acc) == @page_size do
@@ -394,8 +399,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             fd
             |> read_transaction(fields, size, 0)
             |> decode_transaction_columns(version)
+            |> set_genesis_address(genesis_address)
 
-          get_paginated_chain(fd, fields, [tx | acc])
+          get_paginated_chain(fd, genesis_address, fields, [tx | acc])
         end
 
       :eof ->
@@ -552,5 +558,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     )
     |> Utils.atomize_keys()
     |> Transaction.cast()
+  end
+
+  defp set_genesis_address(tx = %Transaction{}, genesis_address) do
+    put_in(tx, [Access.key!(:validation_stamp), Access.key!(:genesis_address)], genesis_address)
   end
 end
