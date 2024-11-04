@@ -6,7 +6,10 @@ defmodule Archethic.Replication.TransactionPool do
 
   require Logger
 
+  alias Archethic.Crypto
+
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -28,9 +31,32 @@ defmodule Archethic.Replication.TransactionPool do
   end
 
   @doc """
+  Add the proof of validation to the queued transaction
+  """
+  @spec add_proof_of_validation(
+          gen_server :: GenServer.server(),
+          proof_of_validation :: ProofOfValidation.t(),
+          tx_address :: Crypto.prepended_hash()
+        ) :: :ok
+  def add_proof_of_validation(name \\ __MODULE__, proof_of_validation, tx_address) do
+    GenServer.cast(name, {:add_proof_of_validation, proof_of_validation, tx_address})
+  end
+
+  @doc """
+  Get the transaction and the inputs for the given transaction's address
+  """
+  @spec get_transaction(GenServer.server(), address :: Crypto.prepended_hash()) ::
+          {:ok, validated_transaction :: Transaction.t(),
+           validation_inputs :: list(VersionedUnspentOutput.t())}
+          | {:error, :transaction_not_exists}
+  def get_transaction(name \\ __MODULE__, address) when is_binary(address) do
+    GenServer.call(name, {:get_transaction, address})
+  end
+
+  @doc """
   Dequeue the transaction and the inputs for the given transaction's address
   """
-  @spec pop_transaction(GenServer.server(), binary()) ::
+  @spec pop_transaction(GenServer.server(), address :: Crypto.prepended_hash()) ::
           {:ok, validated_transaction :: Transaction.t(),
            validation_inputs :: list(VersionedUnspentOutput.t())}
           | {:error, :transaction_not_exists}
@@ -69,14 +95,49 @@ defmodule Archethic.Replication.TransactionPool do
     {:noreply, new_state}
   end
 
+  def handle_cast(
+        {:add_proof_of_validation, proof_of_validation, tx_address},
+        state
+      ) do
+    {type, new_state} =
+      get_and_update_in(state, [:transactions, tx_address], fn
+        {tx = %Transaction{type: type}, expire_at, inputs} ->
+          tx = %Transaction{tx | proof_of_validation: proof_of_validation}
+          {type, {tx, expire_at, inputs}}
+
+        nil ->
+          :pop
+      end)
+
+    if is_nil(type) do
+      Logger.warning("Cannot add proof to transaction not in pool",
+        transaction_address: Base.encode16(tx_address)
+      )
+    else
+      Logger.info("Added in the transaction pool",
+        transaction_address: Base.encode16(tx_address),
+        transaction_type: type
+      )
+    end
+
+    {:noreply, new_state}
+  end
+
+  def handle_call({:get_transaction, address}, _from, state = %{transactions: transactions}) do
+    case Map.get(transactions, address) do
+      nil -> {:reply, {:error, :transaction_not_exists}, state}
+      {tx, _, validation_inputs} -> {:reply, {:ok, tx, validation_inputs}, state}
+    end
+  end
+
   def handle_call({:pop_transaction, address}, _from, state = %{transactions: transactions}) do
     case Map.pop(transactions, address) do
       {nil, _} ->
         {:reply, {:error, :transaction_not_exists}, state}
 
-      {{transaction, _, validation_inputs}, rest_transactions} ->
-        {:reply, {:ok, transaction, validation_inputs},
-         %{state | transactions: rest_transactions}}
+      {{tx, _, validation_inputs}, rest_transactions} ->
+        new_state = Map.put(state, :transactions, rest_transactions)
+        {:reply, {:ok, tx, validation_inputs}, new_state}
     end
   end
 

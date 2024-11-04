@@ -9,7 +9,6 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.Replication
 
@@ -31,7 +30,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
           proof_of_validation: ProofOfValidation.t()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{
           address: address,
@@ -69,7 +68,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
 
   defp get_data_in_tx_pool(address) do
     retry_while with: constant_backoff(100) |> expiry(2000) do
-      case Replication.get_transaction_in_commit_pool(address) do
+      case Replication.pop_transaction_in_commit_pool(address) do
         {:ok, tx, validation_utxo} ->
           validation_inputs = convert_unspent_outputs_to_inputs(validation_utxo)
           {:halt, {:ok, tx, validation_inputs}}
