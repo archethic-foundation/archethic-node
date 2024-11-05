@@ -116,8 +116,7 @@ defmodule Archethic.TransactionFactory do
       %ValidationStamp{
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
         protocol_version: protocol_version,
@@ -262,7 +261,7 @@ defmodule Archethic.TransactionFactory do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32),
       protocol_version: protocol_version
@@ -303,8 +302,7 @@ defmodule Archethic.TransactionFactory do
       %ValidationStamp{
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations,
         protocol_version: protocol_version
@@ -348,8 +346,7 @@ defmodule Archethic.TransactionFactory do
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
         ledger_operations: ledger_operations,
         protocol_version: protocol_version
       }

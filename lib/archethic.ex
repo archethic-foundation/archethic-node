@@ -74,14 +74,21 @@ defmodule Archethic do
     welcome_node_key = Keyword.get(opts, :welcome_node_key, Crypto.first_node_public_key())
     contract_context = Keyword.get(opts, :contract_context, nil)
     forward? = Keyword.get(opts, :forward?, false)
+    ref_timestamp = DateTime.utc_now()
 
     cond do
       P2P.authorized_and_available_node?() and shared_secret_synced?() ->
-        validation_nodes = Mining.get_validation_nodes(tx)
+        validation_nodes = Mining.get_validation_nodes(tx, ref_timestamp)
 
         responses =
           %{already_locked?: already_locked?} =
-          do_send_transaction(tx, validation_nodes, welcome_node_key, contract_context)
+          do_send_transaction(
+            tx,
+            validation_nodes,
+            welcome_node_key,
+            contract_context,
+            ref_timestamp
+          )
 
         maybe_start_resync(responses)
 
@@ -121,7 +128,8 @@ defmodule Archethic do
          tx = %Transaction{type: tx_type},
          validation_nodes,
          welcome_node_key,
-         contract_context
+         contract_context,
+         ref_timestamp
        ) do
     message = %StartMining{
       transaction: tx,
@@ -130,7 +138,7 @@ defmodule Archethic do
       network_chains_view_hash: NetworkView.get_chains_hash(),
       p2p_view_hash: NetworkView.get_p2p_hash(),
       contract_context: contract_context,
-      ref_timestamp: DateTime.utc_now()
+      ref_timestamp: ref_timestamp
     }
 
     Task.Supervisor.async_stream_nolink(
