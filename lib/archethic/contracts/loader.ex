@@ -306,7 +306,7 @@ defmodule Archethic.Contracts.Loader do
   defp resolve_genesis_address(recipients, authorized_nodes, protocol_version)
        when protocol_version <= 7 do
     Task.Supervisor.async_stream(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       recipients,
       fn address ->
         nodes = Election.chain_storage_nodes(address, authorized_nodes)

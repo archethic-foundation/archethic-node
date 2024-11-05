@@ -108,7 +108,7 @@ defmodule Archethic.SelfRepair.Notifier do
          new_available_nodes
        ) do
     Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       addresses,
       &sync_chain(&1, unavailable_nodes, prev_available_nodes, new_available_nodes),
       ordered: false,
@@ -265,7 +265,7 @@ defmodule Archethic.SelfRepair.Notifier do
 
   defp notify_nodes(acc, genesis_address) do
     Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       acc,
       fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
         Logger.info(
@@ -300,7 +300,7 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.chunk_every(20)
     |> Stream.each(fn summary_times ->
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         summary_times,
         &download_and_store_summary(&1, prev_available_nodes),
         ordered: false,

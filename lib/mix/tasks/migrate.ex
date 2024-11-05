@@ -4,8 +4,6 @@ defmodule Mix.Tasks.Archethic.Migrate do
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
-  alias Archethic.TaskSupervisor
-
   require Logger
 
   @env if Mix.env() == :test, do: "test", else: "prod"
@@ -18,7 +16,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
 
   def run(new_version, true) do
     Task.Supervisor.start_child(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn -> do_run(new_version) end,
       shutdown: :brutal_kill
     )

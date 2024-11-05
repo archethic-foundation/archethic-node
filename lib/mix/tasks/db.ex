@@ -90,7 +90,11 @@ defmodule Mix.Tasks.Archethic.Db do
     BootstrapInfo.start_link(path: DB.filepath())
     P2PView.start_link(path: DB.filepath())
 
-    Task.Supervisor.start_link(name: Archethic.TaskSupervisor)
+    PartitionSupervisor.start_link(
+      child_spec: Task.Supervisor,
+      name: Archethic.TaskSupervisors
+    )
+
     Registry.start_link(keys: :duplicate, name: Archethic.PubSubRegistry)
 
     TransactionChain.Supervisor.start_link()

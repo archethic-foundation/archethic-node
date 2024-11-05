@@ -8,7 +8,6 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   use GenServer
   @vsn 1
 
-  alias Archethic.TaskSupervisor
   alias Archethic.Utils
 
   require Logger
@@ -80,7 +79,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         }
       ) do
     hydrating_task =
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
         try do
           {:ok, apply(m, f, a)}
         rescue

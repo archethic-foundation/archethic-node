@@ -1117,7 +1117,7 @@ defmodule Archethic.Utils do
     case Registry.lookup(registry, key) do
       [] ->
         Task.Supervisor.start_child(
-          Archethic.TaskSupervisor,
+          Archethic.task_supervisors(),
           fn ->
             {:ok, _} = Registry.register(registry, key, nil)
             fun.(key)

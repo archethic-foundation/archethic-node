@@ -14,8 +14,6 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   alias Archethic.SelfRepair.Sync
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.Utils
 
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
@@ -88,7 +86,7 @@ defmodule Archethic.SelfRepair.Scheduler do
 
     PubSub.notify_self_repair()
 
-    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
       # at the end of loading (in case there is a crash during self repair)

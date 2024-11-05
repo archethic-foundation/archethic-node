@@ -248,7 +248,7 @@ defmodule Archethic.Contracts do
         }
 
         task =
-          Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+          Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
             try do
               # TODO: logs
               logs = []
@@ -290,7 +290,7 @@ defmodule Archethic.Contracts do
 
     queued_calls =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         genesis_addresses,
         fn genesis_address ->
           genesis_address

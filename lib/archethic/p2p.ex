@@ -2,7 +2,7 @@ defmodule Archethic.P2P do
   @moduledoc """
   Handle P2P node discovery and messaging
   """
-  alias Archethic.{Crypto, TaskSupervisor, TransactionChain}
+  alias Archethic.{Crypto, TransactionChain}
 
   alias Archethic.{TransactionChain.Transaction, Utils}
 
@@ -53,7 +53,7 @@ defmodule Archethic.P2P do
     not_connected_nodes = Enum.reject(nodes, &node_connected?/1)
 
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       not_connected_nodes,
       fn node = %Node{first_public_key: first_public_key} ->
         do_connect_node(node, self())
@@ -638,12 +638,18 @@ defmodule Archethic.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.t()) :: :ok
   def broadcast_message(nodes, message) do
-    Task.Supervisor.start_child(TaskSupervisor, fn -> do_broadcast_message(nodes, message) end)
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+      do_broadcast_message(nodes, message)
+    end)
+
     :ok
   end
 
   defp do_broadcast_message(nodes, message) do
-    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
+    Task.Supervisor.async_stream_nolink(
+      Archethic.task_supervisors(),
+      nodes,
+      &send_message(&1, message),
       ordered: false,
       on_timeout: :kill_task,
       timeout: Message.get_timeout(message) + 2000
@@ -795,7 +801,7 @@ defmodule Archethic.P2P do
 
   defp send_message_and_filter_results(nodes, message, timeout) do
     Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       nodes,
       &{&1.first_public_key, send_message(&1, message, timeout)},
       ordered: false,
@@ -832,7 +838,7 @@ defmodule Archethic.P2P do
   defp maybe_async_repair(_result, [], _repair_fun), do: :ok
 
   defp maybe_async_repair(result, results, repair_fun) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
       repair_fun.(result, results)
     end)
   end

@@ -26,7 +26,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.NodeRenewal
 
-  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -829,13 +828,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     # fetch in parallel the data we need
     tasks = [
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
         fetch_previous_tx_genesis_address(tx)
       end),
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
         TransactionChain.fetch_genesis_address(token_address, storage_nodes)
       end),
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
         TransactionChain.fetch_transaction(token_address, storage_nodes)
       end)
     ]

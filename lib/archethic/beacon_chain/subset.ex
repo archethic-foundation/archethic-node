@@ -31,7 +31,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.P2P.Message.ReplicationAttestationMessage
 
   alias Archethic.PubSub
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -387,7 +387,7 @@ defmodule Archethic.BeaconChain.Subset do
       network_patches_timeout = NetworkCoordinates.timeout()
 
       patch_task =
-        Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
           get_network_patches(time, subset, network_patches_timeout)
         end)
 

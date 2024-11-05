@@ -167,7 +167,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
         results =
           Task.Supervisor.async_stream_nolink(
-            Archethic.TaskSupervisor,
+            Archethic.task_supervisors(),
             recipients,
             &fetch_recipient_tx_and_simulate(&1, trigger_tx),
             on_timeout: :kill_task,

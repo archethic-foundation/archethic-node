@@ -19,8 +19,6 @@ defmodule Archethic.Networking.Scheduler do
 
   alias Archethic.SelfRepair.NetworkChain
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -83,7 +81,7 @@ defmodule Archethic.Networking.Scheduler do
           schedule_update(interval)
       end
 
-    Task.Supervisor.start_child(TaskSupervisor, fn -> do_update() end)
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn -> do_update() end)
 
     {:noreply, Map.put(state, :timer, timer)}
   end

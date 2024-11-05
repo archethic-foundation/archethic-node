@@ -33,8 +33,6 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.DB
@@ -125,7 +123,7 @@ defmodule Archethic.BeaconChain do
   @spec load_slot(Slot.t(), Crypto.key()) :: :ok | :error
   def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}, node_public_key) do
     if slot_time == SlotTimer.previous_slot(DateTime.utc_now()) do
-      Task.Supervisor.start_child(TaskSupervisor, fn ->
+      Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
         case validate_slot(slot) do
           :ok ->
             Logger.debug("New beacon slot loaded - #{inspect(slot)}",
@@ -321,7 +319,7 @@ defmodule Archethic.BeaconChain do
     # download the summaries
     result =
       Task.Supervisor.async_stream(
-        TaskSupervisor,
+        Archethic.task_supervisors(),
         summaries_by_node,
         fn {node, addresses} ->
           fetch_beacon_summaries(node, addresses)

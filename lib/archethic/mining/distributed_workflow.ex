@@ -1135,7 +1135,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     results =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         storage_nodes,
         &P2P.send_message(&1, message),
         ordered: false,
@@ -1223,7 +1223,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     # Notify error to the welcome node
     message = %ValidationError{error: error, address: tx_address}
 
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       P2P.send_message(welcome_node, message)
       :ok
     end)
@@ -1235,7 +1235,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   defp time_offset(ref_time, timeout) do
-    # If time offset is negative (timeout is already passed based on ref_time) 
+    # If time offset is negative (timeout is already passed based on ref_time)
     # this function returns 0. GenStateMachine works with timeout = 0 and directly create
     # an event in the Process message box after all external message already in the box
     ref_time

@@ -50,8 +50,6 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.MemTables.PendingLedger
   alias __MODULE__.MemTablesLoader
 
-  alias Archethic.TaskSupervisor
-
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
@@ -956,7 +954,7 @@ defmodule Archethic.TransactionChain do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
     Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       addresses,
       fn
         ^burning_address ->

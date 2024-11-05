@@ -6,7 +6,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.Replication
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -34,7 +34,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
          address: tx_address,
          validation_stamp: %ValidationStamp{timestamp: validation_time}
        }, validation_inputs} ->
-        Task.Supervisor.start_child(TaskSupervisor, fn ->
+        Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
           authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
           Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
