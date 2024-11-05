@@ -33,6 +33,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplication do
         }
 
   @bls_signature_size 96
+  @signature_threshold 0.75
 
   defmodule ElectedNodes do
     @moduledoc """
@@ -163,7 +164,8 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplication do
 
   defp get_nb_required_signatures(nodes) do
     %StorageConstraints{number_replicas: nb_replicas_fn} = Election.get_storage_constraints()
-    nb_replicas_fn.(nodes)
+    election_nb = nb_replicas_fn.(nodes)
+    ceil(election_nb * @signature_threshold)
   end
 
   @spec serialize(t()) :: bitstring()

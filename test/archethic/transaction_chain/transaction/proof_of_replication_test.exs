@@ -42,7 +42,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
     genesis = Transaction.previous_address(tx)
     tx_summary = TransactionSummary.from_transaction(tx, genesis)
 
-    %ElectedNodes{storage_nodes: storage_nodes} =
+    %ElectedNodes{storage_nodes: storage_nodes, required_signatures: required_signatures} =
       P2P.authorized_and_available_nodes() |> ProofOfReplication.get_election(tx_address)
 
     mapped_storage_nodes =
@@ -54,43 +54,39 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
     assert tx_address |> Election.storage_nodes(P2P.authorized_and_available_nodes()) |> length() !=
              length(nodes)
 
-    %{nodes: nodes, transaction_summary: tx_summary, proof_signatures: proof_signatures}
+    %{
+      nodes: nodes,
+      transaction_summary: tx_summary,
+      proof_signatures: proof_signatures,
+      required_signatures: required_signatures
+    }
   end
 
   describe "get_state/2" do
     test "should return :reached when threshold is reached", %{
-      nodes: nodes,
-      transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
-      proof_signatures: proof_signatures
+      transaction_summary: %TransactionSummary{address: tx_address},
+      proof_signatures: proof_signatures,
+      required_signatures: required_signatures
     } do
       assert :reached ==
                P2P.authorized_and_available_nodes()
                |> ProofOfReplication.get_election(tx_address)
                |> ProofOfReplication.get_state(proof_signatures)
 
-      nb_invalid = @nb_nodes - length(proof_signatures)
+      threshold_proof = Enum.take_random(proof_signatures, required_signatures)
 
-      assert nb_invalid > 0
-
-      proof_signatures =
-        nodes
-        |> Enum.take_random(nb_invalid)
-        |> Enum.map(&create_proof_signature(&1, tx_summary))
-        |> Enum.concat(proof_signatures)
-
-      # over threashold with invalid stamps
       assert :reached ==
                P2P.authorized_and_available_nodes()
                |> ProofOfReplication.get_election(tx_address)
-               |> ProofOfReplication.get_state(proof_signatures)
+               |> ProofOfReplication.get_state(threshold_proof)
     end
 
     test "should return :not_reached when required number is not reached but still possible", %{
       transaction_summary: %TransactionSummary{address: tx_address},
-      proof_signatures: proof_signatures
+      proof_signatures: proof_signatures,
+      required_signatures: required_signatures
     } do
-      nb_validation = length(proof_signatures)
-      some_proof_signatures = Enum.take_random(proof_signatures, nb_validation - 2)
+      some_proof_signatures = Enum.take_random(proof_signatures, required_signatures - 1)
 
       assert :not_reached ==
                P2P.authorized_and_available_nodes()
@@ -100,14 +96,12 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
   end
 
   describe "create/2" do
-    test "should aggregate cross stamps signature and create bitmask of which node signed", %{
+    test "should aggregate signatures and create bitmask of which node signed", %{
       transaction_summary: %TransactionSummary{address: tx_address},
       proof_signatures: proof_signatures
     } do
-      %ElectedNodes{required_signatures: required_signatures} =
-        P2P.authorized_and_available_nodes() |> ProofOfReplication.get_election(tx_address)
-
-      expected_bitmask = <<-1::integer-size(required_signatures)>>
+      nb_signatures = length(proof_signatures)
+      expected_bitmask = <<-1::integer-size(nb_signatures)>>
 
       assert %ProofOfReplication{signature: <<_::768>>, nodes_bitmask: ^expected_bitmask} =
                P2P.authorized_and_available_nodes()
@@ -117,7 +111,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
       [_, _ | proof_signatures] = proof_signatures
 
       # removed two first nodes
-      expected_bitmask = <<0::2, -1::integer-size(required_signatures - 2)>>
+      expected_bitmask = <<0::2, -1::integer-size(nb_signatures - 2)>>
 
       assert %ProofOfReplication{signature: <<_::768>>, nodes_bitmask: ^expected_bitmask} =
                P2P.authorized_and_available_nodes()
@@ -127,7 +121,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
   end
 
   describe "valid?/2" do
-    test "should return true if proof reach threashold and signature is valid", %{
+    test "should return true if proof reach threshold and signature is valid", %{
       transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
       proof_signatures: proof_signatures
     } do
@@ -141,12 +135,12 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
              |> ProofOfReplication.valid?(proof, tx_summary)
     end
 
-    test "should return false if proof does not reach threashold and signature is valid", %{
+    test "should return false if proof does not reach threshold and signature is valid", %{
       transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
-      proof_signatures: proof_signatures
+      proof_signatures: proof_signatures,
+      required_signatures: required_signatures
     } do
-      nb_validation = length(proof_signatures)
-      proof_signatures = Enum.take(proof_signatures, nb_validation - 2)
+      proof_signatures = Enum.take(proof_signatures, required_signatures - 1)
 
       proof =
         P2P.authorized_and_available_nodes()
@@ -158,7 +152,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
              |> ProofOfReplication.valid?(proof, tx_summary)
     end
 
-    test "should return false if proof reach threashold and signature is invalid", %{
+    test "should return false if proof reach threshold and signature is invalid", %{
       transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
       proof_signatures: proof_signatures
     } do
@@ -176,7 +170,8 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
     test "should return false if signer nodes are not the elected ones", %{
       nodes: nodes,
       transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
-      proof_signatures: proof_signatures
+      proof_signatures: proof_signatures,
+      required_signatures: required_signatures
     } do
       elected_nodes =
         %ElectedNodes{storage_nodes: storage_nodes} =
@@ -187,7 +182,7 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
 
       invalid_proof_signature = create_proof_signature(not_elected_node, tx_summary)
 
-      [_ | proof_signatures] = proof_signatures
+      proof_signatures = Enum.take_random(proof_signatures, required_signatures - 1)
 
       proof =
         ProofOfReplication.create(elected_nodes, [invalid_proof_signature | proof_signatures])
