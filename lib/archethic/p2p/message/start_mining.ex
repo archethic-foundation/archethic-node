@@ -64,7 +64,7 @@ defmodule Archethic.P2P.Message.StartMining do
       ) do
     with :ok <- check_ref_timestamp(ref_timestamp),
          :ok <- check_synchronization(network_chains_view_hash, p2p_view_hash),
-         :ok <- check_valid_election(tx, validation_nodes),
+         :ok <- check_valid_election(tx, validation_nodes, ref_timestamp),
          :ok <- check_current_node_is_elected(validation_nodes),
          :ok <- check_not_already_mining(tx.address),
          :ok <- Mining.request_chain_lock(tx) do
@@ -212,8 +212,8 @@ defmodule Archethic.P2P.Message.StartMining do
     end
   end
 
-  defp check_valid_election(tx, validation_nodes) do
-    if Mining.valid_election?(tx, validation_nodes) do
+  defp check_valid_election(tx, validation_nodes, ref_timestamp) do
+    if Mining.valid_election?(tx, validation_nodes, ref_timestamp) do
       :ok
     else
       {:error, :invalid_validation_nodes_election}

@@ -1161,8 +1161,7 @@ defmodule Archethic.Mining.ValidationContext do
   defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
          validation_time: validation_time
        }) do
-    diff = DateTime.diff(timestamp, validation_time)
-    diff <= 10 and diff > -10
+    DateTime.compare(timestamp, validation_time) == :eq
   end
 
   defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{

@@ -218,9 +218,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :internal,
         {:start_mining, tx, welcome_node, validation_nodes, contract_context},
         :idle,
-        data = %{node_public_key: node_public_key}
+        data = %{ref_timestamp: ref_timestamp, node_public_key: node_public_key}
       ) do
-    validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    validation_time = ref_timestamp |> DateTime.truncate(:millisecond)
 
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 

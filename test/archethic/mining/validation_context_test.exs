@@ -249,7 +249,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> ValidationContext.cross_validate()
     end
 
-    test "should validate even if validation_time and cross_validation_time are in different oracle bucket" do
+    test "should not validate if validation_time and cross_validation_time are in different oracle bucket" do
       validation_context = create_context(~U[2023-12-11 09:00:01Z])
 
       validation_context2 = %ValidationContext{
@@ -267,7 +267,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         end
       ) do
         assert %ValidationContext{
-                 cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
+                 cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:timestamp]}]
                } =
                  validation_context
                  |> ValidationContext.add_validation_stamp(
@@ -643,7 +643,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32),
       protocol_version: current_protocol_version()
@@ -675,7 +675,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
@@ -707,7 +707,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
@@ -740,7 +740,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
@@ -774,7 +774,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
@@ -790,7 +790,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: %LedgerOperations{
         fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx),
@@ -833,7 +833,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       error: :invalid_pending_transaction,
       protocol_version: current_protocol_version()
@@ -877,7 +877,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
