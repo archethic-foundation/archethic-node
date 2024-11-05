@@ -19,7 +19,7 @@ defmodule Migration_1_4_8 do
 
   alias Archethic.Replication
 
-  alias Archethic.TaskSupervisor
+
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -65,7 +65,7 @@ defmodule Migration_1_4_8 do
     Logger.debug("Migration_1_4_8 - Retrieved #{nb_genesis_addresses} genesis addresses to store")
 
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       elected_genesis_addresses,
       fn {genesis_address, index} ->
         last_chain_address = fetch_last_chain_address(genesis_address, authorized_nodes)
@@ -113,7 +113,7 @@ defmodule Migration_1_4_8 do
 
   defp fetch_elected_genesis_addresses(attestations, authorized_nodes, node_key) do
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       attestations,
       fn %ReplicationAttestation{
            transaction_summary: %TransactionSummary{
@@ -134,7 +134,7 @@ defmodule Migration_1_4_8 do
 
   defp fetch_genesis_addresses(addresses, authorized_nodes) do
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       addresses,
       fn address ->
         storage_nodes = Election.storage_nodes(address, authorized_nodes)
@@ -229,4 +229,3 @@ defmodule Migration_1_4_8 do
     |> Loader.add_utxo(genesis_address)
   end
 end
-

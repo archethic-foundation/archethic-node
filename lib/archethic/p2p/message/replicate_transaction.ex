@@ -11,7 +11,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -35,7 +35,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         },
         _
       ) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
       authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
       node_public_key = Crypto.first_node_public_key()
 

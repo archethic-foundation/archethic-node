@@ -72,7 +72,7 @@ defmodule Archethic.Application do
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 
     children = [
-      {Task.Supervisor, name: Archethic.TaskSupervisor},
+      {PartitionSupervisor, child_spec: Task.Supervisor, name: Archethic.TaskSupervisors},
       Archethic.Telemetry,
       {Registry, keys: :duplicate, name: Archethic.PubSubRegistry},
       DBSupervisor,

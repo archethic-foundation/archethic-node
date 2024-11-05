@@ -12,7 +12,7 @@ defmodule Archethic.P2P.ListenerProtocol do
   alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
-  alias Archethic.TaskSupervisor
+
   alias Archethic.Utils
 
   @behaviour :ranch_protocol
@@ -42,7 +42,7 @@ defmodule Archethic.P2P.ListenerProtocol do
       ) do
     :inet.setopts(socket, active: :once)
 
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
       transport.send(socket, "hb")
     end)
 
@@ -69,7 +69,7 @@ defmodule Archethic.P2P.ListenerProtocol do
       ) do
     :inet.setopts(socket, active: :once)
 
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
       handle_message(msg, transport, socket, ip)
     end)
 

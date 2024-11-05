@@ -9,7 +9,6 @@ defmodule Archethic.SelfRepair.Sync do
     P2P,
     PubSub,
     SelfRepair,
-    TaskSupervisor,
     TransactionChain,
     Utils
   }
@@ -158,7 +157,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     # Fetch the beacon summaries aggregate
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       dates,
       fn date ->
         Logger.debug("Fetch summary aggregate for #{date}")
@@ -470,7 +469,7 @@ defmodule Archethic.SelfRepair.Sync do
     previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       attestations,
       fn attestation ->
         {tx, inputs} =

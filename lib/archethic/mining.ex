@@ -129,7 +129,7 @@ defmodule Archethic.Mining do
 
     aggregated_responses =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         storage_nodes,
         &P2P.send_message(&1, message),
         max_concurrency: nb_storage_nodes,

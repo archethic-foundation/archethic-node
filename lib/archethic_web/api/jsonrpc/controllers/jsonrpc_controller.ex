@@ -1,8 +1,6 @@
 defmodule ArchethicWeb.API.JsonRPCController do
   use ArchethicWeb.API, :controller
 
-  alias Archethic.TaskSupervisor
-
   alias ArchethicWeb.API.JsonRPC.Error
 
   alias ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee
@@ -56,7 +54,7 @@ defmodule ArchethicWeb.API.JsonRPCController do
   defp exceed_max_batch_size?(requests), do: length(requests) > @max_batch_size
 
   defp execute_request_concurently(requests) do
-    Task.Supervisor.async_stream(TaskSupervisor, requests, &execute_request/1,
+    Task.Supervisor.async_stream(Archethic.task_supervisors(), requests, &execute_request/1,
       on_timeout: :kill_task,
       timeout: 30_000
     )

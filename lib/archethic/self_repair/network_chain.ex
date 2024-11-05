@@ -58,7 +58,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
 
         # Load the latest node transactions
         Task.Supervisor.async_stream_nolink(
-          Archethic.TaskSupervisor,
+          Archethic.task_supervisors(),
           nodes_to_resync,
           fn %Node{first_public_key: first_public_key, last_address: last_address} ->
             genesis_address = Crypto.derive_address(first_public_key)
@@ -81,7 +81,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
     case verify_synchronization(type) do
       {:error, addresses} when is_list(addresses) ->
         Task.Supervisor.async_stream_nolink(
-          Archethic.TaskSupervisor,
+          Archethic.task_supervisors(),
           addresses,
           fn {genesis_address, address} ->
             SelfRepair.replicate_transaction(address, genesis_address)
@@ -107,7 +107,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
     genesis_addresses = SharedSecrets.genesis_address(:origin)
 
     address_by_genesis =
-      Task.Supervisor.async_stream(TaskSupervisor, genesis_addresses, fn genesis ->
+      Task.Supervisor.async_stream(Archethic.task_supervisors(), genesis_addresses, fn genesis ->
         validate_last_address(genesis)
       end)
       |> Stream.filter(&match?({:ok, {:error, _}}, &1))
@@ -186,7 +186,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   @spec synchronous_resync_many(list(type())) :: :ok
   def synchronous_resync_many(network_chain_types) do
     Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       network_chain_types,
       &synchronous_resync(&1),
       ordered: false,

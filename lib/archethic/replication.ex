@@ -28,7 +28,7 @@ defmodule Archethic.Replication do
   alias Archethic.Reward
   alias Archethic.SelfRepair.NetworkView
   alias Archethic.SharedSecrets
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -306,7 +306,7 @@ defmodule Archethic.Replication do
     )
 
     genesis_task =
-      Task.Supervisor.async(TaskSupervisor, fn ->
+      Task.Supervisor.async(Archethic.task_supervisors(), fn ->
         fetch_opts =
           if TransactionChain.first_transaction?(tx),
             do: [],
@@ -316,7 +316,7 @@ defmodule Archethic.Replication do
       end)
 
     previous_transaction_task =
-      Task.Supervisor.async(TaskSupervisor, fn ->
+      Task.Supervisor.async(Archethic.task_supervisors(), fn ->
         fetch_opts =
           if TransactionChain.first_transaction?(tx),
             do: [],
@@ -326,7 +326,7 @@ defmodule Archethic.Replication do
       end)
 
     resolved_addresses_task =
-      Task.Supervisor.async(TaskSupervisor, fn ->
+      Task.Supervisor.async(Archethic.task_supervisors(), fn ->
         TransactionChain.resolve_transaction_addresses!(tx)
       end)
 

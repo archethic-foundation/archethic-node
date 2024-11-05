@@ -21,8 +21,6 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   alias Archethic.SelfRepair
   alias Archethic.Utils
 
-  alias Archethic.TaskSupervisor
-
   @doc """
   Return the timeout to determine network patches
   It is equivalent to 4m30s in production. 4.5s in dev.
@@ -226,7 +224,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   defp stream_network_stats(summary_time, beacon_nodes, timeout) do
     Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       beacon_nodes,
       fn node ->
         P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, timeout)

@@ -24,7 +24,7 @@ defmodule Archethic do
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -41,6 +41,14 @@ defmodule Archethic do
   @spec up? :: boolean()
   def up?() do
     :persistent_term.get(:archethic_up, nil) == :up
+  end
+
+  @doc """
+  Return the via tuple to use in the Task.Supervisor module.
+  """
+  @spec task_supervisors() :: tuple()
+  def task_supervisors() do
+    {:via, PartitionSupervisor, {Archethic.TaskSupervisors, self()}}
   end
 
   @doc """
@@ -126,7 +134,7 @@ defmodule Archethic do
     }
 
     Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       validation_nodes,
       &P2P.send_message(&1, message),
       ordered: false,
@@ -173,7 +181,7 @@ defmodule Archethic do
         nodes
       end
 
-    TaskSupervisor
+    Archethic.task_supervisors()
     |> Task.Supervisor.start_child(fn ->
       message = %NewTransaction{
         transaction: tx,
@@ -265,7 +273,7 @@ defmodule Archethic do
   defp get_welcome_node_public_key(_, key), do: key
 
   defp notify_welcome_node(welcome_node_key, address, :already_locked) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(task_supervisors(), fn ->
       message = %ValidationError{error: MiningError.new(:transaction_in_mining), address: address}
       P2P.send_message(welcome_node_key, message)
     end)

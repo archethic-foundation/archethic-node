@@ -24,7 +24,6 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TaskSupervisor
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
@@ -54,7 +53,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     default_error =
       Error.new(:invalid_recipients_execution, "Failed to validate call due to timeout")
 
-    TaskSupervisor
+    Archethic.task_supervisors()
     |> Task.Supervisor.async_stream_nolink(
       recipients,
       &request_contract_validation(&1, transaction, validation_time),

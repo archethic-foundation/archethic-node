@@ -12,7 +12,6 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   alias Archethic.P2P.Message.GetDashboardData
   alias Archethic.P2P.Message.DashboardData
   alias Archethic.PubSub
-  alias Archethic.TaskSupervisor
 
   use GenServer
   @vsn 1
@@ -131,7 +130,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
 
   defp async_request_dashboard_data(pid, node = %Node{first_public_key: first_public_key}, since) do
     Task.Supervisor.start_child(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn ->
         case P2P.send_message(
                node,
