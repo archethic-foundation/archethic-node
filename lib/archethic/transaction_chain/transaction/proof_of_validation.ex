@@ -5,8 +5,8 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidation do
   - Nodes bitmask (bitmask of nodes used for the signatures)
 
   Proof of Validation aggregate all valid Cross Validation Stamp signatures
-  It require a threshold of cross stamp without error based on the expected number
-  of validations nodes
+  It require a number of cross stamp without error equal or superior to the number 
+  returned by the hypergeometric distribution to be valid
   """
 
   alias Archethic.Crypto
