@@ -24,7 +24,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
             proof_of_election <- StreamData.binary(length: 32),
             ledger_operations <- gen_ledger_operations()
           ) do
-      pub = Crypto.last_node_public_key()
+      pub = Crypto.mining_node_public_key()
 
       assert %ValidationStamp{
                timestamp: DateTime.utc_now(),

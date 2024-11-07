@@ -31,6 +31,7 @@ defmodule Archethic.Replication do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -49,7 +50,7 @@ defmodule Archethic.Replication do
           tx :: Transaction.t(),
           contract_context :: nil | Contract.Context.t(),
           validation_inputs :: list(VersionedUnspentOutput.t())
-        ) :: :ok | {:error, Error.t()}
+        ) :: CrossValidationStamp.t()
   def validate_transaction(
         tx = %Transaction{
           address: address,
@@ -80,31 +81,43 @@ defmodule Archethic.Replication do
       genesis_address: genesis_address
     }
 
-    case TransactionValidator.validate(validation_context) do
-      %ValidationContext{mining_error: nil} ->
+    %ValidationContext{mining_error: mining_error, cross_validation_stamps: [{_, cross_stamp}]} =
+      TransactionValidator.validate(validation_context)
+
+    :telemetry.execute(
+      [:archethic, :replication, :validation],
+      %{
+        duration: System.monotonic_time() - start_time
+      },
+      %{role: :chain}
+    )
+
+    cond do
+      match?(%Error{}, mining_error) ->
+        :ok = TransactionChain.write_ko_transaction(tx)
+
+        Logger.warning("Invalid transaction for replication - #{inspect(mining_error)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+      not Enum.empty?(cross_stamp.inconsistencies) ->
+        :ok = TransactionChain.write_ko_transaction(tx)
+
+        Logger.warning(
+          "Invalid transaction for replication - #{inspect(cross_stamp.inconsistencies)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+      true ->
         Logger.info("Replication validation finished",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
-
-        :telemetry.execute(
-          [:archethic, :replication, :validation],
-          %{
-            duration: System.monotonic_time() - start_time
-          },
-          %{role: :chain}
-        )
-
-      %ValidationContext{mining_error: error} ->
-        :ok = TransactionChain.write_ko_transaction(tx)
-
-        Logger.warning("Invalid transaction for replication - #{inspect(error)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, error}
     end
+
+    cross_stamp
   end
 
   @doc """
