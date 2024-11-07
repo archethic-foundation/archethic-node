@@ -19,7 +19,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
             signature <- StreamData.binary(length: 64),
             protocol_version <- StreamData.integer(1..Archethic.Mining.protocol_version())
           ) do
-      pub = Crypto.last_node_public_key()
+      pub = Crypto.mining_node_public_key()
 
       validation_stamp = %ValidationStamp{
         genesis_address: random_address(),

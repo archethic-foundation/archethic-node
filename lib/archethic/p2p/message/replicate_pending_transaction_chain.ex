@@ -1,14 +1,21 @@
 defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   @moduledoc false
 
-  defstruct [:address]
+  defstruct [:address, :proof_of_validation]
+
+  use Retry
 
   alias Archethic.Crypto
-  alias Archethic.Utils
+  alias Archethic.Election
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.Replication
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -16,41 +23,89 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.AcknowledgeStorage
+  alias Archethic.Utils
 
   @type t() :: %__MODULE__{
-          address: binary()
+          address: Crypto.prepended_hash(),
+          proof_of_validation: ProofOfValidation.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{address: address}, sender_public_key) do
-    case Replication.get_transaction_in_commit_pool(address) do
-      {:ok,
-       tx = %Transaction{
-         address: tx_address,
-         validation_stamp: %ValidationStamp{timestamp: validation_time}
-       }, validation_inputs} ->
-        Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
-          authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+  def process(
+        %__MODULE__{address: address, proof_of_validation: proof},
+        sender_public_key
+      ) do
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+      node_public_key = Crypto.first_node_public_key()
 
-          Replication.sync_transaction_chain(tx, authorized_nodes)
+      with {:ok, tx, validation_inputs} <- get_transaction_data(address),
+           authorized_nodes <- P2P.authorized_and_available_nodes(tx.validation_stamp.timestamp),
+           true <- Election.chain_storage_node?(address, node_public_key, authorized_nodes),
+           elected_nodes <- ProofOfValidation.get_election(authorized_nodes, address),
+           true <- ProofOfValidation.valid?(elected_nodes, proof, tx.validation_stamp) do
+        replicate_transaction(tx, validation_inputs, sender_public_key)
+      else
+        _ -> :skip
+      end
+    end)
 
-          TransactionChain.write_inputs(
-            tx_address,
-            convert_unspent_outputs_to_inputs(validation_inputs)
-          )
+    %Ok{}
+  end
 
-          P2P.send_message(sender_public_key, get_ack_storage(tx))
-        end)
-
-        %Ok{}
-
-      {:error, :transaction_not_exists} ->
-        %Error{reason: :invalid_transaction}
+  defp get_transaction_data(address) do
+    # As validation can happen without all node returned the validation response
+    # it is possible to receive this message before processing the validation
+    case get_data_in_tx_pool(address) do
+      res = {:ok, _, _} -> res
+      _ -> fetch_tx_data(address)
     end
+  end
+
+  defp get_data_in_tx_pool(address) do
+    retry_while with: constant_backoff(100) |> expiry(2000) do
+      case Replication.get_transaction_in_commit_pool(address) do
+        {:ok, tx, validation_utxo} ->
+          validation_inputs = convert_unspent_outputs_to_inputs(validation_utxo)
+          {:halt, {:ok, tx, validation_inputs}}
+
+        er ->
+          {:cont, er}
+      end
+    end
+  end
+
+  defp fetch_tx_data(address) do
+    storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    res =
+      [
+        Task.async(fn ->
+          TransactionChain.fetch_transaction(address, storage_nodes, search_mode: :remote)
+        end),
+        Task.async(fn -> TransactionChain.fetch_inputs(address, storage_nodes) end)
+      ]
+      |> Task.await_many(P2P.Message.get_max_timeout() + 100)
+
+    case res do
+      [{:ok, tx}, validation_inputs] -> {:ok, tx, validation_inputs}
+      _ -> {:error, :transaction_not_exists}
+    end
+  end
+
+  defp replicate_transaction(
+         tx = %Transaction{
+           address: tx_address,
+           validation_stamp: %ValidationStamp{timestamp: validation_time}
+         },
+         validation_inputs,
+         sender_public_key
+       ) do
+    authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+
+    Replication.sync_transaction_chain(tx, authorized_nodes)
+    TransactionChain.write_inputs(tx_address, validation_inputs)
+
+    P2P.send_message(sender_public_key, get_ack_storage(tx))
   end
 
   defp convert_unspent_outputs_to_inputs(validation_inputs) do
@@ -76,11 +131,15 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{address: address}), do: <<address::binary>>
+  def serialize(%__MODULE__{address: address, proof_of_validation: proof}) do
+    <<address::binary, ProofOfValidation.serialize(proof)::bitstring>>
+  end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(bin) do
     {address, rest} = Utils.deserialize_address(bin)
-    {%__MODULE__{address: address}, rest}
+    {proof, rest} = ProofOfValidation.deserialize(rest)
+
+    {%__MODULE__{address: address, proof_of_validation: proof}, rest}
   end
 end

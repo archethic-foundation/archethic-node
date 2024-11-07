@@ -27,7 +27,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
             ledger_operations <- gen_ledger_operations(),
             protocol_version <- StreamData.integer(1..Archethic.Mining.protocol_version())
           ) do
-      pub = Crypto.last_node_public_key()
+      pub = Crypto.mining_node_public_key()
 
       assert %ValidationStamp{
                genesis_address: genesis_address,

@@ -41,18 +41,34 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   Sign the cross validation stamp using the validation stamp and inconsistencies list
   """
   @spec sign(t(), ValidationStamp.t()) :: t()
-  def sign(
-        cross_stamp = %__MODULE__{inconsistencies: inconsistencies},
-        validation_stamp = %ValidationStamp{protocol_version: protocol_version}
+  def sign(cross_stamp = %__MODULE__{inconsistencies: inconsistencies}, validation_stamp) do
+    signature =
+      validation_stamp
+      |> get_raw_data_to_sign(inconsistencies)
+      |> Crypto.sign_with_mining_node_key()
+
+    %__MODULE__{
+      cross_stamp
+      | node_public_key: Crypto.mining_node_public_key(),
+        signature: signature
+    }
+  end
+
+  @doc """
+  returns raw data to sign
+  """
+  @spec get_raw_data_to_sign(
+          validation_stamp :: ValidationStamp.t(),
+          inconsistencies :: list(inconsistency())
+        ) :: binary()
+  def get_raw_data_to_sign(
+        validation_stamp = %ValidationStamp{protocol_version: protocol_version},
+        inconsistencies
       ) do
     raw_stamp =
       ValidationStamp.serialize(validation_stamp, serialize_genesis?: protocol_version >= 9)
 
-    signature =
-      [raw_stamp, marshal_inconsistencies(inconsistencies)]
-      |> Crypto.sign_with_last_node_key()
-
-    %{cross_stamp | node_public_key: Crypto.last_node_public_key(), signature: signature}
+    Utils.wrap_binary([raw_stamp, marshal_inconsistencies(inconsistencies)])
   end
 
   @doc """
@@ -68,11 +84,9 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           inconsistencies: inconsistencies,
           node_public_key: node_public_key
         },
-        stamp = %ValidationStamp{protocol_version: protocol_version}
+        stamp
       ) do
-    raw_stamp = ValidationStamp.serialize(stamp, serialize_genesis?: protocol_version >= 9)
-
-    data = [raw_stamp, marshal_inconsistencies(inconsistencies)]
+    data = get_raw_data_to_sign(stamp, inconsistencies)
     Crypto.verify?(signature, data, node_public_key)
   end
 

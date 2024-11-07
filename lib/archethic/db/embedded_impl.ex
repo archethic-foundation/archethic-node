@@ -235,15 +235,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Return the last public key from the given public key until the given date along with its timestamp
-  """
-  @spec get_last_chain_public_key(public_key :: binary(), until :: DateTime.t()) :: Crypto.key()
-  def get_last_chain_public_key(public_key, date = %DateTime{} \\ DateTime.utc_now())
-      when is_binary(public_key) do
-    ChainIndex.get_last_chain_public_key(public_key, date, filepath())
-  end
-
-  @doc """
   Reference a last address from a genesis address
   """
   @spec add_last_transaction_address(

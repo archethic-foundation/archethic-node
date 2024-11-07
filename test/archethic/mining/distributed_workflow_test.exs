@@ -9,6 +9,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   @publickey2 Crypto.generate_deterministic_keypair("seed3")
   @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
+  @miningpublickey1 Crypto.generate_deterministic_keypair("seed2", :bls)
+  @miningpublickey2 Crypto.generate_deterministic_keypair("seed3", :bls)
+
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -35,9 +38,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
-  alias Archethic.P2P.Message.NotifyReplicationValidation
+  alias Archethic.P2P.Message.ProofOfValidationDone
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
+  alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ValidateTransaction
@@ -67,37 +71,31 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     start_supervised!({BeaconSummaryTimer, interval: "0 * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
-    P2P.add_and_connect_node(%Node{
-      ip: {80, 10, 20, 102},
-      port: 3001,
-      http_port: 4000,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-      available?: true,
-      network_patch: "AAA",
-      geo_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
+    P2P.add_and_connect_node(
+      new_node(
+        ip: {80, 10, 20, 102},
+        port: 3001,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        mining_public_key: Crypto.mining_node_public_key(),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+      )
+    )
 
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
+    {mining_pub, _} = Crypto.generate_deterministic_keypair("seed", :bls)
 
-    P2P.add_and_connect_node(%Node{
-      ip: {80, 10, 20, 102},
-      port: 3002,
-      http_port: 4000,
-      first_public_key: pub,
-      last_public_key: pub,
-      authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-      available?: true,
-      network_patch: "BBB",
-      geo_patch: "BBB",
-      enrollment_date: DateTime.utc_now(),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
+    P2P.add_and_connect_node(
+      new_node(
+        ip: {80, 10, 20, 102},
+        first_public_key: pub,
+        last_public_key: pub,
+        mining_public_key: mining_pub,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
+        network_patch: "BBB",
+        geo_patch: "BBB"
+      )
+    )
 
     {origin_public_key, _} =
       Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
@@ -109,7 +107,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     node_config = %NodeConfig{
       first_public_key: Crypto.first_node_public_key(),
       ip: {80, 10, 20, 102},
-      port: 3000,
+      port: 3100,
       http_port: 4000,
       transport: MockTransport,
       reward_address:
@@ -570,21 +568,18 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     test "should cross validate the validation stamp and the replication tree and then notify other node about it",
          %{tx: tx, genesis: genesis, sorting_seed: sorting_seed} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
+      {mining_pub, _} = Crypto.generate_deterministic_keypair("seed3", :bls)
 
-      P2P.add_and_connect_node(%Node{
-        ip: {80, 10, 20, 102},
-        port: 3008,
-        http_port: 4000,
-        last_public_key: pub,
-        first_public_key: pub,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-        available?: true,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      })
+      P2P.add_and_connect_node(
+        new_node(
+          ip: {80, 10, 20, 102},
+          port: 3008,
+          last_public_key: pub,
+          first_public_key: pub,
+          mining_public_key: mining_pub,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+        )
+      )
 
       validation_nodes =
         Election.validation_nodes(
@@ -740,8 +735,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
           [_ | cross_validation_nodes] = validation_nodes
 
-          {pub, priv} = Crypto.generate_deterministic_keypair("seed")
-          {pub3, priv3} = Crypto.generate_deterministic_keypair("seed3")
+          {pub, _} = Crypto.generate_deterministic_keypair("seed")
+          {pub3, _} = Crypto.generate_deterministic_keypair("seed3")
+          {mining_pub, priv} = Crypto.generate_deterministic_keypair("seed", :bls)
+          {mining_pub3, priv3} = Crypto.generate_deterministic_keypair("seed3", :bls)
 
           if Enum.any?(cross_validation_nodes, &(&1.last_public_key == pub)) do
             sig =
@@ -752,10 +749,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             stamp = %CrossValidationStamp{
               inconsistencies: [],
               signature: sig,
-              node_public_key: pub
+              node_public_key: mining_pub
             }
 
-            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
+            send(coordinator_pid, {:add_cross_validation_stamp, stamp, pub})
           else
             sig =
               validation_stamp
@@ -765,10 +762,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             stamp = %CrossValidationStamp{
               inconsistencies: [],
               signature: sig,
-              node_public_key: pub3
+              node_public_key: mining_pub3
             }
 
-            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
+            send(coordinator_pid, {:add_cross_validation_stamp, stamp, pub3})
           end
 
           {:wait_cross_validation_stamps,
@@ -779,7 +776,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       end
     end
 
-    test "should cross validate and start replication when all cross validations are received", %{
+    test "should cross validate, start replication validation and create proof of validation", %{
       tx: tx,
       genesis: genesis,
       sorting_seed: sorting_seed
@@ -795,49 +792,41 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       me = self()
 
       storage_node_keypair = Crypto.generate_deterministic_keypair("storage_node1")
-
       storage_node_keypair2 = Crypto.generate_deterministic_keypair("storage_node2")
 
-      P2P.add_and_connect_node(%Node{
-        ip: {80, 10, 20, 102},
-        port: 3006,
-        http_port: 4000,
-        last_public_key: elem(storage_node_keypair, 0),
-        first_public_key: elem(storage_node_keypair, 0),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
-      })
+      mining_node_keypair = Crypto.generate_deterministic_keypair("storage_node1", :bls)
+      mining_node_keypair2 = Crypto.generate_deterministic_keypair("storage_node2", :bls)
 
-      P2P.add_and_connect_node(%Node{
-        ip: {80, 10, 20, 102},
-        port: 3007,
-        http_port: 4000,
-        last_public_key: elem(storage_node_keypair2, 0),
-        first_public_key: elem(storage_node_keypair2, 0),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
-      })
+      previous_storage_nodes = [
+        new_node(
+          ip: {80, 10, 20, 102},
+          port: 3007,
+          first_public_key: elem(storage_node_keypair, 0),
+          last_public_key: elem(storage_node_keypair, 0),
+          mining_public_key: elem(mining_node_keypair, 0),
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+        ),
+        new_node(
+          ip: {80, 10, 20, 102},
+          port: 3008,
+          first_public_key: elem(storage_node_keypair2, 0),
+          last_public_key: elem(storage_node_keypair2, 0),
+          mining_public_key: elem(mining_node_keypair2, 0),
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+        )
+      ]
 
-      welcome_node = %Node{
-        ip: {80, 10, 20, 102},
-        port: 3005,
-        http_port: 4000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        geo_patch: "AAA",
-        network_patch: "AAA"
-      }
+      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
+
+      welcome_node =
+        new_node(
+          ip: {80, 10, 20, 102},
+          port: 3005,
+          first_public_key: "key1",
+          last_public_key: "key1",
+          mining_node_key: "key1",
+          authorized?: false
+        )
 
       P2P.add_and_connect_node(welcome_node)
 
@@ -882,10 +871,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %ValidateTransaction{transaction: tx}, _ ->
           Agent.update(agent_pid, fn _ -> tx end)
+          send(me, {:cross_replication_stamp, tx})
           {:ok, %Ok{}}
 
-        _, %NotifyReplicationValidation{}, _ ->
-          send(me, :ack_replication_validation)
+        _, %ProofOfValidationDone{proof_of_validation: proof}, _ ->
+          send(me, {:proof_of_validation_done, proof})
           {:ok, %Ok{}}
 
         %Node{first_public_key: first_public_key}, %ReplicatePendingTransactionChain{}, _ ->
@@ -960,35 +950,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           ref_timestamp: now
         )
 
-      previous_storage_nodes = [
-        %Node{
-          ip: {80, 10, 20, 102},
-          port: 3007,
-          http_port: 4000,
-          first_public_key: elem(storage_node_keypair, 0),
-          last_public_key: elem(storage_node_keypair, 0),
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-          geo_patch: "AAA",
-          network_patch: "AAA"
-        },
-        %Node{
-          ip: {80, 10, 20, 102},
-          port: 3008,
-          http_port: 4000,
-          first_public_key: elem(storage_node_keypair2, 0),
-          last_public_key: elem(storage_node_keypair2, 0),
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-          geo_patch: "AAA",
-          network_patch: "AAA"
-        }
-      ]
-
-      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
-
       Workflow.add_mining_context(
         coordinator_pid,
         [],
@@ -1009,6 +970,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             confirmed_cross_validation_nodes,
             []
           )
+      after
+        1000 -> :skip
       end
 
       receive do
@@ -1018,9 +981,14 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
           if List.last(validation_nodes).last_public_key == Crypto.last_node_public_key() do
             stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
-            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
+
+            send(
+              coordinator_pid,
+              {:add_cross_validation_stamp, stamp, Crypto.first_node_public_key()}
+            )
           else
-            {pub, priv} = Crypto.generate_deterministic_keypair("seed")
+            {pub, _} = Crypto.generate_deterministic_keypair("seed")
+            {mining_pub, priv} = Crypto.generate_deterministic_keypair("seed", :bls)
 
             sig =
               validation_stamp
@@ -1029,48 +997,98 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
             stamp = %CrossValidationStamp{
               signature: sig,
-              node_public_key: pub,
+              node_public_key: mining_pub,
               inconsistencies: []
             }
 
-            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
+            send(coordinator_pid, {:add_cross_validation_stamp, stamp, pub})
           end
 
           receive do
-            :ack_replication_validation ->
-              Workflow.add_replication_validation(
-                coordinator_pid,
+            {:cross_replication_stamp, tx} ->
+              public_key = elem(mining_node_keypair, 0)
+              private_key = elem(mining_node_keypair, 1)
+
+              cross_stamp1 = %CrossValidationStamp{
+                node_public_key: public_key,
+                inconsistencies: [],
+                signature:
+                  CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
+                  |> Crypto.sign(private_key)
+              }
+
+              public_key = elem(storage_node_keypair, 0)
+              send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp1, public_key})
+              send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp1, public_key})
+
+              public_key = elem(mining_node_keypair2, 0)
+              private_key = elem(mining_node_keypair2, 1)
+
+              cross_stamp2 = %CrossValidationStamp{
+                node_public_key: public_key,
+                inconsistencies: [],
+                signature:
+                  CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
+                  |> Crypto.sign(private_key)
+              }
+
+              public_key = elem(storage_node_keypair2, 0)
+              send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp2, public_key})
+              send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp2, public_key})
+
+              cross_stamp3 =
+                CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
+
+              public_key = Crypto.first_node_public_key()
+              send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp3, public_key})
+              send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp3, public_key})
+          after
+            1000 -> :skip
+          end
+
+          receive do
+            {:proof_of_validation_done, proof} ->
+              Workflow.add_proof_of_validation(
+                cross_validator_pid,
+                proof,
                 List.first(validation_nodes).first_public_key
               )
-
-              Workflow.add_replication_validation(
-                cross_validator_pid,
-                List.last(validation_nodes).first_public_key
-              )
+          after
+            1000 -> :skip
           end
 
           receive do
             {:ack_replication, sig, pub} ->
               send(coordinator_pid, {:ack_replication, sig, pub})
+          after
+            1000 -> :skip
           end
 
           receive do
             {:ack_replication, sig, pub} ->
               send(cross_validator_pid, {:ack_replication, sig, pub})
+          after
+            1000 -> :skip
           end
 
           receive do
             {:ack_replication, sig, pub} ->
               send(cross_validator_pid, {:ack_replication, sig, pub})
+          after
+            1000 -> :skip
           end
 
           receive do
             {:ack_replication, sig, pub} ->
               send(coordinator_pid, {:ack_replication, sig, pub})
+          after
+            1000 -> :skip
           end
 
           assert_receive :replication_done
           refute_receive :validation_error
+      after
+        1000 -> :skip
       end
     end
 
@@ -1129,31 +1147,29 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         {:wait_cross_validation_stamps, %{state | context: context}}
       end)
 
-      Workflow.add_cross_validation_stamp(
-        coordinator_pid,
-        %CrossValidationStamp{
-          signature:
-            Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<>>],
-              elem(@publickey1, 1)
-            ),
-          node_public_key: elem(@publickey1, 0),
-          inconsistencies: []
-        }
-      )
+      cross_stamp = %CrossValidationStamp{
+        signature:
+          Crypto.sign(
+            [ValidationStamp.serialize(context.validation_stamp), <<>>],
+            elem(@miningpublickey1, 1)
+          ),
+        node_public_key: elem(@miningpublickey1, 0),
+        inconsistencies: []
+      }
 
-      Workflow.add_cross_validation_stamp(
-        coordinator_pid,
-        %CrossValidationStamp{
-          signature:
-            Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<>>],
-              elem(@publickey2, 1)
-            ),
-          node_public_key: elem(@publickey2, 0),
-          inconsistencies: []
-        }
-      )
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp, elem(@publickey1, 0)})
+
+      cross_stamp = %CrossValidationStamp{
+        signature:
+          Crypto.sign(
+            [ValidationStamp.serialize(context.validation_stamp), <<>>],
+            elem(@miningpublickey2, 1)
+          ),
+        node_public_key: elem(@miningpublickey2, 0),
+        inconsistencies: []
+      }
+
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp, elem(@publickey2, 0)})
 
       assert_receive :validation_error
       assert_receive :unlock_chain
@@ -1215,31 +1231,29 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         {:wait_cross_validation_stamps, %{state | context: context}}
       end)
 
-      Workflow.add_cross_validation_stamp(
-        coordinator_pid,
-        %CrossValidationStamp{
-          signature:
-            Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
-              elem(@publickey1, 1)
-            ),
-          node_public_key: elem(@publickey1, 0),
-          inconsistencies: [:signature]
-        }
-      )
+      cross_stamp = %CrossValidationStamp{
+        signature:
+          Crypto.sign(
+            [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+            elem(@miningpublickey1, 1)
+          ),
+        node_public_key: elem(@miningpublickey1, 0),
+        inconsistencies: [:signature]
+      }
 
-      Workflow.add_cross_validation_stamp(
-        coordinator_pid,
-        %CrossValidationStamp{
-          signature:
-            Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
-              elem(@publickey2, 1)
-            ),
-          node_public_key: elem(@publickey2, 0),
-          inconsistencies: [:signature]
-        }
-      )
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp, elem(@publickey1, 0)})
+
+      cross_stamp = %CrossValidationStamp{
+        signature:
+          Crypto.sign(
+            [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+            elem(@miningpublickey2, 1)
+          ),
+        node_public_key: elem(@miningpublickey2, 0),
+        inconsistencies: [:signature]
+      }
+
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp, elem(@publickey2, 0)})
 
       assert_receive :validation_error
       assert_receive :unlock_chain
@@ -1283,6 +1297,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       %Node{
         first_public_key: elem(@publickey1, 0),
         last_public_key: elem(@publickey1, 0),
+        mining_public_key: elem(@miningpublickey1, 0),
         geo_patch: "AAA",
         network_patch: "AAA",
         ip: {127, 0, 0, 1},
@@ -1294,6 +1309,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       %Node{
         first_public_key: elem(@publickey2, 0),
         last_public_key: elem(@publickey2, 0),
+        mining_public_key: elem(@miningpublickey2, 0),
         geo_patch: "AAA",
         network_patch: "AAA",
         ip: {127, 0, 0, 1},

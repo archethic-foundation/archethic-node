@@ -395,10 +395,8 @@ defmodule Archethic.Crypto do
   defp do_generate_deterministic_keypair(:bls, origin, seed) do
     private_key = :crypto.hash(:sha512, seed)
 
-    {:ok, public_key} = BlsEx.get_public_key(private_key)
-
     keypair = {
-      public_key,
+      BlsEx.get_public_key!(private_key),
       private_key
     }
 
@@ -564,8 +562,7 @@ defmodule Archethic.Crypto do
           signature :: binary(),
           data :: iodata() | bitstring() | [bitstring],
           public_key :: key()
-        ) ::
-          boolean()
+        ) :: boolean()
   def verify?(
         sig,
         data,

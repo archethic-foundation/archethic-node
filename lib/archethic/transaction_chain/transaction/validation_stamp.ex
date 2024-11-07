@@ -61,14 +61,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
   def sign(stamp = %__MODULE__{protocol_version: protocol_version}) do
-    raw_stamp =
+    sig =
       stamp
       |> extract_for_signature()
       |> serialize(serialize_genesis?: protocol_version >= 9)
+      |> Crypto.sign_with_mining_node_key()
 
-    sig = Crypto.sign_with_last_node_key(raw_stamp)
-
-    %{stamp | signature: sig}
+    %__MODULE__{stamp | signature: sig}
   end
 
   @doc """

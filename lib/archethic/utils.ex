@@ -404,10 +404,10 @@ defmodule Archethic.Utils do
       <<33, 50, 10>>
 
       iex> Utils.wrap_binary([<<1::1, 1::1, 1::1>>, "hello"])
-      [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "hello"]
+      <<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1, "hello"::binary>>
 
       iex> Utils.wrap_binary([[<<1::1, 1::1, 1::1>>, "abc"], "hello"])
-      [[<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
+      <<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1, "abc"::binary, "hello"::binary>>
   """
   @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
   def wrap_binary(bits) when is_binary(bits), do: bits
@@ -439,7 +439,7 @@ defmodule Archethic.Utils do
     wrap_binary(rest, [wrap_binary(data) | acc])
   end
 
-  def wrap_binary([], acc), do: Enum.reverse(acc)
+  def wrap_binary([], acc), do: Enum.reverse(acc) |> List.flatten() |> Enum.join()
 
   defp pad_bitstring(original_bits, additional_bits) do
     <<original_bits::bitstring, 0::size(additional_bits)>>
@@ -569,12 +569,20 @@ defmodule Archethic.Utils do
 
       iex> Utils.set_bitstring_bit(<<0::1, 0::1, 0::1>>, 1)
       <<0::1, 1::1, 0::1>>
+
+      iex> Utils.set_bitstring_bit(<<0::1, 0::1>>, 3)
+      <<0::1, 0::1, 0::1, 1::1>>
   """
   @spec set_bitstring_bit(bitstring(), non_neg_integer()) :: bitstring()
-  def set_bitstring_bit(seq, pos)
-      when is_bitstring(seq) and is_integer(pos) and pos >= 0 and bit_size(seq) > pos do
-    <<prefix::size(pos), _::size(1), suffix::bitstring>> = seq
-    <<prefix::size(pos), 1::size(1), suffix::bitstring>>
+  def set_bitstring_bit(seq, pos) when is_bitstring(seq) and is_integer(pos) and pos >= 0 do
+    size = bit_size(seq)
+
+    if pos < size do
+      <<prefix::size(pos), _::size(1), suffix::bitstring>> = seq
+      <<prefix::size(pos), 1::size(1), suffix::bitstring>>
+    else
+      <<seq::bitstring, 0::size(pos - size), 1::1>>
+    end
   end
 
   @doc """

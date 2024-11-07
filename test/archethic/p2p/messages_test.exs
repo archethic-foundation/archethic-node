@@ -3,13 +3,10 @@ defmodule Archethic.P2P.MessageTest do
 
   import ArchethicCase
 
-  alias Archethic.{
-    Crypto,
-    P2P.Message,
-    P2P.Node
-  }
-
   alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
 
   alias Archethic.P2P.Message.{
     AcknowledgeStorage,
@@ -48,17 +45,17 @@ defmodule Archethic.P2P.MessageTest do
     TransactionList
   }
 
-  alias Archethic.TransactionChain.{
-    TransactionData,
-    TransactionInput,
-    VersionedTransactionInput,
-    Transaction,
-    Transaction.CrossValidationStamp,
-    Transaction.ValidationStamp,
-    Transaction.ValidationStamp.LedgerOperations,
-    Transaction.ValidationStamp.LedgerOperations.UnspentOutput,
-    Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-  }
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionFactory
 
@@ -380,7 +377,13 @@ defmodule Archethic.P2P.MessageTest do
     test "ReplicateTransaction message" do
       tx = TransactionFactory.create_valid_transaction()
 
-      msg = %ReplicateTransaction{transaction: tx}
+      msg = %ReplicateTransaction{
+        transaction: tx,
+        proof_of_validation: %ProofOfValidation{
+          signature: :crypto.strong_rand_bytes(96),
+          nodes_bitmask: <<1::1>>
+        }
+      }
 
       assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end

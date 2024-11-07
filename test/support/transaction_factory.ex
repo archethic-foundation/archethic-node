@@ -271,7 +271,7 @@ defmodule Archethic.TransactionFactory do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32),
+      signature: :crypto.strong_rand_bytes(96),
       protocol_version: protocol_version
     }
 

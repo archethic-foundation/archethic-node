@@ -1,6 +1,7 @@
 defmodule Archethic.Replication.TransactionValidatorTest do
   use ArchethicCase, async: false
 
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
@@ -15,7 +16,6 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Node
   alias Archethic.Replication.TransactionValidator
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -41,25 +41,16 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    welcome_node = %Node{
-      first_public_key: random_public_key(),
-      last_public_key: random_public_key(),
-      authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      available?: true,
-      geo_patch: "BBB",
-      network_patch: "BBB"
-    }
+    welcome_node =
+      new_node(
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        mining_public_key: random_public_key(),
+        geo_patch: "BBB",
+        network_patch: "BBB"
+      )
 
-    coordinator_node = %Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      geo_patch: "AAA",
-      network_patch: "AAA"
-    }
+    coordinator_node = new_node()
 
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
@@ -279,8 +270,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         validation_time: tx.validation_stamp.timestamp
       }
 
-      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
-               TransactionValidator.validate(validation_context)
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
+               ]
+             } = TransactionValidator.validate(validation_context)
     end
 
     test "should return error when the fees are invalid using contract context" do
@@ -355,8 +349,11 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         validation_time: next_tx.validation_stamp.timestamp
       }
 
-      assert %ValidationContext{mining_error: %Error{data: ["transaction fee"]}} =
-               TransactionValidator.validate(validation_context)
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
+               ]
+             } = TransactionValidator.validate(validation_context)
     end
 
     test "should return error if recipient contract execution invalid" do

@@ -678,50 +678,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
-  Return the last public key of a chain until a date
-
-  If no key is found, the given public key is returned
-  """
-  @spec get_last_chain_public_key(Crypto.key(), DateTime.t(), String.t()) :: Crypto.key()
-  def get_last_chain_public_key(public_key, until = %DateTime{}, db_path) do
-    # We derive the previous address from the public key to get the genesis address
-    # and its relative file
-    address = Crypto.derive_address(public_key)
-    genesis_address = get_genesis_address(address, db_path)
-    filepath = chain_keys_path(db_path, genesis_address)
-
-    until = DateTime.to_unix(until, :millisecond)
-
-    case File.open(filepath, [:binary, :read]) do
-      {:ok, fd} ->
-        do_get_last_public_key(fd, until, public_key)
-
-      {:error, _} ->
-        public_key
-    end
-  end
-
-  defp do_get_last_public_key(fd, until, last_public_key) do
-    # We need to extract key metadata information to know how many bytes to decode
-    # as keys can have different sizes based on the curve used
-    with {:ok, <<timestamp::64, curve_id::8, origin_id::8>>} <- :file.read(fd, 10),
-         key_size <- Crypto.key_size(curve_id),
-         {:ok, key} <- :file.read(fd, key_size) do
-      if timestamp < until do
-        public_key = <<curve_id::8, origin_id::8, key::binary>>
-        do_get_last_public_key(fd, until, public_key)
-      else
-        :file.close(fd)
-        last_public_key
-      end
-    else
-      :eof ->
-        :file.close(fd)
-        last_public_key
-    end
-  end
-
-  @doc """
   Stream all the file stats entries to indentify the addresses
   """
   @spec list_all_addresses(String.t()) :: Enumerable.t() | list(binary())

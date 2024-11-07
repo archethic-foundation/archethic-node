@@ -57,7 +57,6 @@ defmodule Archethic.P2P.Message do
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
-    ReplicationError,
     RequestChainLock,
     ShardRepair,
     StartMining,
@@ -70,7 +69,6 @@ defmodule Archethic.P2P.Message do
     AddMiningContext,
     ValidateTransaction,
     ReplicatePendingTransactionChain,
-    NotifyReplicationValidation,
     TransactionSummaryMessage,
     AcknowledgeStorage,
     ReplicationAttestationMessage,
@@ -82,7 +80,8 @@ defmodule Archethic.P2P.Message do
     GetDashboardData,
     DashboardData,
     UnlockChain,
-    UpdateLastAddress
+    UpdateLastAddress,
+    ProofOfValidationDone
   }
 
   require Logger
@@ -128,7 +127,6 @@ defmodule Archethic.P2P.Message do
           | GetNextAddresses.t()
           | ValidateTransaction.t()
           | ReplicatePendingTransactionChain.t()
-          | NotifyReplicationValidation.t()
           | AcknowledgeStorage.t()
           | GetTransactionSummary.t()
           | GetNetworkStats.t()
@@ -137,6 +135,7 @@ defmodule Archethic.P2P.Message do
           | RequestChainLock.t()
           | UnlockChain.t()
           | UpdateLastAddress.t()
+          | ProofOfValidationDone.t()
 
   @type response ::
           Ok.t()
@@ -157,7 +156,6 @@ defmodule Archethic.P2P.Message do
           | Summary.t()
           | BeaconSummaryList.t()
           | GenesisAddress.t()
-          | ReplicationError.t()
           | SummaryAggregate.t()
           | AddressList.t()
           | NetworkStats.t()

@@ -18,6 +18,7 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -236,7 +237,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
+        cross_validation_stamps: [{_from, %CrossValidationStamp{inconsistencies: []}}]
       } =
         validation_context
         |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
@@ -261,7 +262,9 @@ defmodule Archethic.Mining.ValidationContextTest do
         end
       ) do
         assert %ValidationContext{
-                 cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:timestamp]}]
+                 cross_validation_stamps: [
+                   {_from, %CrossValidationStamp{inconsistencies: [:timestamp]}}
+                 ]
                } =
                  validation_context
                  |> ValidationContext.add_validation_stamp(
@@ -315,7 +318,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       assert %ValidationContext{
-               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:signature]}]
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:signature]}}
+               ]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
@@ -331,7 +336,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       assert %ValidationContext{
-               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:proof_of_work]}}
+               ]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
@@ -345,7 +352,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       validation_context = create_context(timestamp)
 
       assert %ValidationContext{
-               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:proof_of_work]}}
+               ]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
@@ -360,7 +369,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
                ]
              } =
                validation_context
@@ -393,9 +402,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> trunc()
 
       assert %ValidationContext{
-               cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: []}
-               ]
+               cross_validation_stamps: [{_from, %CrossValidationStamp{inconsistencies: []}}]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
@@ -415,7 +422,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_fee]}}
                ]
              } =
                validation_context
@@ -436,7 +443,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: [:transaction_movements]}
+                 {_from, %CrossValidationStamp{inconsistencies: [:transaction_movements]}}
                ]
              } =
                validation_context
@@ -453,7 +460,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: [:unspent_outputs]}
+                 {_from, %CrossValidationStamp{inconsistencies: [:unspent_outputs]}}
                ]
              } =
                validation_context
@@ -470,7 +477,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       assert %ValidationContext{
                cross_validation_stamps: [
-                 %CrossValidationStamp{inconsistencies: [:consumed_inputs]}
+                 {_from, %CrossValidationStamp{inconsistencies: [:consumed_inputs]}}
                ]
              } =
                validation_context
@@ -486,13 +493,157 @@ defmodule Archethic.Mining.ValidationContextTest do
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       assert %ValidationContext{
-               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:error]}]
+               cross_validation_stamps: [
+                 {_from, %CrossValidationStamp{inconsistencies: [:error]}}
+               ]
              } =
                validation_context
                |> ValidationContext.add_validation_stamp(
                  create_validation_stamp_with_invalid_errors(validation_context)
                )
                |> ValidationContext.cross_validate()
+    end
+  end
+
+  describe "create_proof_of_validation/1" do
+    test "should create the proof of validation" do
+      ctx = create_context()
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      assert %ValidationContext{proof_of_validation: %ProofOfValidation{}} =
+               ctx
+               |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+               |> ValidationContext.cross_validate()
+               |> ValidationContext.create_proof_of_validation()
+    end
+  end
+
+  describe "valid_proof_of_validation?/2" do
+    test "should return false if proof signature is invalid" do
+      cross_seed = "cross"
+      {node_pub, _} = Crypto.derive_keypair(cross_seed, 0)
+      {mining_pub, mining_priv} = Crypto.generate_deterministic_keypair(cross_seed, :bls)
+
+      ctx = create_proof_context(cross_seed)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        %ValidationContext{validation_stamp: stamp} =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+
+      signature =
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(mining_priv)
+
+      cross_stamp = %CrossValidationStamp{
+        node_public_key: mining_pub,
+        inconsistencies: [],
+        signature: signature
+      }
+
+      ctx =
+        %ValidationContext{cross_validation_stamps: cross_stamps} =
+        ctx |> ValidationContext.add_cross_validation_stamp(cross_stamp, node_pub)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
+        |> ProofOfValidation.create(cross_stamps)
+
+      assert ValidationContext.valid_proof_of_validation?(ctx, proof)
+
+      proof = Map.put(proof, :signature, :crypto.strong_rand_bytes(96))
+      refute ValidationContext.valid_proof_of_validation?(ctx, proof)
+    end
+
+    test "should return false if proof does not reach threashold" do
+      cross_seed = "cross"
+      {node_pub, _} = Crypto.derive_keypair(cross_seed, 0)
+      {mining_pub, mining_priv} = Crypto.generate_deterministic_keypair(cross_seed, :bls)
+
+      ctx = create_proof_context(cross_seed)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        %ValidationContext{validation_stamp: stamp} =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+
+      signature =
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(mining_priv)
+
+      cross_stamp = %CrossValidationStamp{
+        node_public_key: mining_pub,
+        inconsistencies: [],
+        signature: signature
+      }
+
+      ctx =
+        %ValidationContext{cross_validation_stamps: cross_stamps} =
+        ctx |> ValidationContext.add_cross_validation_stamp(cross_stamp, node_pub)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
+        |> ProofOfValidation.create(cross_stamps)
+
+      assert ValidationContext.valid_proof_of_validation?(ctx, proof)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
+        |> ProofOfValidation.create(Enum.take(cross_stamps, 1))
+
+      refute ValidationContext.valid_proof_of_validation?(ctx, proof)
+    end
+
+    test "should return false if proof is signed by other node than expected" do
+      other_seed = "other"
+      {node_pub, _} = Crypto.derive_keypair(other_seed, 0)
+
+      {wrong_mining_pub, wrong_mining_priv} =
+        Crypto.generate_deterministic_keypair(other_seed, :bls)
+
+      ctx = create_proof_context("cross")
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        %ValidationContext{validation_stamp: stamp, cross_validation_stamps: cross_stamps} =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+
+      other_node =
+        new_node(
+          first_public_key: node_pub,
+          last_public_key: node_pub,
+          mining_public_key: wrong_mining_pub,
+          port: 3004
+        )
+
+      P2P.add_and_connect_node(other_node)
+
+      signature =
+        stamp |> CrossValidationStamp.get_raw_data_to_sign([]) |> Crypto.sign(wrong_mining_priv)
+
+      cross_stamp = %CrossValidationStamp{
+        node_public_key: wrong_mining_pub,
+        inconsistencies: [],
+        signature: signature
+      }
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfValidation.get_election(ctx.transaction.address)
+        |> ProofOfValidation.create([{node_pub, cross_stamp} | cross_stamps])
+
+      refute ValidationContext.valid_proof_of_validation?(ctx, proof)
     end
   end
 
@@ -520,58 +671,66 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
+  defp create_proof_context(
+         cross_seed,
+         validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)
+       ) do
+    {node_pub, _} = Crypto.derive_keypair(cross_seed, 0)
+    {mining_pub, _} = Crypto.generate_deterministic_keypair(cross_seed, :bls)
+
+    coordinator_node = new_node(port: 3001)
+
+    cross_validation_node =
+      new_node(
+        first_public_key: node_pub,
+        last_public_key: node_pub,
+        mining_public_key: mining_pub,
+        port: 3003
+      )
+
+    P2P.add_and_connect_node(coordinator_node)
+    P2P.add_and_connect_node(cross_validation_node)
+
+    unspent_outputs =
+      [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 204_000_000,
+          type: :UCO,
+          timestamp: validation_time
+        }
+      ]
+      |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
+    tx = TransactionFactory.create_non_valided_transaction()
+
+    %ValidationContext{
+      genesis_address: Transaction.previous_address(tx),
+      transaction: tx,
+      unspent_outputs: unspent_outputs,
+      aggregated_utxos: unspent_outputs,
+      coordinator_node: coordinator_node,
+      cross_validation_nodes: [cross_validation_node],
+      chain_storage_nodes: [coordinator_node, cross_validation_node],
+      validation_time: validation_time,
+      proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
+    }
+  end
+
   defp create_context(
          validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond),
          opts \\ []
        ) do
-    welcome_node = %Node{
-      last_public_key: "key1",
-      first_public_key: "key1",
-      geo_patch: "AAA",
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      reward_address: :crypto.strong_rand_bytes(32),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    }
+    welcome_node =
+      new_node(last_public_key: "key1", first_public_key: "key1", mining_public_key: "key1")
 
-    coordinator_node = %Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      geo_patch: "AAA",
-      ip: {127, 0, 0, 1},
-      port: 3001,
-      reward_address: :crypto.strong_rand_bytes(32),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    }
+    coordinator_node = new_node(port: 3001)
 
     previous_storage_nodes =
       cross_validation_nodes = [
-        %Node{
-          first_public_key: "key2",
-          last_public_key: "key2",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        },
-        %Node{
-          first_public_key: "key3",
-          last_public_key: "key3",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3003,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        }
+        new_node(first_public_key: "key2", last_public_key: "key2", port: 3002),
+        new_node(first_public_key: "key3", last_public_key: "key3", port: 3003)
       ]
 
     P2P.add_and_connect_node(welcome_node)
@@ -608,7 +767,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
       validation_time: validation_time,
-      resolved_addresses: resolved_addresses
+      resolved_addresses: resolved_addresses,
+      chain_storage_nodes: previous_storage_nodes,
+      proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
     }
   end
 
@@ -641,7 +803,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
       ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32),
+      signature: :crypto.strong_rand_bytes(96),
       protocol_version: current_protocol_version()
     }
   end
