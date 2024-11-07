@@ -21,7 +21,7 @@ defmodule Archethic.P2P.Client.Connection do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
-  @vsn 2
+  @vsn 3
   @table_name :connection_status
   @max_reconnect_delay :timer.hours(6)
 
@@ -131,7 +131,8 @@ defmodule Archethic.P2P.Client.Connection do
       availability_timer: {nil, 0},
       reconnect_attempts: 0,
       heartbeats_sent: 0,
-      heartbeats_received: 0
+      heartbeats_received: 0,
+      heartbeats_timer: nil
     }
 
     {:ok, :initializing, data, [{:next_event, :internal, {:connect, from}}]}
@@ -191,16 +192,19 @@ defmodule Archethic.P2P.Client.Connection do
         :enter,
         {:connected, _socket},
         :disconnected,
-        data = %{node_public_key: node_public_key, messages: messages}
+        data = %{node_public_key: node_public_key, messages: messages, heartbeats_timer: hb_ref}
       ) do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
-
     set_node_disconnected(node_public_key)
+
+    # Stop heartbeats
+    :timer.cancel(hb_ref)
 
     # Stop availability timer
     new_data =
       data
       |> Map.put(:messages, %{})
+      |> Map.put(:heartbeats_timer, nil)
       |> Map.update!(:availability_timer, fn
         {nil, time} ->
           {nil, time}
@@ -227,9 +231,13 @@ defmodule Archethic.P2P.Client.Connection do
         :enter,
         _,
         {:connected, _socket},
-        data = %{node_public_key: node_public_key}
+        data = %{node_public_key: node_public_key, heartbeats_timer: hb_ref}
       ) do
     set_node_connected(node_public_key)
+
+    # Start heatbeats
+    :timer.cancel(hb_ref)
+    {:ok, hb_ref} = :timer.send_interval(@heartbeat_interval, :heartbeat)
 
     # Start availability timer
     new_data =
@@ -237,6 +245,7 @@ defmodule Archethic.P2P.Client.Connection do
       |> Map.put(:reconnect_attempts, 0)
       |> Map.put(:heartbeats_sent, 0)
       |> Map.put(:heartbeats_received, 0)
+      |> Map.put(:heartbeats_timer, hb_ref)
       |> Map.update!(:availability_timer, fn
         {nil, time} ->
           {System.monotonic_time(:second), time}
@@ -244,8 +253,6 @@ defmodule Archethic.P2P.Client.Connection do
         timer ->
           timer
       end)
-
-    Process.send_after(self(), :heartbeat, @heartbeat_interval)
 
     {:keep_state, new_data}
   end
@@ -452,7 +459,6 @@ defmodule Archethic.P2P.Client.Connection do
       {:next_state, :disconnected, data}
     else
       transport.handle_send(socket, "hb")
-      Process.send_after(self(), :heartbeat, @heartbeat_interval)
       {:keep_state, %{data | heartbeats_sent: heartbeats_sent + 1}}
     end
   end
@@ -629,16 +635,13 @@ defmodule Archethic.P2P.Client.Connection do
     :ets.delete(@table_name, node_public_key)
   end
 
-  def code_change(1, state, data, _extra) do
-    Process.send_after(self(), :heartbeat, @heartbeat_interval)
+  def code_change(2, state = {:connected, _}, data, _extra) do
+    {:ok, hb_ref} = :timer.send_interval(@heartbeat_interval, :heartbeat)
+    {:ok, state, Map.merge(data, %{heartbeats_timer: hb_ref})}
+  end
 
-    {:ok, state,
-     data
-     |> Map.merge(%{
-       reconnect_attempts: 0,
-       heartbeats_sent: 0,
-       heartbeats_received: 0
-     })}
+  def code_change(2, state, data, _extra) do
+    {:ok, state, data}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
