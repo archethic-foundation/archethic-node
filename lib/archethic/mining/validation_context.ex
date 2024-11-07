@@ -800,10 +800,9 @@ defmodule Archethic.Mining.ValidationContext do
     protocol_version = Mining.protocol_version()
 
     ops =
-      %LedgerValidation{fee: fee}
+      %LedgerValidation{fee: fee, transaction_movements: movements}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, validation_time, protocol_version)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
       |> LedgerValidation.validate_sufficient_funds()
       |> LedgerValidation.consume_inputs(
         address,
@@ -811,6 +810,7 @@ defmodule Archethic.Mining.ValidationContext do
         encoded_state,
         contract_context
       )
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
 
     case ops do
       %LedgerValidation{sufficient_funds?: false} ->

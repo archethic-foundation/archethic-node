@@ -58,7 +58,7 @@ defmodule Archethic.Mining.LedgerValidation do
   def burning_address, do: @burning_address
 
   @doc """
-  Filter inputs that can be used in this transaction 
+  Filter inputs that can be used in this transaction
   """
   @spec filter_usable_inputs(
           ops :: t(),
@@ -186,6 +186,8 @@ defmodule Archethic.Mining.LedgerValidation do
   @doc """
   Build the resolved view of the movement, with the resolved address
   and convert MUCO movement to UCO movement
+
+  **MUST** be done after sufficient_funds? and consume_inputs
   """
   @spec build_resolved_movements(
           ops :: t(),

@@ -190,12 +190,12 @@ defmodule Archethic.Bootstrap.NetworkInit do
     resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     operations =
-      %LedgerValidation{fee: fee}
+      %LedgerValidation{fee: fee, transaction_movements: movements}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, nil)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, 1)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
       |> LedgerValidation.validate_sufficient_funds()
       |> LedgerValidation.consume_inputs(address, timestamp)
+      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =

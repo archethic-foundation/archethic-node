@@ -12,7 +12,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
+  alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
@@ -30,6 +30,7 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionFactory
@@ -157,6 +158,83 @@ defmodule Archethic.Mining.ValidationContextTest do
                  ledger_operations: %LedgerOperations{transaction_movements: ^expected_movements}
                }
              } = ValidationContext.create_validation_stamp(validation_context)
+    end
+
+    test "should handle the MUCO correctly" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      transfer_address = random_address()
+      resolved_address = random_address()
+      muco_addr1 = random_address()
+      muco_addr2 = random_address()
+
+      start_supervised!(RewardTokens)
+      RewardTokens.add_reward_token_address(muco_addr1)
+      RewardTokens.add_reward_token_address(muco_addr2)
+
+      validation_context = %ValidationContext{
+        create_context(timestamp,
+          utxos: [
+            %UnspentOutput{
+              from: random_address(),
+              amount: 10,
+              type: {:token, muco_addr1, 0},
+              timestamp: timestamp
+            },
+            %UnspentOutput{
+              from: random_address(),
+              amount: 10,
+              type: {:token, muco_addr2, 0},
+              timestamp: timestamp
+            }
+          ]
+        )
+        | transaction:
+            Transaction.new(
+              :transfer,
+              %TransactionData{
+                ledger: %Ledger{
+                  token: %TokenLedger{
+                    transfers: [
+                      %TokenLedger.Transfer{
+                        token_address: muco_addr1,
+                        token_id: 0,
+                        to: transfer_address,
+                        amount: 10
+                      },
+                      %TokenLedger.Transfer{
+                        token_address: muco_addr2,
+                        token_id: 0,
+                        to: transfer_address,
+                        amount: 10
+                      }
+                    ]
+                  }
+                }
+              },
+              "seed",
+              0
+            ),
+          resolved_addresses: %{transfer_address => resolved_address}
+      }
+
+      assert %ValidationContext{validation_stamp: %ValidationStamp{ledger_operations: ops}} =
+               ValidationContext.create_validation_stamp(validation_context)
+
+      assert [
+               %TransactionMovement{to: ^resolved_address, amount: 20, type: :UCO}
+             ] = ops.transaction_movements
+
+      assert 111 =
+               Enum.reduce(ops.consumed_inputs, 0, fn %VersionedUnspentOutput{
+                                                        unspent_output: utxo
+                                                      },
+                                                      acc ->
+                 case utxo do
+                   %UnspentOutput{amount: 204_000_000, type: :UCO} -> acc + 1
+                   %UnspentOutput{amount: 10, type: {:token, ^muco_addr1, 0}} -> acc + 10
+                   %UnspentOutput{amount: 10, type: {:token, ^muco_addr2, 0}} -> acc + 100
+                 end
+               end)
     end
   end
 
@@ -452,7 +530,10 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
-  defp create_context(validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)) do
+  defp create_context(
+         validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond),
+         opts \\ []
+       ) do
     welcome_node = %Node{
       last_public_key: "key1",
       first_public_key: "key1",
@@ -516,6 +597,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           type: :UCO,
           timestamp: validation_time
         }
+        | Keyword.get(opts, :utxos, [])
       ]
       |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
