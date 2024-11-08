@@ -36,6 +36,24 @@ defmodule Archethic.P2P.ListenerProtocol do
     })
   end
 
+  def handle_info({ref, :stop}, state = %{transport: transport, socket: socket, ip: ip})
+      when is_reference(ref) do
+    if node_ip?(ip), do: Logger.error("Stopping listener (ip: #{:inet.ntoa(ip)})")
+    transport.close(socket)
+    {:stop, :normal, state}
+  end
+
+  def handle_info({ref, :ok}, state) when is_reference(ref) do
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state = %{ip: ip}) do
+    if reason != :normal && node_ip?(ip),
+      do: Logger.error("handle_message crashed for reason: #{inspect(reason)}")
+
+    {:noreply, state}
+  end
+
   def handle_info(
         {_transport, socket, "hb"},
         state = %{transport: transport}
@@ -59,8 +77,7 @@ defmodule Archethic.P2P.ListenerProtocol do
     end
 
     transport.close(socket)
-
-    {:noreply, state}
+    {:stop, :normal, state}
   end
 
   def handle_info(
@@ -69,7 +86,7 @@ defmodule Archethic.P2P.ListenerProtocol do
       ) do
     :inet.setopts(socket, active: :once)
 
-    Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       handle_message(msg, transport, socket, ip)
     end)
 
@@ -77,7 +94,7 @@ defmodule Archethic.P2P.ListenerProtocol do
   end
 
   def handle_info({_transport_closed, _socket}, state = %{ip: ip, port: port}) do
-    Logger.warning("Connection closed for #{:inet.ntoa(ip)}:#{port}")
+    Logger.warning("Incoming connection closed #{:inet.ntoa(ip)}:#{port}")
     {:stop, :normal, state}
   end
 
@@ -106,6 +123,8 @@ defmodule Archethic.P2P.ListenerProtocol do
           |> process_msg(sender_pkey)
           |> encode_response(message_id, sender_pkey)
           |> reply(transport, socket, message)
+
+          :ok
         else
           if node_ip?(ip) do
             Logger.error("Received a message with an invalid signature",
@@ -113,7 +132,7 @@ defmodule Archethic.P2P.ListenerProtocol do
             )
           end
 
-          transport.close(socket)
+          :stop
         end
 
       {:error, reason} ->
@@ -121,7 +140,7 @@ defmodule Archethic.P2P.ListenerProtocol do
           Logger.error(reason)
         end
 
-        transport.close(socket)
+        :stop
     end
   end
 

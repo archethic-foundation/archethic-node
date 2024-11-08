@@ -199,7 +199,8 @@ defmodule Archethic.P2P.Client.Connection do
           transport: transport
         }
       ) do
-    Logger.warning("Connection closed", node: Base.encode16(node_public_key))
+    Logger.warning("Outgoing connection closed", node: Base.encode16(node_public_key))
+
     set_node_disconnected(node_public_key)
 
     # Stop heartbeats
@@ -567,7 +568,7 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     case transport.handle_message(event) do
       {:error, reason} ->
-        Logger.warning("Connection failed #{inspect(reason)}",
+        Logger.warning("Outgoing connection failed #{inspect(reason)}",
           node: Base.encode16(node_public_key)
         )
 
