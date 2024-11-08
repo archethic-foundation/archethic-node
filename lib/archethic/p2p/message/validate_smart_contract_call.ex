@@ -278,10 +278,10 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     protocol_version = Mining.protocol_version()
 
     %LedgerValidation{sufficient_funds?: sufficient_funds?} =
-      %LedgerValidation{fee: 0, transaction_movements: movements}
+      %LedgerValidation{}
       |> LedgerValidation.filter_usable_inputs(inputs, nil)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
 
     sufficient_funds?
   end

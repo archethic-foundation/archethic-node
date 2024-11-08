@@ -5,7 +5,7 @@ defmodule Archethic.Mining.LedgerValidation do
 
   @unit_uco 100_000_000
 
-  defstruct transaction_movements: [],
+  defstruct transaction_movements: nil,
             unspent_outputs: [],
             fee: 0,
             consumed_inputs: [],
@@ -38,7 +38,7 @@ defmodule Archethic.Mining.LedgerValidation do
   - Consumed inputs: represents the list of inputs consumed to produce the unspent outputs
   """
   @type t() :: %__MODULE__{
-          transaction_movements: list(TransactionMovement.t()),
+          transaction_movements: nil | list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           fee: non_neg_integer(),
           consumed_inputs: list(VersionedUnspentOutput.t()),
@@ -191,31 +191,39 @@ defmodule Archethic.Mining.LedgerValidation do
   """
   @spec build_resolved_movements(
           ops :: t(),
-          movements :: list(TransactionMovement.t()),
           resolved_addresses :: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
           tx_type :: Transaction.transaction_type()
         ) :: t()
-  def build_resolved_movements(ops, movements, resolved_addresses, tx_type) do
-    resolved_movements =
-      movements
-      |> TransactionMovement.resolve_addresses(resolved_addresses)
-      |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
-      |> TransactionMovement.aggregate()
-
-    %__MODULE__{ops | transaction_movements: resolved_movements}
+  def build_resolved_movements(
+        ops = %__MODULE__{
+          transaction_movements: unresolved_movements
+        },
+        resolved_addresses,
+        tx_type
+      )
+      when is_list(unresolved_movements) do
+    %__MODULE__{
+      ops
+      | transaction_movements:
+          unresolved_movements
+          |> TransactionMovement.resolve_addresses(resolved_addresses)
+          |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
+          |> TransactionMovement.aggregate()
+    }
   end
 
   @doc """
   Determine if the transaction has enough funds for it's movements
   """
-  @spec validate_sufficient_funds(ops :: t()) :: t()
+  @spec validate_sufficient_funds(ops :: t(), list(TransactionMovement.t())) :: t()
   def validate_sufficient_funds(
         ops = %__MODULE__{
           fee: fee,
           inputs: inputs,
           minted_utxos: minted_utxos,
-          transaction_movements: movements
-        }
+          transaction_movements: nil
+        },
+        movements
       ) do
     balances =
       %{uco: uco_balance, token: tokens_balance} = ledger_balances(inputs ++ minted_utxos)
@@ -228,7 +236,8 @@ defmodule Archethic.Mining.LedgerValidation do
       | sufficient_funds?:
           sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend),
         balances: balances,
-        amount_to_spend: amount_to_spend
+        amount_to_spend: amount_to_spend,
+        transaction_movements: movements
     }
   end
 

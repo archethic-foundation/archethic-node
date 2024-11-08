@@ -348,10 +348,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
     end
   end
 
-  describe "validate_sufficient_funds/1" do
+  describe "validate_sufficient_funds/2" do
     test "should return insufficient funds when not enough uco" do
       assert %LedgerValidation{sufficient_funds?: false} =
-               %LedgerValidation{fee: 1_000} |> LedgerValidation.validate_sufficient_funds()
+               %LedgerValidation{fee: 1_000} |> LedgerValidation.validate_sufficient_funds([])
     end
 
     test "should return insufficient funds when not enough tokens" do
@@ -374,8 +374,8 @@ defmodule Archethic.Mining.LedgerValidationTest do
       ]
 
       assert %LedgerValidation{sufficient_funds?: false} =
-               %LedgerValidation{fee: 1_000, transaction_movements: movements, inputs: inputs}
-               |> LedgerValidation.validate_sufficient_funds()
+               %LedgerValidation{fee: 1_000, inputs: inputs}
+               |> LedgerValidation.validate_sufficient_funds(movements)
     end
 
     test "should not be able to pay with the same non-fungible token twice" do
@@ -415,11 +415,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
       assert %LedgerValidation{sufficient_funds?: false} =
                %LedgerValidation{
                  fee: 1_000,
-                 transaction_movements: movements,
                  inputs: inputs,
                  minted_utxos: minted_utxos
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
     end
 
     test "should return available balance and amount to spend and return sufficient_funds to true" do
@@ -491,11 +490,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 1_000,
-                 transaction_movements: movements,
                  inputs: inputs,
                  minted_utxos: minted_utxos
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
     end
   end
 
@@ -542,10 +540,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 40_000_000,
-                 transaction_movements: movements,
                  inputs: inputs
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, timestamp)
     end
 
@@ -630,10 +627,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 40_000_000,
-                 transaction_movements: movements,
                  inputs: inputs
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, timestamp)
     end
 
@@ -703,10 +699,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 40_000_000,
-                 transaction_movements: movements,
                  inputs: inputs
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, timestamp)
     end
 
@@ -800,10 +795,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 40_000_000,
-                 transaction_movements: movements,
                  inputs: inputs
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, timestamp)
     end
 
@@ -879,10 +873,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
              } =
                %LedgerValidation{
                  fee: 40_000_000,
-                 transaction_movements: movements,
                  inputs: inputs
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, timestamp)
     end
 
@@ -921,11 +914,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
       assert ops_result =
                %LedgerValidation{
                  fee: 1_000,
-                 transaction_movements: movements,
                  inputs: inputs,
                  minted_utxos: minted_utxos
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, now)
 
       assert [
@@ -990,11 +982,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
       assert ops_result =
                %LedgerValidation{
                  fee: 1_000,
-                 transaction_movements: movements,
                  inputs: inputs,
                  minted_utxos: minted_utxos
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, now)
 
       assert [] = ops_result.unspent_outputs
@@ -1059,11 +1050,10 @@ defmodule Archethic.Mining.LedgerValidationTest do
       assert ops_result =
                %LedgerValidation{
                  fee: 1_000,
-                 transaction_movements: movements,
                  inputs: inputs,
                  minted_utxos: minted_utxos
                }
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, now)
 
       assert [
@@ -1166,7 +1156,7 @@ defmodule Archethic.Mining.LedgerValidationTest do
                fee: 40_000_000
              } =
                %LedgerValidation{fee: 40_000_000, inputs: inputs}
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds([])
                |> LedgerValidation.consume_inputs(transaction_address, transaction_timestamp)
 
       tx_address = "@Alice2"
@@ -1210,8 +1200,8 @@ defmodule Archethic.Mining.LedgerValidationTest do
                  %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Tom5"}}
                ]
              } =
-               %LedgerValidation{inputs: inputs, transaction_movements: movements}
-               |> LedgerValidation.validate_sufficient_funds()
+               %LedgerValidation{inputs: inputs}
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(tx_address, now)
     end
 
@@ -1234,7 +1224,7 @@ defmodule Archethic.Mining.LedgerValidationTest do
                unspent_outputs: [%UnspentOutput{type: :state, encoded_payload: ^new_state}]
              } =
                %LedgerValidation{fee: 0, inputs: inputs}
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds([])
                |> LedgerValidation.consume_inputs("@Alice2", DateTime.utc_now(), new_state, nil)
     end
 
@@ -1284,7 +1274,7 @@ defmodule Archethic.Mining.LedgerValidationTest do
 
       assert %LedgerValidation{fee: 0, unspent_outputs: [], consumed_inputs: []} =
                %LedgerValidation{fee: 0, inputs: inputs}
-               |> LedgerValidation.validate_sufficient_funds()
+               |> LedgerValidation.validate_sufficient_funds([])
                |> LedgerValidation.consume_inputs("@Alice2", ~U[2022-10-10 10:44:38.983Z])
     end
 
@@ -1336,8 +1326,8 @@ defmodule Archethic.Mining.LedgerValidationTest do
       ]
 
       assert %LedgerValidation{fee: 0, unspent_outputs: [], consumed_inputs: consumed_inputs} =
-               %LedgerValidation{fee: 0, inputs: all_utxos, transaction_movements: movements}
-               |> LedgerValidation.validate_sufficient_funds()
+               %LedgerValidation{fee: 0, inputs: all_utxos}
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(random_address(), ~U[2022-10-10 10:44:38.983Z])
 
       # order does not matter
@@ -1385,8 +1375,8 @@ defmodule Archethic.Mining.LedgerValidationTest do
       movements = [%TransactionMovement{to: random_address(), amount: 200_000_000, type: :UCO}]
 
       assert %LedgerValidation{fee: 0, unspent_outputs: [], consumed_inputs: consumed_inputs} =
-               %LedgerValidation{fee: 0, inputs: all_utxos, transaction_movements: movements}
-               |> LedgerValidation.validate_sufficient_funds()
+               %LedgerValidation{fee: 0, inputs: all_utxos}
+               |> LedgerValidation.validate_sufficient_funds(movements)
                |> LedgerValidation.consume_inputs(random_address(), ~U[2022-10-10 10:44:38.983Z])
 
       # order does not matter
@@ -1441,10 +1431,9 @@ defmodule Archethic.Mining.LedgerValidationTest do
         assert %LedgerValidation{fee: 0, unspent_outputs: [], consumed_inputs: consumed_inputs} =
                  %LedgerValidation{
                    fee: 0,
-                   inputs: randomized_utxo,
-                   transaction_movements: movements
+                   inputs: randomized_utxo
                  }
-                 |> LedgerValidation.validate_sufficient_funds()
+                 |> LedgerValidation.validate_sufficient_funds(movements)
                  |> LedgerValidation.consume_inputs(
                    random_address(),
                    ~U[2022-10-10 10:44:38.983Z]
@@ -1472,7 +1461,7 @@ defmodule Archethic.Mining.LedgerValidationTest do
 
       RewardTokens.add_reward_token_address(reward_token_address)
 
-      movement = [
+      movements = [
         %TransactionMovement{to: address1, amount: 10, type: :UCO},
         %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
         %TransactionMovement{to: address1, amount: 40, type: {:token, token_address, 0}},
@@ -1488,8 +1477,7 @@ defmodule Archethic.Mining.LedgerValidationTest do
 
       assert %LedgerValidation{transaction_movements: resolved_movements} =
                LedgerValidation.build_resolved_movements(
-                 %LedgerValidation{},
-                 movement,
+                 %LedgerValidation{transaction_movements: movements},
                  resolved_addresses,
                  :transfer
                )

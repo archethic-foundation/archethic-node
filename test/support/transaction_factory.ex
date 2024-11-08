@@ -101,9 +101,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     poi =
@@ -160,9 +160,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
@@ -205,9 +205,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
@@ -253,9 +253,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
@@ -294,9 +294,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: 1_000_000_000}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
@@ -338,9 +338,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
@@ -399,9 +399,9 @@ defmodule Archethic.TransactionFactory do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =
