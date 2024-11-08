@@ -189,30 +189,25 @@ defmodule Archethic.Mining.ValidationContextTest do
           ]
         )
         | transaction:
-            Transaction.new(
-              :transfer,
-              %TransactionData{
-                ledger: %Ledger{
-                  token: %TokenLedger{
-                    transfers: [
-                      %TokenLedger.Transfer{
-                        token_address: muco_addr1,
-                        token_id: 0,
-                        to: transfer_address,
-                        amount: 10
-                      },
-                      %TokenLedger.Transfer{
-                        token_address: muco_addr2,
-                        token_id: 0,
-                        to: transfer_address,
-                        amount: 10
-                      }
-                    ]
-                  }
+            TransactionFactory.create_non_valided_transaction(
+              ledger: %Ledger{
+                token: %TokenLedger{
+                  transfers: [
+                    %TokenLedger.Transfer{
+                      token_address: muco_addr1,
+                      token_id: 0,
+                      to: transfer_address,
+                      amount: 10
+                    },
+                    %TokenLedger.Transfer{
+                      token_address: muco_addr2,
+                      token_id: 0,
+                      to: transfer_address,
+                      amount: 10
+                    }
+                  ]
                 }
-              },
-              "seed",
-              0
+              }
             ),
           resolved_addresses: %{transfer_address => resolved_address}
       }
