@@ -46,12 +46,54 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         from: me
       )
 
-    assert {:initializing, _} = :sys.get_state(pid)
+    assert {:connecting, _} = :sys.get_state(pid)
 
     Process.sleep(10)
 
     assert {{:connected, _socket}, %{request_id: 0, messages: %{}}} = :sys.get_state(pid)
     assert_received :connected
+  end
+
+  test "do not start multiple connections" do
+    defmodule MockTransportTimeout do
+      alias Archethic.P2P.Client.Transport
+
+      @behaviour Transport
+
+      def handle_connect(_ip, _port) do
+        :persistent_term.put(:connect_count, :persistent_term.get(:connect_count, 0) + 1)
+        Process.sleep(200)
+        {:error, :timeout}
+      end
+
+      def handle_close(_socket) do
+        :ok
+      end
+
+      def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+      def handle_message({_, _, _}), do: {:error, :closed}
+    end
+
+    node_public_key = Crypto.first_node_public_key()
+
+    {:ok, _} =
+      Connection.start_link(
+        transport: MockTransportTimeout,
+        ip: {127, 0, 0, 2},
+        port: 3000,
+        node_public_key: node_public_key
+      )
+
+    Connection.wake_up(node_public_key)
+    Connection.wake_up(node_public_key)
+    Connection.wake_up(node_public_key)
+    Connection.wake_up(node_public_key)
+    Connection.wake_up(node_public_key)
+
+    Process.sleep(100)
+
+    assert 1 = :persistent_term.get(:connect_count)
   end
 
   describe "send_message/3" do
@@ -124,6 +166,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         end
 
         def handle_connect({127, 0, 0, 2}, _port) do
+          :persistent_term.put(:sleeping, true)
           Process.sleep(100_000)
           {:error, :timeout}
         end
@@ -152,18 +195,18 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       # 500ms to wait for the 1st reconnect attempt
       Process.sleep(550)
 
-      time = System.monotonic_time(:millisecond)
+      assert :persistent_term.get(:sleeping)
 
-      assert {:error, :closed} =
+      # we do not receive a closed anymore because we are in the :connecting state
+      # that postpones messages
+      assert {:error, :timeout} =
                Connection.send_message(
                  Crypto.first_node_public_key(),
                  %GetTransaction{address: ArchethicCase.random_address()},
                  200
                )
 
-      # ensure there was no delay
-      time2 = System.monotonic_time(:millisecond)
-      assert time2 - time < 100
+      assert :persistent_term.get(:sleeping)
     end
 
     test "should be in :connected state after reconnection" do
