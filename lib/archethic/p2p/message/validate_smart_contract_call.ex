@@ -270,20 +270,18 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   defp calculate_fee(_, _), do: 0
 
   defp enough_funds_to_send?(
-         %ActionWithTransaction{next_tx: tx = %Transaction{type: tx_type}},
+         %ActionWithTransaction{next_tx: tx},
          inputs,
          timestamp
        ) do
     movements = Transaction.get_movements(tx)
     protocol_version = Mining.protocol_version()
-    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     %LedgerValidation{sufficient_funds?: sufficient_funds?} =
-      %LedgerValidation{fee: 0}
+      %LedgerValidation{}
       |> LedgerValidation.filter_usable_inputs(inputs, nil)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
 
     sufficient_funds?
   end

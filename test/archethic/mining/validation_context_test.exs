@@ -12,7 +12,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
+  alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
@@ -30,6 +30,7 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionFactory
@@ -157,6 +158,79 @@ defmodule Archethic.Mining.ValidationContextTest do
                  ledger_operations: %LedgerOperations{transaction_movements: ^expected_movements}
                }
              } = ValidationContext.create_validation_stamp(validation_context)
+    end
+
+    test "should handle the MUCO correctly" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      transfer_address = random_address()
+      muco_addr1 = random_address()
+      muco_addr2 = random_address()
+
+      start_supervised!(RewardTokens)
+      RewardTokens.add_reward_token_address(muco_addr1)
+      RewardTokens.add_reward_token_address(muco_addr2)
+
+      utxos = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 204_000_000,
+          type: :UCO,
+          timestamp: timestamp
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10,
+          type: {:token, muco_addr1, 0},
+          timestamp: timestamp
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10,
+          type: {:token, muco_addr2, 0},
+          timestamp: timestamp
+        }
+      ]
+
+      transaction_opts = [
+        ledger: %Ledger{
+          token: %TokenLedger{
+            transfers: [
+              %TokenLedger.Transfer{
+                token_address: muco_addr1,
+                token_id: 0,
+                to: transfer_address,
+                amount: 10
+              },
+              %TokenLedger.Transfer{
+                token_address: muco_addr2,
+                token_id: 0,
+                to: transfer_address,
+                amount: 10
+              }
+            ]
+          }
+        }
+      ]
+
+      validation_context =
+        create_context(timestamp, unspent_outputs: utxos, transaction_opts: transaction_opts)
+
+      assert %ValidationContext{validation_stamp: %ValidationStamp{ledger_operations: ops}} =
+               ValidationContext.create_validation_stamp(validation_context)
+
+      assert [%TransactionMovement{to: ^transfer_address, amount: 20, type: :UCO}] =
+               ops.transaction_movements
+
+      assert utxos
+             |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+             |> MapSet.new()
+             |> MapSet.equal?(MapSet.new(ops.consumed_inputs))
+
+      remaining_uco = 204_000_000 - ops.fee
+      tx_address = validation_context.transaction.address
+
+      assert [%UnspentOutput{from: ^tx_address, amount: ^remaining_uco, type: :UCO}] =
+               ops.unspent_outputs
     end
   end
 
@@ -452,7 +526,10 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
-  defp create_context(validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)) do
+  defp create_context(
+         validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond),
+         opts \\ []
+       ) do
     welcome_node = %Node{
       last_public_key: "key1",
       first_public_key: "key1",
@@ -508,26 +585,36 @@ defmodule Archethic.Mining.ValidationContextTest do
     Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
+    default_utxo = %UnspentOutput{
+      from: "@Alice2",
+      amount: 204_000_000,
+      type: :UCO,
+      timestamp: validation_time
+    }
+
     unspent_outputs =
-      [
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 204_000_000,
-          type: :UCO,
-          timestamp: validation_time
-        }
-      ]
+      opts
+      |> Keyword.get(:unspent_outputs, [default_utxo])
       |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
+    tx =
+      opts
+      |> Keyword.get(:transaction_opts, [])
+      |> TransactionFactory.create_non_valided_transaction()
+
+    resolved_addresses =
+      tx |> Transaction.get_movements() |> Enum.map(&{&1.to, &1.to}) |> Map.new()
+
     %ValidationContext{
-      transaction: TransactionFactory.create_non_valided_transaction(),
+      transaction: tx,
       previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: unspent_outputs,
       aggregated_utxos: unspent_outputs,
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
-      validation_time: validation_time
+      validation_time: validation_time,
+      resolved_addresses: resolved_addresses
     }
   end
 
@@ -547,9 +634,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
@@ -579,9 +666,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
@@ -611,9 +698,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
@@ -644,9 +731,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
@@ -737,9 +824,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
@@ -769,9 +856,9 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, current_protocol_version())
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
       |> Map.put(
         :consumed_inputs,
