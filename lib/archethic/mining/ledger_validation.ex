@@ -5,7 +5,8 @@ defmodule Archethic.Mining.LedgerValidation do
 
   @unit_uco 100_000_000
 
-  defstruct transaction_movements: nil,
+  defstruct state: :init,
+            transaction_movements: [],
             unspent_outputs: [],
             fee: 0,
             consumed_inputs: [],
@@ -32,13 +33,33 @@ defmodule Archethic.Mining.LedgerValidation do
   alias Archethic.TransactionChain.TransactionData
 
   @typedoc """
+  LedgerValidation should execute functions in a specific order.
+  To avoid miss order, state is updated to ensure order is respected
+  State is updated following
+  - :init
+  - :filtered_inputs
+  - :utxos_minted
+  - :sufficient_funds_validated
+  - :inputs_consumed
+  - :movements_resolved
+  """
+  @type state() ::
+          :init
+          | :filtered_inputs
+          | :utxos_minted
+          | :sufficient_funds_validated
+          | :inputs_consumed
+          | :movements_resolved
+
+  @typedoc """
   - Transaction movements: represents the pending transaction ledger movements
   - Unspent outputs: represents the new unspent outputs
   - fee: represents the transaction fee
   - Consumed inputs: represents the list of inputs consumed to produce the unspent outputs
   """
   @type t() :: %__MODULE__{
-          transaction_movements: nil | list(TransactionMovement.t()),
+          state: state(),
+          transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           fee: non_neg_integer(),
           consumed_inputs: list(VersionedUnspentOutput.t()),
@@ -65,10 +86,13 @@ defmodule Archethic.Mining.LedgerValidation do
           inputs :: list(VersionedUnspentOutput.t()),
           contract_context :: ContractContext.t() | nil
         ) :: t()
-  def filter_usable_inputs(ops, inputs, nil), do: %__MODULE__{ops | inputs: inputs}
+  def filter_usable_inputs(ops = %__MODULE__{state: :init}, inputs, nil),
+    do: %__MODULE__{ops | inputs: inputs} |> next_state()
 
-  def filter_usable_inputs(ops, inputs, contract_context),
-    do: %__MODULE__{ops | inputs: ContractContext.ledger_inputs(contract_context, inputs)}
+  def filter_usable_inputs(ops = %__MODULE__{state: :init}, inputs, contract_context) do
+    %__MODULE__{ops | inputs: ContractContext.ledger_inputs(contract_context, inputs)}
+    |> next_state()
+  end
 
   @doc """
   Build some ledger operations from a specific transaction
@@ -80,27 +104,30 @@ defmodule Archethic.Mining.LedgerValidation do
           protocol_version :: non_neg_integer()
         ) :: t()
   def mint_token_utxos(
-        ops,
+        ops = %__MODULE__{state: :filtered_inputs},
         %Transaction{address: address, type: type, data: %TransactionData{content: content}},
         timestamp,
         protocol_version
       )
       when type in [:token, :mint_rewards] and not is_nil(timestamp) do
-    case Jason.decode(content) do
-      {:ok, json} ->
-        minted_utxos =
-          json
-          |> create_token_utxos(address, timestamp)
-          |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
+    new_ops =
+      case Jason.decode(content) do
+        {:ok, json} ->
+          minted_utxos =
+            json
+            |> create_token_utxos(address, timestamp)
+            |> VersionedUnspentOutput.wrap_unspent_outputs(protocol_version)
 
-        %__MODULE__{ops | minted_utxos: minted_utxos}
+          %__MODULE__{ops | minted_utxos: minted_utxos}
 
-      _ ->
-        ops
-    end
+        _ ->
+          ops
+      end
+
+    next_state(new_ops)
   end
 
-  def mint_token_utxos(ops, _, _, _), do: ops
+  def mint_token_utxos(ops = %__MODULE__{state: :filtered_inputs}, _, _, _), do: next_state(ops)
 
   defp create_token_utxos(
          %{"token_reference" => token_ref, "supply" => supply},
@@ -196,20 +223,19 @@ defmodule Archethic.Mining.LedgerValidation do
         ) :: t()
   def build_resolved_movements(
         ops = %__MODULE__{
-          transaction_movements: unresolved_movements
+          state: :inputs_consumed,
+          transaction_movements: movements
         },
         resolved_addresses,
         tx_type
-      )
-      when is_list(unresolved_movements) do
-    %__MODULE__{
-      ops
-      | transaction_movements:
-          unresolved_movements
-          |> TransactionMovement.resolve_addresses(resolved_addresses)
-          |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
-          |> TransactionMovement.aggregate()
-    }
+      ) do
+    resolved_movements =
+      movements
+      |> TransactionMovement.resolve_addresses(resolved_addresses)
+      |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
+      |> TransactionMovement.aggregate()
+
+    %__MODULE__{ops | transaction_movements: resolved_movements} |> next_state()
   end
 
   @doc """
@@ -218,10 +244,10 @@ defmodule Archethic.Mining.LedgerValidation do
   @spec validate_sufficient_funds(ops :: t(), list(TransactionMovement.t())) :: t()
   def validate_sufficient_funds(
         ops = %__MODULE__{
+          state: :utxos_minted,
           fee: fee,
           inputs: inputs,
-          minted_utxos: minted_utxos,
-          transaction_movements: nil
+          minted_utxos: minted_utxos
         },
         movements
       ) do
@@ -239,6 +265,7 @@ defmodule Archethic.Mining.LedgerValidation do
         amount_to_spend: amount_to_spend,
         transaction_movements: movements
     }
+    |> next_state()
   end
 
   defp total_to_spend(fee, movements) do
@@ -298,6 +325,7 @@ defmodule Archethic.Mining.LedgerValidation do
   """
   @spec to_ledger_operations(ops :: t()) :: LedgerOperations.t()
   def to_ledger_operations(%__MODULE__{
+        state: :movements_resolved,
         transaction_movements: movements,
         unspent_outputs: utxos,
         fee: fee,
@@ -323,10 +351,26 @@ defmodule Archethic.Mining.LedgerValidation do
           encoded_state :: State.encoded() | nil,
           contract_context :: ContractContext.t() | nil
         ) :: t()
-  def consumed_inputs(ops = %__MODULE__{sufficient_funds?: false}), do: ops
+  def consume_inputs(
+        ops,
+        change_address,
+        timestamp,
+        encoded_state \\ nil,
+        contract_context \\ nil
+      )
+
+  def consume_inputs(
+        ops = %__MODULE__{state: :sufficient_funds_validated, sufficient_funds?: false},
+        _,
+        _,
+        _,
+        _
+      ),
+      do: next_state(ops)
 
   def consume_inputs(
         ops = %__MODULE__{
+          state: :sufficient_funds_validated,
           inputs: inputs,
           minted_utxos: minted_utxos,
           balances: %{uco: uco_balance, token: tokens_balance},
@@ -334,8 +378,8 @@ defmodule Archethic.Mining.LedgerValidation do
         },
         change_address,
         timestamp = %DateTime{},
-        encoded_state \\ nil,
-        contract_context \\ nil
+        encoded_state,
+        contract_context
       ) do
     # Since AEIP-19 we can consume from minted tokens
     # Sort inputs, to have consistent results across all nodes
@@ -380,6 +424,7 @@ defmodule Archethic.Mining.LedgerValidation do
       | unspent_outputs: new_unspent_outputs,
         consumed_inputs: versioned_consumed_utxos
     }
+    |> next_state()
   end
 
   defp tokens_utxos(
@@ -522,4 +567,20 @@ defmodule Archethic.Mining.LedgerValidation do
 
     [new_utxo | utxos]
   end
+
+  defp next_state(ops = %__MODULE__{state: :init}), do: %__MODULE__{ops | state: :filtered_inputs}
+
+  defp next_state(ops = %__MODULE__{state: :filtered_inputs}),
+    do: %__MODULE__{ops | state: :utxos_minted}
+
+  defp next_state(ops = %__MODULE__{state: :utxos_minted}),
+    do: %__MODULE__{ops | state: :sufficient_funds_validated}
+
+  defp next_state(ops = %__MODULE__{state: :sufficient_funds_validated}),
+    do: %__MODULE__{ops | state: :inputs_consumed}
+
+  defp next_state(ops = %__MODULE__{state: :inputs_consumed}),
+    do: %__MODULE__{ops | state: :movements_resolved}
+
+  defp next_state(ops = %__MODULE__{state: :movements_resolved}), do: ops
 end

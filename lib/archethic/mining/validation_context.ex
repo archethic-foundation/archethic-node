@@ -1139,7 +1139,9 @@ defmodule Archethic.Mining.ValidationContext do
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
       proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
       transaction_fee: fn -> valid_stamp_fee?(stamp, fee) end,
-      transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
+      transaction_movements: fn ->
+        valid_stamp_transaction_movements?(stamp, ledger_operations)
+      end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
       consumed_inputs: fn -> valid_consumed_inputs?(stamp, ledger_operations) end,
       unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, ledger_operations) end,
@@ -1232,25 +1234,11 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_stamp_transaction_movements?(
          %ValidationStamp{
-           ledger_operations:
-             _ops = %LedgerOperations{
-               transaction_movements: transaction_movements
-             }
+           ledger_operations: %LedgerOperations{transaction_movements: stamp_movements}
          },
-         %__MODULE__{
-           transaction: tx = %Transaction{type: tx_type},
-           resolved_addresses: resolved_addresses
-         }
+         %LedgerOperations{transaction_movements: expected_movements}
        ) do
-    movements = Transaction.get_movements(tx)
-
-    %LedgerOperations{transaction_movements: resolved_movements} =
-      %LedgerValidation{transaction_movements: movements}
-      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx_type)
-      |> LedgerValidation.to_ledger_operations()
-
-    length(resolved_movements) == length(transaction_movements) and
-      Enum.all?(resolved_movements, &(&1 in transaction_movements))
+    expected_movements |> MapSet.new() |> MapSet.equal?(MapSet.new(stamp_movements))
   end
 
   defp valid_consumed_inputs?(
