@@ -163,7 +163,6 @@ defmodule Archethic.Mining.ValidationContextTest do
     test "should handle the MUCO correctly" do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       transfer_address = random_address()
-      resolved_address = random_address()
       muco_addr1 = random_address()
       muco_addr2 = random_address()
 
@@ -171,65 +170,67 @@ defmodule Archethic.Mining.ValidationContextTest do
       RewardTokens.add_reward_token_address(muco_addr1)
       RewardTokens.add_reward_token_address(muco_addr2)
 
-      validation_context = %ValidationContext{
-        create_context(timestamp,
-          utxos: [
-            %UnspentOutput{
-              from: random_address(),
-              amount: 10,
-              type: {:token, muco_addr1, 0},
-              timestamp: timestamp
-            },
-            %UnspentOutput{
-              from: random_address(),
-              amount: 10,
-              type: {:token, muco_addr2, 0},
-              timestamp: timestamp
-            }
-          ]
-        )
-        | transaction:
-            TransactionFactory.create_non_valided_transaction(
-              ledger: %Ledger{
-                token: %TokenLedger{
-                  transfers: [
-                    %TokenLedger.Transfer{
-                      token_address: muco_addr1,
-                      token_id: 0,
-                      to: transfer_address,
-                      amount: 10
-                    },
-                    %TokenLedger.Transfer{
-                      token_address: muco_addr2,
-                      token_id: 0,
-                      to: transfer_address,
-                      amount: 10
-                    }
-                  ]
-                }
+      utxos = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 204_000_000,
+          type: :UCO,
+          timestamp: timestamp
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10,
+          type: {:token, muco_addr1, 0},
+          timestamp: timestamp
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10,
+          type: {:token, muco_addr2, 0},
+          timestamp: timestamp
+        }
+      ]
+
+      transaction_opts = [
+        ledger: %Ledger{
+          token: %TokenLedger{
+            transfers: [
+              %TokenLedger.Transfer{
+                token_address: muco_addr1,
+                token_id: 0,
+                to: transfer_address,
+                amount: 10
+              },
+              %TokenLedger.Transfer{
+                token_address: muco_addr2,
+                token_id: 0,
+                to: transfer_address,
+                amount: 10
               }
-            ),
-          resolved_addresses: %{transfer_address => resolved_address}
-      }
+            ]
+          }
+        }
+      ]
+
+      validation_context =
+        create_context(timestamp, unspent_outputs: utxos, transaction_opts: transaction_opts)
 
       assert %ValidationContext{validation_stamp: %ValidationStamp{ledger_operations: ops}} =
                ValidationContext.create_validation_stamp(validation_context)
 
-      assert [
-               %TransactionMovement{to: ^resolved_address, amount: 20, type: :UCO}
-             ] = ops.transaction_movements
+      assert [%TransactionMovement{to: ^transfer_address, amount: 20, type: :UCO}] =
+               ops.transaction_movements
 
-      assert 111 =
-               Enum.reduce(ops.consumed_inputs, 0, fn %VersionedUnspentOutput{
-                                                        unspent_output: utxo
-                                                      },
-                                                      acc ->
-                 case utxo do
-                   %UnspentOutput{amount: 204_000_000, type: :UCO} -> acc + 1
-                   %UnspentOutput{amount: 10, type: {:token, ^muco_addr1, 0}} -> acc + 10
-                   %UnspentOutput{amount: 10, type: {:token, ^muco_addr2, 0}} -> acc + 100
-                 end
-               end)
+      assert utxos
+             |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+             |> MapSet.new()
+             |> MapSet.equal?(MapSet.new(ops.consumed_inputs))
+
+      remaining_uco = 204_000_000 - ops.fee
+      tx_address = validation_context.transaction.address
+
+      assert [%UnspentOutput{from: ^tx_address, amount: ^remaining_uco, type: :UCO}] =
+               ops.unspent_outputs
     end
   end
 
@@ -584,27 +585,36 @@ defmodule Archethic.Mining.ValidationContextTest do
     Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
+    default_utxo = %UnspentOutput{
+      from: "@Alice2",
+      amount: 204_000_000,
+      type: :UCO,
+      timestamp: validation_time
+    }
+
     unspent_outputs =
-      [
-        %UnspentOutput{
-          from: "@Alice2",
-          amount: 204_000_000,
-          type: :UCO,
-          timestamp: validation_time
-        }
-        | Keyword.get(opts, :utxos, [])
-      ]
+      opts
+      |> Keyword.get(:unspent_outputs, [default_utxo])
       |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
+    tx =
+      opts
+      |> Keyword.get(:transaction_opts, [])
+      |> TransactionFactory.create_non_valided_transaction()
+
+    resolved_addresses =
+      tx |> Transaction.get_movements() |> Enum.map(&{&1.to, &1.to}) |> Map.new()
+
     %ValidationContext{
-      transaction: TransactionFactory.create_non_valided_transaction(),
+      transaction: tx,
       previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: unspent_outputs,
       aggregated_utxos: unspent_outputs,
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
-      validation_time: validation_time
+      validation_time: validation_time,
+      resolved_addresses: resolved_addresses
     }
   end
 
