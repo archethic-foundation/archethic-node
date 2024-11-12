@@ -185,7 +185,13 @@ defmodule Mix.Tasks.Archethic.Db do
 
   defp fetch_transaction({{_, address}, {:chain, genesis_address}}, authorized_nodes) do
     nodes = Election.chain_storage_nodes(address, authorized_nodes)
-    {:ok, tx} = TransactionChain.fetch_transaction(address, nodes, timeout: 18_000)
+
+    {:ok, tx} =
+      TransactionChain.fetch_transaction(address, nodes,
+        timeout: 18_000,
+        acceptance_resolver: :accept_transaction
+      )
+
     {genesis_address, tx}
   end
 
