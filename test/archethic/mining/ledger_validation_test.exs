@@ -349,6 +349,20 @@ defmodule Archethic.Mining.LedgerValidationTest do
   end
 
   describe "validate_sufficient_funds/2" do
+    test "should set the movement in the struct" do
+      movements = [
+        %TransactionMovement{
+          to: "@JeanClaude",
+          amount: 100_000_000,
+          type: {:token, "@CharlieToken", 0}
+        }
+      ]
+
+      assert %LedgerValidation{transaction_movements: ^movements} =
+               %LedgerValidation{fee: 1_000}
+               |> LedgerValidation.validate_sufficient_funds(movements)
+    end
+
     test "should return insufficient funds when not enough uco" do
       assert %LedgerValidation{sufficient_funds?: false} =
                %LedgerValidation{fee: 1_000} |> LedgerValidation.validate_sufficient_funds([])
