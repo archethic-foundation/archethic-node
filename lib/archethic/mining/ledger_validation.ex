@@ -581,6 +581,4 @@ defmodule Archethic.Mining.LedgerValidation do
 
   defp next_state(ops = %__MODULE__{state: :inputs_consumed}),
     do: %__MODULE__{ops | state: :movements_resolved}
-
-  defp next_state(ops = %__MODULE__{state: :movements_resolved}), do: ops
 end
