@@ -81,7 +81,8 @@ defmodule Archethic.P2P.Message do
     SmartContractCallValidation,
     GetDashboardData,
     DashboardData,
-    UnlockChain
+    UnlockChain,
+    UpdateLastAddress
   }
 
   require Logger
@@ -135,6 +136,7 @@ defmodule Archethic.P2P.Message do
           | GetDashboardData.t()
           | RequestChainLock.t()
           | UnlockChain.t()
+          | UpdateLastAddress.t()
 
   @type response ::
           Ok.t()
