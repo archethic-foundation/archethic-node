@@ -374,6 +374,34 @@ defmodule Archethic.TransactionChainTest do
   end
 
   describe "fetch_transaction/2" do
+    test "should send a repair message to nodes that does not have it" do
+      me = self()
+
+      nodes = [node1 | _] = add_and_connect_nodes(4)
+      tx = TransactionFactory.create_valid_transaction()
+      address = tx.address
+      genesis_address = tx.validation_stamp.genesis_address
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, tx}
+
+        node, %ShardRepair{storage_address: ^address, genesis_address: ^genesis_address}, _ ->
+          send(me, {:shardrepair, node.first_public_key})
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^tx} = TransactionChain.fetch_transaction(address, nodes)
+
+      expected_node_pkey = node1.first_public_key
+      assert_receive {:shardrepair, ^expected_node_pkey}, 100
+      refute_received _
+    end
+
     test "should get the transaction from DB" do
       nodes = [
         %Node{
