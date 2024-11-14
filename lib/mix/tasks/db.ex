@@ -179,6 +179,8 @@ defmodule Mix.Tasks.Archethic.Db do
 
   defp list_chain_addresses(genesis_address) do
     ChainIndex.list_chain_addresses(genesis_address, DB.filepath())
+    # Remove 0 address as it does not exists
+    |> Stream.reject(fn {address, _} -> :binary.decode_unsigned(address) == 0 end)
     |> Stream.map(fn {address, timestamp} -> {address, timestamp, genesis_address} end)
     |> Enum.to_list()
   end
