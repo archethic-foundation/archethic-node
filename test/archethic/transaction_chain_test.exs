@@ -24,6 +24,7 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionSummaryMessage
   alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.UpdateLastAddress
   alias Archethic.P2P.Node
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -341,6 +342,34 @@ defmodule Archethic.TransactionChainTest do
                  consistency_level: consistency_level,
                  acceptance_resolver: acceptance_resolver
                )
+    end
+
+    test "should send a repair message to nodes that have not the latest" do
+      address = random_address()
+      latest = random_address()
+      non_latest = random_address()
+      me = self()
+
+      nodes = [node1 | _] = add_and_connect_nodes(4)
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: non_latest, timestamp: ~U[2023-01-01 00:00:00Z]}}
+
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: latest, timestamp: ~U[2024-01-01 00:00:00Z]}}
+
+        node, %UpdateLastAddress{address: ^address}, _ ->
+          send(me, {:updatelastaddress, node.first_public_key})
+          {:ok, %Ok{}}
+      end)
+
+      assert {:ok, ^latest} = TransactionChain.fetch_last_address(address, nodes)
+
+      expected_node_pkey = node1.first_public_key
+      assert_receive {:updatelastaddress, ^expected_node_pkey}, 100
+      refute_received _
     end
   end
 
