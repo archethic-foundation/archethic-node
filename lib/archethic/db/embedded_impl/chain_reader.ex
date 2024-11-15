@@ -50,8 +50,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           fd
           |> read_transaction(column_names, size, 0)
           |> Enum.into(%{})
-          |> decode_transaction_columns(version)
           |> set_genesis_address(genesis_address)
+          |> decode_transaction_columns(version)
 
         File.close(fd)
 
@@ -398,8 +398,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           tx =
             fd
             |> read_transaction(fields, size, 0)
-            |> decode_transaction_columns(version)
             |> set_genesis_address(genesis_address)
+            |> decode_transaction_columns(version)
 
           get_paginated_chain(fd, genesis_address, fields, [tx | acc])
         end
@@ -560,7 +560,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     |> Transaction.cast()
   end
 
-  defp set_genesis_address(tx = %Transaction{}, genesis_address) do
-    put_in(tx, [Access.key!(:validation_stamp), Access.key!(:genesis_address)], genesis_address)
+  defp set_genesis_address(column_values, genesis_address) do
+    Map.put(column_values, "validation_stamp.genesis_address", genesis_address)
   end
 end
