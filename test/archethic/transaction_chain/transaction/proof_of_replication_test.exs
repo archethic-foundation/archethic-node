@@ -95,6 +95,33 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplicationTest do
     end
   end
 
+  describe "elected_node?/2" do
+    test "should return true if node is elected", %{
+      transaction_summary: %TransactionSummary{address: tx_address},
+      proof_signatures: [signature | _]
+    } do
+      assert P2P.authorized_and_available_nodes()
+             |> ProofOfReplication.get_election(tx_address)
+             |> ProofOfReplication.elected_node?(signature)
+    end
+
+    test "should return false if node is not elected", %{
+      transaction_summary: tx_summary = %TransactionSummary{address: tx_address},
+      nodes: nodes
+    } do
+      elected_nodes =
+        %ElectedNodes{storage_nodes: storage_nodes} =
+        P2P.authorized_and_available_nodes() |> ProofOfReplication.get_election(tx_address)
+
+      not_elected_node =
+        Enum.find(nodes, fn {_, node} -> not Enum.member?(storage_nodes, node) end)
+
+      invalid_signature = create_proof_signature(not_elected_node, tx_summary)
+
+      refute ProofOfReplication.elected_node?(elected_nodes, invalid_signature)
+    end
+  end
+
   describe "create/2" do
     test "should aggregate signatures and create bitmask of which node signed", %{
       transaction_summary: %TransactionSummary{address: tx_address},

@@ -68,6 +68,16 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfReplication do
   end
 
   @doc """
+  Returns true if a node public key is part of the elected nodes
+  """
+  @spec elected_node?(nodes :: ElectedNodes.t(), signature :: Signature.t()) :: boolean()
+  def elected_node?(
+        %ElectedNodes{storage_nodes: nodes},
+        %Signature{node_public_key: node_public_key}
+      ),
+      do: Utils.key_in_node_list?(nodes, node_public_key)
+
+  @doc """
   Determines if enough signatures have been received to create the aggregated signature
   Returns
     - :reached if enough stamps are valid

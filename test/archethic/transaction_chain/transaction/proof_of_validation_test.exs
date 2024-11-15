@@ -56,6 +56,33 @@ defmodule Archethic.TransactionChain.Transaction.ProofOfValidationTest do
     %{nodes: nodes, transaction: tx, cross_stamps: cross_stamps}
   end
 
+  describe "elected_node?/2" do
+    test "should return true if node is elected", %{
+      cross_stamps: [stamp | _],
+      transaction: %Transaction{address: tx_address}
+    } do
+      assert P2P.authorized_and_available_nodes()
+             |> ProofOfValidation.get_election(tx_address)
+             |> ProofOfValidation.elected_node?(stamp)
+    end
+
+    test "should return false if node is not elected", %{
+      transaction: %Transaction{address: tx_address, validation_stamp: stamp},
+      nodes: nodes
+    } do
+      elected_nodes =
+        %ElectedNodes{validation_nodes: validation_nodes} =
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx_address)
+
+      not_elected_node =
+        Enum.find(nodes, fn {_, node} -> not Enum.member?(validation_nodes, node) end)
+
+      invalid_cross_stamp = create_cross_stamp(not_elected_node, stamp, [])
+
+      refute ProofOfValidation.elected_node?(elected_nodes, invalid_cross_stamp)
+    end
+  end
+
   describe "get_state/2" do
     test "should return :reached when threshold is reached", %{
       nodes: nodes,
