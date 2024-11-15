@@ -44,7 +44,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
   - Error: Error returned by the pending transaction validation or after mining context
   - Protocol version: Version of the protocol
-  - Genesis address: Genesis of the chain. **It is not present in the serialization**
+  - Genesis address: Genesis of the chain. Added in protocol_version=9
   """
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
@@ -153,11 +153,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   @doc """
   Deserialize an encoded validation stamp
-  Opts:
-    deserialize_genesis?: true | false
+
+  Never used after a serialize(serialize_genesis?: false)
   """
-  @spec deserialize(bin :: bitstring(), Keyword.t()) :: {t(), bitstring()}
-  def deserialize(<<version::32, timestamp::64, rest::bitstring>>, opts \\ []) do
+  @spec deserialize(bin :: bitstring()) :: {t(), bitstring()}
+  def deserialize(<<version::32, timestamp::64, rest::bitstring>>) do
     <<pow_curve_id::8, pow_origin_id::8, rest::bitstring>> = rest
     pow_key_size = Crypto.key_size(pow_curve_id)
     <<pow_key::binary-size(pow_key_size), rest::bitstring>> = rest
@@ -178,12 +178,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
-    {genesis_address, rest} =
-      if Keyword.get(opts, :deserialize_genesis?, true) do
-        Utils.deserialize_address(rest)
-      else
-        {nil, rest}
-      end
+    {genesis_address, rest} = Utils.deserialize_address(rest)
 
     {
       %__MODULE__{

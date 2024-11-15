@@ -142,6 +142,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
 
   test "should support serialize_genesis? flag" do
     stamp = %ValidationStamp{
+      genesis_address: random_address(),
       timestamp: ~U[2021-05-07 13:11:19.000Z],
       proof_of_work:
         <<0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37, 155,
@@ -178,10 +179,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
       protocol_version: current_protocol_version()
     }
 
-    assert stamp ==
-             stamp
-             |> ValidationStamp.serialize(serialize_genesis?: false)
-             |> ValidationStamp.deserialize(deserialize_genesis?: false)
-             |> elem(0)
+    refute ValidationStamp.serialize(stamp) ==
+             ValidationStamp.serialize(stamp, serialize_genesis?: false)
   end
 end
