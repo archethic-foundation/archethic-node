@@ -5,6 +5,8 @@ defmodule Archethic.Bootstrap do
 
   alias Archethic.Crypto
 
+  alias Archethic.P2P.GeoPatch
+
   alias Archethic.Networking
 
   alias Archethic.P2P
@@ -98,15 +100,17 @@ defmodule Archethic.Bootstrap do
       )
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
     network_patch = get_network_patch(ip)
+    geo_patch = GeoPatch.from_ip(ip)
 
     closest_bootstrapping_nodes = get_closest_nodes(bootstrapping_seeds, network_patch)
 
-    if should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
+    if should_bootstrap?(ip, port, http_port, transport, geo_patch, last_sync_date) do
       start_bootstrap(
         ip,
         port,
         http_port,
         transport,
+        geo_patch,
         closest_bootstrapping_nodes,
         reward_address
       )
@@ -147,12 +151,12 @@ defmodule Archethic.Bootstrap do
     end
   end
 
-  defp should_bootstrap?(_ip, _port, _http_port, _, nil), do: true
+  defp should_bootstrap?(_ip, _port, _http_port, _, _, nil), do: true
 
-  defp should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
+  defp should_bootstrap?(ip, port, http_port, transport, geo_patch, last_sync_date) do
     case P2P.get_node_info(Crypto.first_node_public_key()) do
       {:ok, _} ->
-        if Sync.require_update?(ip, port, http_port, transport, last_sync_date) do
+        if Sync.require_update?(ip, port, http_port, transport, geo_patch, last_sync_date) do
           Logger.debug("Node chain need to updated")
           true
         else
@@ -171,6 +175,7 @@ defmodule Archethic.Bootstrap do
          port,
          http_port,
          transport,
+         geo_patch,
          closest_bootstrapping_nodes,
          configured_reward_address
        ) do
@@ -187,7 +192,8 @@ defmodule Archethic.Bootstrap do
             port,
             http_port,
             transport,
-            configured_reward_address
+            configured_reward_address,
+            geo_patch
           )
 
         Sync.initialize_network(tx)
@@ -203,7 +209,8 @@ defmodule Archethic.Bootstrap do
           http_port,
           transport,
           closest_bootstrapping_nodes,
-          configured_reward_address
+          configured_reward_address,
+          geo_patch
         )
 
       true ->
@@ -215,7 +222,8 @@ defmodule Archethic.Bootstrap do
           )
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate, _mining_public_key} = Node.decode_transaction_content(content)
+         _key_certificate, _mining_public_key,
+         _geo_patch} = Node.decode_transaction_content(content)
 
         update_node(
           ip,
@@ -223,7 +231,8 @@ defmodule Archethic.Bootstrap do
           http_port,
           transport,
           closest_bootstrapping_nodes,
-          last_reward_address
+          last_reward_address,
+          geo_patch
         )
     end
   end
@@ -265,7 +274,8 @@ defmodule Archethic.Bootstrap do
          http_port,
          transport,
          closest_bootstrapping_nodes,
-         configured_reward_address
+         configured_reward_address,
+         geo_patch
        ) do
     # In case node had lose it's DB, we ask the network if the node chain already exists
     {:ok, length} =
@@ -286,7 +296,8 @@ defmodule Archethic.Bootstrap do
           TransactionChain.fetch_transaction(last_address, closest_bootstrapping_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate, _mining_public_key} = Node.decode_transaction_content(content)
+         _key_certificate, _mining_public_key,
+         _geo_patch} = Node.decode_transaction_content(content)
 
         last_reward_address
       else
@@ -294,7 +305,14 @@ defmodule Archethic.Bootstrap do
       end
 
     tx =
-      TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
+      TransactionHandler.create_node_transaction(
+        ip,
+        port,
+        http_port,
+        transport,
+        reward_address,
+        geo_patch
+      )
 
     {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
@@ -307,18 +325,27 @@ defmodule Archethic.Bootstrap do
     )
   end
 
-  defp update_node(_ip, _port, _http_port, _transport, [], _reward_address) do
+  defp update_node(_ip, _port, _http_port, _transport, [], _reward_address, _geo_patch) do
     Logger.warning("Not enough nodes in the network. No node update")
   end
 
-  defp update_node(ip, port, http_port, transport, closest_bootstrapping_nodes, reward_address) do
+  defp update_node(
+         ip,
+         port,
+         http_port,
+         transport,
+         closest_bootstrapping_nodes,
+         reward_address,
+         geo_patch
+       ) do
     tx =
       TransactionHandler.create_node_transaction(
         ip,
         port,
         http_port,
         transport,
-        reward_address
+        reward_address,
+        geo_patch
       )
 
     {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)

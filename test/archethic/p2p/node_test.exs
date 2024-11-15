@@ -41,18 +41,19 @@ defmodule Archethic.P2P.NodeTest do
       mining_public_key = ArchethicCase.random_public_key()
 
       assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, ^reward_address, ^origin_public_key,
-              ^certificate,
-              ^mining_public_key} =
-               Node.encode_transaction_content(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 reward_address,
-                 origin_public_key,
-                 certificate,
-                 mining_public_key
-               )
+              ^certificate, ^mining_public_key,
+              "000"} =
+               Node.encode_transaction_content(%{
+                 ip: {127, 0, 0, 1},
+                 port: 3000,
+                 http_port: 4000,
+                 transport: :tcp,
+                 reward_address: reward_address,
+                 origin_public_key: origin_public_key,
+                 key_certificate: certificate,
+                 mining_public_key: mining_public_key,
+                 geo_patch: "000"
+               })
                |> Node.decode_transaction_content()
     end
   end

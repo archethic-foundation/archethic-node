@@ -146,13 +146,21 @@ defmodule Archethic.Bootstrap.SyncTest do
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         transport: :tcp,
+        geo_patch: "AAA",
         authorized?: true,
         available?: true,
         authorization_date: DateTime.utc_now()
       })
 
       assert false ==
-               Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :tcp, DateTime.utc_now())
+               Sync.require_update?(
+                 {193, 101, 10, 202},
+                 3000,
+                 4000,
+                 :tcp,
+                 "AAA",
+                 DateTime.utc_now()
+               )
     end
 
     test "should return true when the node ip change" do
@@ -161,7 +169,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         port: 3000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       P2P.add_and_connect_node(%Node{
@@ -170,10 +179,18 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
-      assert Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :tcp, DateTime.utc_now())
+      assert Sync.require_update?(
+               {193, 101, 10, 202},
+               3000,
+               4000,
+               :tcp,
+               "AAA",
+               DateTime.utc_now()
+             )
     end
 
     test "should return true when the node port change" do
@@ -182,7 +199,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         port: 3000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       P2P.add_and_connect_node(%Node{
@@ -191,10 +209,34 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
-      assert Sync.require_update?({127, 0, 0, 1}, 3010, 4000, :tcp, DateTime.utc_now())
+      assert Sync.require_update?({127, 0, 0, 1}, 3010, 4000, :tcp, "AAA", DateTime.utc_now())
+    end
+
+    test "should return true when the geopatch changes" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        transport: :tcp,
+        geo_patch: "AAA"
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3050,
+        http_port: 4000,
+        first_public_key: "other_node_key",
+        last_public_key: "other_node_key",
+        transport: :tcp,
+        geo_patch: "AAA"
+      })
+
+      assert Sync.require_update?({127, 0, 0, 1}, 3000, 4000, :tcp, "BBB", DateTime.utc_now())
     end
 
     test "should return true when the last date of sync diff is greater than 3 seconds" do
@@ -204,7 +246,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       P2P.add_and_connect_node(%Node{
@@ -213,7 +256,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       assert Sync.require_update?(
@@ -221,6 +265,7 @@ defmodule Archethic.Bootstrap.SyncTest do
                3000,
                4000,
                :tcp,
+               "AAA",
                DateTime.utc_now()
                |> DateTime.add(-10)
              )
@@ -233,7 +278,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       P2P.add_and_connect_node(%Node{
@@ -242,11 +288,19 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
-        transport: :tcp
+        transport: :tcp,
+        geo_patch: "AAA"
       })
 
       assert true ==
-               Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :sctp, DateTime.utc_now())
+               Sync.require_update?(
+                 {193, 101, 10, 202},
+                 3000,
+                 4000,
+                 :sctp,
+                 "AAA",
+                 DateTime.utc_now()
+               )
     end
   end
 
@@ -308,16 +362,17 @@ defmodule Archethic.Bootstrap.SyncTest do
       node_tx =
         Transaction.new(:node, %TransactionData{
           content:
-            Node.encode_transaction_content(
-              {127, 0, 0, 1},
-              3000,
-              4000,
-              :tcp,
-              ArchethicCase.random_public_key(),
-              ArchethicCase.random_public_key(),
-              :crypto.strong_rand_bytes(64),
-              Crypto.generate_random_keypair(:bls) |> elem(0)
-            )
+            Node.encode_transaction_content(%{
+              ip: {127, 0, 0, 1},
+              port: 3000,
+              http_port: 4000,
+              transport: :tcp,
+              reward_address: ArchethicCase.random_public_key(),
+              origin_public_key: ArchethicCase.random_public_key(),
+              key_certificate: :crypto.strong_rand_bytes(64),
+              mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+              geo_patch: "000"
+            })
         })
 
       :ok = Sync.initialize_network(node_tx)

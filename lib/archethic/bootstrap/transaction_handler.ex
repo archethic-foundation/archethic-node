@@ -73,13 +73,21 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           p2p_port :: :inet.port_number(),
           http_port :: :inet.port_number(),
           transport :: P2P.supported_transport(),
-          reward_address :: Crypto.versioned_hash()
+          reward_address :: Crypto.versioned_hash(),
+          geo_patch :: binary()
         ) ::
           Transaction.t()
-  def create_node_transaction(ip = {_, _, _, _}, port, http_port, transport, reward_address)
+  def create_node_transaction(
+        ip = {_, _, _, _},
+        port,
+        http_port,
+        transport,
+        reward_address,
+        geo_patch
+      )
       when is_number(port) and port >= 0 and is_binary(reward_address) do
     origin_public_key = Crypto.origin_node_public_key()
-    origin_public_key_certificate = Crypto.get_key_certificate(origin_public_key)
+    origin_public_certificate = Crypto.get_key_certificate(origin_public_key)
     mining_public_key = Crypto.mining_node_public_key()
 
     Transaction.new(:node, %TransactionData{
@@ -94,16 +102,17 @@ defmodule Archethic.Bootstrap.TransactionHandler do
         ]
       """,
       content:
-        Node.encode_transaction_content(
-          ip,
-          port,
-          http_port,
-          transport,
-          reward_address,
-          origin_public_key,
-          origin_public_key_certificate,
-          mining_public_key
-        )
+        Node.encode_transaction_content(%{
+          ip: ip,
+          port: port,
+          http_port: http_port,
+          transport: transport,
+          reward_address: reward_address,
+          origin_public_key: origin_public_key,
+          key_certificate: origin_public_certificate,
+          mining_public_key: mining_public_key,
+          geo_patch: geo_patch
+        })
     })
   end
 end
