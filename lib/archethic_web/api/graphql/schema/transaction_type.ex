@@ -146,6 +146,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:ledger_operations, :ledger_operations)
     field(:signature, :hex)
     field(:protocol_version, :integer)
+    field(:genesis_address, :hex)
   end
 
   @desc """
