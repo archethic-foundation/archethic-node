@@ -1025,13 +1025,18 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def code_change(2, state, data, _extra) do
     {:ok, state,
      case Map.get(data, :context) do
-       %{context: %ValidationContext{genesis_address: genesis_address, validation_stamp: stamp}}
+       ctx = %Archethic.Mining.ValidationContext{
+         genesis_address: genesis_address,
+         validation_stamp: stamp
+       }
        when not is_nil(genesis_address) and not is_nil(stamp) ->
-         update_in(
-           data,
-           [:context, Access.key!(:validation_stamp), Access.key!(:genesis_address)],
-           genesis_address
-         )
+         %{
+           data
+           | context: %Archethic.Mining.ValidationContext{
+               ctx
+               | validation_stamp: Map.put(stamp, :genesis_address, genesis_address)
+             }
+         }
 
        _ ->
          data
