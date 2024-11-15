@@ -95,7 +95,7 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
       1 ->
         socket
         |> update(:transactions, fn tx_list ->
-          [display_data(address, type, timestamp) | tx_list]
+          [display_data(Reward.genesis_address(), address, type, timestamp) | tx_list]
           |> Enum.take(@display_limit)
         end)
         |> assign(:tx_count, tx_count + 1)
@@ -115,13 +115,14 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
       if nb_drops < 0, do: {0, @display_limit + nb_drops}, else: {nb_drops, @display_limit}
 
     case Reward.genesis_address() do
-      address when is_binary(address) ->
-        address
+      genesis_address when is_binary(genesis_address) ->
+        genesis_address
         |> TransactionChain.list_chain_addresses()
         |> Stream.drop(nb_drops)
         |> Stream.take(display_limit)
         |> Stream.map(fn {addr, timestamp} ->
           display_data(
+            genesis_address,
             addr,
             (TransactionChain.get_transaction(addr, [:type]) |> elem(1)).type,
             timestamp
@@ -135,12 +136,13 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
   end
 
   @spec display_data(
-          address :: binary(),
+          genesis_address :: Crypto.prepended_hash(),
+          address :: Crypto.prepended_hash(),
           type :: :node_rewards | :mint_rewards,
           timestamp :: DateTime.t()
         ) ::
           map()
-  defp display_data(address, type, timestamp) do
-    %{address: address, type: type, timestamp: timestamp}
+  defp display_data(genesis_address, address, type, timestamp) do
+    %{genesis_address: genesis_address, address: address, type: type, timestamp: timestamp}
   end
 end

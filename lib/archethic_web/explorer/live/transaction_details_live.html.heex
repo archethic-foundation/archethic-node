@@ -19,7 +19,7 @@
           <% end %>
         </div>
       <% end %>
-      <%= if @address != burning_address() do %>
+      <%= if @address != burning_address() && not is_nil(@transaction) do %>
         <div class="level-item">
           <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@transaction.validation_stamp.genesis_address)) do %>
             <span>Explore chain</span>
