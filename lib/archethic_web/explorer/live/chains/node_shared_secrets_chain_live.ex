@@ -3,6 +3,7 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
 
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
