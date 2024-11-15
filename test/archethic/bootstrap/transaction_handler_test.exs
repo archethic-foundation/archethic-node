@@ -18,7 +18,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
   import Mox
 
-  test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
+  test "create_node_transaction/4 should create transaction with ip, geopatch and port encoded in the content" do
     assert %Transaction{
              data: %TransactionData{
                content: content
@@ -29,11 +29,12 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
                3000,
                4000,
                :tcp,
-               <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+               <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+               "000"
              )
 
     assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, _reward_address, _origin_public_key, _cert,
-            mining_public_key} = Node.decode_transaction_content(content)
+            mining_public_key, "000"} = Node.decode_transaction_content(content)
 
     assert Archethic.Crypto.mining_node_public_key() == mining_public_key
   end
@@ -59,7 +60,8 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
         3000,
         4000,
         :tcp,
-        "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+        "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45",
+        "000"
       )
 
     validated_transaction = %Transaction{

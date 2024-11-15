@@ -40,16 +40,17 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
         type: :node,
         data: %TransactionData{
           content:
-            Node.encode_transaction_content(
-              {127, 0, 0, 1},
-              3000,
-              4000,
-              :tcp,
-              ArchethicCase.random_address(),
-              origin_public_key,
-              :crypto.strong_rand_bytes(32),
-              Crypto.generate_random_keypair(:bls) |> elem(0)
-            )
+            Node.encode_transaction_content(%{
+              ip: {127, 0, 0, 1},
+              port: 3000,
+              http_port: 4000,
+              transport: :tcp,
+              reward_address: ArchethicCase.random_address(),
+              origin_public_key: origin_public_key,
+              key_certificate: :crypto.strong_rand_bytes(32),
+              mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+              geo_patch: "000"
+            })
         }
       }
 
@@ -152,16 +153,17 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
         type: :node,
         data: %TransactionData{
           content:
-            Node.encode_transaction_content(
-              {127, 0, 0, 1},
-              3000,
-              4000,
-              :tcp,
-              ArchethicCase.random_address(),
-              node_origin_public_key,
-              :crypto.strong_rand_bytes(32),
-              Crypto.generate_random_keypair(:bls) |> elem(0)
-            )
+            Node.encode_transaction_content(%{
+              ip: {127, 0, 0, 1},
+              port: 3000,
+              http_port: 4000,
+              transport: :tcp,
+              reward_address: ArchethicCase.random_address(),
+              origin_public_key: node_origin_public_key,
+              key_certificate: :crypto.strong_rand_bytes(32),
+              mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+              geo_patch: "000"
+            })
         }
       }
 

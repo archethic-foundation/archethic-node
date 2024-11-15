@@ -105,7 +105,9 @@ defmodule Archethic.P2P.MemTableLoader do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
     {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate,
-     mining_public_key} = Node.decode_transaction_content(content)
+     mining_public_key, geo_patch} = Node.decode_transaction_content(content)
+
+    geo_patch = if geo_patch == nil, do: GeoPatch.from_ip(ip), else: geo_patch
 
     if first_node_change?(first_public_key, previous_public_key) do
       node = %Node{
@@ -114,7 +116,7 @@ defmodule Archethic.P2P.MemTableLoader do
         http_port: http_port,
         first_public_key: first_public_key,
         last_public_key: previous_public_key,
-        geo_patch: GeoPatch.from_ip(ip),
+        geo_patch: geo_patch,
         transport: transport,
         last_address: address,
         reward_address: reward_address,
@@ -135,7 +137,7 @@ defmodule Archethic.P2P.MemTableLoader do
           port: port,
           http_port: http_port,
           last_public_key: previous_public_key,
-          geo_patch: GeoPatch.from_ip(ip),
+          geo_patch: geo_patch,
           transport: transport,
           last_address: address,
           reward_address: reward_address,
