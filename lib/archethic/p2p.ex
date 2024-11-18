@@ -768,34 +768,40 @@ defmodule Archethic.P2P do
     |> sort_by_nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
     |> Enum.chunk_every(consistency_level)
-    |> Enum.reduce_while({nil, []}, fn nodes, {previous_result_acc, all_results_acc} ->
-      results_by_node = send_message_and_filter_results(nodes, message, timeout)
-      all_results_acc = results_by_node ++ all_results_acc
-      {_nodes, results} = Enum.unzip(results_by_node)
+    |> Enum.reduce_while(
+      {:not_enough_results, nil, []},
+      fn nodes, {_, previous_result_acc, all_results_acc} ->
+        results_by_node = send_message_and_filter_results(nodes, message, timeout)
+        all_results_acc = results_by_node ++ all_results_acc
+        {_nodes, results} = Enum.unzip(results_by_node)
 
-      with {:ok, results} <- enough_results(previous_result_acc, results),
-           result <- resolve_conflicts(results, conflict_resolver),
-           :ok <- result_accepted(result, acceptance_resolver) do
-        {:halt, {result, all_results_acc}}
-      else
-        {:error, previous_result} ->
-          {:cont, {previous_result, all_results_acc}}
+        with {:ok, results} <- enough_results(previous_result_acc, results),
+             result <- resolve_conflicts(results, conflict_resolver),
+             :ok <- result_accepted(result, acceptance_resolver) do
+          {:halt, {:accepted, result, all_results_acc}}
+        else
+          {reason, previous_result} ->
+            {:cont, {reason, previous_result, all_results_acc}}
+        end
       end
-    end)
-    |> then(fn {result, all_results} ->
-      cond do
-        is_nil(result) ->
-          maybe_async_repair(nil, all_results, repair_fun)
-          {:error, :network_issue}
+    )
+    |> then(fn
+      {:accepted, result, all_results} ->
+        maybe_async_repair(result, all_results, repair_fun)
+        {:ok, result}
 
-        acceptance_resolver.(result) ->
+      {:not_enough_results, result, all_results} ->
+        if acceptance_resolver.(result) do
           maybe_async_repair(result, all_results, repair_fun)
           {:ok, result}
-
-        true ->
+        else
           maybe_async_repair(nil, all_results, repair_fun)
           {:error, :acceptance_failed}
-      end
+        end
+
+      {reason, _, all_results} ->
+        maybe_async_repair(nil, all_results, repair_fun)
+        {:error, reason}
     end)
   end
 
@@ -814,10 +820,10 @@ defmodule Archethic.P2P do
 
   # returns ok if we have 2 results
   # we should probably use the consistency level
-  defp enough_results(nil, []), do: {:error, nil}
-  defp enough_results(nil, [result]), do: {:error, result}
+  defp enough_results(nil, []), do: {:network_issue, nil}
+  defp enough_results(nil, [result]), do: {:not_enough_results, result}
   defp enough_results(nil, results), do: {:ok, results}
-  defp enough_results(previous_result, []), do: {:error, previous_result}
+  defp enough_results(previous_result, []), do: {:not_enough_results, previous_result}
   defp enough_results(previous_result, results), do: {:ok, [previous_result | results]}
 
   defp resolve_conflicts(results, conflict_resolver) do
@@ -831,7 +837,7 @@ defmodule Archethic.P2P do
     if acceptance_resolver.(result) do
       :ok
     else
-      {:error, result}
+      {:acceptance_failed, result}
     end
   end
 
