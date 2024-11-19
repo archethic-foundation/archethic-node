@@ -2,8 +2,8 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   @moduledoc """
   Represents a message to initiate the replication of the transaction
   """
-  @enforce_keys [:transaction, :genesis_address, :proof_of_validation]
-  defstruct [:transaction, :genesis_address, :proof_of_validation]
+  @enforce_keys [:transaction, :genesis_address]
+  defstruct [:transaction, :genesis_address]
 
   alias Archethic.Crypto
   alias Archethic.Election
@@ -19,8 +19,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
-          genesis_address: Crypto.prepended_hash(),
-          proof_of_validation: ProofOfValidation.t()
+          genesis_address: Crypto.prepended_hash()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
@@ -29,10 +28,10 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           transaction:
             tx = %Transaction{
               address: tx_address,
-              validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
+              validation_stamp: stamp = %ValidationStamp{timestamp: validation_time},
+              proof_of_validation: proof_of_validation
             },
-          genesis_address: genesis_address,
-          proof_of_validation: proof_of_validation
+          genesis_address: genesis_address
         },
         _
       ) do
@@ -101,22 +100,15 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{
-        transaction: tx,
-        genesis_address: genesis_address,
-        proof_of_validation: proof
-      }) do
-    <<Transaction.serialize(tx)::bitstring, genesis_address::binary,
-      ProofOfValidation.serialize(proof)::bitstring>>
+  def serialize(%__MODULE__{transaction: tx, genesis_address: genesis_address}) do
+    <<Transaction.serialize(tx)::bitstring, genesis_address::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) when is_bitstring(bin) do
     {tx, rest} = Transaction.deserialize(bin)
     {genesis_address, rest} = Utils.deserialize_address(rest)
-    {proof, rest} = ProofOfValidation.deserialize(rest)
 
-    {%__MODULE__{transaction: tx, genesis_address: genesis_address, proof_of_validation: proof},
-     rest}
+    {%__MODULE__{transaction: tx, genesis_address: genesis_address}, rest}
   end
 end

@@ -54,7 +54,7 @@ defmodule Archethic.ContractFactory do
     """
   end
 
-  def create_valid_contract_tx(code, opts \\ []) do
+  def create_valid_contract_tx_with_cross_stamps(code, opts \\ []) do
     opts = Keyword.update(opts, :seed, random_seed(), fn seed -> seed end)
     seed = Keyword.fetch!(opts, :seed)
     ownerships = Keyword.get(opts, :ownerships, [])
@@ -84,10 +84,15 @@ defmodule Archethic.ContractFactory do
         }
       ])
 
-    TransactionFactory.create_valid_transaction(inputs, opts)
+    TransactionFactory.create_valid_transaction_with_cross_stamps(inputs, opts)
   end
 
-  def create_next_contract_tx(
+  def create_valid_contract_tx(code, opts \\ []) do
+    {tx, _} = create_valid_contract_tx_with_cross_stamps(code, opts)
+    tx
+  end
+
+  def create_next_contract_tx_with_cross_stamps(
         prev_tx = %Transaction{
           data: %TransactionData{
             code: code,
@@ -104,7 +109,12 @@ defmodule Archethic.ContractFactory do
     {:ok, seed} = Crypto.aes_decrypt(secret, aes_key)
     opts = Keyword.put(opts, :seed, seed)
 
-    create_valid_contract_tx(code, opts)
+    create_valid_contract_tx_with_cross_stamps(code, opts)
+  end
+
+  def create_next_contract_tx(prev_tx, opts) do
+    {tx, _} = create_next_contract_tx_with_cross_stamps(prev_tx, opts)
+    tx
   end
 
   def append_contract_constant(constants, contract_tx) do

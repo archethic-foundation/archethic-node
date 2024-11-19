@@ -1,6 +1,7 @@
 defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
   use ArchethicCase
   use ExUnitProperties
+  import ArchethicCase
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -30,11 +31,11 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
       }
 
       cross_stamp =
-        %CrossValidationStamp{node_public_key: node_public_key} =
+        %CrossValidationStamp{node_mining_key: node_mining_key} =
         %CrossValidationStamp{inconsistencies: inconsistencies}
         |> CrossValidationStamp.sign(validation_stamp)
 
-      assert node_public_key == pub
+      assert node_mining_key == pub
       assert CrossValidationStamp.valid_signature?(cross_stamp, validation_stamp)
     end
   end

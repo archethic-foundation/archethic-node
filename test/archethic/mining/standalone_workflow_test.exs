@@ -123,7 +123,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     receive do
       {:cross_replication_stamp, tx} ->
         cross_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
-        send(pid, {:add_cross_validation_stamp, cross_stamp, Crypto.first_node_public_key()})
+        send(pid, {:add_cross_validation_stamp, cross_stamp})
     after
       1000 -> :skip
     end
