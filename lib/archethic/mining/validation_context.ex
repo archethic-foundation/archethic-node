@@ -13,10 +13,13 @@ defmodule Archethic.Mining.ValidationContext do
     :contract_context,
     :genesis_address,
     :proof_of_validation,
-    :proof_elected_nodes,
+    :proof_of_replication,
+    :validation_proof_elected_nodes,
+    :replication_proof_elected_nodes,
     resolved_addresses: %{},
     unspent_outputs: [],
     cross_validation_stamps: [],
+    replication_signatures: [],
     cross_validation_nodes_confirmation: <<>>,
     chain_storage_nodes: [],
     chain_storage_nodes_view: <<>>,
@@ -66,8 +69,17 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
+
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.ElectedNodes,
+    as: ReplicationElectedNodes
+
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.Signature
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
-  alias Archethic.TransactionChain.Transaction.ProofOfValidation.ElectedNodes
+
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation.ElectedNodes,
+    as: ValidationElectedNodes
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -75,6 +87,8 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
 
@@ -105,7 +119,10 @@ defmodule Archethic.Mining.ValidationContext do
           },
           cross_validation_stamps: list(CrossValidationStamp.t()),
           proof_of_validation: nil | ProofOfValidation.t(),
-          proof_elected_nodes: nil | ElectedNodes.t(),
+          proof_of_replication: nil | ProofOfReplication.t(),
+          validation_proof_elected_nodes: nil | ValidationElectedNodes.t(),
+          replication_signatures: list(Signature.t()),
+          replication_proof_elected_nodes: nil | ReplicationElectedNodes.t(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
@@ -435,7 +452,7 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @doc """
-  Determines if enough cross validation stamps have been received to create the aggregated signature
+  Determines if enough cross validation stamps have been received to create the proof of validation
   Returns
     - :reached if enough stamps are valid
     - :not_reached if not enough stamps received yet
@@ -444,9 +461,9 @@ defmodule Archethic.Mining.ValidationContext do
   @spec get_cross_validation_state(t()) :: :reached | :not_reached | :error
   def get_cross_validation_state(%__MODULE__{
         cross_validation_stamps: stamps,
-        proof_elected_nodes: proof_elected_nodes
+        validation_proof_elected_nodes: elected_nodes
       }),
-      do: ProofOfValidation.get_state(proof_elected_nodes, stamps)
+      do: ProofOfValidation.get_state(elected_nodes, stamps)
 
   @doc """
   Aggregate signature of the cross validation stamps
@@ -456,13 +473,10 @@ defmodule Archethic.Mining.ValidationContext do
   def create_proof_of_validation(
         context = %__MODULE__{
           cross_validation_stamps: stamps,
-          proof_elected_nodes: proof_elected_nodes
+          validation_proof_elected_nodes: elected_nodes
         }
       ) do
-    %__MODULE__{
-      context
-      | proof_of_validation: ProofOfValidation.create(proof_elected_nodes, stamps)
-    }
+    %__MODULE__{context | proof_of_validation: ProofOfValidation.create(elected_nodes, stamps)}
   end
 
   @doc """
@@ -470,10 +484,10 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec valid_proof_of_validation?(context :: t(), proof :: ProofOfValidation.t()) :: boolean()
   def valid_proof_of_validation?(
-        %__MODULE__{proof_elected_nodes: proof_elected_nodes, validation_stamp: stamp},
+        %__MODULE__{validation_proof_elected_nodes: elected_nodes, validation_stamp: stamp},
         proof
       ) do
-    ProofOfValidation.valid?(proof_elected_nodes, proof, stamp)
+    ProofOfValidation.valid?(elected_nodes, proof, stamp)
   end
 
   @doc """
@@ -482,6 +496,77 @@ defmodule Archethic.Mining.ValidationContext do
   @spec add_proof_of_validation(context :: t(), proof :: ProofOfValidation.t()) :: t()
   def add_proof_of_validation(context, proof),
     do: %__MODULE__{context | proof_of_validation: proof}
+
+  @doc """
+  Add a replication signature in the context
+  """
+  @spec add_replication_signature(context :: t(), signature :: Signature.t()) :: t()
+  def add_replication_signature(
+        context = %__MODULE__{replication_proof_elected_nodes: elected_nodes},
+        signature
+      ) do
+    transaction_summary = get_transaction_summary(context)
+
+    with true <- ProofOfReplication.elected_node?(elected_nodes, signature),
+         true <- Signature.valid?(signature, transaction_summary) do
+      Map.update!(context, :replication_signatures, &[signature | &1])
+    else
+      _ -> context
+    end
+  end
+
+  @doc """
+  Determines if enough replication signatures have been received to create the proof of replication
+  Returns
+    - :reached if enough stamps are valid
+    - :not_reached if not enough stamps received yet
+  """
+  @spec get_replication_signatures_state(t()) :: :reached | :not_reached
+  def get_replication_signatures_state(%__MODULE__{
+        replication_signatures: replication_signatures,
+        replication_proof_elected_nodes: elected_nodes
+      }),
+      do: ProofOfReplication.get_state(elected_nodes, replication_signatures)
+
+  defp get_transaction_summary(context = %__MODULE__{genesis_address: genesis_address}) do
+    context |> get_validated_transaction() |> TransactionSummary.from_transaction(genesis_address)
+  end
+
+  @doc """
+  Aggregate signature of the replication signatures
+  Create a bitmask of the node that signed the transaction summary
+  """
+  @spec create_proof_of_replication(context :: t()) :: t()
+  def create_proof_of_replication(
+        context = %__MODULE__{
+          replication_signatures: signatures,
+          replication_proof_elected_nodes: elected_nodes
+        }
+      ) do
+    %__MODULE__{
+      context
+      | proof_of_replication: ProofOfReplication.create(elected_nodes, signatures)
+    }
+  end
+
+  @doc """
+  Ensure a proof of replication is valid according to current context
+  """
+  @spec valid_proof_of_replication?(context :: t(), proof :: ProofOfReplication.t()) :: boolean()
+  def valid_proof_of_replication?(
+        context = %__MODULE__{replication_proof_elected_nodes: elected_nodes},
+        proof
+      ) do
+    transaction_summary = get_transaction_summary(context)
+    ProofOfReplication.valid?(elected_nodes, proof, transaction_summary)
+  end
+
+  @doc """
+  Add proof of replication in context
+  """
+  @spec add_proof_of_replication(context :: t(), proof :: ProofOfReplication.t()) :: t()
+  def add_proof_of_replication(context, proof),
+    do: %__MODULE__{context | proof_of_replication: proof}
 
   @doc """
   Add the replication tree and initialize the replication nodes confirmation list

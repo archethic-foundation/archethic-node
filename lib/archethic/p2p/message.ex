@@ -80,7 +80,10 @@ defmodule Archethic.P2P.Message do
     GetDashboardData,
     DashboardData,
     UnlockChain,
-    ProofOfValidationDone
+    ProofOfValidationDone,
+    RequestReplicationSignature,
+    ReplicationSignatureDone,
+    ProofOfReplicationDone
   }
 
   require Logger
@@ -134,6 +137,9 @@ defmodule Archethic.P2P.Message do
           | RequestChainLock.t()
           | UnlockChain.t()
           | ProofOfValidationDone.t()
+          | RequestReplicationSignature.t()
+          | ProofOfReplicationDone.t()
+          | ReplicationSignatureDone.t()
 
   @type response ::
           Ok.t()

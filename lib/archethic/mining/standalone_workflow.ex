@@ -22,6 +22,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.NotifyPreviousChain
+  alias Archethic.P2P.Message.RequestReplicationSignature
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
@@ -33,6 +34,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -127,7 +129,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         resolved_addresses: resolved_addresses,
         contract_context: contract_context,
         genesis_address: genesis_address,
-        proof_elected_nodes: ProofOfValidation.get_election(authorized_nodes, tx.address)
+        validation_proof_elected_nodes:
+          ProofOfValidation.get_election(authorized_nodes, tx.address),
+        replication_proof_elected_nodes:
+          ProofOfReplication.get_election(authorized_nodes, tx.address)
       )
 
     validation_context = ValidationContext.validate_pending_transaction(validation_context)
@@ -191,11 +196,35 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     P2P.broadcast_message(storage_nodes, message)
   end
 
+  defp request_replication_signature(
+         context = %ValidationContext{
+           transaction: %Transaction{address: address, type: type},
+           genesis_address: genesis_address,
+           proof_of_validation: proof_of_validation
+         }
+       ) do
+    storage_nodes = ValidationContext.get_chain_replication_nodes(context)
+
+    Logger.info(
+      "Request replication signature to storage nodes #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)}",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
+
+    message = %RequestReplicationSignature{
+      address: address,
+      genesis_address: genesis_address,
+      proof_of_validation: proof_of_validation
+    }
+
+    P2P.broadcast_message(storage_nodes, message)
+  end
+
   defp request_replication(
          context = %ValidationContext{
            transaction: %Transaction{address: tx_address, type: type},
            genesis_address: genesis_address,
-           proof_of_validation: proof_of_validation
+           proof_of_replication: proof_of_replication
          }
        ) do
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -209,7 +238,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
       address: tx_address,
       genesis_address: genesis_address,
-      proof_of_validation: proof_of_validation
+      proof_of_replication: proof_of_replication
     })
   end
 
@@ -238,8 +267,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           transaction_type: type
         )
 
-        new_context = ValidationContext.create_proof_of_validation(context)
-        request_replication(new_context)
+        new_context = ValidationContext.create_proof_of_validation(new_context)
+        request_replication_signature(new_context)
         {:noreply, Map.put(state, :context, new_context)}
 
       :not_reached ->
@@ -248,6 +277,39 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       :error ->
         error = Error.new(:consensus_not_reached, "Invalid atomic commitment")
         send(self(), {:validation_error, error})
+        {:noreply, new_state}
+    end
+  end
+
+  def handle_info(
+        {:add_replication_signature, replication_signature},
+        state = %{
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type}
+            }
+        }
+      ) do
+    Logger.info("Add replication signature",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
+
+    new_context = ValidationContext.add_replication_signature(context, replication_signature)
+    new_state = Map.put(state, :context, new_context)
+
+    case ValidationContext.get_replication_signatures_state(new_context) do
+      :reached ->
+        Logger.info("Create proof of replication",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: type
+        )
+
+        new_context = ValidationContext.create_proof_of_replication(new_context)
+        request_replication(new_context)
+        {:noreply, Map.put(state, :context, new_context)}
+
+      :not_reached ->
         {:noreply, new_state}
     end
   end

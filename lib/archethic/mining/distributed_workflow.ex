@@ -31,7 +31,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ProofOfValidationDone
+  alias Archethic.P2P.Message.ProofOfReplicationDone
   alias Archethic.P2P.Message.ReplicationAttestationMessage
+  alias Archethic.P2P.Message.RequestReplicationSignature
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ValidateTransaction
@@ -42,6 +44,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
@@ -142,6 +145,18 @@ defmodule Archethic.Mining.DistributedWorkflow do
         ) :: :ok
   def add_proof_of_validation(pid, proof, node_public_key) do
     GenStateMachine.cast(pid, {:add_proof_of_validation, proof, node_public_key})
+  end
+
+  @doc """
+  Add the proof of replication in the mining process
+  """
+  @spec add_proof_of_replication(
+          worker_pid :: pid(),
+          proof :: ProofOfReplication.t(),
+          node_public_key :: Crypto.key()
+        ) :: :ok
+  def add_proof_of_replication(pid, proof, node_public_key) do
+    GenStateMachine.cast(pid, {:add_proof_of_replication, proof, node_public_key})
   end
 
   defp get_context_timeout(:hosting),
@@ -255,7 +270,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         resolved_addresses: resolved_addresses,
         contract_context: contract_context,
         genesis_address: genesis_address,
-        proof_elected_nodes: ProofOfValidation.get_election(authorized_nodes, tx.address)
+        validation_proof_elected_nodes:
+          ProofOfValidation.get_election(authorized_nodes, tx.address),
+        replication_proof_elected_nodes:
+          ProofOfReplication.get_election(authorized_nodes, tx.address)
       )
 
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
@@ -743,6 +761,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
     end
   end
 
+  def handle_event(:info, {:add_cross_validation_stamp, _}, _, _) do
+    # Receiving remaining cross validation stamp while proof of validation is already created
+    :keep_state_and_data
+  end
+
   def handle_event(
         :internal,
         :create_proof_of_validation,
@@ -772,7 +795,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     |> ValidationContext.get_confirmed_validation_nodes()
     |> P2P.broadcast_message(message)
 
-    {:next_state, :replication, %{data | context: new_context}}
+    {:next_state, :wait_proof_of_replication, %{data | context: new_context}}
   end
 
   def handle_event(
@@ -812,25 +835,135 @@ defmodule Archethic.Mining.DistributedWorkflow do
     if ValidationContext.valid_proof_of_validation?(context, proof) do
       Logger.info("Received proof of validation", meta)
       new_context = ValidationContext.add_proof_of_validation(context, proof)
-      {:next_state, :replication, Map.put(data, :context, new_context)}
+      {:next_state, :wait_proof_of_replication, Map.put(data, :context, new_context)}
     else
       Logger.warning("Received invalid proof of validation", meta)
       :keep_state_and_data
     end
   end
 
-  def handle_event(
-        :enter,
-        :wait_cross_replication_stamps,
-        :replication,
-        %{context: context}
-      ) do
-    request_replication(context)
+  def handle_event(:enter, :wait_cross_replication_stamps, :wait_proof_of_replication, %{
+        context: context
+      }) do
+    request_replication_signature(context)
     :keep_state_and_data
   end
 
-  def handle_event(:info, {:add_cross_validation_stamp, _}, :replication, _) do
-    # Receiving remaining cross validation stamp while proof of validation is already created
+  def handle_event(
+        :info,
+        {:add_replication_signature, replication_signature},
+        :wait_proof_of_replication,
+        data = %{
+          node_public_key: node_public_key,
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type},
+              coordinator_node: %Node{last_public_key: coordinator_key}
+            }
+        }
+      ) do
+    Logger.info("Add replication signature",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
+
+    new_context = ValidationContext.add_replication_signature(context, replication_signature)
+    new_data = Map.put(data, :context, new_context)
+
+    case ValidationContext.get_replication_signatures_state(new_context) do
+      :reached ->
+        if node_public_key == coordinator_key,
+          do: {:keep_state, new_data, {:next_event, :internal, :create_proof_of_replication}},
+          else: {:keep_state, new_data}
+
+      :not_reached ->
+        {:keep_state, new_data}
+    end
+  end
+
+  def handle_event(:info, {:add_replication_signature, _}, _, _) do
+    # Receiving remaining replication signature while proof of replication is already created
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :internal,
+        :create_proof_of_replication,
+        :wait_proof_of_replication,
+        data = %{
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type}
+            }
+        }
+      ) do
+    Logger.info("Create proof of replication",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
+
+    new_context =
+      %ValidationContext{proof_of_replication: proof_of_replication} =
+      ValidationContext.create_proof_of_replication(context)
+
+    message = %ProofOfReplicationDone{
+      address: tx_address,
+      proof_of_replication: proof_of_replication
+    }
+
+    context
+    |> ValidationContext.get_confirmed_validation_nodes()
+    |> P2P.broadcast_message(message)
+
+    {:next_state, :replication, %{data | context: new_context}}
+  end
+
+  def handle_event(
+        :cast,
+        {:add_proof_of_replication, _proof, from},
+        :wait_proof_of_replication,
+        %{
+          context: %ValidationContext{
+            coordinator_node: %Node{first_public_key: coordinator_key},
+            transaction: %Transaction{address: tx_address, type: type}
+          }
+        }
+      )
+      when from != coordinator_key do
+    Logger.warning(
+      "Received proof of replication from non coordinator node #{Base.encode16(from)} while coordinator is #{Base.encode16(coordinator_key)}",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
+
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :cast,
+        {:add_proof_of_replication, proof, _},
+        :wait_proof_of_replication,
+        data = %{
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type}
+            }
+        }
+      ) do
+    meta = [transaction_address: Base.encode16(tx_address), transaction_type: type]
+
+    if ValidationContext.valid_proof_of_replication?(context, proof) do
+      Logger.info("Received proof of replication", meta)
+      new_context = ValidationContext.add_proof_of_replication(context, proof)
+      {:next_state, :replication, Map.put(data, :context, new_context)}
+    else
+      Logger.warning("Received invalid proof of replication", meta)
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(:enter, :wait_proof_of_replication, :replication, %{context: context}) do
+    request_replication(context)
     :keep_state_and_data
   end
 
@@ -1168,7 +1301,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
-      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)} for replication's validation",
+      "Request transaction validation to storage nodes #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
@@ -1185,11 +1318,35 @@ defmodule Archethic.Mining.DistributedWorkflow do
     P2P.broadcast_message(storage_nodes, message)
   end
 
-  defp request_replication(
+  defp request_replication_signature(
          context = %ValidationContext{
            transaction: %Transaction{address: address, type: type},
            genesis_address: genesis_address,
            proof_of_validation: proof_of_validation
+         }
+       ) do
+    storage_nodes = ValidationContext.get_chain_replication_nodes(context)
+
+    Logger.info(
+      "Request replication signature to storage nodes #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)}",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
+
+    message = %RequestReplicationSignature{
+      address: address,
+      genesis_address: genesis_address,
+      proof_of_validation: proof_of_validation
+    }
+
+    P2P.broadcast_message(storage_nodes, message)
+  end
+
+  defp request_replication(
+         context = %ValidationContext{
+           transaction: %Transaction{address: address, type: type},
+           genesis_address: genesis_address,
+           proof_of_replication: proof_of_replication
          }
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -1203,7 +1360,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     message = %ReplicatePendingTransactionChain{
       address: address,
       genesis_address: genesis_address,
-      proof_of_validation: proof_of_validation
+      proof_of_replication: proof_of_replication
     }
 
     P2P.broadcast_message(storage_nodes, message)
