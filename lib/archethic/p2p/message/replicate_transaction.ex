@@ -2,8 +2,8 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   @moduledoc """
   Represents a message to initiate the replication of the transaction
   """
-  @enforce_keys [:transaction, :proof_of_validation]
-  defstruct [:transaction, :proof_of_validation]
+  @enforce_keys [:transaction]
+  defstruct [:transaction]
 
   alias Archethic.Crypto
   alias Archethic.Election
@@ -17,8 +17,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t(),
-          proof_of_validation: ProofOfValidation.t()
+          transaction: Transaction.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
@@ -27,9 +26,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           transaction:
             tx = %Transaction{
               address: tx_address,
-              validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
-            },
-          proof_of_validation: proof_of_validation
+              validation_stamp: stamp = %ValidationStamp{timestamp: validation_time},
+              proof_of_validation: proof_of_validation
+            }
         },
         _
       ) do
@@ -100,15 +99,11 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx, proof_of_validation: proof}) do
-    <<Transaction.serialize(tx)::bitstring, ProofOfValidation.serialize(proof)::bitstring>>
-  end
+  def serialize(%__MODULE__{transaction: tx}), do: Transaction.serialize(tx)
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) when is_bitstring(bin) do
     {tx, rest} = Transaction.deserialize(bin)
-    {proof, rest} = ProofOfValidation.deserialize(rest)
-
-    {%__MODULE__{transaction: tx, proof_of_validation: proof}, rest}
+    {%__MODULE__{transaction: tx}, rest}
   end
 end

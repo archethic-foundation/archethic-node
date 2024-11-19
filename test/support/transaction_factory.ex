@@ -11,6 +11,7 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -51,7 +52,7 @@ defmodule Archethic.TransactionFactory do
     )
   end
 
-  def create_valid_transaction(
+  def create_valid_transaction_with_cross_stamps(
         inputs \\ [
           %UnspentOutput{
             type: :UCO,
@@ -129,12 +130,55 @@ defmodule Archethic.TransactionFactory do
       }
       |> ValidationStamp.sign()
 
-    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+    cross_validation_stamps =
+      CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp) |> List.wrap()
+
+    tx =
+      if protocol_version <= 8 do
+        cross_stamps =
+          Enum.map(
+            cross_validation_stamps,
+            &%CrossValidationStamp{&1 | node_mining_key: &1.node_public_key}
+          )
+
+        %Transaction{
+          tx
+          | validation_stamp: validation_stamp,
+            cross_validation_stamps: cross_stamps
+        }
+      else
+        proof =
+          [new_node()]
+          |> ProofOfValidation.get_election(tx.address)
+          |> ProofOfValidation.create(cross_validation_stamps)
+
+        %Transaction{
+          tx
+          | validation_stamp: validation_stamp,
+            proof_of_validation: proof
+        }
+      end
+
+    {tx, cross_validation_stamps}
+  end
+
+  def create_valid_transaction(
+        inputs \\ [
+          %UnspentOutput{
+            type: :UCO,
+            amount: 1_000_000_000,
+            from: random_address(),
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          }
+        ],
+        opts \\ []
+      ) do
+    {tx, _cross_stamps} = create_valid_transaction_with_cross_stamps(inputs, opts)
+    tx
   end
 
   def create_transaction_with_not_atomic_commitment(unspent_outputs \\ []) do
-    tx = create_valid_transaction(unspent_outputs)
+    {tx, cross_stamps} = create_valid_transaction_with_cross_stamps(unspent_outputs)
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
@@ -142,53 +186,7 @@ defmodule Archethic.TransactionFactory do
         tx.validation_stamp
       )
 
-    Map.update!(tx, :cross_validation_stamps, &[cross_validation_stamp | &1])
-  end
-
-  def create_valid_transaction_with_inconsistencies(inputs \\ []) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-
-    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-    protocol_version = current_protocol_version()
-    inputs = VersionedUnspentOutput.wrap_unspent_outputs(inputs, protocol_version)
-
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, protocol_version)
-    movements = Transaction.get_movements(tx)
-
-    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
-    contract_context = nil
-    encoded_state = nil
-
-    ledger_operations =
-      %LedgerValidation{fee: fee}
-      |> LedgerValidation.filter_usable_inputs(inputs, contract_context)
-      |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.validate_sufficient_funds(movements)
-      |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
-      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
-      |> LedgerValidation.to_ledger_operations()
-
-    validation_stamp =
-      %ValidationStamp{
-        genesis_address: "seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
-        timestamp: timestamp,
-        proof_of_work: Crypto.origin_node_public_key(),
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        ledger_operations: ledger_operations,
-        protocol_version: protocol_version
-      }
-      |> ValidationStamp.sign()
-
-    cross_validation_stamp =
-      CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
-        validation_stamp
-      )
-
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+    {tx, [cross_validation_stamp | cross_stamps]}
   end
 
   def create_transaction_with_invalid_proof_of_work(inputs \\ []) do

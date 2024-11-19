@@ -20,6 +20,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:origin_signature, :hex)
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
+    field(:proof_of_validation, :proof_of_validation)
 
     field :inputs, list_of(:transaction_input) do
       arg(:paging_offset, :non_neg_integer)
@@ -279,7 +280,8 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   end
 
   @desc """
-  [CrossValidationStamp] represents the approval of the validation stamp by a cross validation node.
+  [CrossValidationStamp] represents the approval of the validation stamp by a cross validation node.  
+  Available until protocol version 8
   It includes:
   - Signature: signature of the validation stamp
   - Node public key: cross validation node's public key
@@ -287,6 +289,18 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   object :cross_validation_stamp do
     field(:signature, :hex)
     field(:node_public_key, :public_key)
+  end
+
+  @desc """
+  [ProofOfValidation] represents the aggregated signature from all the node that validated the transaction.  
+  Available since protocol version 9  
+  It includes:
+  - Signature: the aggregated signature
+  - Node public keys: list of node public keys that signed the transaction
+  """
+  object :proof_of_validation do
+    field(:signature, :hex)
+    field(:node_public_keys, list_of(:public_key))
   end
 
   @desc """

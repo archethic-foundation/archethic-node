@@ -333,8 +333,14 @@ defmodule ArchethicCase do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
   end
 
-  def random_public_key() do
+  def random_public_key(curve \\ :ed25519)
+
+  def random_public_key(:ed25519) do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+  end
+
+  def random_public_key(:bls) do
+    <<3::8, 0::8, :crypto.strong_rand_bytes(48)::binary>>
   end
 
   def random_seed() do

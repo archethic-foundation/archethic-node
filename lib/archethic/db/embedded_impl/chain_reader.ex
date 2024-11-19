@@ -31,18 +31,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         {:ok, <<size::32, version::32>>} = :file.pread(fd, offset, 8)
         column_names = fields_to_column_names(fields)
 
-        # Ensure the validation stamp's protocol version is retrieved if we fetch validation stamp fields
-        has_validation_stamp_fields? =
-          Enum.any?(column_names, &String.starts_with?(&1, "validation_stamp."))
-
-        has_validation_stamp_protocol_field? =
-          Enum.any?(column_names, &(&1 == "validation_stamp.protocol_version"))
-
+        # Ensure the validation stamp's protocol version is retrieved
         column_names =
-          if has_validation_stamp_fields? and !has_validation_stamp_protocol_field? do
+          with false <- Enum.empty?(column_names),
+               false <- Enum.any?(column_names, &(&1 == "validation_stamp.protocol_version")) do
             ["validation_stamp.protocol_version" | column_names]
           else
-            column_names
+            _ -> column_names
           end
 
         # Read the transaction and extract requested columns from the fields arg
@@ -544,16 +539,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       tx_columns,
       %{version: tx_version, validation_stamp: %{protocol_version: protocol_version}},
       fn {column, data}, acc ->
-        if String.starts_with?(column, "validation_stamp.") do
-          Encoding.decode(
-            protocol_version,
-            column,
-            data,
-            acc
-          )
-        else
-          Encoding.decode(tx_version, column, data, acc)
-        end
+        Encoding.decode(tx_version, protocol_version, column, data, acc)
       end
     )
     |> Utils.atomize_keys()

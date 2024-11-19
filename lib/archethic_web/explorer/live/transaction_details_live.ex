@@ -8,10 +8,12 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.PubSub
+  alias Archethic.P2P
   alias Archethic.Reward
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -84,10 +86,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          socket,
          tx = %Transaction{
            address: address,
-           validation_stamp: %ValidationStamp{
-             timestamp: timestamp,
-             proof_of_integrity: proof_of_integrity
-           }
+           validation_stamp: %ValidationStamp{timestamp: timestamp},
+           proof_of_validation: proof
          }
        ) do
     uco_price_at_time = OracleChain.get_uco_price(timestamp)
@@ -96,16 +96,19 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     async_assign_inputs_and_token_properties(tx)
 
     previous_address =
-      if TransactionChain.proof_of_integrity([tx]) == proof_of_integrity do
-        # If the proof of integrity is the same, it's the first transaction
-        # Hence no need to create a link to the previous transaction (being the genesis)
-        nil
-      else
-        Transaction.previous_address(tx)
+      if TransactionChain.first_transaction?(tx), do: nil, else: Transaction.previous_address(tx)
+
+    proof_of_validation =
+      if proof != nil do
+        timestamp
+        |> P2P.authorized_and_available_nodes()
+        |> ProofOfValidation.get_election(address)
+        |> ProofOfValidation.to_map(proof)
       end
 
     socket
     |> assign(:transaction, tx)
+    |> assign(:proof_of_validation, proof_of_validation)
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)

@@ -674,8 +674,28 @@
                     <%= Base.encode16(@transaction.validation_stamp.signature) %>
                   </p>
 
-                  <%= for {cross_validation_stamp, i} <- Enum.with_index(@transaction.cross_validation_stamps) do %>
-                    <p class="heading mt-3">Validator #<%= i + 1 %> public key</p>
+                  <%= if @proof_of_validation != nil do %>
+                    <p class="heading mt-3">Proof of validation signature</p>
+                    <p class="mono">
+                      <%= Base.encode16(@proof_of_validation.signature) %>
+                    </p>
+                    <p class="heading mt-3">Proof of validation signers public key</p>
+                    <%= for {key, i} <- Enum.with_index(@proof_of_validation.node_public_keys, 1) do %>
+                      <p class="mono">
+                        <%= link("##{i} " <> Base.encode16(key),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.NodeDetailsLive,
+                              Base.encode16(key)
+                            )
+                        ) %>
+                      </p>
+                    <% end %>
+                  <% end %>
+
+                  <%= for {cross_validation_stamp, i} <- Enum.with_index(@transaction.cross_validation_stamps, 1) do %>
+                    <p class="heading mt-3">Cross validator #<%= i %> public key</p>
                     <p class="mono">
                       <%= link(Base.encode16(cross_validation_stamp.node_public_key),
                         to:
@@ -686,7 +706,7 @@
                           )
                       ) %>
                     </p>
-                    <p class="heading mt-3">Validator #<%= i + 1 %> signature</p>
+                    <p class="heading mt-3">Cross validator #<%= i %> signature</p>
                     <p class="mono">
                       <%= Base.encode16(cross_validation_stamp.signature) %>
                     </p>

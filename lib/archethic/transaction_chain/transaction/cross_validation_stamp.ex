@@ -3,7 +3,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   Represent a cross validation stamp validated a validation stamp.
   """
 
-  defstruct [:node_public_key, :signature, inconsistencies: []]
+  defstruct [:node_public_key, :node_mining_key, :signature, inconsistencies: []]
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -28,11 +28,13 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @typedoc """
   A cross validation stamp is composed from:
   - Public key: identity of the node signer
+  - Mining key: the public key used for signature (since protocol_version 9)
   - Signature: built from the validation stamp and the inconsistencies found
   - Inconsistencies: a list of errors from the validation stamp
   """
   @type t :: %__MODULE__{
           node_public_key: nil | Crypto.key(),
+          node_mining_key: nil | Crypto.key(),
           signature: nil | binary(),
           inconsistencies: list(inconsistency())
         }
@@ -49,7 +51,8 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
 
     %__MODULE__{
       cross_stamp
-      | node_public_key: Crypto.mining_node_public_key(),
+      | node_public_key: Crypto.first_node_public_key(),
+        node_mining_key: Crypto.mining_node_public_key(),
         signature: signature
     }
   end
@@ -74,20 +77,17 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @doc """
   Determines if the cross validation stamp signature valid from a validation stamp
   """
-  @spec valid_signature?(
-          t(),
-          ValidationStamp.t()
-        ) :: boolean()
+  @spec valid_signature?(cross_stamp :: t(), validation_stamp :: ValidationStamp.t()) :: boolean()
   def valid_signature?(
         %__MODULE__{
           signature: signature,
           inconsistencies: inconsistencies,
-          node_public_key: node_public_key
+          node_mining_key: node_mining_key
         },
         stamp
       ) do
     data = get_raw_data_to_sign(stamp, inconsistencies)
-    Crypto.verify?(signature, data, node_public_key)
+    Crypto.verify?(signature, data, node_mining_key)
   end
 
   defp marshal_inconsistencies(inconsistencies) do
@@ -112,27 +112,59 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
       ...>       207, 127, 193, 3, 194, 156, 105, 209, 43, 161>>,
       ...>   inconsistencies: [:signature, :proof_of_work, :proof_of_integrity]
       ...> }
-      ...> |> CrossValidationStamp.serialize()
+      ...> |> CrossValidationStamp.serialize(8)
       <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137, 35, 16,
         193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137, 64, 70, 102, 163, 198, 192, 91,
         177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72, 169, 219, 71, 63, 236, 35, 228, 182, 45,
         13, 166, 165, 102, 216, 23, 183, 46, 195, 74, 85, 242, 164, 44, 225, 204, 233, 91, 217, 177,
         243, 234, 229, 72, 149, 17, 40, 182, 207, 127, 193, 3, 194, 156, 105, 209, 43, 161, 3, 1, 2,
         3>>
+
+      iex> %CrossValidationStamp{
+      ...>   node_public_key:
+      ...>     <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218,
+      ...>       137, 35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
+      ...>   node_mining_key:
+      ...>     <<3, 1, 185, 210, 25, 84, 171, 250, 235, 18, 46, 173, 18, 63, 98, 112, 8, 185, 157,
+      ...>       198, 39, 46, 16, 48, 211, 225, 168, 250, 214, 197, 215, 235, 21, 68, 204, 102, 75,
+      ...>       195, 241, 97, 87, 244, 197, 129, 231, 58, 130, 243, 137, 246>>,
+      ...>   signature:
+      ...>     <<70, 102, 163, 198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72, 169,
+      ...>       219, 71, 63, 236, 35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46, 195, 74,
+      ...>       85, 242, 164, 44, 225, 204, 233, 91, 217, 177, 243, 234, 229, 72, 149, 17, 40, 182,
+      ...>       207, 127, 193, 3, 194, 156, 105, 209, 43, 161>>,
+      ...>   inconsistencies: [:signature, :proof_of_work, :proof_of_integrity]
+      ...> }
+      ...> |> CrossValidationStamp.serialize(current_protocol_version())
+      <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137, 35, 16,
+        193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137, 64, 70, 102, 163, 198, 192, 91,
+        177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72, 169, 219, 71, 63, 236, 35, 228, 182, 45,
+        13, 166, 165, 102, 216, 23, 183, 46, 195, 74, 85, 242, 164, 44, 225, 204, 233, 91, 217, 177,
+        243, 234, 229, 72, 149, 17, 40, 182, 207, 127, 193, 3, 194, 156, 105, 209, 43, 161, 3, 1, 2,
+        3, 3, 1, 185, 210, 25, 84, 171, 250, 235, 18, 46, 173, 18, 63, 98, 112, 8, 185, 157, 198,
+        39, 46, 16, 48, 211, 225, 168, 250, 214, 197, 215, 235, 21, 68, 204, 102, 75, 195, 241, 97,
+        87, 244, 197, 129, 231, 58, 130, 243, 137, 246>>
   """
-  @spec serialize(t()) :: binary()
-  def serialize(%__MODULE__{
-        node_public_key: node_public_key,
-        signature: signature,
-        inconsistencies: inconsistencies
-      }) do
+  @spec serialize(t(), protocol_version :: non_neg_integer()) :: binary()
+  def serialize(
+        %__MODULE__{
+          node_public_key: node_public_key,
+          node_mining_key: node_mining_key,
+          signature: signature,
+          inconsistencies: inconsistencies
+        },
+        protocol_version
+      ) do
     inconsistencies_bin =
       inconsistencies
       |> Enum.map(&serialize_inconsistency(&1))
       |> :erlang.list_to_binary()
 
-    <<node_public_key::binary, byte_size(signature)::8, signature::binary,
-      length(inconsistencies)::8, inconsistencies_bin::binary>>
+    bin =
+      <<node_public_key::binary, byte_size(signature)::8, signature::binary,
+        length(inconsistencies)::8, inconsistencies_bin::binary>>
+
+    if protocol_version <= 8, do: bin, else: <<bin::bitstring, node_mining_key::binary>>
   end
 
   defp serialize_inconsistency(:timestamp), do: 0
@@ -161,10 +193,13 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
       ...>   35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46, 195, 74, 85, 242, 164, 44, 225,
       ...>   204, 233, 91, 217, 177, 243, 234, 229, 72, 149, 17, 40, 182, 207, 127, 193, 3, 194,
       ...>   156, 105, 209, 43, 161, 3, 1, 2, 3>>
-      ...> |> CrossValidationStamp.deserialize()
+      ...> |> CrossValidationStamp.deserialize(8)
       {
         %CrossValidationStamp{
           node_public_key:
+            <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+              35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
+          node_mining_key:
             <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
               35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
           signature:
@@ -176,18 +211,51 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
         },
         ""
       }
+
+      iex> <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+      ...>   35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137, 64, 70, 102, 163,
+      ...>   198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72, 169, 219, 71, 63, 236,
+      ...>   35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46, 195, 74, 85, 242, 164, 44, 225,
+      ...>   204, 233, 91, 217, 177, 243, 234, 229, 72, 149, 17, 40, 182, 207, 127, 193, 3, 194,
+      ...>   156, 105, 209, 43, 161, 3, 1, 2, 3, 3, 1, 185, 210, 25, 84, 171, 250, 235, 18, 46, 173,
+      ...>   18, 63, 98, 112, 8, 185, 157, 198, 39, 46, 16, 48, 211, 225, 168, 250, 214, 197, 215,
+      ...>   235, 21, 68, 204, 102, 75, 195, 241, 97, 87, 244, 197, 129, 231, 58, 130, 243, 137,
+      ...>   246>>
+      ...> |> CrossValidationStamp.deserialize(current_protocol_version())
+      {
+        %CrossValidationStamp{
+          node_public_key:
+            <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+              35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
+          node_mining_key:
+            <<3, 1, 185, 210, 25, 84, 171, 250, 235, 18, 46, 173, 18, 63, 98, 112, 8, 185, 157, 198,
+              39, 46, 16, 48, 211, 225, 168, 250, 214, 197, 215, 235, 21, 68, 204, 102, 75, 195,
+              241, 97, 87, 244, 197, 129, 231, 58, 130, 243, 137, 246>>,
+          signature:
+            <<70, 102, 163, 198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72, 169,
+              219, 71, 63, 236, 35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46, 195, 74, 85,
+              242, 164, 44, 225, 204, 233, 91, 217, 177, 243, 234, 229, 72, 149, 17, 40, 182, 207,
+              127, 193, 3, 194, 156, 105, 209, 43, 161>>,
+          inconsistencies: [:signature, :proof_of_work, :proof_of_integrity]
+        },
+        ""
+      }
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(data) do
+  @spec deserialize(bitstring(), protocol_version :: non_neg_integer()) :: {t(), bitstring()}
+  def deserialize(data, protocol_version) do
     {public_key,
      <<signature_size::8, signature::binary-size(signature_size), nb_inconsistencies::8,
        rest::bitstring>>} = Utils.deserialize_public_key(data)
 
     {inconsistencies, rest} = reduce_inconsistencies(rest, nb_inconsistencies, [])
 
+    {node_mining_key, rest} =
+      if protocol_version <= 8, do: {public_key, rest}, else: Utils.deserialize_public_key(rest)
+
     {
       %__MODULE__{
         node_public_key: public_key,
+        node_mining_key: node_mining_key,
         signature: signature,
         inconsistencies: inconsistencies
       },
@@ -220,19 +288,27 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<12::8, rest::bitstring>>), do: {:recipients, rest}
   defp do_reduce_inconsistencies(<<13::8, rest::bitstring>>), do: {:genesis_address, rest}
 
-  @spec cast(map()) :: t()
+  @spec cast(map() | t()) :: t()
+  def cast(stamp = %__MODULE__{}), do: stamp
+
   def cast(stamp = %{}) do
     %__MODULE__{
       node_public_key: Map.get(stamp, :node_public_key),
+      node_mining_key: Map.get(stamp, :node_mining_key),
       signature: Map.get(stamp, :signature),
       inconsistencies: []
     }
   end
 
   @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{signature: signature, node_public_key: public_key}) do
+  def to_map(%__MODULE__{
+        signature: signature,
+        node_public_key: public_key,
+        node_mining_key: node_mining_key
+      }) do
     %{
       node_public_key: public_key,
+      node_mining_key: node_mining_key,
       signature: signature,
       inconsistencies: []
     }

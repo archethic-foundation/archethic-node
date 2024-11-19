@@ -50,7 +50,6 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -351,13 +350,10 @@ defmodule Archethic.P2P.MessageTest do
 
     test "CrossValidationDone message" do
       msg = %CrossValidationDone{
-        address:
-          <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
-            65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
+        address: random_address(),
         cross_validation_stamp: %CrossValidationStamp{
-          node_public_key:
-            <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99, 217, 105,
-              80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
+          node_public_key: random_public_key(),
+          node_mining_key: random_public_key(:bls),
           signature:
             <<231, 4, 252, 234, 6, 126, 91, 87, 41, 70, 76, 220, 116, 238, 128, 189, 94, 124, 207,
               90, 32, 143, 239, 153, 101, 148, 189, 125, 25, 235, 20, 207, 168, 10, 86, 59, 14,
@@ -376,14 +372,7 @@ defmodule Archethic.P2P.MessageTest do
 
     test "ReplicateTransaction message" do
       tx = TransactionFactory.create_valid_transaction()
-
-      msg = %ReplicateTransaction{
-        transaction: tx,
-        proof_of_validation: %ProofOfValidation{
-          signature: :crypto.strong_rand_bytes(96),
-          nodes_bitmask: <<1::1>>
-        }
-      }
+      msg = %ReplicateTransaction{transaction: tx}
 
       assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end
@@ -469,74 +458,12 @@ defmodule Archethic.P2P.MessageTest do
     test "TransactionList message" do
       msg = %TransactionList{
         transactions: [
-          %Transaction{
-            address:
-              <<0, 0, 46, 140, 65, 49, 7, 111, 10, 130, 53, 72, 25, 43, 47, 81, 130, 161, 225, 87,
-                144, 186, 117, 170, 105, 205, 173, 102, 49, 176, 8, 45, 49, 82>>,
-            type: :transfer,
-            data: %TransactionData{},
-            previous_public_key:
-              <<0, 0, 221, 122, 240, 119, 132, 26, 237, 200, 88, 209, 23, 240, 176, 190, 89, 67,
-                120, 61, 106, 117, 10, 14, 12, 177, 171, 237, 66, 113, 45, 18, 195, 249>>,
-            previous_signature:
-              <<206, 119, 19, 59, 13, 255, 98, 28, 80, 65, 115, 97, 216, 28, 51, 237, 180, 94,
-                197, 228, 50, 240, 155, 61, 242, 17, 172, 225, 223, 8, 104, 220, 195, 33, 46, 185,
-                88, 223, 224, 105, 41, 107, 67, 6, 92, 78, 15, 142, 47, 192, 214, 66, 124, 30,
-                228, 167, 96, 61, 68, 188, 152, 246, 42, 246>>,
-            origin_signature:
-              <<238, 102, 94, 142, 31, 243, 44, 162, 254, 161, 177, 121, 166, 204, 152, 126, 66,
-                207, 0, 75, 174, 126, 64, 226, 155, 92, 71, 152, 119, 80, 150, 119, 88, 40, 110,
-                175, 135, 180, 179, 28, 57, 84, 35, 156, 173, 212, 235, 155, 226, 41, 148, 171,
-                132, 196, 120, 51, 136, 4, 78, 123, 70, 44, 76, 162>>,
-            validation_stamp: %ValidationStamp{
-              genesis_address: random_address(),
-              timestamp: ~U[2020-06-26 06:37:04.000Z],
-              proof_of_work:
-                <<0, 0, 206, 159, 122, 114, 106, 65, 116, 18, 224, 214, 2, 26, 213, 36, 82, 175,
-                  176, 180, 191, 255, 46, 113, 134, 227, 253, 189, 81, 16, 97, 33, 114, 85>>,
-              proof_of_election:
-                <<74, 224, 26, 42, 253, 85, 104, 246, 72, 244, 189, 182, 165, 94, 92, 20, 166,
-                  149, 124, 246, 219, 170, 160, 168, 206, 214, 236, 215, 211, 121, 95, 149, 132,
-                  136, 114, 244, 132, 44, 255, 222, 98, 76, 247, 125, 45, 170, 95, 51, 46, 229,
-                  21, 32, 226, 99, 16, 5, 107, 207, 32, 240, 23, 85, 219, 247>>,
-              proof_of_integrity:
-                <<0, 63, 70, 80, 109, 148, 124, 179, 105, 198, 92, 39, 212, 240, 48, 96, 69, 244,
-                  213, 246, 75, 82, 83, 170, 121, 42, 105, 30, 23, 3, 231, 178, 153>>,
-              ledger_operations: %LedgerOperations{
-                fee: 1_000_000,
-                transaction_movements: [],
-                unspent_outputs: []
-              },
-              signature:
-                <<231, 4, 252, 234, 6, 126, 91, 87, 41, 70, 76, 220, 116, 238, 128, 189, 94, 124,
-                  207, 90, 32, 143, 239, 153, 101, 148, 189, 125, 25, 235, 20, 207, 168, 10, 86,
-                  59, 14, 249, 104, 144, 141, 151, 232, 149, 24, 189, 225, 56, 65, 208, 220, 202,
-                  169, 166, 36, 248, 98, 108, 241, 114, 47, 102, 176, 212>>,
-              protocol_version: ArchethicCase.current_protocol_version()
-            },
-            cross_validation_stamps: [
-              %CrossValidationStamp{
-                node_public_key:
-                  <<0, 0, 161, 146, 84, 231, 250, 25, 216, 247, 158, 26, 32, 219, 6, 128, 253,
-                    127, 119, 121, 206, 58, 142, 140, 194, 61, 235, 224, 193, 56, 82, 253, 19,
-                    131>>,
-                signature:
-                  <<44, 66, 52, 214, 59, 145, 63, 7, 237, 115, 10, 255, 237, 85, 175, 115, 177,
-                    85, 20, 76, 108, 118, 141, 190, 6, 84, 28, 134, 37, 235, 114, 30, 169, 151,
-                    124, 242, 58, 26, 146, 125, 89, 64, 181, 253, 58, 199, 73, 12, 237, 134, 93,
-                    73, 157, 123, 248, 199, 252, 138, 202, 227, 69, 83, 11, 29>>,
-                inconsistencies: []
-              }
-            ]
-          }
+          TransactionFactory.create_valid_transaction(),
+          TransactionFactory.create_valid_transaction()
         ]
       }
 
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
+      assert {msg, <<>>} == msg |> Message.encode() |> Message.decode()
     end
 
     test "NodeList message" do

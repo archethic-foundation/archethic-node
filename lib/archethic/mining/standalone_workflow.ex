@@ -143,7 +143,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
          context = %ValidationContext{
            transaction: tx,
            contract_context: contract_context,
-           aggregated_utxos: aggregated_utxos
+           aggregated_utxos: aggregated_utxos,
+           cross_validation_stamps: cross_stamps
          }
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -159,7 +160,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     message = %ValidateTransaction{
       transaction: validated_tx,
       contract_context: contract_context,
-      inputs: aggregated_utxos
+      inputs: aggregated_utxos,
+      cross_validation_stamps: cross_stamps
     }
 
     P2P.broadcast_message(storage_nodes, message)
@@ -186,7 +188,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   end
 
   def handle_info(
-        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         state = %{
           context:
             context = %ValidationContext{
@@ -199,8 +201,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: type
     )
 
-    new_context =
-      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
+    new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
     new_state = Map.put(state, :context, new_context)
 
@@ -359,7 +360,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> P2P.broadcast_message(attestation)
   end
 
-  defp notify_io_nodes(context = %ValidationContext{proof_of_validation: proof_of_validation}) do
+  defp notify_io_nodes(context) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     context
@@ -371,10 +372,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
     end)
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: validated_tx,
-      proof_of_validation: proof_of_validation
-    })
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
   end
 
   defp notify_previous_chain(

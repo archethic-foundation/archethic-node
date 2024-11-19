@@ -517,7 +517,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :info,
-        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         :wait_cross_validation_stamps,
         data = %{
           context: context = %ValidationContext{transaction: tx}
@@ -528,8 +528,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    new_context =
-      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
+    new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
     if ValidationContext.enough_cross_validation_stamps?(new_context) do
       if ValidationContext.atomic_commitment?(new_context) do
@@ -579,9 +578,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     error_data =
       cross_validation_stamps
-      |> Enum.flat_map(fn {_, %CrossValidationStamp{inconsistencies: inconsistencies}} ->
-        inconsistencies
-      end)
+      |> Enum.flat_map(& &1.inconsistencies)
       |> Enum.uniq()
       |> Enum.map(&(&1 |> Atom.to_string() |> String.replace("_", " ")))
 
@@ -635,7 +632,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :info,
-        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}, from},
+        {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         :wait_cross_replication_stamps,
         data = %{
           node_public_key: node_public_key,
@@ -651,8 +648,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: type
     )
 
-    new_context =
-      ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp, from)
+    new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
     new_data = Map.put(data, :context, new_context)
 
@@ -756,12 +752,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     :keep_state_and_data
   end
 
-  def handle_event(
-        :info,
-        {:add_cross_validation_stamp, _, _},
-        :replication,
-        _
-      ) do
+  def handle_event(:info, {:add_cross_validation_stamp, _}, :replication, _) do
     # Receiving remaining cross validation stamp while proof of validation is already created
     :keep_state_and_data
   end
@@ -832,8 +823,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               welcome_node: welcome_node = %Node{},
-              storage_nodes_confirmations: confirmations,
-              proof_of_validation: proof_of_validation
+              storage_nodes_confirmations: confirmations
             }
         }
       ) do
@@ -854,10 +844,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     context
     |> ValidationContext.get_io_replication_nodes()
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: validated_tx,
-      proof_of_validation: proof_of_validation
-    })
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
 
     :keep_state_and_data
   end
@@ -1080,7 +1067,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
          context = %ValidationContext{
            transaction: %Transaction{address: tx_address, type: tx_type},
            coordinator_node: coordinator_node,
-           cross_validation_stamps: [{_, cross_validation_stamp} | []]
+           cross_validation_stamps: [cross_validation_stamp | []]
          }
        ) do
     cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
@@ -1106,7 +1093,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
          context = %ValidationContext{
            transaction: tx,
            contract_context: contract_context,
-           aggregated_utxos: aggregated_utxos
+           aggregated_utxos: aggregated_utxos,
+           cross_validation_stamps: cross_stamps
          }
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -1122,7 +1110,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     message = %ValidateTransaction{
       transaction: validated_tx,
       contract_context: contract_context,
-      inputs: aggregated_utxos
+      inputs: aggregated_utxos,
+      cross_validation_stamps: cross_stamps
     }
 
     P2P.broadcast_message(storage_nodes, message)

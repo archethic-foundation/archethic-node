@@ -49,7 +49,8 @@ defmodule Archethic.Replication do
   @spec validate_transaction(
           tx :: Transaction.t(),
           contract_context :: nil | Contract.Context.t(),
-          validation_inputs :: list(VersionedUnspentOutput.t())
+          validation_inputs :: list(VersionedUnspentOutput.t()),
+          cross_validation_stamps :: list({Crypto.key(), CrossValidationStamp.t()})
         ) :: CrossValidationStamp.t()
   def validate_transaction(
         tx = %Transaction{
@@ -58,7 +59,8 @@ defmodule Archethic.Replication do
           validation_stamp: validation_stamp = %ValidationStamp{timestamp: validation_time}
         },
         contract_context,
-        validation_inputs
+        validation_inputs,
+        cross_stamps
       ) do
     start_time = System.monotonic_time()
 
@@ -78,10 +80,11 @@ defmodule Archethic.Replication do
       validation_time: validation_time,
       validation_stamp: validation_stamp,
       previous_transaction: previous_tx,
-      genesis_address: genesis_address
+      genesis_address: genesis_address,
+      cross_validation_stamps: cross_stamps
     }
 
-    %ValidationContext{mining_error: mining_error, cross_validation_stamps: [{_, cross_stamp}]} =
+    %ValidationContext{mining_error: mining_error, cross_validation_stamps: [cross_stamp]} =
       TransactionValidator.validate(validation_context)
 
     :telemetry.execute(
