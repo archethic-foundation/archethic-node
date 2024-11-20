@@ -9,6 +9,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -535,16 +536,22 @@ defmodule Archethic.TransactionChain.TransactionTest do
   describe "symmetric serialization" do
     test "should use cross_validation_stamps under protocol_version 9" do
       tx =
-        %Transaction{cross_validation_stamps: [_ | _], proof_of_validation: nil} =
-        TransactionFactory.create_valid_transaction([], protocol_version: 8)
+        %Transaction{
+          cross_validation_stamps: [_ | _],
+          proof_of_validation: nil,
+          proof_of_replication: nil
+        } = TransactionFactory.create_valid_transaction([], protocol_version: 8)
 
       assert {tx, <<>>} == tx |> Transaction.serialize() |> Transaction.deserialize()
     end
 
-    test "should use proof_of_validation since protocol_version 9" do
+    test "should use proof_of_validation / proof_of_replication since protocol_version 9" do
       tx =
-        %Transaction{cross_validation_stamps: [], proof_of_validation: %ProofOfValidation{}} =
-        TransactionFactory.create_valid_transaction([])
+        %Transaction{
+          cross_validation_stamps: [],
+          proof_of_validation: %ProofOfValidation{},
+          proof_of_replication: %ProofOfReplication{}
+        } = TransactionFactory.create_valid_transaction([])
 
       assert {tx, <<>>} == tx |> Transaction.serialize() |> Transaction.deserialize()
     end
