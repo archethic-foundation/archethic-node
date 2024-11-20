@@ -688,12 +688,14 @@ defmodule Archethic.Mining.ValidationContext do
   def get_validated_transaction(%__MODULE__{
         transaction: transaction,
         validation_stamp: validation_stamp,
-        proof_of_validation: proof_of_validation
+        proof_of_validation: proof_of_validation,
+        proof_of_replication: proof_of_replication
       }) do
     %Transaction{
       transaction
       | validation_stamp: validation_stamp,
-        proof_of_validation: proof_of_validation
+        proof_of_validation: proof_of_validation,
+        proof_of_replication: proof_of_replication
     }
   end
 

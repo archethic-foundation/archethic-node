@@ -826,8 +826,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def to_map(
         tx = %__MODULE__{
           address: address,
-          validation_stamp: validation_stamp,
-          proof_of_validation: proof_of_validation
+          validation_stamp: stamp,
+          proof_of_validation: proof_of_validation,
+          proof_of_replication: proof_of_replication
         }
       ) do
     %{
@@ -839,10 +840,11 @@ defmodule Archethic.TransactionChain.Transaction do
       previous_address: previous_address(tx),
       previous_signature: tx.previous_signature,
       origin_signature: tx.origin_signature,
-      validation_stamp: ValidationStamp.to_map(validation_stamp),
+      validation_stamp: ValidationStamp.to_map(stamp),
       cross_validation_stamps:
         Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1),
-      proof_of_validation: map_proof_of_validation(proof_of_validation, validation_stamp, address)
+      proof_of_validation: map_proof_of_validation(proof_of_validation, stamp, address),
+      proof_of_replication: map_proof_of_replication(proof_of_replication, stamp, address)
     }
   end
 
@@ -859,6 +861,20 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp map_proof_of_validation(_, _, _), do: nil
+
+  defp map_proof_of_replication(
+         proof = %ProofOfReplication{},
+         %ValidationStamp{protocol_version: protocol_version, timestamp: timestamp},
+         address
+       )
+       when protocol_version > 8 do
+    timestamp
+    |> P2P.authorized_and_available_nodes()
+    |> ProofOfReplication.get_election(address)
+    |> ProofOfReplication.to_map(proof)
+  end
+
+  defp map_proof_of_replication(_, _, _), do: nil
 
   @spec cast(map()) :: t()
   def cast(tx = %{}) do
