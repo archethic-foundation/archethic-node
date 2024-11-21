@@ -617,6 +617,26 @@
                     <% end %>
                   <% end %>
 
+                  <%= if @proof_of_replication != nil do %>
+                    <p class="heading mt-3">Proof of replication signature</p>
+                    <p class="mono">
+                      <%= Base.encode16(@proof_of_replication.signature) %>
+                    </p>
+                    <p class="heading mt-3">Proof of replication signers public key</p>
+                    <%= for {key, i} <- Enum.with_index(@proof_of_replication.node_public_keys, 1) do %>
+                      <p class="mono">
+                        <%= link("##{i} " <> Base.encode16(key),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.NodeDetailsLive,
+                              Base.encode16(key)
+                            )
+                        ) %>
+                      </p>
+                    <% end %>
+                  <% end %>
+
                   <%= for {cross_validation_stamp, i} <- Enum.with_index(@transaction.cross_validation_stamps, 1) do %>
                     <p class="heading mt-3">Cross validator #<%= i %> public key</p>
                     <p class="mono">
