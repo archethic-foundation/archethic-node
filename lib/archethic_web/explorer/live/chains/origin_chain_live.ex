@@ -128,11 +128,14 @@ defmodule ArchethicWeb.Explorer.OriginChainLive do
     with {:ok,
           %Transaction{
             data: %TransactionData{content: content},
-            validation_stamp: %ValidationStamp{timestamp: timestamp}
+            validation_stamp: %ValidationStamp{
+              timestamp: timestamp,
+              genesis_address: genesis_address
+            }
           }} <-
            TransactionChain.get_transaction(address,
              data: [:content],
-             validation_stamp: [:timestamp]
+             validation_stamp: [:timestamp, :genesis_address]
            ),
          {pb_key, _} <- Utils.deserialize_public_key(content),
          family_id <- SharedSecrets.origin_family_from_public_key(pb_key) do
@@ -140,7 +143,8 @@ defmodule ArchethicWeb.Explorer.OriginChainLive do
         address: address,
         type: @txn_type,
         timestamp: timestamp,
-        family_of_origin: family_id
+        family_of_origin: family_id,
+        genesis_address: genesis_address
       }
     else
       _ -> []

@@ -1339,6 +1339,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
     %ValidationContext{
+      genesis_address: Transaction.previous_address(tx),
       transaction: tx,
       previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: [
@@ -1361,6 +1362,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   end
 
   defp create_validation_stamp(%ValidationContext{
+         genesis_address: genesis_address,
          transaction: tx,
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
@@ -1383,6 +1385,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
+      genesis_address: genesis_address,
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),

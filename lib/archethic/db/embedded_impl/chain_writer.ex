@@ -45,7 +45,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
       filename = io_path(db_path, address)
 
-      data = Encoding.encode(tx)
+      data = Encoding.encode(tx, storage_type: :io)
 
       File.write!(
         filename,
