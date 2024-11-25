@@ -153,17 +153,24 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
     |> TransactionChain.get([
       :address,
       :type,
-      validation_stamp: [:timestamp, ledger_operations: [:fee]]
+      validation_stamp: [:genesis_address, :timestamp, ledger_operations: [:fee]]
     ])
     |> Enum.map(fn %Transaction{
                      address: address,
                      type: type,
                      validation_stamp: %ValidationStamp{
+                       genesis_address: genesis_address,
                        timestamp: timestamp,
                        ledger_operations: %LedgerOperations{fee: fee}
                      }
                    } ->
-      %{address: address, type: type, timestamp: timestamp, fee: fee}
+      %{
+        address: address,
+        type: type,
+        timestamp: timestamp,
+        fee: fee,
+        genesis_address: genesis_address
+      }
     end)
     |> Enum.reverse()
   end

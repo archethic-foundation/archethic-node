@@ -704,6 +704,7 @@ defmodule Archethic.Mining.ValidationContext do
   @spec create_validation_stamp(t()) :: t()
   def create_validation_stamp(
         context = %__MODULE__{
+          genesis_address: genesis_address,
           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
           previous_transaction: prev_tx,
           validation_time: validation_time,
@@ -729,6 +730,7 @@ defmodule Archethic.Mining.ValidationContext do
       get_ledger_operations(context, fee, validation_time, encoded_state)
 
     validation_stamp = %ValidationStamp{
+      genesis_address: genesis_address,
       protocol_version: Mining.protocol_version(),
       timestamp: validation_time,
       proof_of_work: do_proof_of_work(tx),
@@ -1147,7 +1149,8 @@ defmodule Archethic.Mining.ValidationContext do
       consumed_inputs: fn -> valid_consumed_inputs?(stamp, ledger_operations) end,
       unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, ledger_operations) end,
       error: fn -> valid_stamp_error?(stamp, context) end,
-      protocol_version: fn -> valid_protocol_version?(stamp) end
+      protocol_version: fn -> valid_protocol_version?(stamp) end,
+      genesis_address: fn -> valid_genesis_address?(stamp, context) end
     ]
 
     subsets_verifications
@@ -1261,6 +1264,11 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_protocol_version?(%ValidationStamp{protocol_version: version}),
     do: Mining.protocol_version() == version
+
+  defp valid_genesis_address?(%ValidationStamp{genesis_address: genesis_address}, %__MODULE__{
+         genesis_address: ctx_genesis_address
+       }),
+       do: genesis_address == ctx_genesis_address
 
   @doc """
   Get the chain storage node position

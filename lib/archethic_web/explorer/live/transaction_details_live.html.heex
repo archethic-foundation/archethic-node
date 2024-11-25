@@ -19,9 +19,9 @@
           <% end %>
         </div>
       <% end %>
-      <%= if @address != burning_address() do %>
+      <%= if @address != burning_address() && not is_nil(@transaction) do %>
         <div class="level-item">
-          <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do %>
+          <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@transaction.validation_stamp.genesis_address)) do %>
             <span>Explore chain</span>
           <% end %>
         </div>
@@ -64,6 +64,21 @@
       <% true -> %>
         <div class="is-2">
           <div>
+            <%!-------------------------------- GENESIS --------------------------------%>
+            <div class="columns">
+              <div class="column ae-left-heading is-2">Genesis</div>
+              <div class="column">
+                <%= link(short_address(@transaction.validation_stamp.genesis_address),
+                  to:
+                    Routes.live_path(
+                      @socket,
+                      ArchethicWeb.Explorer.TransactionChainLive,
+                      address: Base.encode16(@transaction.validation_stamp.genesis_address)
+                    )
+                ) %>
+              </div>
+            </div>
+
             <%!-------------------------------- TYPE --------------------------------%>
             <div class="columns">
               <div class="column ae-left-heading is-2">Type</div>
