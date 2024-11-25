@@ -23,6 +23,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           | :protocol_version
           | :consumed_inputs
           | :aggregated_utxos
+          | :genesis_address
 
   @typedoc """
   A cross validation stamp is composed from:
@@ -42,9 +43,10 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @spec sign(t(), ValidationStamp.t()) :: t()
   def sign(
         cross_stamp = %__MODULE__{inconsistencies: inconsistencies},
-        validation_stamp = %ValidationStamp{}
+        validation_stamp = %ValidationStamp{protocol_version: protocol_version}
       ) do
-    raw_stamp = ValidationStamp.serialize(validation_stamp)
+    raw_stamp =
+      ValidationStamp.serialize(validation_stamp, serialize_genesis?: protocol_version >= 9)
 
     signature =
       [raw_stamp, marshal_inconsistencies(inconsistencies)]
@@ -66,9 +68,9 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           inconsistencies: inconsistencies,
           node_public_key: node_public_key
         },
-        stamp = %ValidationStamp{}
+        stamp = %ValidationStamp{protocol_version: protocol_version}
       ) do
-    raw_stamp = ValidationStamp.serialize(stamp)
+    raw_stamp = ValidationStamp.serialize(stamp, serialize_genesis?: protocol_version >= 9)
 
     data = [raw_stamp, marshal_inconsistencies(inconsistencies)]
     Crypto.verify?(signature, data, node_public_key)
@@ -132,6 +134,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:consumed_inputs), do: 10
   defp serialize_inconsistency(:aggregated_utxos), do: 11
   defp serialize_inconsistency(:recipients), do: 12
+  defp serialize_inconsistency(:genesis_address), do: 13
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -201,6 +204,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<10::8, rest::bitstring>>), do: {:consumed_inputs, rest}
   defp do_reduce_inconsistencies(<<11::8, rest::bitstring>>), do: {:aggregated_utxos, rest}
   defp do_reduce_inconsistencies(<<12::8, rest::bitstring>>), do: {:recipients, rest}
+  defp do_reduce_inconsistencies(<<13::8, rest::bitstring>>), do: {:genesis_address, rest}
 
   @spec cast(map()) :: t()
   def cast(stamp = %{}) do

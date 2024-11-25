@@ -56,7 +56,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
-  @vsn 2
+  @vsn 3
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
   @coordinator_timeout_supplement Application.compile_env!(:archethic, [
@@ -1020,6 +1020,27 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     {:keep_state_and_data, :postpone}
+  end
+
+  def code_change(2, state, data, _extra) do
+    {:ok, state,
+     case Map.get(data, :context) do
+       ctx = %Archethic.Mining.ValidationContext{
+         genesis_address: genesis_address,
+         validation_stamp: stamp
+       }
+       when not is_nil(genesis_address) and not is_nil(stamp) ->
+         %{
+           data
+           | context: %Archethic.Mining.ValidationContext{
+               ctx
+               | validation_stamp: Map.put(stamp, :genesis_address, genesis_address)
+             }
+         }
+
+       _ ->
+         data
+     end}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
