@@ -118,6 +118,7 @@ defmodule Archethic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
@@ -170,6 +171,7 @@ defmodule Archethic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: "seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -214,6 +216,7 @@ defmodule Archethic.TransactionFactory do
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
+      genesis_address: "seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
       timestamp: timestamp,
       proof_of_work: <<0, 0, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -262,6 +265,7 @@ defmodule Archethic.TransactionFactory do
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp = %ValidationStamp{
+      genesis_address: seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -304,6 +308,7 @@ defmodule Archethic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: "seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
@@ -347,6 +352,7 @@ defmodule Archethic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: "seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -407,6 +413,7 @@ defmodule Archethic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
