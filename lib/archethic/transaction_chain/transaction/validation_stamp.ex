@@ -12,6 +12,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   defstruct [
     :protocol_version,
+    :genesis_address,
     :timestamp,
     :signature,
     :proof_of_work,
@@ -43,6 +44,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
   - Error: Error returned by the pending transaction validation or after mining context
   - Protocol version: Version of the protocol
+  - Genesis address: Genesis of the chain. Added in protocol_version=9
   """
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
@@ -51,17 +53,18 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           proof_of_integrity: Crypto.versioned_hash(),
           proof_of_election: binary(),
           ledger_operations: LedgerOperations.t(),
-          recipients: list(Crypto.versioned_hash()),
+          recipients: list(Crypto.prepended_hash()),
+          genesis_address: Crypto.prepended_hash(),
           error: error() | nil,
           protocol_version: non_neg_integer()
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
-  def sign(stamp = %__MODULE__{}) do
+  def sign(stamp = %__MODULE__{protocol_version: protocol_version}) do
     raw_stamp =
       stamp
       |> extract_for_signature()
-      |> serialize()
+      |> serialize(serialize_genesis?: protocol_version >= 9)
 
     sig = Crypto.sign_with_last_node_key(raw_stamp)
 
@@ -80,7 +83,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ops,
         recipients: recipients,
         error: error,
-        protocol_version: version
+        protocol_version: version,
+        genesis_address: genesis_address
       }) do
     %__MODULE__{
       timestamp: timestamp,
@@ -90,25 +94,35 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       ledger_operations: ops,
       recipients: recipients,
       error: error,
-      protocol_version: version
+      protocol_version: version,
+      genesis_address: genesis_address
     }
   end
 
   @doc """
   Serialize a validation stamp info binary format
+
+  Opts:
+    serialize_genesis?: true | false
   """
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{
-        timestamp: timestamp,
-        proof_of_work: pow,
-        proof_of_integrity: poi,
-        proof_of_election: poe,
-        ledger_operations: ledger_operations,
-        recipients: recipients,
-        error: error,
-        signature: nil,
-        protocol_version: version
-      }) do
+  def serialize(stamp, opts \\ [])
+
+  def serialize(
+        %__MODULE__{
+          timestamp: timestamp,
+          proof_of_work: pow,
+          proof_of_integrity: poi,
+          proof_of_election: poe,
+          ledger_operations: ledger_operations,
+          recipients: recipients,
+          error: error,
+          signature: signature,
+          protocol_version: version,
+          genesis_address: genesis_address
+        },
+        opts
+      ) do
     pow =
       if pow == "" do
         # Empty public key if the no public key matching the origin signature
@@ -123,39 +137,26 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
       encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
       serialize_error(error)::8>>
+    |> maybe_add_signature(signature)
+    |> maybe_add_genesis(genesis_address, Keyword.get(opts, :serialize_genesis?, true))
   end
 
-  def serialize(%__MODULE__{
-        timestamp: timestamp,
-        proof_of_work: pow,
-        proof_of_integrity: poi,
-        proof_of_election: poe,
-        ledger_operations: ledger_operations,
-        recipients: recipients,
-        error: error,
-        signature: signature,
-        protocol_version: version
-      }) do
-    pow =
-      if pow == "" do
-        # Empty public key if the no public key matching the origin signature
-        <<0::8, 0::8, 0::256>>
-      else
-        pow
-      end
+  defp maybe_add_signature(bin, nil), do: bin
 
-    encoded_recipients_len = length(recipients) |> VarInt.from_value()
+  defp maybe_add_signature(bin, signature),
+    do: <<bin::bitstring, byte_size(signature)::8, signature::binary>>
 
-    <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
-      poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
-      encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
-      serialize_error(error)::8, byte_size(signature)::8, signature::binary>>
-  end
+  defp maybe_add_genesis(bin, _genesis_address, false), do: bin
+
+  defp maybe_add_genesis(bin, genesis_address, true),
+    do: <<bin::bitstring, genesis_address::binary>>
 
   @doc """
   Deserialize an encoded validation stamp
+
+  Never used after a serialize(serialize_genesis?: false)
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring()}
+  @spec deserialize(bin :: bitstring()) :: {t(), bitstring()}
   def deserialize(<<version::32, timestamp::64, rest::bitstring>>) do
     <<pow_curve_id::8, pow_origin_id::8, rest::bitstring>> = rest
     pow_key_size = Crypto.key_size(pow_curve_id)
@@ -177,8 +178,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
+    {genesis_address, rest} = Utils.deserialize_address(rest)
+
     {
       %__MODULE__{
+        genesis_address: genesis_address,
         timestamp: DateTime.from_unix!(timestamp, :millisecond),
         proof_of_work: pow,
         proof_of_integrity: <<poi_hash_id::8, poi_hash::binary>>,
@@ -205,6 +209,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
       error: Map.get(stamp, :error),
+      genesis_address: Map.get(stamp, :genesis_address),
       protocol_version: Map.get(stamp, :protocol_version)
     }
   end
@@ -220,7 +225,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_operations,
         recipients: recipients,
         signature: signature,
-        error: error
+        error: error,
+        genesis_address: genesis_address
       }) do
     %{
       timestamp: timestamp,
@@ -230,7 +236,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,
-      error: error
+      error: error,
+      genesis_address: genesis_address
     }
   end
 
@@ -243,14 +250,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   def valid_signature?(%__MODULE__{signature: nil}, _public_key), do: false
 
   def valid_signature?(
-        stamp = %__MODULE__{signature: signature},
+        stamp = %__MODULE__{signature: signature, protocol_version: protocol_version},
         public_key
       )
       when is_binary(signature) do
     raw_stamp =
       stamp
-      |> extract_for_signature
-      |> serialize
+      |> extract_for_signature()
+      |> serialize(serialize_genesis?: protocol_version >= 9)
 
     Crypto.verify?(signature, raw_stamp, public_key)
   end
@@ -263,6 +270,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   def generate_dummy(opts \\ []) do
     %__MODULE__{
       timestamp: Keyword.get(opts, :timestamp, DateTime.utc_now()),
+      genesis_address:
+        Keyword.get(opts, :genesis_address, <<0::16, :crypto.strong_rand_bytes(32)::binary>>),
       protocol_version: 1,
       proof_of_work: :crypto.strong_rand_bytes(32),
       proof_of_election: :crypto.strong_rand_bytes(32),

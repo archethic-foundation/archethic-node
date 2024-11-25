@@ -163,6 +163,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   - Ledger operations: All the operations performed by the transaction
   - Signature: Coordinator signature of the stamp
   - Protocol version: Version of the transaction validation protocol
+  - Genesis address: Genesis address of the chain
   """
   object :validation_stamp do
     field(:timestamp, :timestamp)
@@ -171,6 +172,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:ledger_operations, :ledger_operations)
     field(:signature, :hex)
     field(:protocol_version, :integer)
+    field(:genesis_address, :hex)
   end
 
   @desc """
