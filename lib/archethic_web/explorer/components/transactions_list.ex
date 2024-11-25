@@ -52,7 +52,7 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
       <ul>
         <li class="columns is-mobile th">
           <div class="column is-3-tablet is-6-mobile">Address</div>
-          <div class="column is-3-tablet is-6-mobile">Genesis</div>
+          <div class="column is-3-tablet is-hidden-mobile">Genesis</div>
           <div class="column is-6-mobile">Type</div>
           <div class="column is-hidden-mobile">Date (UTC)</div>
           <div class="column is-hidden-mobile">Fee</div>
@@ -70,7 +70,7 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
                   )
               ) %>
             </div>
-            <div class="column is-3-tablet is-6-mobile">
+            <div class="column is-3-tablet is-hidden-mobile">
               <%= link(short_address(get_genesis(tx)),
                 to:
                   Routes.live_path(
