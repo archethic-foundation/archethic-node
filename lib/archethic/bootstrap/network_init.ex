@@ -200,6 +200,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     validation_stamp =
       %ValidationStamp{
+        genesis_address: Transaction.previous_address(tx),
         protocol_version: 1,
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),

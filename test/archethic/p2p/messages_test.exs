@@ -240,6 +240,7 @@ defmodule Archethic.P2P.MessageTest do
           <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
             65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
         validation_stamp: %ValidationStamp{
+          genesis_address: random_address(),
           timestamp: ~U[2020-06-26 06:37:04.000Z],
           proof_of_work:
             <<0, 0, 206, 159, 122, 114, 106, 65, 116, 18, 224, 214, 2, 26, 213, 36, 82, 175, 176,
@@ -296,6 +297,7 @@ defmodule Archethic.P2P.MessageTest do
           <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
             65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
         validation_stamp: %ValidationStamp{
+          genesis_address: random_address(),
           timestamp: ~U[2020-06-26 06:37:04.000Z],
           proof_of_work:
             <<0, 0, 206, 159, 122, 114, 106, 65, 116, 18, 224, 214, 2, 26, 213, 36, 82, 175, 176,
@@ -484,6 +486,7 @@ defmodule Archethic.P2P.MessageTest do
                 175, 135, 180, 179, 28, 57, 84, 35, 156, 173, 212, 235, 155, 226, 41, 148, 171,
                 132, 196, 120, 51, 136, 4, 78, 123, 70, 44, 76, 162>>,
             validation_stamp: %ValidationStamp{
+              genesis_address: random_address(),
               timestamp: ~U[2020-06-26 06:37:04.000Z],
               proof_of_work:
                 <<0, 0, 206, 159, 122, 114, 106, 65, 116, 18, 224, 214, 2, 26, 213, 36, 82, 175,
