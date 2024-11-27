@@ -18,12 +18,17 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Message.ValidateTransaction
+  alias Archethic.P2P.Message.RequestReplicationSignature
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.Signature
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -54,6 +59,10 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     me = self()
 
     tx =
+      %Transaction{
+        address: tx_address,
+        validation_stamp: %ValidationStamp{genesis_address: genesis}
+      } =
       TransactionFactory.create_valid_transaction(
         [
           %UnspentOutput{
@@ -75,10 +84,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
         {:ok, %Ok{}}
 
       _, %GetUnspentOutputs{}, _ ->
-        {:ok,
-         %UnspentOutputList{
-           unspent_outputs: unspent_outputs
-         }}
+        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
 
       _, %GetTransaction{}, _ ->
         {:ok, %NotFound{}}
@@ -90,18 +96,37 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
         end
 
       _, %GetGenesisAddress{}, _ ->
-        {:ok,
-         %GenesisAddress{address: Transaction.previous_address(tx), timestamp: DateTime.utc_now()}}
+        {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
       _, %ValidateTransaction{transaction: tx}, _ ->
         Agent.update(agent_pid, fn _ -> tx end)
         send(me, {:cross_replication_stamp, tx})
         {:ok, %Ok{}}
 
-      _, %ReplicatePendingTransactionChain{}, _ ->
+      _, %RequestReplicationSignature{address: ^tx_address, proof_of_validation: proof}, _ ->
+        tx = Agent.get(agent_pid, & &1)
+
+        assert P2P.authorized_and_available_nodes()
+               |> ProofOfValidation.get_election(tx_address)
+               |> ProofOfValidation.valid?(proof, tx.validation_stamp)
+
+        tx = %Transaction{tx | proof_of_validation: proof}
+        Agent.update(agent_pid, fn _ -> tx end)
+
+        send(me, {:replication_signature, tx})
+        {:ok, %Ok{}}
+
+      _,
+      %ReplicatePendingTransactionChain{address: ^tx_address, proof_of_replication: proof},
+      _ ->
         tx = Agent.get(agent_pid, & &1)
         tx_summary = TransactionSummary.from_transaction(tx)
-        sig = Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+
+        assert P2P.authorized_and_available_nodes()
+               |> ProofOfReplication.get_election(tx_address)
+               |> ProofOfReplication.valid?(proof, tx_summary)
+
+        sig = tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_first_node_key()
 
         send(me, {:ack_replication, sig, Crypto.first_node_public_key()})
 
@@ -121,6 +146,14 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       {:cross_replication_stamp, tx} ->
         cross_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
         send(pid, {:add_cross_validation_stamp, cross_stamp})
+    after
+      1000 -> :skip
+    end
+
+    receive do
+      {:replication_signature, tx} ->
+        sig = tx |> TransactionSummary.from_transaction() |> Signature.create()
+        send(pid, {:add_replication_signature, sig})
     after
       1000 -> :skip
     end

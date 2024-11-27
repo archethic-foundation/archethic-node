@@ -71,7 +71,10 @@ defmodule Archethic.P2P.MessageId do
     RequestChainLock,
     UnlockChain,
     UpdateLastAddress,
-    ProofOfValidationDone
+    ProofOfValidationDone,
+    RequestReplicationSignature,
+    ReplicationSignatureDone,
+    ProofOfReplicationDone
   }
 
   alias Archethic.TransactionChain.{
@@ -101,7 +104,7 @@ defmodule Archethic.P2P.MessageId do
     AcknowledgeStorage => 13,
     NotifyEndOfNodeSync => 14,
     GetLastTransaction => 15,
-    # Message number 16 is available
+    RequestReplicationSignature => 16,
     GetTransactionInputs => 17,
     GetTransactionChainLength => 18,
     RequestChainLock => 19,
@@ -129,6 +132,8 @@ defmodule Archethic.P2P.MessageId do
     UnlockChain => 41,
     GetCurrentReplicationAttestations => 42,
     UpdateLastAddress => 43,
+    ProofOfReplicationDone => 44,
+    ReplicationSignatureDone => 45,
 
     # Responses
     DashboardData => 225,

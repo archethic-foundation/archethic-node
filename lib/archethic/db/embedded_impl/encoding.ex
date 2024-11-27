@@ -6,6 +6,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -189,8 +190,14 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     ]
   end
 
-  defp encode_validation_fields(%Transaction{proof_of_validation: proof_of_validation}) do
-    [{"proof_of_validation", ProofOfValidation.serialize(proof_of_validation)}]
+  defp encode_validation_fields(%Transaction{
+         proof_of_validation: proof_of_validation,
+         proof_of_replication: proof_of_replication
+       }) do
+    [
+      {"proof_of_validation", ProofOfValidation.serialize(proof_of_validation)},
+      {"proof_of_replication", ProofOfReplication.serialize(proof_of_replication)}
+    ]
   end
 
   def decode(_tx_version, _protocol_version, "type", <<type::8>>, acc),
@@ -384,6 +391,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   def decode(_tx_version, _protocol_version, "proof_of_validation", <<rest::bitstring>>, acc) do
     {proof_of_validation, _} = ProofOfValidation.deserialize(rest)
     Map.put(acc, :proof_of_validation, proof_of_validation)
+  end
+
+  def decode(_tx_version, _protocol_version, "proof_of_replication", <<rest::bitstring>>, acc) do
+    {proof_of_replication, _} = ProofOfReplication.deserialize(rest)
+    Map.put(acc, :proof_of_replication, proof_of_replication)
   end
 
   def decode(_tx_version, _protocol_version, column, data, acc), do: Map.put(acc, column, data)

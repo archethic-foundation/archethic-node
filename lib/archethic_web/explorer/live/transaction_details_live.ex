@@ -14,6 +14,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -87,7 +88,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          tx = %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{timestamp: timestamp},
-           proof_of_validation: proof
+           proof_of_validation: proof_of_validation,
+           proof_of_replication: proof_of_replication
          }
        ) do
     uco_price_at_time = OracleChain.get_uco_price(timestamp)
@@ -99,16 +101,25 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
       if TransactionChain.first_transaction?(tx), do: nil, else: Transaction.previous_address(tx)
 
     proof_of_validation =
-      if proof != nil do
+      if proof_of_validation != nil do
         timestamp
         |> P2P.authorized_and_available_nodes()
         |> ProofOfValidation.get_election(address)
-        |> ProofOfValidation.to_map(proof)
+        |> ProofOfValidation.to_map(proof_of_validation)
+      end
+
+    proof_of_replication =
+      if proof_of_validation != nil do
+        timestamp
+        |> P2P.authorized_and_available_nodes()
+        |> ProofOfReplication.get_election(address)
+        |> ProofOfReplication.to_map(proof_of_replication)
       end
 
     socket
     |> assign(:transaction, tx)
     |> assign(:proof_of_validation, proof_of_validation)
+    |> assign(:proof_of_replication, proof_of_replication)
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)

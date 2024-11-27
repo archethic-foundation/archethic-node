@@ -9,6 +9,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias __MODULE__.CrossValidationStamp
   alias __MODULE__.ProofOfValidation
+  alias __MODULE__.ProofOfReplication
   alias __MODULE__.ValidationStamp
   alias __MODULE__.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -50,6 +51,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :origin_signature,
     :validation_stamp,
     :proof_of_validation,
+    :proof_of_replication,
     cross_validation_stamps: [],
     version: @version
   ]
@@ -68,6 +70,7 @@ defmodule Archethic.TransactionChain.Transaction do
   - Validation stamp: coordinator work result
   - Cross validation stamps (protocol_version <= 8): endorsements of the validation stamp from the coordinator
   - Proof of validation (protocol_version > 9): Aggregated signatures of cross validation stamps
+  - Proof of validation (protocol_version > 9): Aggregated signatures of replication signatures
   """
   @type t() :: %__MODULE__{
           address: binary(),
@@ -78,6 +81,7 @@ defmodule Archethic.TransactionChain.Transaction do
           origin_signature: nil | binary(),
           validation_stamp: nil | ValidationStamp.t(),
           proof_of_validation: nil | ProofOfValidation.t(),
+          proof_of_replication: nil | ProofOfReplication.t(),
           cross_validation_stamps: list(CrossValidationStamp.t()),
           version: pos_integer()
         }
@@ -720,24 +724,32 @@ defmodule Archethic.TransactionChain.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
-    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring,
-      length(cross_validation_stamps)::8, cross_validation_stamps_bin::binary>>
+    <<serialize_stamp(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
+      cross_validation_stamps_bin::binary>>
   end
 
   defp serialize_validation_data(%__MODULE__{
          validation_stamp: validation_stamp,
-         proof_of_validation: nil
+         proof_of_validation: proof_of_validation,
+         proof_of_replication: proof_of_replication
        }) do
-    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring, 0::8>>
+    <<serialize_stamp(validation_stamp)::bitstring,
+      serialize_proof_of_validation(proof_of_validation)::bitstring,
+      serialize_proof_of_replication(proof_of_replication)::bitstring>>
   end
 
-  defp serialize_validation_data(%__MODULE__{
-         validation_stamp: validation_stamp,
-         proof_of_validation: proof_of_validation
-       }) do
-    <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring, 1::8,
-      ProofOfValidation.serialize(proof_of_validation)::bitstring>>
-  end
+  defp serialize_stamp(validation_stamp),
+    do: <<1::8, ValidationStamp.serialize(validation_stamp)::bitstring>>
+
+  defp serialize_proof_of_validation(nil), do: <<0::8>>
+
+  defp serialize_proof_of_validation(proof),
+    do: <<1::8, ProofOfValidation.serialize(proof)::bitstring>>
+
+  defp serialize_proof_of_replication(nil), do: <<0::8>>
+
+  defp serialize_proof_of_replication(proof),
+    do: <<1::8, ProofOfReplication.serialize(proof)::bitstring>>
 
   @doc """
   Deserialize an encoded transaction
@@ -794,14 +806,28 @@ defmodule Archethic.TransactionChain.Transaction do
     {tx, rest}
   end
 
-  defp do_deserialize_validation_data(tx, <<0::8, rest::bitstring>>, _), do: {tx, rest}
+  defp do_deserialize_validation_data(tx, rest, _) do
+    {proof_of_validation, rest} = deserialize_proof_of_validation(rest)
+    {proof_of_replication, rest} = deserialize_proof_of_replication(rest)
 
-  defp do_deserialize_validation_data(tx, <<1::8, rest::bitstring>>, _) do
-    {proof, rest} = ProofOfValidation.deserialize(rest)
-    tx = %__MODULE__{tx | proof_of_validation: proof}
+    tx = %__MODULE__{
+      tx
+      | proof_of_validation: proof_of_validation,
+        proof_of_replication: proof_of_replication
+    }
 
     {tx, rest}
   end
+
+  defp deserialize_proof_of_validation(<<0::8, rest::bitstring>>), do: {nil, rest}
+
+  defp deserialize_proof_of_validation(<<1::8, rest::bitstring>>),
+    do: ProofOfValidation.deserialize(rest)
+
+  defp deserialize_proof_of_replication(<<0::8, rest::bitstring>>), do: {nil, rest}
+
+  defp deserialize_proof_of_replication(<<1::8, rest::bitstring>>),
+    do: ProofOfReplication.deserialize(rest)
 
   defp reduce_cross_validation_stamps(rest, _, 0, _), do: {[], rest}
 
@@ -818,8 +844,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def to_map(
         tx = %__MODULE__{
           address: address,
-          validation_stamp: validation_stamp,
-          proof_of_validation: proof_of_validation
+          validation_stamp: stamp,
+          proof_of_validation: proof_of_validation,
+          proof_of_replication: proof_of_replication
         }
       ) do
     %{
@@ -831,10 +858,11 @@ defmodule Archethic.TransactionChain.Transaction do
       previous_address: previous_address(tx),
       previous_signature: tx.previous_signature,
       origin_signature: tx.origin_signature,
-      validation_stamp: ValidationStamp.to_map(validation_stamp),
+      validation_stamp: ValidationStamp.to_map(stamp),
       cross_validation_stamps:
         Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1),
-      proof_of_validation: map_proof_of_validation(proof_of_validation, validation_stamp, address)
+      proof_of_validation: map_proof_of_validation(proof_of_validation, stamp, address),
+      proof_of_replication: map_proof_of_replication(proof_of_replication, stamp, address)
     }
   end
 
@@ -851,6 +879,20 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp map_proof_of_validation(_, _, _), do: nil
+
+  defp map_proof_of_replication(
+         proof = %ProofOfReplication{},
+         %ValidationStamp{protocol_version: protocol_version, timestamp: timestamp},
+         address
+       )
+       when protocol_version > 8 do
+    timestamp
+    |> P2P.authorized_and_available_nodes()
+    |> ProofOfReplication.get_election(address)
+    |> ProofOfReplication.to_map(proof)
+  end
+
+  defp map_proof_of_replication(_, _, _), do: nil
 
   @spec cast(map()) :: t()
   def cast(tx = %{}) do
@@ -872,7 +914,8 @@ defmodule Archethic.TransactionChain.Transaction do
       validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.cast(),
       cross_validation_stamps:
         Map.get(tx, :cross_validation_stamps, []) |> Enum.map(&CrossValidationStamp.cast/1),
-      proof_of_validation: Map.get(tx, :proof_of_validation) |> ProofOfValidation.cast()
+      proof_of_validation: Map.get(tx, :proof_of_validation) |> ProofOfValidation.cast(),
+      proof_of_replication: Map.get(tx, :proof_of_replication) |> ProofOfReplication.cast()
     }
   end
 

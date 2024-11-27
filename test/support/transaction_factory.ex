@@ -12,6 +12,8 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.Signature
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -21,6 +23,8 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.SharedSecrets
 
@@ -147,16 +151,27 @@ defmodule Archethic.TransactionFactory do
             cross_validation_stamps: cross_stamps
         }
       else
-        proof =
-          [new_node()]
+        nodes = [new_node()]
+
+        proof_of_validation =
+          nodes
           |> ProofOfValidation.get_election(tx.address)
           |> ProofOfValidation.create(cross_validation_stamps)
 
-        %Transaction{
+        tx = %Transaction{
           tx
           | validation_stamp: validation_stamp,
-            proof_of_validation: proof
+            proof_of_validation: proof_of_validation
         }
+
+        replication_signature = tx |> TransactionSummary.from_transaction() |> Signature.create()
+
+        proof_of_replication =
+          nodes
+          |> ProofOfReplication.get_election(tx.address)
+          |> ProofOfReplication.create([replication_signature])
+
+        %Transaction{tx | proof_of_replication: proof_of_replication}
       end
 
     {tx, cross_validation_stamps}

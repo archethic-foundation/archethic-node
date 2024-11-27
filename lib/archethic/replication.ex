@@ -32,6 +32,7 @@ defmodule Archethic.Replication do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -128,12 +129,35 @@ defmodule Archethic.Replication do
     as: :add_transaction
 
   @doc """
-  Pop a registered transaction in the pool awaiting atomic commitment
+  Add the proof of validation to the queued transaction
   """
-  @spec get_transaction_in_commit_pool(binary()) ::
+  @spec add_proof_of_validation_to_commit_pool(
+          proof_of_validation :: ProofOfValidation.t(),
+          tx_address :: Crypto.prepended_hash()
+        ) :: :ok
+  defdelegate add_proof_of_validation_to_commit_pool(proof_of_validation, tx_address),
+    to: TransactionPool,
+    as: :add_proof_of_validation
+
+  @doc """
+  Get a registered transaction in the pool awaiting atomic commitment
+  """
+  @spec get_transaction_in_commit_pool(address :: Crypto.prepended_hash()) ::
           {:ok, Transaction.t(), list(VersionedUnspentOutput.t())}
           | {:error, :transaction_not_exists}
-  defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
+  defdelegate get_transaction_in_commit_pool(address),
+    to: TransactionPool,
+    as: :get_transaction
+
+  @doc """
+  Pop a registered transaction in the pool awaiting atomic commitment
+  """
+  @spec pop_transaction_in_commit_pool(address :: Crypto.prepended_hash()) ::
+          {:ok, Transaction.t(), list(VersionedUnspentOutput.t())}
+          | {:error, :transaction_not_exists}
+  defdelegate pop_transaction_in_commit_pool(address),
+    to: TransactionPool,
+    as: :pop_transaction
 
   @type sync_options :: [self_repair?: boolean(), resolved_addresses: map(), chain?: boolean()]
 

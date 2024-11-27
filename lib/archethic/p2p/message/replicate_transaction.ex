@@ -8,13 +8,14 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
-  alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.TransactionSummary
 
   @type t :: %__MODULE__{
           transaction: Transaction.t()
@@ -27,24 +28,30 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
             tx = %Transaction{
               address: tx_address,
               validation_stamp: stamp = %ValidationStamp{timestamp: validation_time},
-              proof_of_validation: proof_of_validation
+              proof_of_validation: proof_of_validation,
+              proof_of_replication: proof_of_replication
             }
         },
         _
       ) do
-    elected_nodes =
+    validation_elected_nodes =
       validation_time
       |> P2P.authorized_and_available_nodes()
       |> ProofOfValidation.get_election(tx_address)
 
-    if ProofOfValidation.valid?(elected_nodes, proof_of_validation, stamp) do
+    replication_elected_nodes =
+      validation_time
+      |> P2P.authorized_and_available_nodes()
+      |> ProofOfReplication.get_election(tx_address)
+
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    with true <- ProofOfValidation.valid?(validation_elected_nodes, proof_of_validation, stamp),
+         true <-
+           ProofOfReplication.valid?(replication_elected_nodes, proof_of_replication, tx_summary) do
       Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
         replicate_transaction(tx)
       end)
-
-      %Ok{}
-    else
-      %Error{reason: :invalid_transaction}
     end
 
     %Ok{}

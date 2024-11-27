@@ -22,6 +22,8 @@ defmodule Archethic.Mining do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.Signature
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
@@ -37,7 +39,7 @@ defmodule Archethic.Mining do
   # version 8->9
   #    - genesis in the validation stamp
   #    - smart contracts' state is now compressed to reduce storage and p2p communications load
-  #    - add proof of validation workflow and field tx.proof_of_validation
+  #    - add proof of validation / replication workflow and field tx.proof_of_validation / tx.proof_of_replication
   @protocol_version 9
 
   @lock_threshold 0.75
@@ -251,6 +253,33 @@ defmodule Archethic.Mining do
     tx_address
     |> get_mining_process!()
     |> DistributedWorkflow.add_proof_of_validation(proof, from)
+  end
+
+  @doc """
+  Add a replication signature to the transaction process
+  """
+  @spec add_replication_signature(
+          tx_address :: Crypto.prepended_hash(),
+          replication_signature :: Signature.t()
+        ) :: :ok
+  def add_replication_signature(tx_address, replication_signature = %Signature{}) do
+    pid = get_mining_process!(tx_address)
+    if pid, do: send(pid, {:add_replication_signature, replication_signature})
+    :ok
+  end
+
+  @doc """
+  Add a proof of replication to the transaction mining process
+  """
+  @spec add_proof_of_replication(
+          tx_address :: Crypto.prepended_hash(),
+          proof_of_validation :: ProofOfReplication.t(),
+          from :: Crypto.key()
+        ) :: :ok
+  def add_proof_of_replication(tx_address, proof, from) do
+    tx_address
+    |> get_mining_process!()
+    |> DistributedWorkflow.add_proof_of_replication(proof, from)
   end
 
   @doc """

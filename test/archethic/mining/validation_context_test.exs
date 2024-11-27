@@ -19,6 +19,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ProofOfValidation
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication
+  alias Archethic.TransactionChain.Transaction.ProofOfReplication.Signature
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -33,6 +35,7 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.TransactionFactory
 
@@ -638,6 +641,249 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
+  describe "add_replication_signature/2" do
+    test "should add the replication signature to the list" do
+      ctx = create_proof_context("cross")
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      replication_signature =
+        ctx
+        |> ValidationContext.get_validated_transaction()
+        |> TransactionSummary.from_transaction()
+        |> Signature.create()
+
+      assert %ValidationContext{replication_signatures: [^replication_signature]} =
+               ValidationContext.add_replication_signature(ctx, replication_signature)
+    end
+
+    test "shoud refuse the replication signature if node is not elected" do
+      ctx = create_proof_context("cross")
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      other_seed = "other"
+      {wrong_node_pub, _} = Crypto.derive_keypair(other_seed, 0)
+
+      {wrong_mining_pub, wrong_mining_priv} =
+        Crypto.generate_deterministic_keypair(other_seed, :bls)
+
+      tx_summary_bin =
+        ctx
+        |> ValidationContext.get_validated_transaction()
+        |> TransactionSummary.from_transaction()
+        |> TransactionSummary.serialize()
+
+      replication_signature = %Signature{
+        signature: Crypto.sign(tx_summary_bin, wrong_mining_priv),
+        node_mining_key: wrong_mining_pub,
+        node_public_key: wrong_node_pub
+      }
+
+      assert %ValidationContext{replication_signatures: []} =
+               ValidationContext.add_replication_signature(ctx, replication_signature)
+    end
+
+    test "shoud refuse the replication signature if the signature is invalid" do
+      ctx = create_proof_context("cross")
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      other_seed = "other"
+      {wrong_node_pub, _} = Crypto.derive_keypair(other_seed, 0)
+
+      {wrong_mining_pub, _wrong_mining_priv} =
+        Crypto.generate_deterministic_keypair(other_seed, :bls)
+
+      replication_signature = %Signature{
+        signature: :crypto.strong_rand_bytes(96),
+        node_mining_key: wrong_mining_pub,
+        node_public_key: wrong_node_pub
+      }
+
+      assert %ValidationContext{replication_signatures: []} =
+               ValidationContext.add_replication_signature(ctx, replication_signature)
+    end
+  end
+
+  describe "create_proof_of_replication/1" do
+    test "should create the proof of replication" do
+      ctx = create_context()
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      assert %ValidationContext{proof_of_replication: %ProofOfReplication{}} =
+               ctx
+               |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+               |> ValidationContext.cross_validate()
+               |> ValidationContext.create_proof_of_validation()
+               |> then(fn ctx ->
+                 replication_signature =
+                   ctx
+                   |> ValidationContext.get_validated_transaction()
+                   |> TransactionSummary.from_transaction()
+                   |> Signature.create()
+
+                 ValidationContext.add_replication_signature(ctx, replication_signature)
+               end)
+               |> ValidationContext.create_proof_of_replication()
+    end
+  end
+
+  describe "valid_proof_of_replication?/2" do
+    test "should return false if proof signature is invalid" do
+      cross_seed = "cross"
+      {node_pub, _} = Crypto.derive_keypair(cross_seed, 0)
+      {mining_pub, mining_priv} = Crypto.generate_deterministic_keypair(cross_seed, :bls)
+
+      ctx = create_proof_context(cross_seed)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      tx_summary =
+        ctx
+        |> ValidationContext.get_validated_transaction()
+        |> TransactionSummary.from_transaction()
+
+      replication_signature = Signature.create(tx_summary)
+
+      ctx = ValidationContext.add_replication_signature(ctx, replication_signature)
+
+      tx_summary_bin = TransactionSummary.serialize(tx_summary)
+
+      replication_signature = %Signature{
+        signature: Crypto.sign(tx_summary_bin, mining_priv),
+        node_public_key: node_pub,
+        node_mining_key: mining_pub
+      }
+
+      ctx = ValidationContext.add_replication_signature(ctx, replication_signature)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfReplication.get_election(ctx.transaction.address)
+        |> ProofOfReplication.create(ctx.replication_signatures)
+
+      assert ValidationContext.valid_proof_of_replication?(ctx, proof)
+
+      proof = Map.put(proof, :signature, :crypto.strong_rand_bytes(96))
+      refute ValidationContext.valid_proof_of_replication?(ctx, proof)
+    end
+
+    test "should return false if proof does not reach threashold" do
+      cross_seed = "cross"
+      {node_pub, _} = Crypto.derive_keypair(cross_seed, 0)
+      {mining_pub, mining_priv} = Crypto.generate_deterministic_keypair(cross_seed, :bls)
+
+      ctx = create_proof_context(cross_seed)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      tx_summary =
+        ctx
+        |> ValidationContext.get_validated_transaction()
+        |> TransactionSummary.from_transaction()
+
+      replication_signature = Signature.create(tx_summary)
+
+      ctx = ValidationContext.add_replication_signature(ctx, replication_signature)
+
+      tx_summary_bin = TransactionSummary.serialize(tx_summary)
+
+      replication_signature = %Signature{
+        signature: Crypto.sign(tx_summary_bin, mining_priv),
+        node_public_key: node_pub,
+        node_mining_key: mining_pub
+      }
+
+      ctx = ValidationContext.add_replication_signature(ctx, replication_signature)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfReplication.get_election(ctx.transaction.address)
+        |> ProofOfReplication.create(ctx.replication_signatures)
+
+      assert ValidationContext.valid_proof_of_replication?(ctx, proof)
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfReplication.get_election(ctx.transaction.address)
+        |> ProofOfReplication.create(Enum.take(ctx.replication_signatures, 1))
+
+      refute ValidationContext.valid_proof_of_replication?(ctx, proof)
+    end
+
+    test "should return false if proof is signed by other node than expected" do
+      other_seed = "other"
+      {wrong_node_pub, _} = Crypto.derive_keypair(other_seed, 0)
+
+      {wrong_mining_pub, wrong_mining_priv} =
+        Crypto.generate_deterministic_keypair(other_seed, :bls)
+
+      ctx = create_proof_context("cross")
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      ctx =
+        ctx
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(ctx))
+        |> ValidationContext.cross_validate()
+        |> ValidationContext.create_proof_of_validation()
+
+      tx_summary =
+        ctx
+        |> ValidationContext.get_validated_transaction()
+        |> TransactionSummary.from_transaction()
+
+      replication_signature_valid = Signature.create(tx_summary)
+
+      tx_summary_bin = TransactionSummary.serialize(tx_summary)
+
+      replication_signature_invalid = %Signature{
+        signature: Crypto.sign(tx_summary_bin, wrong_mining_priv),
+        node_public_key: wrong_node_pub,
+        node_mining_key: wrong_mining_pub
+      }
+
+      proof =
+        P2P.authorized_and_available_nodes()
+        |> ProofOfReplication.get_election(ctx.transaction.address)
+        |> ProofOfReplication.create([replication_signature_valid, replication_signature_invalid])
+
+      refute ValidationContext.valid_proof_of_replication?(ctx, proof)
+    end
+  end
+
   describe "get_confirmed_replication_nodes/1" do
     test "should return the correct nodes" do
       ctx = create_context()
@@ -704,8 +950,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       cross_validation_nodes: [cross_validation_node],
       chain_storage_nodes: [coordinator_node, cross_validation_node],
       validation_time: validation_time,
-      proof_elected_nodes:
-        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
+      validation_proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address),
+      replication_proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfReplication.get_election(tx.address)
     }
   end
 
@@ -760,8 +1008,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       validation_time: validation_time,
       resolved_addresses: resolved_addresses,
       chain_storage_nodes: previous_storage_nodes,
-      proof_elected_nodes:
-        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address)
+      validation_proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfValidation.get_election(tx.address),
+      replication_proof_elected_nodes:
+        P2P.authorized_and_available_nodes() |> ProofOfReplication.get_election(tx.address)
     }
   end
 
