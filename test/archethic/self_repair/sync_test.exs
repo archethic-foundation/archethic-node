@@ -41,7 +41,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   import Mox
   import Mock
-  import ArchethicCase
 
   describe "last_sync_date/0" do
     test "should get nil if not last sync file and not prior nodes" do
@@ -590,82 +589,81 @@ defmodule Archethic.SelfRepair.SyncTest do
     assert %Node{network_patch: "AAA"} = P2P.get_node_info()
   end
 
-  describe "process_replication_attestations/2" do
-    test "should replicate the transactions and their inputs" do
-      {pub, priv} = Crypto.generate_random_keypair()
+  test "should replicate the transactions and their inputs" do
+    fixed_time = ~U[2024-12-04 16:00:00Z]
 
-      node1 = %Node{
-        first_public_key: pub,
-        last_public_key: pub,
-        available?: true,
-        geo_patch: "BBB",
-        network_patch: "BBB",
-        authorized?: true,
-        reward_address: random_address(),
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        enrollment_date: DateTime.utc_now()
-      }
+    {pub, priv} = Crypto.generate_random_keypair()
 
-      node2 = %Node{
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        available?: true,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        authorized?: true,
-        reward_address: random_address(),
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        enrollment_date: DateTime.utc_now()
-      }
+    node1 = %Node{
+      first_public_key: pub,
+      last_public_key: pub,
+      available?: true,
+      geo_patch: "BBB",
+      network_patch: "BBB",
+      authorized?: true,
+      reward_address: "reward_address_1",
+      authorization_date: fixed_time |> DateTime.add(-10),
+      enrollment_date: fixed_time
+    }
 
-      P2P.add_and_connect_node(node1)
-      P2P.add_and_connect_node(node2)
+    node2 = %Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.first_node_public_key(),
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      authorized?: true,
+      reward_address: "reward_address_2",
+      authorization_date: fixed_time |> DateTime.add(-10),
+      enrollment_date: fixed_time
+    }
 
-      tx = TransactionFactory.create_valid_transaction()
-      tx_address = tx.address
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+    P2P.add_and_connect_node(node1)
+    P2P.add_and_connect_node(node2)
 
-      MockClient
-      |> expect(:send_message, fn ^node1, %GetTransaction{}, _ ->
-        {:ok, tx}
-      end)
-      |> expect(:send_message, fn ^node1, %GetTransactionInputs{}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [
-             %VersionedTransactionInput{
-               protocol_version: 8,
-               input: %TransactionInput{
-                 from: random_address(),
-                 amount: 100_000_000,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
-               }
-             }
-           ],
-           more?: false,
-           offset: 0
-         }}
-      end)
+    tx = TransactionFactory.create_valid_transaction()
+    tx_address = tx.address
+    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
-      MockTransactionLedger
-      |> expect(:write_inputs, fn ^tx_address, list ->
-        assert 1 = Enum.count(list)
-        :ok
-      end)
-
-      tx_summary_bin = TransactionSummary.serialize(tx_summary)
-      signature = Crypto.sign(tx_summary_bin, priv)
-
-      attestations = [
-        %ReplicationAttestation{
-          transaction_summary: tx_summary,
-          confirmations: [{0, signature}]
+    transaction_inputs = %TransactionInputList{
+      inputs: [
+        %VersionedTransactionInput{
+          protocol_version: 8,
+          input: %TransactionInput{
+            from: "input_address",
+            amount: 100_000_000,
+            type: :UCO,
+            timestamp: fixed_time
+          }
         }
-      ]
+      ],
+      more?: false,
+      offset: 0
+    }
 
-      assert 1 = Sync.process_replication_attestations(attestations, [node1])
-    end
+    MockClient
+    |> stub(:send_message, fn
+      ^node1, %GetTransaction{}, _ -> {:ok, tx}
+      ^node1, %GetTransactionInputs{}, _ -> {:ok, transaction_inputs}
+    end)
+
+    MockTransactionLedger
+    |> stub(:write_inputs, fn ^tx_address, inputs ->
+      assert length(inputs) == 1
+      :ok
+    end)
+
+    tx_summary_bin = TransactionSummary.serialize(tx_summary)
+    signature = Crypto.sign(tx_summary_bin, priv)
+
+    attestations = [
+      %ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: [{0, signature}]
+      }
+    ]
+
+    assert 1 == Sync.process_replication_attestations(attestations, [node1])
   end
 
   defp create_p2p_context do
