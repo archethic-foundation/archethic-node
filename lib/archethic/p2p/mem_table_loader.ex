@@ -8,6 +8,7 @@ defmodule Archethic.P2P.MemTableLoader do
 
   alias Archethic.DB
 
+  alias Archethic.P2P
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Node
@@ -85,7 +86,7 @@ defmodule Archethic.P2P.MemTableLoader do
   end
 
   @doc """
-  Load the transaction and update the P2P view
+  Load the transaction and update the P2P view.
   """
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{
@@ -125,13 +126,20 @@ defmodule Archethic.P2P.MemTableLoader do
         mining_public_key: mining_public_key
       }
 
-      node
-      |> Node.enroll(timestamp)
-      |> MemTable.add_node()
+      node = Node.enroll(node, timestamp)
+      MemTable.add_node(node)
     else
       {:ok, node} = MemTable.get_node(first_public_key)
 
-      MemTable.add_node(%{
+      if node.geo_patch != geo_patch do
+        Logger.info("GeoPatch changed for node",
+          node: Base.encode16(first_public_key)
+        )
+
+        start_notifier_for_geopatch_change(timestamp)
+      end
+
+      updated_node = %Node{
         node
         | ip: ip,
           port: port,
@@ -144,10 +152,12 @@ defmodule Archethic.P2P.MemTableLoader do
           origin_public_key: origin_public_key,
           last_update_date: timestamp,
           mining_public_key: mining_public_key
-      })
+      }
+
+      MemTable.add_node(updated_node)
     end
 
-    Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+    Logger.info("Node loaded into in-memory P2P tables", node: Base.encode16(first_public_key))
   end
 
   def load_transaction(%Transaction{
@@ -192,5 +202,18 @@ defmodule Archethic.P2P.MemTableLoader do
     else
       MemTable.set_node_unavailable(node_public_key, availability_update)
     end
+  end
+
+  defp start_notifier_for_geopatch_change(timestamp) do
+    Logger.info("Starting Notifier for GeoPatch change")
+
+    prev_available_nodes = P2P.authorized_and_available_nodes(timestamp, true)
+    new_available_nodes = P2P.authorized_and_available_nodes()
+
+    Archethic.SelfRepair.Notifier.start_link(%{
+      availability_update: timestamp,
+      prev_available_nodes: prev_available_nodes,
+      new_available_nodes: new_available_nodes
+    })
   end
 end
