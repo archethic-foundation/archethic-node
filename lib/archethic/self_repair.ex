@@ -16,7 +16,6 @@ defmodule Archethic.SelfRepair do
   alias Archethic.P2P.Node
   alias Archethic.Replication
   alias Archethic.TransactionChain
-  alias Archethic.Utils
 
   require Logger
 
@@ -164,33 +163,21 @@ defmodule Archethic.SelfRepair do
   @doc """
   Start a new notifier process if there is new unavailable nodes after the self repair
   """
-  @spec start_notifier(list(Node.t()), list(Node.t()), DateTime.t()) :: :ok
-  def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
-    diff_node =
-      prev_available_nodes
-      |> Enum.reject(
-        &(Utils.key_in_node_list?(new_available_nodes, &1.first_public_key) or
-            &1.first_public_key == Crypto.first_node_public_key())
-      )
+  @spec start_notifier(
+          previous_nodes :: list(Node.t()),
+          new_nodes :: list(Node.t()),
+          availability_update :: DateTime.t()
+        ) :: :ok
+  def start_notifier(previous_nodes, new_nodes, availability_update) do
+    args = [
+      previous_nodes: previous_nodes,
+      new_nodes: new_nodes,
+      availability_update: availability_update
+    ]
 
-    case diff_node do
-      [] ->
-        :ok
+    DynamicSupervisor.start_child(NotifierSupervisor, {Notifier, args})
 
-      nodes ->
-        unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
-
-        DynamicSupervisor.start_child(
-          NotifierSupervisor,
-          {Notifier,
-           unavailable_nodes: unavailable_nodes,
-           prev_available_nodes: prev_available_nodes,
-           new_available_nodes: new_available_nodes,
-           availability_update: availability_update}
-        )
-
-        :ok
-    end
+    :ok
   end
 
   @doc """

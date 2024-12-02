@@ -658,9 +658,9 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp store_aggregate(
          aggregate = %SummaryAggregate{summary_time: summary_time},
-         new_available_nodes
+         new_nodes
        ) do
-    node_list = [P2P.get_node_info() | new_available_nodes] |> P2P.distinct_nodes()
+    node_list = [P2P.get_node_info() | new_nodes] |> P2P.distinct_nodes()
 
     should_store? =
       summary_time

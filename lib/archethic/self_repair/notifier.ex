@@ -18,22 +18,17 @@ defmodule Archethic.SelfRepair.Notifier do
   ```
   """
 
-  alias Archethic.{
-    BeaconChain,
-    Crypto,
-    Election,
-    P2P,
-    P2P.Node,
-    P2P.Message.ShardRepair,
-    TransactionChain,
-    TransactionChain.Transaction,
-    Utils
-  }
-
-  alias Archethic.TransactionChain.Transaction.{
-    ValidationStamp,
-    ValidationStamp.LedgerOperations
-  }
+  alias Archethic.BeaconChain
+  alias Archethic.Crypto
+  alias Archethic.Election
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.ShardRepair
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.Utils
 
   use GenServer, restart: :temporary
   @vsn 1
@@ -59,16 +54,13 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   def handle_info(:start, data) do
-    unavailable_nodes = Keyword.fetch!(data, :unavailable_nodes)
-    prev_available_nodes = Keyword.fetch!(data, :prev_available_nodes)
-    new_available_nodes = Keyword.fetch!(data, :new_available_nodes)
+    previous_nodes = Keyword.fetch!(data, :previous_nodes)
+    new_nodes = Keyword.fetch!(data, :new_nodes)
 
-    Logger.info(
-      "Start Notifier due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
-    )
+    Logger.info("Start Notifier due to a topology change")
 
-    repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
-    repair_summaries_aggregate(prev_available_nodes, new_available_nodes)
+    repair_transactions(previous_nodes, new_nodes)
+    repair_summaries_aggregate(previous_nodes, new_nodes)
 
     {:stop, :normal, data}
   end
@@ -77,20 +69,13 @@ defmodule Archethic.SelfRepair.Notifier do
   For each txn chain in db. Load its genesis address, load its
   chain, recompute shards , notifiy nodes. Network txns are excluded.
   """
-  @spec repair_transactions(list(Crypto.key()), list(Node.t()), list(Node.t())) :: :ok
-  def repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes) do
+  @spec repair_transactions(list(Node.t()), list(Node.t())) :: :ok
+  def repair_transactions(previous_nodes, new_nodes) do
     # We fetch all the transactions existing and check if the disconnected nodes were in storage nodes
     TransactionChain.list_first_addresses()
     |> Stream.reject(&network_chain?(&1))
     |> Stream.chunk_every(20)
-    |> Stream.each(fn chunk ->
-      concurrent_txn_processing(
-        chunk,
-        unavailable_nodes,
-        prev_available_nodes,
-        new_available_nodes
-      )
-    end)
+    |> Stream.each(&concurrent_txn_processing(&1, previous_nodes, new_nodes))
     |> Stream.run()
   end
 
@@ -101,23 +86,18 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
-  defp concurrent_txn_processing(
-         addresses,
-         unavailable_nodes,
-         prev_available_nodes,
-         new_available_nodes
-       ) do
+  defp concurrent_txn_processing(addresses, previous_nodes, new_nodes) do
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
       addresses,
-      &sync_chain(&1, unavailable_nodes, prev_available_nodes, new_available_nodes),
+      &sync_chain(&1, previous_nodes, new_nodes),
       ordered: false,
       on_timeout: :kill_task
     )
     |> Stream.run()
   end
 
-  defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
+  defp sync_chain(address, previous_nodes, new_nodes) do
     genesis_address = TransactionChain.get_genesis_address(address)
 
     address
@@ -125,15 +105,15 @@ defmodule Archethic.SelfRepair.Notifier do
       :address,
       validation_stamp: [ledger_operations: [:transaction_movements]]
     ])
-    |> Stream.map(&get_previous_election(&1, prev_available_nodes, genesis_address))
-    |> Stream.filter(&storage_or_io_node?(&1, unavailable_nodes))
+    |> Stream.map(&compute_elections(&1, previous_nodes, new_nodes, genesis_address))
+    |> Stream.filter(&election_changed?(&1))
     |> Stream.filter(&notify?(&1))
-    |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
+    |> Stream.map(&filter_nodes_to_notify(&1))
     |> map_last_addresses_for_node()
     |> notify_nodes(genesis_address)
   end
 
-  defp get_previous_election(
+  defp compute_elections(
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
@@ -142,64 +122,77 @@ defmodule Archethic.SelfRepair.Notifier do
              recipients: recipients
            }
          },
-         prev_available_nodes,
+         previous_nodes,
+         new_nodes,
          genesis_address
        ) do
-    prev_storage_nodes =
-      address
-      |> Election.chain_storage_nodes(prev_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-
-    movements_addresses =
-      transaction_movements
-      |> Enum.map(& &1.to)
-      |> Enum.concat(recipients)
-
-    authorized_nodes = P2P.authorized_and_available_nodes()
+    movements_addresses = transaction_movements |> Enum.map(& &1.to) |> Enum.concat(recipients)
 
     # Before AEIP-21, resolve movements included only last addresses,
     # then we have to resolve the genesis address for all the movements
-    resolved_addresses =
-      if protocol_version <= 7 do
-        Task.async_stream(
-          movements_addresses,
-          fn address ->
-            storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
+    resolved_addresses = compute_resolved_addresses(movements_addresses, protocol_version)
 
-            {:ok, resolved_genesis_address} =
-              TransactionChain.fetch_genesis_address(
-                address,
-                storage_nodes
-              )
-
-            [address, resolved_genesis_address]
-          end,
-          on_timeout: :kill_task,
-          max_concurrency: max(System.schedulers_online(), length(movements_addresses))
-        )
-        |> Stream.filter(&match?({:ok, _}, &1))
-        |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
-        |> Enum.concat([genesis_address])
-      else
-        [genesis_address | movements_addresses]
-      end
+    prev_storage_nodes =
+      address |> Election.chain_storage_nodes(previous_nodes) |> Enum.map(& &1.first_public_key)
 
     prev_io_nodes =
-      resolved_addresses
-      |> Election.io_storage_nodes(prev_available_nodes)
+      [genesis_address | resolved_addresses]
+      |> Election.io_storage_nodes(previous_nodes)
       |> Enum.map(& &1.first_public_key)
 
-    {address, resolved_addresses, prev_storage_nodes, prev_io_nodes -- prev_storage_nodes}
+    new_storage_nodes =
+      Election.chain_storage_nodes(address, new_nodes) |> Enum.map(& &1.first_public_key)
+
+    new_io_nodes =
+      [genesis_address | resolved_addresses]
+      |> Election.io_storage_nodes(new_nodes)
+      |> Enum.map(& &1.first_public_key)
+
+    %{
+      address: address,
+      prev_storage_nodes: prev_storage_nodes,
+      prev_io_nodes: prev_io_nodes,
+      new_storage_nodes: new_storage_nodes,
+      new_io_nodes: new_io_nodes
+    }
   end
 
-  defp storage_or_io_node?({_, _, prev_storage_nodes, prev_io_nodes}, unavailable_nodes) do
-    nodes = prev_storage_nodes ++ prev_io_nodes
-    Enum.any?(unavailable_nodes, &Enum.member?(nodes, &1))
+  defp election_changed?(%{
+         prev_storage_nodes: prev_storage_nodes,
+         prev_io_nodes: prev_io_nodes,
+         new_storage_nodes: new_storage_nodes,
+         new_io_nodes: new_io_nodes
+       }) do
+    prev_storage_nodes != new_storage_nodes or prev_io_nodes != new_io_nodes
   end
+
+  defp compute_resolved_addresses(movements_addresses, protocol_version)
+       when protocol_version <= 7 do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    Task.async_stream(
+      movements_addresses,
+      fn address ->
+        storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
+
+        {:ok, resolved_genesis_address} =
+          TransactionChain.fetch_genesis_address(address, storage_nodes)
+
+        resolved_genesis_address
+      end,
+      on_timeout: :kill_task,
+      max_concurrency: max(System.schedulers_online(), length(movements_addresses))
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(fn {:ok, address} -> address end)
+    |> Enum.uniq()
+  end
+
+  defp compute_resolved_addresses(movements_addresses, _protocol_version), do: movements_addresses
 
   # Notify only if the current node is part of the previous storage / io nodes
   # to reduce number of messages
-  defp notify?({_, _, prev_storage_nodes, prev_io_nodes}) do
+  defp notify?(%{prev_io_nodes: prev_io_nodes, prev_storage_nodes: prev_storage_nodes}) do
     Enum.member?(prev_storage_nodes ++ prev_io_nodes, Crypto.first_node_public_key())
   end
 
@@ -207,27 +200,19 @@ defmodule Archethic.SelfRepair.Notifier do
   New election is carried out on the set of all authorized omiting unavailable_node.
   The set of previous storage nodes is subtracted from the set of new storage nodes.
   """
-  @spec new_storage_nodes(
-          {binary(), list(Crypto.prepended_hash()), list(Crypto.key()), list(Crypto.key())},
-          list(Node.t())
-        ) ::
-          {binary(), list(Crypto.key()), list(Crypto.key())}
-  def new_storage_nodes(
-        {address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
-        new_available_nodes
-      ) do
-    new_storage_nodes =
-      Election.chain_storage_nodes(address, new_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-      |> Enum.reject(&Enum.member?(prev_storage_nodes, &1))
+  @spec filter_nodes_to_notify(map()) :: {binary(), list(Crypto.key()), list(Crypto.key())}
+  def filter_nodes_to_notify(%{
+        address: address,
+        new_io_nodes: new_io_nodes,
+        new_storage_nodes: new_storage_nodes,
+        prev_io_nodes: prev_io_nodes,
+        prev_storage_nodes: prev_storage_nodes
+      }) do
+    new_storage_nodes = new_storage_nodes -- prev_storage_nodes
 
-    already_stored_nodes = prev_storage_nodes ++ prev_io_nodes ++ new_storage_nodes
+    already_stored_nodes = Enum.uniq(prev_storage_nodes ++ prev_io_nodes ++ new_storage_nodes)
 
-    new_io_nodes =
-      resolved_addresses
-      |> Election.io_storage_nodes(new_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-      |> Enum.reject(&Enum.member?(already_stored_nodes, &1))
+    new_io_nodes = new_io_nodes -- already_stored_nodes
 
     {address, new_storage_nodes, new_io_nodes}
   end
@@ -291,18 +276,18 @@ defmodule Archethic.SelfRepair.Notifier do
   For each beacon aggregate, calculate the new election and store it if the node needs to
   """
   @spec repair_summaries_aggregate(list(Node.t()), list(Node.t())) :: :ok
-  def repair_summaries_aggregate(prev_available_nodes, new_available_nodes) do
+  def repair_summaries_aggregate(previous_nodes, new_nodes) do
     %Node{enrollment_date: first_enrollment_date} = P2P.get_first_enrolled_node()
 
     first_enrollment_date
     |> BeaconChain.next_summary_dates()
-    |> Stream.filter(&download?(&1, new_available_nodes))
+    |> Stream.filter(&download?(&1, new_nodes))
     |> Stream.chunk_every(20)
     |> Stream.each(fn summary_times ->
       Task.Supervisor.async_stream_nolink(
         Archethic.task_supervisors(),
         summary_times,
-        &download_and_store_summary(&1, prev_available_nodes),
+        &download_and_store_summary(&1, previous_nodes),
         ordered: false,
         on_timeout: :kill_task
       )
@@ -311,11 +296,11 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.run()
   end
 
-  defp download?(summary_time, new_available_nodes) do
+  defp download?(summary_time, new_nodes) do
     in_new_election? =
       summary_time
       |> Crypto.derive_beacon_aggregate_address()
-      |> Election.chain_storage_nodes(new_available_nodes)
+      |> Election.chain_storage_nodes(new_nodes)
       |> Utils.key_in_node_list?(Crypto.first_node_public_key())
 
     if in_new_election? do
@@ -328,11 +313,11 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
-  defp download_and_store_summary(summary_time, prev_available_nodes) do
+  defp download_and_store_summary(summary_time, previous_nodes) do
     storage_nodes =
       summary_time
       |> Crypto.derive_beacon_aggregate_address()
-      |> Election.chain_storage_nodes(prev_available_nodes)
+      |> Election.chain_storage_nodes(previous_nodes)
 
     case BeaconChain.fetch_summaries_aggregate(summary_time, storage_nodes) do
       {:ok, aggregate} ->
