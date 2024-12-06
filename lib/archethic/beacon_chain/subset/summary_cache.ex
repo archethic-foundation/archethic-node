@@ -3,8 +3,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   Handle the caching of the beacon slots defined for the summary
   """
 
-  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
 
@@ -16,39 +16,20 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   use GenServer
   @vsn 2
 
-  @table_name :archethic_summary_cache
+  @batch_read_size 102_400
 
   def start_link(arg \\ []) do
-    GenServer.start_link(__MODULE__, arg)
+    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   def init(_) do
-    :ets.new(@table_name, [
-      :bag,
-      :named_table,
-      :public,
-      read_concurrency: true
-    ])
-
-    :ok = recover_slots(SummaryTimer.next_summary(DateTime.utc_now()))
-
     PubSub.register_to_current_epoch_of_slot_time()
     PubSub.register_to_node_status()
-    PubSub.register_to_self_repair()
 
     {:ok, %{}}
   end
 
   def code_change(_version, state, _extra), do: {:ok, state}
-
-  def handle_info(:self_repair_sync, state) do
-    previous_summary_time = SummaryTimer.previous_summary(DateTime.utc_now())
-
-    BeaconChain.list_subsets()
-    |> Enum.each(&clean_previous_summary_slots(&1, previous_summary_time))
-
-    {:noreply, state}
-  end
 
   def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
     if SummaryTimer.match_interval?(slot_time), do: delete_old_backup_file(slot_time)
@@ -60,58 +41,40 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     previous_summary_time = SummaryTimer.previous_summary(DateTime.utc_now())
     delete_old_backup_file(previous_summary_time)
 
-    BeaconChain.list_subsets()
-    |> Enum.each(&clean_previous_summary_slots(&1, previous_summary_time))
-
     {:noreply, state}
   end
 
   def handle_info(:node_down, state), do: {:noreply, state}
 
   @doc """
-  Stream all the entries for a subset
+  Stream all the transaction summaries
   """
-  @spec stream_current_slots(subset :: binary()) ::
-          Enumerable.t() | list({Slot.t(), Crypto.key()})
-  def stream_current_slots(subset) do
-    # generate match pattern
-    # :ets.fun2ms(fn {key, value} when key == subset -> value end)
-    match_pattern = [{{:"$1", :"$2"}, [{:==, :"$1", subset}], [:"$2"]}]
-
-    Stream.resource(
-      fn ->
-        # Fix the table to avoid "invalid continuation" error
-        # source: https://www.erlang.org/doc/man/ets#safe_fixtable-2
-        :ets.safe_fixtable(@table_name, true)
-        :ets.select(@table_name, match_pattern, 1)
-      end,
-      &do_stream_current_slots/1,
-      fn _ ->
-        :ets.safe_fixtable(@table_name, false)
-        :ok
-      end
-    )
-  end
-
-  defp do_stream_current_slots(:"$end_of_table") do
-    {:halt, :"$end_of_table"}
-  end
-
-  defp do_stream_current_slots({slot, continuation}) do
-    {slot, :ets.select(continuation)}
+  @spec stream_summaries(DateTime.utc_now(), pos_integer()) ::
+          list(TransactionSummary.t())
+  def stream_summaries(summary_time, subset) do
+    summary_time
+    |> stream_slots(subset)
+    |> Stream.flat_map(fn {%Slot{transaction_attestations: attestations}, _} -> attestations end)
+    |> Stream.map(& &1.transaction_summary)
+    |> Enum.to_list()
   end
 
   @doc """
   Add new beacon slots to the summary's cache
   """
-  @spec add_slot(subset :: binary(), Slot.t(), Crypto.key()) :: :ok
-  def add_slot(subset, slot = %Slot{}, node_public_key) do
-    true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
+  @spec add_slot(Slot.t(), Crypto.key()) :: :ok
+  def add_slot(slot = %Slot{}, node_public_key) do
+    GenServer.call(__MODULE__, {:add_slot, slot, node_public_key})
+  end
+
+  def handle_call({:add_slot, slot, node_public_key}, _from, state) do
     backup_slot(slot, node_public_key)
+    {:reply, :ok, state}
   end
 
   defp delete_old_backup_file(previous_summary_time) do
     # We keep 2 backup, the current one and the last one
+
     previous_backup_path = recover_path(previous_summary_time)
 
     Utils.mut_dir("slot_backup*")
@@ -121,9 +84,15 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   defp recover_path(summary_time = %DateTime{}),
-    do: Utils.mut_dir("slot_backup-#{DateTime.to_unix(summary_time)}")
+    do: Utils.mut_dir(Path.join(["slot_backup", "#{DateTime.to_unix(summary_time)}"]))
 
-  defp backup_slot(slot = %Slot{slot_time: slot_time}, node_public_key) do
+  defp recover_path(summary_time = %DateTime{}, subset),
+    do:
+      Utils.mut_dir(
+        Path.join(["slot_backup", "#{DateTime.to_unix(summary_time)}", Base.encode16(subset)])
+      )
+
+  defp backup_slot(slot = %Slot{slot_time: slot_time, subset: subset}, node_public_key) do
     content = serialize(slot, node_public_key)
 
     summary_time =
@@ -131,23 +100,28 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
         do: slot_time,
         else: SummaryTimer.next_summary(slot_time)
 
-    summary_time
-    |> recover_path()
-    |> File.write!(content, [:append, :binary])
+    path = recover_path(summary_time)
+
+    unless File.dir?(path) do
+      File.mkdir_p!(path)
+    end
+
+    File.write!(Path.join(path, Base.encode16(subset)), content, [:append, :binary])
   end
 
-  defp recover_slots(summary_time) do
-    backup_file_path = recover_path(summary_time)
+  @spec stream_slots(DateTime.t(), subset :: binary) ::
+          Enumerable.t() | list({slot :: Slot.t(), node_public_key :: Crypto.key()})
+  def stream_slots(summary_time, subset) do
+    backup_file_path = recover_path(summary_time, subset)
 
     if File.exists?(backup_file_path) do
-      content = File.read!(backup_file_path)
-
-      deserialize(content, [])
-      |> Enum.each(fn {slot = %Slot{subset: subset}, node_public_key} ->
-        true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
+      backup_file_path
+      |> File.stream!([], @batch_read_size)
+      |> Stream.transform(<<>>, fn content, rest ->
+        deserialize(<<rest::bitstring, content::bitstring>>)
       end)
     else
-      :ok
+      []
     end
   end
 
@@ -158,25 +132,19 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     <<slot_size::binary, slot_bin::binary, node_public_key::binary>>
   end
 
-  defp deserialize(<<>>, acc), do: acc
+  defp deserialize(rest, acc \\ [])
+  defp deserialize(<<>>, acc), do: {Enum.reverse(acc), <<>>}
 
   defp deserialize(rest, acc) do
-    {slot_size, rest} = VarInt.get_value(rest)
-    <<slot_bin::binary-size(slot_size), rest::binary>> = rest
-    {slot, _} = Slot.deserialize(slot_bin)
-    {node_public_key, rest} = Utils.deserialize_public_key(rest)
-    deserialize(rest, [{slot, node_public_key} | acc])
-  end
-
-  defp clean_previous_summary_slots(subset, previous_summary_time) do
-    subset
-    |> stream_current_slots()
-    |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
-      DateTime.compare(slot_time, previous_summary_time) != :gt
-    end)
-    |> Stream.each(fn item ->
-      :ets.delete_object(@table_name, {subset, item})
-    end)
-    |> Stream.run()
+    with {slot_size, rest} <- VarInt.get_value(rest),
+         <<slot_bin::binary-size(slot_size), rest::binary>> <- rest,
+         {slot, _} = Slot.deserialize(slot_bin),
+         {node_public_key, rest} <- Utils.deserialize_public_key(rest) do
+      deserialize(rest, [{slot, node_public_key} | acc])
+    else
+      _ ->
+        # This happens when the content is not a complete entry
+        {acc, rest}
+    end
   end
 end

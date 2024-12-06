@@ -1000,7 +1000,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
       })
 
       MockClient
-      |> expect(:send_message, 26, fn
+      |> stub(:send_message, fn
         _, %GetCurrentSummaries{}, _ ->
           {:ok, %TransactionSummaryList{transaction_summaries: []}}
       end)

@@ -130,7 +130,7 @@ defmodule Archethic.BeaconChain do
               beacon_subset: Base.encode16(subset)
             )
 
-            SummaryCache.add_slot(subset, slot, node_public_key)
+            SummaryCache.add_slot(slot, node_public_key)
 
           {:error, reason} ->
             Logger.error("Invalid beacon slot - #{inspect(reason)}")
@@ -193,34 +193,36 @@ defmodule Archethic.BeaconChain do
   @doc """
   Get all slots of a subset from summary cache and return unique transaction summaries
   """
-  @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
+  @spec get_summary_slots(subset :: binary()) :: list(TransactionSummary.t())
   def get_summary_slots(subset) when is_binary(subset) do
-    SummaryCache.stream_current_slots(subset)
-    |> Stream.map(fn {slot, _} -> slot end)
-    |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
-      transaction_summaries =
-        transaction_attestations
-        |> Enum.map(& &1.transaction_summary)
+    summary_time = DateTime.utc_now() |> SummaryTimer.next_summary()
 
-      transaction_summaries
-    end)
-    |> Stream.uniq_by(fn %TransactionSummary{address: address} -> address end)
-    |> Enum.to_list()
+    summary_time
+    |> SummaryCache.stream_summaries(subset)
+    |> Enum.uniq_by(fn %TransactionSummary{address: address} -> address end)
   end
 
   @doc """
   Returns the current summary's replication attestations that current node have
   """
-  @spec get_current_summary_replication_attestations(subset :: binary()) ::
+  @spec get_current_summary_replication_attestations(subsets :: list(binary())) ::
           Enumerable.t() | list(ReplicationAttestation.t())
-  def get_current_summary_replication_attestations(subset) do
-    %Slot{transaction_attestations: replication_attestations} = Subset.get_current_slot(subset)
+  def get_current_summary_replication_attestations(subsets) when is_list(subsets) do
+    summary_time = SummaryTimer.next_summary(DateTime.utc_now())
 
-    SummaryCache.stream_current_slots(subset)
-    |> Stream.flat_map(fn {%Slot{transaction_attestations: replication_attestations}, _} ->
-      replication_attestations
+    Task.Supervisor.async_stream(Archethic.task_supervisors(), subsets, fn subset ->
+      cache_replication_attestations =
+        summary_time
+        |> SummaryCache.stream_slots(subset)
+        |> Enum.flat_map(fn {%Slot{transaction_attestations: replication_attestations}, _} ->
+          replication_attestations
+        end)
+
+      %Slot{transaction_attestations: replication_attestations} = Subset.get_current_slot(subset)
+      replication_attestations ++ cache_replication_attestations
     end)
-    |> Stream.concat(replication_attestations)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(fn {:ok, x} -> x end)
     |> ReplicationAttestation.reduce_confirmations()
   end
 
@@ -354,7 +356,7 @@ defmodule Archethic.BeaconChain do
   Function only used by the explorer to retrieve current slot transactions.
   We only ask 3 nodes because it's OK if it's not 100% accurate.
   """
-  @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
+  @spec list_transactions_summaries_from_current_slot(datetime :: DateTime.t()) ::
           list(TransactionSummary.t())
   def list_transactions_summaries_from_current_slot(datetime = %DateTime{} \\ DateTime.utc_now()) do
     Task.Supervisor.async_stream_nolink(
@@ -369,6 +371,7 @@ defmodule Archethic.BeaconChain do
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
+    |> Enum.to_list()
 
     # remove duplicates & sort
     |> Stream.uniq_by(& &1.address)
@@ -426,23 +429,13 @@ defmodule Archethic.BeaconChain do
   end
 
   defp fetch_current_summaries(node, subsets) do
-    Task.Supervisor.async_stream_nolink(
-      Archethic.task_supervisors(),
-      Stream.chunk_every(subsets, 10),
-      fn subsets ->
-        case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
-          {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
-            transaction_summaries
+    case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
+      {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+        transaction_summaries
 
-          _ ->
-            []
-        end
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(&elem(&1, 1))
-    |> Enum.to_list()
+      _ ->
+        []
+    end
   end
 
   defp fetch_current_summary_replication_attestations_from_node(node, subsets) do
@@ -536,8 +529,8 @@ defmodule Archethic.BeaconChain do
   @doc """
   Retrieve the network stats for a given subset from the cached slots
   """
-  @spec get_network_stats(binary()) :: %{Crypto.key() => Slot.net_stats()}
-  def get_network_stats(subset) when is_binary(subset) do
-    NetworkCoordinates.aggregate_network_stats(subset)
+  @spec get_network_stats(binary(), DateTime.t()) :: %{Crypto.key() => Slot.net_stats()}
+  def get_network_stats(subset, summary_time) when is_binary(subset) do
+    NetworkCoordinates.aggregate_network_stats(subset, summary_time)
   end
 end

@@ -44,7 +44,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
 
     with_mocks([
       {JobCache, [], start: fn _ -> :ok end, stop: fn _ -> :ok end},
-      {BeaconChain, [:passthrough], get_network_stats: fn _ -> %{} end},
+      {BeaconChain, [:passthrough], get_network_stats: fn _, _ -> %{} end},
       {NetworkCoordinates, [],
        timeout: fn -> @timeout end, fetch_network_stats: fn _summary_time, _ -> Nx.tensor(0) end}
     ]) do
@@ -70,13 +70,13 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
     with_mocks([
       {BeaconChain, [:passthrough],
        get_network_stats: fn
-         ^subset1 ->
+         ^subset1, _ ->
            %{
              node1_public_key => [%{latency: 1}],
              node2_public_key => [%{latency: 1}]
            }
 
-         ^subset2 ->
+         ^subset2, _ ->
            %{
              node3_public_key => [%{latency: 10}],
              node4_public_key => [%{latency: 10}]
@@ -132,13 +132,13 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
     with_mocks([
       {BeaconChain, [:passthrough],
        get_network_stats: fn
-         ^subset1 ->
+         ^subset1, _ ->
            %{
              node1_public_key => [%{latency: 1}],
              node2_public_key => [%{latency: 1}]
            }
 
-         ^subset2 ->
+         ^subset2, _ ->
            %{
              node3_public_key => [%{latency: 10}],
              node4_public_key => [%{latency: 10}]
@@ -202,7 +202,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
       ])
 
     with_mocks([
-      {BeaconChain, [:passthrough], get_network_stats: fn _ -> %{} end},
+      {BeaconChain, [:passthrough], get_network_stats: fn _, _ -> %{} end},
       {NetworkCoordinates, [],
        timeout: fn -> @timeout end,
        fetch_network_stats: fn _summary_time, _ ->
@@ -234,7 +234,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
              |> length
 
     with_mocks([
-      {BeaconChain, [:passthrough], get_network_stats: fn _ -> %{} end},
+      {BeaconChain, [:passthrough], get_network_stats: fn _, _ -> %{} end},
       {NetworkCoordinates, [],
        timeout: fn -> @timeout end,
        fetch_network_stats: fn _summary_time, _ ->
