@@ -5,7 +5,7 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
   """
 
   @enforce_keys [:subsets]
-  defstruct [:subsets]
+  defstruct [:subsets, page: 0]
 
   alias Archethic.BeaconChain
   alias Archethic.Crypto
@@ -19,7 +19,7 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
     %CurrentReplicationAttestations{
       replication_attestations:
         subsets
-        |> Stream.flat_map(&BeaconChain.get_current_summary_replication_attestations/1)
+        |> BeaconChain.get_current_summary_replication_attestations()
         |> Enum.to_list()
     }
   end
