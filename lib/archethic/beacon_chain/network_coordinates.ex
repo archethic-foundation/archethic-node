@@ -386,10 +386,10 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   The aggregation is using some weighted logistic regression.
   """
-  @spec aggregate_network_stats(binary()) :: %{Crypto.key() => Slot.net_stats()}
-  def aggregate_network_stats(subset) when is_binary(subset) do
-    subset
-    |> SummaryCache.stream_current_slots()
+  @spec aggregate_network_stats(binary(), DateTime.t()) :: %{Crypto.key() => Slot.net_stats()}
+  def aggregate_network_stats(subset, summary_time = %DateTime{}) when is_binary(subset) do
+    summary_time
+    |> SummaryCache.stream_slots(subset)
     |> Stream.filter(&match?({%Slot{p2p_view: %{network_stats: [_ | _]}}, _}, &1))
     |> Stream.map(fn
       {%Slot{p2p_view: %{network_stats: net_stats}}, node} ->

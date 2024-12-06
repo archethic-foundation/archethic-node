@@ -94,9 +94,11 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
         :initial_load,
         socket
       ) do
+    summaries = Archethic.list_transactions_summaries_from_current_slot(DateTime.utc_now())
+
     new_socket =
       socket
-      |> assign(:transactions, Archethic.list_transactions_summaries_from_current_slot())
+      |> assign(:transactions, summaries)
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:fetching, false)
 

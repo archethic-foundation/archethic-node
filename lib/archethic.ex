@@ -494,9 +494,6 @@ defmodule Archethic do
     TransactionChain.fetch_genesis_address(address, nodes)
   end
 
-  defdelegate list_transactions_summaries_from_current_slot(),
-    to: BeaconChain
-
   defdelegate list_transactions_summaries_from_current_slot(date),
     to: BeaconChain
 
