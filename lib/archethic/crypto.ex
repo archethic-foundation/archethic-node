@@ -395,8 +395,10 @@ defmodule Archethic.Crypto do
   defp do_generate_deterministic_keypair(:bls, origin, seed) do
     private_key = :crypto.hash(:sha512, seed)
 
+    {:ok, public_key} = BlsEx.get_public_key(private_key)
+
     keypair = {
-      BlsEx.get_public_key(private_key),
+      public_key,
       private_key
     }
 
@@ -442,7 +444,7 @@ defmodule Archethic.Crypto do
   end
 
   defp do_sign(:ed25519, data, key), do: Ed25519.sign(key, data)
-  defp do_sign(:bls, data, key), do: BlsEx.sign(key, data)
+  defp do_sign(:bls, data, key), do: BlsEx.sign!(key, data)
   defp do_sign(curve, data, key), do: ECDSA.sign(curve, key, data)
 
   @doc """
