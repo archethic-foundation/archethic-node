@@ -49,7 +49,6 @@ defmodule Archethic.Contracts.Loader do
     |> Stream.filter(&Election.chain_storage_node?(&1, node_key, authorized_nodes))
     |> Stream.chunk_every(100)
     |> Task.async_stream(
-
       fn genesis_addresses ->
         genesis_addresses
         |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)

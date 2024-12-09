@@ -1093,7 +1093,11 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipients = [recipient, %Recipient{address: random_address()}]
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: recipients, version: 3)
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: recipients,
+          version: 3
+        )
 
       trigger_key = Recipient.get_trigger(recipient)
 
@@ -1159,7 +1163,11 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
       trigger_key = Recipient.get_trigger(recipient)
 
@@ -1187,7 +1195,11 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient], version: 3)
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
       trigger_key = Recipient.get_trigger(recipient)
 

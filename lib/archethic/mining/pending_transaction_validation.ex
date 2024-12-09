@@ -130,9 +130,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @spec validate_contract(transaction :: Transaction.t()) :: :ok | {:error, String.t()}
   def validate_contract(%Transaction{data: %TransactionData{code: "", contract: nil}}), do: :ok
 
-  def validate_contract(tx = %Transaction{
-        data: %TransactionData{code: code, contract: contract, ownerships: ownerships}
-      }) do
+  def validate_contract(
+        tx = %Transaction{
+          data: %TransactionData{code: code, contract: contract, ownerships: ownerships}
+        }
+      ) do
     with :ok <- validate_code_size(code, contract),
          {:ok, contract} <- parse_contract(tx) do
       validate_contract_ownership(contract, ownerships)
@@ -685,8 +687,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_type_rules(%Transaction{type: :contract, data: %TransactionData{code: code, contract: contract}}, _) when code == "" and contract == nil,
-    do: {:error, "Invalid contract type transaction -  contract's code is empty"}
+  def validate_type_rules(
+        %Transaction{type: :contract, data: %TransactionData{code: code, contract: contract}},
+        _
+      )
+      when code == "" and contract == nil,
+      do: {:error, "Invalid contract type transaction -  contract's code is empty"}
 
   def validate_type_rules(
         %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},

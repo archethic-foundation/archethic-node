@@ -114,11 +114,16 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> VarInt.from_value()
 
     contract_binary =
-      if contract != nil do
-        <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
-          :zlib.zip(TypedEncoding.serialize(contract.manifest, :compact))::binary>>
-      else
-        <<>>
+      case contract do
+        %{
+          bytecode: bytecode,
+          manifest: manifest
+        } ->
+          <<byte_size(bytecode)::32, bytecode::binary,
+            :zlib.zip(TypedEncoding.serialize(manifest, :compact))::binary>>
+
+        nil ->
+          <<>>
       end
 
     encoding =
