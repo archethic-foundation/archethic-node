@@ -47,7 +47,8 @@ defmodule Archethic.P2P.Node do
           {:ok, ip_address :: :inet.ip_address(), p2p_port :: :inet.port_number(),
            http_port :: :inet.port_number(), P2P.supported_transport(),
            reward_address :: binary(), origin_public_key :: Crypto.key(),
-           key_certificate :: binary(), mining_public_key :: binary() | nil}
+           key_certificate :: binary(), mining_public_key :: binary() | nil,
+           geo_patch :: binary() | nil}
           | :error
   def decode_transaction_content(
         <<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>
@@ -56,18 +57,11 @@ defmodule Archethic.P2P.Node do
          {reward_address, rest} <- Utils.deserialize_address(rest),
          {origin_public_key, rest} <- Utils.deserialize_public_key(rest),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
-           rest::binary>> <- rest do
-      mining_public_key =
-        case rest do
-          "" ->
-            nil
-
-          mining_public_key ->
-            mining_public_key |> Utils.deserialize_public_key() |> elem(0)
-        end
-
+           rest::binary>> <- rest,
+         {mining_public_key, rest} <- extract_mining_public_key(rest),
+         {geo_patch, _rest} <- extract_geo_patch(rest) do
       {:ok, {ip0, ip1, ip2, ip3}, port, http_port, deserialize_transport(transport),
-       reward_address, origin_public_key, key_certificate, mining_public_key}
+       reward_address, origin_public_key, key_certificate, mining_public_key, geo_patch}
     else
       _ ->
         :error
@@ -76,32 +70,46 @@ defmodule Archethic.P2P.Node do
 
   def decode_transaction_content(<<>>), do: :error
 
+  @spec extract_mining_public_key(binary()) :: {Crypto.key() | nil, binary()}
+  defp extract_mining_public_key(<<>>), do: {nil, <<>>}
+
+  defp extract_mining_public_key(rest) do
+    Utils.deserialize_public_key(rest)
+  end
+
+  @spec extract_geo_patch(binary()) :: {binary() | nil, binary()}
+  defp extract_geo_patch(<<geo_patch::binary-size(3), rest::binary>>), do: {geo_patch, rest}
+
+  defp extract_geo_patch(rest), do: {nil, rest}
+
   @doc """
   Encode node's transaction content
   """
-  @spec encode_transaction_content(
-          :inet.ip_address(),
-          :inet.port_number(),
-          :inet.port_number(),
-          P2P.supported_transport(),
-          reward_address :: binary(),
-          origin_public_key :: Crypto.key(),
-          origin_key_certificate :: binary(),
-          mining_public_key :: Crypto.key()
-        ) :: binary()
-  def encode_transaction_content(
-        {ip1, ip2, ip3, ip4},
-        port,
-        http_port,
-        transport,
-        reward_address,
-        origin_public_key,
-        key_certificate,
-        mining_public_key
-      ) do
+  @spec encode_transaction_content(%{
+          ip: :inet.ip_address(),
+          port: :inet.port_number(),
+          http_port: :inet.port_number(),
+          transport: P2P.supported_transport(),
+          reward_address: reward_address :: binary(),
+          origin_public_key: origin_public_key :: Crypto.key(),
+          key_certificate: origin_key_certificate :: binary(),
+          mining_public_key: mining_public_key :: Crypto.key(),
+          geo_patch: geo_patch :: binary()
+        }) :: binary()
+  def encode_transaction_content(%{
+        ip: {ip1, ip2, ip3, ip4},
+        port: port,
+        http_port: http_port,
+        transport: transport,
+        reward_address: reward_address,
+        origin_public_key: origin_public_key,
+        key_certificate: key_certificate,
+        mining_public_key: mining_public_key,
+        geo_patch: geo_patch
+      }) do
     <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
       reward_address::binary, origin_public_key::binary, byte_size(key_certificate)::16,
-      key_certificate::binary, mining_public_key::binary>>
+      key_certificate::binary, mining_public_key::binary, geo_patch::binary-size(3)>>
   end
 
   @type t() :: %__MODULE__{

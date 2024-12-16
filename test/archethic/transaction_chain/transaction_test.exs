@@ -534,6 +534,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
             13, 122, 125, 219, 122, 131, 73, 6>>,
         type: :oracle,
         validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
+          genesis_address: random_address(),
           ledger_operations:
             %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
               fee: 0,
