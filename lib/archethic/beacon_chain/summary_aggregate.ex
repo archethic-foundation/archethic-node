@@ -15,7 +15,6 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   alias Archethic.Crypto
 
-  alias Archethic.BeaconChain.Subset.P2PSampling
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
 
@@ -86,7 +85,6 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         ],
         fn prev ->
           add_p2p_availabilities(
-            subset,
             prev,
             node_availabilities,
             node_average_availabilities,
@@ -101,46 +99,20 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   end
 
   defp add_p2p_availabilities(
-         subset,
          map,
          node_availabilities,
          node_average_availabilities,
          end_of_node_synchronizations,
          network_patches
        ) do
-    map =
-      map
-      |> Map.update!(
-        :end_of_node_synchronizations,
-        &Enum.concat(&1, end_of_node_synchronizations)
-      )
-      |> Map.update!(
-        :network_patches,
-        &Enum.concat(&1, [network_patches])
-      )
-
-    expected_subset_length = P2PSampling.list_nodes_to_sample(subset) |> Enum.count()
-
-    map =
-      if bit_size(node_availabilities) == expected_subset_length do
-        map
-        |> Map.update!(
-          :node_availabilities,
-          &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
-        )
-      else
-        map
-      end
-
-    if Enum.count(node_average_availabilities) == expected_subset_length do
-      map
-      |> Map.update!(
-        :node_average_availabilities,
-        &Enum.concat(&1, [node_average_availabilities])
-      )
-    else
-      map
-    end
+    map
+    |> Map.update!(:end_of_node_synchronizations, &Enum.concat(&1, end_of_node_synchronizations))
+    |> Map.update!(:network_patches, &Enum.concat(&1, [network_patches]))
+    |> Map.update!(
+      :node_availabilities,
+      &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
+    )
+    |> Map.update!(:node_average_availabilities, &Enum.concat(&1, [node_average_availabilities]))
   end
 
   @doc """
@@ -170,7 +142,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
          |> Map.update!(:node_availabilities, &aggregate_node_availabilities/1)
          |> Map.update!(:node_average_availabilities, &aggregate_node_average_availabilities/1)
          |> Map.update!(:end_of_node_synchronizations, &Enum.uniq/1)
-         |> Map.update!(:network_patches, &aggregate_network_patches(&1, subset))}
+         |> Map.update!(:network_patches, &aggregate_network_patches/1)}
       end)
       |> Enum.into(%{})
     end)
@@ -205,6 +177,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   defp aggregate_node_availabilities(node_availabilities) do
     node_availabilities
+    |> filter_p2p_view_size_by_frequency()
     |> Enum.zip()
     |> Enum.map(&Tuple.to_list/1)
     |> Enum.map(fn availabilities ->
@@ -226,6 +199,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   defp aggregate_node_average_availabilities(avg_availabilities) do
     avg_availabilities
+    |> filter_p2p_view_size_by_frequency()
     |> Enum.zip()
     |> Enum.map(&Tuple.to_list/1)
     |> Enum.map(fn avg_availabilities ->
@@ -233,11 +207,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     end)
   end
 
-  defp aggregate_network_patches(network_patches, subset) do
-    sampling_nodes = P2PSampling.list_nodes_to_sample(subset)
-
+  defp aggregate_network_patches(network_patches) do
     network_patches
-    |> Enum.filter(&(length(&1) == length(sampling_nodes)))
+    |> filter_p2p_view_size_by_frequency()
     |> Enum.zip()
     |> Enum.map(fn network_patches ->
       network_patches
@@ -246,6 +218,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       |> resolve_patches_conflicts()
     end)
     |> List.flatten()
+  end
+
+  defp filter_p2p_view_size_by_frequency(list) do
+    list
+    |> Enum.group_by(&length/1)
+    |> Enum.max_by(&(elem(&1, 1) |> length()), fn -> {nil, []} end)
+    |> elem(1)
   end
 
   defp resolve_patches_conflicts([patch]), do: patch

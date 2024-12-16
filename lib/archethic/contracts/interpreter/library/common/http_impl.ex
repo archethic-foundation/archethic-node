@@ -10,7 +10,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Http
-  alias Archethic.TaskSupervisor
 
   use Tag
 
@@ -129,7 +128,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
            "body" => request_body
          }
        ) do
-    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       with :ok <- validate_request(url, method, headers, request_body),
            headers <- Map.to_list(headers),
            {:ok, uri} <- URI.new(url),

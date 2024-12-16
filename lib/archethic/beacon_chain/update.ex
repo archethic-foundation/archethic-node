@@ -10,8 +10,6 @@ defmodule Archethic.BeaconChain.Update do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.RegisterBeaconUpdates
 
-  alias Archethic.TaskSupervisor
-
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
   end
@@ -52,7 +50,7 @@ defmodule Archethic.BeaconChain.Update do
         state
       else
         Task.Supervisor.async_stream(
-          TaskSupervisor,
+          Archethic.task_supervisors(),
           nodes_to_subscribe,
           fn node ->
             {P2P.send_message(node, message), node.first_public_key}

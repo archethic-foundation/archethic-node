@@ -15,8 +15,6 @@ defmodule Archethic.Mining.TransactionContext do
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -57,7 +55,13 @@ defmodule Archethic.Mining.TransactionContext do
       |> List.flatten()
       |> Enum.uniq()
 
-    prev_tx_task = request_previous_tx(previous_address, authorized_nodes)
+    prev_tx_task =
+      if previous_address == genesis_address do
+        Task.completed(nil)
+      else
+        request_previous_tx(previous_address, authorized_nodes)
+      end
+
     utxos_task = request_utxos(genesis_address, authorized_nodes)
     nodes_view_task = request_nodes_view(node_public_keys)
 
@@ -83,12 +87,12 @@ defmodule Archethic.Mining.TransactionContext do
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
     Task.Supervisor.async(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn ->
         # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
         # from the cross validation nodes
         case TransactionChain.fetch_transaction(previous_address, previous_storage_nodes,
-               search_mode: :remote,
+               acceptance_resolver: :accept_transaction,
                timeout: 4000
              ) do
           {:ok, tx} ->
@@ -109,7 +113,7 @@ defmodule Archethic.Mining.TransactionContext do
       |> Election.chain_storage_nodes(authorized_nodes)
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
-    Task.Supervisor.async(TaskSupervisor, fn ->
+    Task.Supervisor.async(Archethic.task_supervisors(), fn ->
       genesis_address
       |> TransactionChain.fetch_unspent_outputs(genesis_nodes)
       |> Enum.to_list()
@@ -117,9 +121,9 @@ defmodule Archethic.Mining.TransactionContext do
   end
 
   defp request_nodes_view(node_public_keys) do
-    Task.Supervisor.async(TaskSupervisor, fn ->
+    Task.Supervisor.async(Archethic.task_supervisors(), fn ->
       Task.Supervisor.async_stream_nolink(
-        TaskSupervisor,
+        Archethic.task_supervisors(),
         node_public_keys,
         fn node_public_key ->
           {node_public_key, P2P.send_message(node_public_key, %Ping{}, 1000)}

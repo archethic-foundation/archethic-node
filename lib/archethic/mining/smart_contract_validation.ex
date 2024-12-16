@@ -29,7 +29,6 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TaskSupervisor
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
@@ -59,7 +58,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     default_error =
       Error.new(:invalid_recipients_execution, "Failed to validate call due to timeout")
 
-    TaskSupervisor
+    Archethic.task_supervisors()
     |> Task.Supervisor.async_stream_nolink(
       recipients,
       &request_contract_validation(&1, transaction, validation_time),
@@ -88,7 +87,7 @@ defmodule Archethic.Mining.SmartContractValidation do
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> Election.get_synchronized_nodes_before(previous_summary_time)
 
-    conflicts_resolver = fn results ->
+    conflict_resolver = fn results ->
       %SmartContractCallValidation{last_chain_sync_date: highest_date} =
         Enum.max_by(results, & &1.last_chain_sync_date, DateTime)
 
@@ -113,8 +112,8 @@ defmodule Archethic.Mining.SmartContractValidation do
              transaction: transaction,
              timestamp: validation_time
            },
-           conflicts_resolver,
-           @timeout
+           conflict_resolver: conflict_resolver,
+           timeout: @timeout
          ) do
       {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} ->
         {:ok, fee}
@@ -357,6 +356,8 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
+  # TODO: instead of address we could have a transaction_summary with proof of validation/replication
+  # TODO: to avoid downloading the tx
   defp validate_trigger({:transaction, address, recipient}, _, contract_genesis_address, inputs) do
     storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
 
@@ -365,7 +366,10 @@ defmodule Archethic.Mining.SmartContractValidation do
              inputs,
              &(&1.type == :call and &1.from == address)
            ),
-         {:ok, tx} <- TransactionChain.fetch_transaction(address, storage_nodes),
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction(address, storage_nodes,
+             acceptance_resolver: :accept_transaction
+           ),
          true <- Enum.member?(tx.data.recipients, recipient) do
       {:ok, tx}
     else
@@ -388,7 +392,9 @@ defmodule Archethic.Mining.SmartContractValidation do
   defp validate_trigger({:oracle, address}, _, _, _) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
+    case TransactionChain.fetch_transaction(address, storage_nodes,
+           acceptance_resolver: :accept_transaction
+         ) do
       {:ok, tx} ->
         {:ok, tx}
 

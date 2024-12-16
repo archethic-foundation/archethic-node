@@ -26,7 +26,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
   alias Archethic.Mining
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
-  alias Archethic.TaskSupervisor
+
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
@@ -54,7 +54,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
         _
       ) do
     Task.Supervisor.async_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn ->
         Mining.add_mining_context(
           tx_address,

@@ -117,6 +117,30 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
                }
                |> SummaryAggregate.aggregate()
     end
+
+    test "should keep the node availabilities with the maximum frequency of list size" do
+      assert %SummaryAggregate{
+               p2p_availabilities: %{
+                 <<0>> => %{
+                   node_availabilities: <<1::1, 0::1>>,
+                   node_average_availabilities: [0.93, 0.65],
+                   end_of_node_synchronizations: [],
+                   network_patches: ["BA6", "DEF"]
+                 }
+               }
+             } =
+               %SummaryAggregate{
+                 p2p_availabilities: %{
+                   <<0>> => %{
+                     node_availabilities: [[1, 0], [1, 0], [0]],
+                     node_average_availabilities: [[0.95, 0.7], [0.91, 0.6], [0.4]],
+                     end_of_node_synchronizations: [],
+                     network_patches: [["ABC", "DEF"], ["C90", "DEF"], ["FFF"]]
+                   }
+                 }
+               }
+               |> SummaryAggregate.aggregate()
+    end
   end
 
   describe "add_summary/2" do
@@ -171,7 +195,7 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
              } = SummaryAggregate.add_summary(aggregate, summary)
     end
 
-    test "should not add p2p view when summary one is invalid", %{
+    test "should add p2p view with any size of list size", %{
       aggregate: aggregate = %SummaryAggregate{replication_attestations: previous_attestations},
       attestation2: attestation2
     } do
@@ -187,8 +211,8 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
                replication_attestations: [^attestation2 | ^previous_attestations],
                p2p_availabilities: %{
                  <<0>> => %{
-                   node_availabilities: [[1, 0]],
-                   node_average_availabilities: [[0.95, 0.7]],
+                   node_availabilities: [[1, 0], [1]],
+                   node_average_availabilities: [[0.95, 0.7], [0.8]],
                    end_of_node_synchronizations: [],
                    network_patches: [["ABC", "DEF"], ["DEF", "ABC"]]
                  }

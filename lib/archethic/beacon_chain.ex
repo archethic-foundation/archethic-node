@@ -33,8 +33,6 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.DB
@@ -125,7 +123,7 @@ defmodule Archethic.BeaconChain do
   @spec load_slot(Slot.t(), Crypto.key()) :: :ok | :error
   def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}, node_public_key) do
     if slot_time == SlotTimer.previous_slot(DateTime.utc_now()) do
-      Task.Supervisor.start_child(TaskSupervisor, fn ->
+      Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
         case validate_slot(slot) do
           :ok ->
             Logger.debug("New beacon slot loaded - #{inspect(slot)}",
@@ -321,7 +319,7 @@ defmodule Archethic.BeaconChain do
     # download the summaries
     result =
       Task.Supervisor.async_stream(
-        TaskSupervisor,
+        Archethic.task_supervisors(),
         summaries_by_node,
         fn {node, addresses} ->
           fetch_beacon_summaries(node, addresses)
@@ -359,13 +357,15 @@ defmodule Archethic.BeaconChain do
   @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
           list(TransactionSummary.t())
   def list_transactions_summaries_from_current_slot(datetime = %DateTime{} \\ DateTime.utc_now()) do
-    get_next_summary_elected_subsets_by_nodes(datetime)
-    |> Task.async_stream(
+    Task.Supervisor.async_stream_nolink(
+      Archethic.task_supervisors(),
+      get_next_summary_elected_subsets_by_nodes(datetime),
       fn {node, subsets} ->
         fetch_current_summaries(node, subsets)
       end,
       ordered: false,
-      max_concurrency: 256
+      max_concurrency: 256,
+      on_timeout: :kill_task
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
@@ -404,7 +404,7 @@ defmodule Archethic.BeaconChain do
       subset
       |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
       |> Enum.filter(&P2P.node_connected?/1)
-      |> P2P.nearest_nodes()
+      |> P2P.sort_by_nearest_nodes()
       |> Enum.take(3)
       |> Enum.map(&{&1, subset})
     end)
@@ -426,17 +426,20 @@ defmodule Archethic.BeaconChain do
   end
 
   defp fetch_current_summaries(node, subsets) do
-    subsets
-    |> Stream.chunk_every(10)
-    |> Task.async_stream(fn subsets ->
-      case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
-        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
-          transaction_summaries
+    Task.Supervisor.async_stream_nolink(
+      Archethic.task_supervisors(),
+      Stream.chunk_every(subsets, 10),
+      fn subsets ->
+        case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
+          {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+            transaction_summaries
 
-        _ ->
-          []
-      end
-    end)
+          _ ->
+            []
+        end
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
@@ -516,7 +519,7 @@ defmodule Archethic.BeaconChain do
         case P2P.quorum_read(
                nodes,
                %GetBeaconSummariesAggregate{date: summary_time},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, aggregate = %SummaryAggregate{}} ->
             {:ok, aggregate}

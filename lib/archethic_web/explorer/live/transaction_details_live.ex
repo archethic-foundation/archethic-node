@@ -8,7 +8,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.OracleChain
   alias Archethic.PubSub
   alias Archethic.Reward
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -133,7 +133,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
        }) do
     me = self()
 
-    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       transfers_from_content =
         if type in [:mint_rewards, :token],
           do: get_transfers_from_token_tx(address, content),
@@ -167,7 +167,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp resolve_genesis_addresses(addresses) do
-    Task.Supervisor.async_stream_nolink(TaskSupervisor, addresses, fn address ->
+    Task.Supervisor.async_stream_nolink(Archethic.task_supervisors(), addresses, fn address ->
       case Archethic.fetch_genesis_address(address) do
         {:ok, genesis} -> {address, genesis}
         _ -> {address, address}
@@ -245,7 +245,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     me = self()
 
     Task.Supervisor.async_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn ->
         inputs =
           tx
@@ -279,7 +279,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   defp async_assign_token_properties(token_addresses, pid) do
     Task.Supervisor.async_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       fn ->
         assigns = [token_properties: WebUtils.get_token_properties(token_addresses)]
 

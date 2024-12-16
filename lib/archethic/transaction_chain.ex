@@ -50,8 +50,6 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.MemTables.PendingLedger
   # alias __MODULE__.MemTablesLoader
 
-  alias Archethic.TaskSupervisor
-
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
@@ -69,7 +67,7 @@ defmodule Archethic.TransactionChain do
 
   @type search_options :: [
           timeout: non_neg_integer(),
-          acceptance_resolver: (any() -> boolean()),
+          acceptance_resolver: (any() -> boolean()) | atom(),
           consistency_level: pos_integer(),
           search_mode: search_mode()
         ]
@@ -305,10 +303,10 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetLastTransactionAddress{address: address, timestamp: timestamp},
-           conflict_resolver,
-           timeout,
-           acceptance_resolver,
-           consistency_level
+           conflict_resolver: conflict_resolver,
+           timeout: timeout,
+           acceptance_resolver: acceptance_resolver,
+           consistency_level: consistency_level
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
@@ -343,7 +341,7 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetNextAddresses{address: address, limit: limit},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, %AddressList{addresses: addresses}} -> {:ok, addresses}
           {:error, :network_issue} = e -> e
@@ -366,7 +364,7 @@ defmodule Archethic.TransactionChain do
   @spec fetch_transaction(
           address :: Crypto.prepended_hash(),
           storage_nodes :: list(Node.t()),
-          search_options()
+          opts :: search_options()
         ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
@@ -379,7 +377,18 @@ defmodule Archethic.TransactionChain do
     else
       _ ->
         timeout = Keyword.get(opts, :timeout, Message.get_max_timeout())
-        acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
+
+        acceptance_resolver =
+          case Keyword.get(opts, :acceptance_resolver, fn _ -> true end) do
+            fun when is_function(fun, 1) ->
+              fun
+
+            :accept_transaction ->
+              fn
+                %Transaction{address: ^address} -> true
+                _ -> false
+              end
+          end
 
         conflict_resolver = fn results ->
           Enum.reduce(results, fn
@@ -411,9 +420,9 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetTransaction{address: address},
-               conflict_resolver,
-               timeout,
-               acceptance_resolver
+               conflict_resolver: conflict_resolver,
+               timeout: timeout,
+               acceptance_resolver: acceptance_resolver
              ) do
           {:ok, %NotFound{}} ->
             {:error, :transaction_not_exists}
@@ -601,8 +610,8 @@ defmodule Archethic.TransactionChain do
              paging_state: paging_state,
              order: order
            },
-           conflict_resolver,
-           timeout
+           conflict_resolver: conflict_resolver,
+           timeout: timeout
          ) do
       {:ok,
        %TransactionList{
@@ -685,7 +694,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransactionInputs{address: address, offset: offset, limit: limit},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok, %TransactionInputList{inputs: versioned_inputs, more?: more?, offset: offset}} ->
         {versioned_inputs, more?, offset}
@@ -764,7 +773,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetUnspentOutputs{address: address, offset: offset, limit: limit},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok,
        %UnspentOutputList{
@@ -797,7 +806,7 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransactionChainLength{address: address},
-           conflict_resolver
+           conflict_resolver: conflict_resolver
          ) do
       {:ok, %TransactionChainLength{length: length}} ->
         {:ok, length}
@@ -811,16 +820,37 @@ defmodule Archethic.TransactionChain do
   Retrieve the genesis address for a chain from P2P Quorom
   It queries the the network for genesis address.
   """
-  @spec fetch_genesis_address(address :: binary(), list(Node.t())) ::
+  @spec fetch_genesis_address(address :: binary(), nodes :: list(Node.t()), opts :: Keyword.t()) ::
           {:ok, binary()} | {:error, :network_issue}
-  def fetch_genesis_address(address, nodes) when is_binary(address) do
+  def fetch_genesis_address(address, nodes, opts \\ []) when is_binary(address) do
     case find_genesis_address(address) do
       {:error, :not_found} ->
         conflict_resolver = fn results ->
           Enum.min_by(results, & &1.timestamp, DateTime)
         end
 
-        case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
+        timeout = Keyword.get(opts, :timeout, 0)
+
+        acceptance_resolver =
+          case Keyword.get(opts, :acceptance_resolver, fn _ -> true end) do
+            fun when is_function(fun, 1) ->
+              fun
+
+            :accept_different_genesis ->
+              # credo:disable-for-next-line
+              fn
+                %GenesisAddress{address: ^address} -> false
+                %GenesisAddress{address: _} -> true
+              end
+          end
+
+        case P2P.quorum_read(
+               nodes,
+               %GetGenesisAddress{address: address},
+               conflict_resolver: conflict_resolver,
+               timeout: timeout,
+               acceptance_resolver: acceptance_resolver
+             ) do
           {:ok, %GenesisAddress{address: genesis_address}} ->
             {:ok, genesis_address}
 
@@ -871,7 +901,7 @@ defmodule Archethic.TransactionChain do
         case P2P.quorum_read(
                nodes,
                %GetFirstTransactionAddress{address: address},
-               conflict_resolver
+               conflict_resolver: conflict_resolver
              ) do
           {:ok, %NotFound{}} ->
             {:error, :does_not_exist}
@@ -924,7 +954,7 @@ defmodule Archethic.TransactionChain do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
     Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       addresses,
       fn
         ^burning_address ->
@@ -1106,7 +1136,9 @@ defmodule Archethic.TransactionChain do
         end
       end
 
-      case P2P.quorum_read(nodes, %GetTransactionSummary{address: address}, conflict_resolver) do
+      case P2P.quorum_read(nodes, %GetTransactionSummary{address: address},
+             conflict_resolver: conflict_resolver
+           ) do
         {:ok,
          %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
           true
@@ -1147,7 +1179,7 @@ defmodule Archethic.TransactionChain do
       ...>       227, 167, 161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165,
       ...>       197, 25, 219, 84, 232, 135, 42, 112, 58, 181, 13>>
       ...> }
-      ...>
+      ...> 
       ...> TransactionChain.proof_of_integrity([tx])
       tx
       |> Transaction.to_pending()
@@ -1176,7 +1208,7 @@ defmodule Archethic.TransactionChain do
       ...>       227, 167, 161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165,
       ...>       197, 25, 219, 84, 232, 135, 42, 112, 58, 181, 13>>
       ...> }
-      ...>
+      ...> 
       ...> tx1 = %Transaction{
       ...>   address:
       ...>     <<0, 0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118,
@@ -1202,7 +1234,7 @@ defmodule Archethic.TransactionChain do
       ...>         167, 167, 195, 8, 59, 230, 229, 246, 12, 191, 68, 203, 99, 11, 176>>
       ...>   }
       ...> }
-      ...>
+      ...> 
       ...> TransactionChain.proof_of_integrity([tx2, tx1])
       [
         TransactionChain.proof_of_integrity([tx2]),
@@ -1253,7 +1285,7 @@ defmodule Archethic.TransactionChain do
       ...>       227, 167, 161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165,
       ...>       197, 25, 219, 84, 232, 135, 42, 112, 58, 181, 13>>
       ...> }
-      ...>
+      ...> 
       ...> tx1 = %Transaction{
       ...>   address:
       ...>     <<0, 0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118,
@@ -1274,7 +1306,7 @@ defmodule Archethic.TransactionChain do
       ...>       227, 167, 161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165,
       ...>       197, 25, 219, 84, 232, 135, 42, 112, 58, 181, 13>>
       ...> }
-      ...>
+      ...> 
       ...> tx1 = %{
       ...>   tx1
       ...>   | validation_stamp: %ValidationStamp{
@@ -1282,7 +1314,7 @@ defmodule Archethic.TransactionChain do
       ...>       timestamp: ~U[2022-09-10 10:00:00Z]
       ...>     }
       ...> }
-      ...>
+      ...> 
       ...> tx2 = %{
       ...>   tx2
       ...>   | validation_stamp: %ValidationStamp{
@@ -1290,7 +1322,7 @@ defmodule Archethic.TransactionChain do
       ...>       timestamp: ~U[2022-12-10 10:00:00Z]
       ...>     }
       ...> }
-      ...>
+      ...> 
       ...> TransactionChain.valid?([tx2, tx1])
       true
   """
@@ -1352,6 +1384,17 @@ defmodule Archethic.TransactionChain do
       true ->
         true
     end
+  end
+
+  @doc """
+  By checking at the proof of integrity (determined by the coordinator) we can ensure a transaction is not the first
+  (because the poi contains the hash of the previous if any)
+  """
+  @spec first_transaction?(Transaction.t()) :: boolean()
+  def first_transaction?(
+        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
+      ) do
+    poi == proof_of_integrity([tx])
   end
 
   # @doc """

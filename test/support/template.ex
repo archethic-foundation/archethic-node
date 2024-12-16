@@ -19,6 +19,9 @@ defmodule ArchethicCase do
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.P2P.MemTable, as: P2PMemTable
 
   alias Archethic.ContractFactory
@@ -226,6 +229,11 @@ defmodule ArchethicCase do
     end)
     |> stub(:connected?, fn _ -> true end)
 
+    MockDNSClient
+    |> stub(:lookup, fn _, _, _, _options ->
+      []
+    end)
+
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)
     start_supervised!(OriginKeyLookup)
@@ -276,6 +284,25 @@ defmodule ArchethicCase do
 
     on_exit(:unpersist_data, fn ->
       :persistent_term.put(nss_key, nil)
+    end)
+  end
+
+  def add_and_connect_nodes(n) do
+    Enum.map(1..n, fn i ->
+      node = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000 + i,
+        first_public_key: random_public_key(),
+        last_public_key: random_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      }
+
+      P2P.add_and_connect_node(node)
+      node
     end)
   end
 

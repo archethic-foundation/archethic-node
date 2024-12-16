@@ -90,7 +90,11 @@ defmodule Mix.Tasks.Archethic.Db do
     BootstrapInfo.start_link(path: DB.filepath())
     P2PView.start_link(path: DB.filepath())
 
-    Task.Supervisor.start_link(name: Archethic.TaskSupervisor)
+    PartitionSupervisor.start_link(
+      child_spec: Task.Supervisor,
+      name: Archethic.TaskSupervisors
+    )
+
     Registry.start_link(keys: :duplicate, name: Archethic.PubSubRegistry)
 
     TransactionChain.Supervisor.start_link()
@@ -175,13 +179,21 @@ defmodule Mix.Tasks.Archethic.Db do
 
   defp list_chain_addresses(genesis_address) do
     ChainIndex.list_chain_addresses(genesis_address, DB.filepath())
+    # Remove 0 address as it does not exists
+    |> Stream.reject(fn {address, _} -> :binary.decode_unsigned(address) == 0 end)
     |> Stream.map(fn {address, timestamp} -> {address, timestamp, genesis_address} end)
     |> Enum.to_list()
   end
 
   defp fetch_transaction({{_, address}, {:chain, genesis_address}}, authorized_nodes) do
     nodes = Election.chain_storage_nodes(address, authorized_nodes)
-    {:ok, tx} = TransactionChain.fetch_transaction(address, nodes, timeout: 18_000)
+
+    {:ok, tx} =
+      TransactionChain.fetch_transaction(address, nodes,
+        timeout: 18_000,
+        acceptance_resolver: :accept_transaction
+      )
+
     {genesis_address, tx}
   end
 

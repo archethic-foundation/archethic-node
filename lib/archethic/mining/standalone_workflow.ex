@@ -191,7 +191,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
     results =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         replication_nodes,
         &P2P.send_message(&1, message),
         ordered: false,
@@ -246,7 +246,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     # Notify error to the welcome node
     message = %ValidationError{address: tx_address, error: error}
 
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       P2P.send_message(
         Crypto.last_node_public_key(),
         message
@@ -323,7 +323,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     # Notify error to the welcome node
     message = %ValidationError{error: Error.new(:timeout), address: tx.address}
 
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
       P2P.send_message(welcome_node, message)
       :ok
     end)

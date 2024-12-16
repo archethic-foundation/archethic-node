@@ -26,7 +26,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapArcheth
 
     returned_prices =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         pairs,
         fn pair ->
           headers = [

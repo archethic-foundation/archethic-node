@@ -19,8 +19,6 @@ defmodule Archethic.Networking.Scheduler do
 
   alias Archethic.SelfRepair.NetworkChain
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -83,7 +81,7 @@ defmodule Archethic.Networking.Scheduler do
           schedule_update(interval)
       end
 
-    Task.Supervisor.start_child(TaskSupervisor, fn -> do_update() end)
+    Task.Supervisor.start_child(Archethic.task_supervisors(), fn -> do_update() end)
 
     {:noreply, Map.put(state, :timer, timer)}
   end
@@ -153,7 +151,7 @@ defmodule Archethic.Networking.Scheduler do
     nodes =
       P2P.authorized_and_available_nodes()
       |> Enum.filter(&P2P.node_connected?/1)
-      |> P2P.nearest_nodes()
+      |> P2P.sort_by_nearest_nodes()
 
     case Utils.await_confirmation(tx_address, nodes) do
       {:ok, validated_transaction = %Transaction{address: ^tx_address, data: ^transaction_data}} ->

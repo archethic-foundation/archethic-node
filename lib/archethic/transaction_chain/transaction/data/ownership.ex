@@ -75,7 +75,9 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
   @spec serialize(ownership :: t(), tx_version :: pos_integer()) :: bitstring()
   def serialize(%__MODULE__{secret: secret, authorized_keys: authorized_keys}, _tx_version) do
     authorized_keys_bin =
-      Enum.map(authorized_keys, fn {public_key, encrypted_key} ->
+      authorized_keys
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map(fn {public_key, encrypted_key} ->
         <<public_key::binary, encrypted_key::binary>>
       end)
       |> :erlang.list_to_binary()

@@ -119,6 +119,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
     {:ok,
      %{
+       genesis: Transaction.previous_address(tx),
        tx: tx,
        sorting_seed: Election.validation_nodes_election_seed_sorting(tx, ~U[2021-05-11 08:50:21Z])
      }}
@@ -127,6 +128,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   describe "start_link/1" do
     test "should start mining by fetching the transaction context and elect storage nodes", %{
       tx: tx,
+      genesis: genesis,
       sorting_seed: sorting_seed
     } do
       validation_nodes =
@@ -146,7 +148,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -181,7 +183,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
   describe "add_mining_context/6" do
     test "should aggregate context and wait enough confirmed validation nodes context building",
-         %{tx: tx, sorting_seed: sorting_seed} do
+         %{tx: tx, genesis: genesis, sorting_seed: sorting_seed} do
       P2P.add_and_connect_node(%Node{
         ip: {80, 10, 20, 102},
         port: 3006,
@@ -229,7 +231,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -316,6 +318,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
     test "aggregate context and create validation stamp when enough context are retrieved", %{
       tx: tx,
+      genesis: genesis,
       sorting_seed: sorting_seed
     } do
       validation_nodes =
@@ -335,7 +338,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -427,7 +430,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     end
 
     test "should evict validations nodes which didn't confirm by sending their context in time",
-         %{tx: tx, sorting_seed: sorting_seed} do
+         %{tx: tx, genesis: genesis, sorting_seed: sorting_seed} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
       P2P.add_and_connect_node(%Node{
@@ -462,7 +465,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -558,7 +561,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
   describe "cross_validate/2" do
     test "should cross validate the validation stamp and the replication tree and then notify other node about it",
-         %{tx: tx, sorting_seed: sorting_seed} do
+         %{tx: tx, genesis: genesis, sorting_seed: sorting_seed} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
       P2P.add_and_connect_node(%Node{
@@ -595,7 +598,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -767,6 +770,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
     test "should cross validate and start replication when all cross validations are received", %{
       tx: tx,
+      genesis: genesis,
       sorting_seed: sorting_seed
     } do
       validation_nodes =
@@ -837,7 +841,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
@@ -1057,7 +1061,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       end
     end
 
-    test "should not replicate if there is a validation error", %{tx: tx} do
+    test "should not replicate if there is a validation error", %{tx: tx, genesis: genesis} do
       error = Error.new(:invalid_pending_transaction, "Transactiion already exists")
 
       validation_context = %ValidationContext{create_context(tx) | mining_error: error}
@@ -1077,7 +1081,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %ValidationError{}, _ ->
           send(me, :validation_error)
@@ -1140,7 +1144,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       refute Process.alive?(coordinator_pid)
     end
 
-    test "should not replicate if there is a cross validation error", %{tx: tx} do
+    test "should not replicate if there is a cross validation error", %{tx: tx, genesis: genesis} do
       validation_context = create_context(tx)
 
       context =
@@ -1155,7 +1159,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %Ok{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+          {:ok, %GenesisAddress{address: genesis, timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -1356,9 +1360,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, contract_context)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, protocol_version)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx.type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(tx.address, timestamp, encoded_state, contract_context)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx.type)
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{

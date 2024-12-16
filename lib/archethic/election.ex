@@ -23,13 +23,16 @@ defmodule Archethic.Election do
   """
   @spec validation_nodes_election_seed_sorting(Transaction.t(), DateTime.t()) :: binary()
   def validation_nodes_election_seed_sorting(tx = %Transaction{}, timestamp = %DateTime{}) do
-    tx_hash =
+    serialized_tx =
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
+
+    sorting_hash =
+      <<serialized_tx::bitstring, DateTime.to_unix(timestamp, :millisecond)::64>>
       |> Crypto.hash()
 
-    Crypto.sign_with_daily_nonce_key(tx_hash, timestamp)
+    Crypto.sign_with_daily_nonce_key(sorting_hash, timestamp)
   end
 
   @doc """

@@ -9,6 +9,8 @@ ExUnit.start(
 
 Mox.defmock(MockClient, for: Archethic.P2P.Client)
 
+Mox.defmock(MockDNSClient, for: ArchethicWeb.AEWeb.DNSClient)
+
 # Mox.defmock(MockCrypto,
 #   for: [
 #     Archethic.Crypto.NodeKeystore,

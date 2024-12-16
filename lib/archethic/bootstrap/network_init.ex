@@ -193,9 +193,9 @@ defmodule Archethic.Bootstrap.NetworkInit do
       %LedgerValidation{fee: fee}
       |> LedgerValidation.filter_usable_inputs(unspent_outputs, nil)
       |> LedgerValidation.mint_token_utxos(tx, timestamp, 1)
-      |> LedgerValidation.build_resolved_movements(movements, resolved_addresses, tx_type)
-      |> LedgerValidation.validate_sufficient_funds()
+      |> LedgerValidation.validate_sufficient_funds(movements)
       |> LedgerValidation.consume_inputs(address, timestamp)
+      |> LedgerValidation.build_resolved_movements(resolved_addresses, tx_type)
       |> LedgerValidation.to_ledger_operations()
 
     validation_stamp =

@@ -9,7 +9,6 @@ defmodule Archethic.SelfRepair.Sync do
     P2P,
     PubSub,
     SelfRepair,
-    TaskSupervisor,
     TransactionChain,
     Utils
   }
@@ -158,7 +157,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     # Fetch the beacon summaries aggregate
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       dates,
       fn date ->
         Logger.debug("Fetch summary aggregate for #{date}")
@@ -412,7 +411,9 @@ defmodule Archethic.SelfRepair.Sync do
       Task.async(fn ->
         storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
 
-        case TransactionChain.fetch_genesis_address(tx_address, storage_nodes) do
+        case TransactionChain.fetch_genesis_address(tx_address, storage_nodes,
+               acceptance_resolver: :accept_different_genesis
+             ) do
           {:ok, genesis_address} ->
             genesis_address
 
@@ -468,7 +469,7 @@ defmodule Archethic.SelfRepair.Sync do
     previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       attestations,
       fn attestation ->
         {tx, inputs} =
@@ -516,7 +517,9 @@ defmodule Archethic.SelfRepair.Sync do
         fn recipient ->
           genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
 
-          case TransactionChain.fetch_genesis_address(recipient, genesis_nodes) do
+          case TransactionChain.fetch_genesis_address(recipient, genesis_nodes,
+                 acceptance_resolver: :accept_different_genesis
+               ) do
             {:ok, genesis_address} ->
               [recipient, genesis_address]
 

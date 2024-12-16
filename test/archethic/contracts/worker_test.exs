@@ -463,7 +463,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn _, _ ->
           send(me, :transaction_sent)
           :ok
@@ -515,7 +515,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
@@ -582,7 +582,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
@@ -641,7 +641,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           assert %Transaction{data: %TransactionData{content: "price increased 0.21"}} = tx
           send(me, :transaction_sent)
@@ -712,7 +712,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           %Transaction{
             data: %TransactionData{
@@ -772,7 +772,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           assert tx.data.content == "Ms. Smith"
           send(me, :transaction_sent)
@@ -905,7 +905,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       me = self()
 
-      with_mock(Archethic,
+      with_mock(Archethic, [:passthrough],
         send_new_transaction: fn tx, _ ->
           if tx.address == contract1_tx_address do
             assert tx.data.content == "5"

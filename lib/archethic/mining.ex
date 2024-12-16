@@ -80,11 +80,13 @@ defmodule Archethic.Mining do
   @doc """
   Elect validation nodes for a transaction
   """
-  def get_validation_nodes(tx = %Transaction{address: tx_address, validation_stamp: nil}) do
-    current_date = DateTime.utc_now()
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
+  def get_validation_nodes(
+        tx = %Transaction{address: tx_address, validation_stamp: nil},
+        ref_timestamp
+      ) do
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, ref_timestamp)
 
-    node_list = P2P.authorized_and_available_nodes(current_date)
+    node_list = P2P.authorized_and_available_nodes(ref_timestamp)
 
     storage_nodes = Election.chain_storage_nodes(tx_address, node_list)
 
@@ -100,10 +102,11 @@ defmodule Archethic.Mining do
   @doc """
   Determines if the election of validation nodes performed by the welcome node is valid
   """
-  @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
-  def valid_election?(tx, validation_node_public_keys)
+  @spec valid_election?(Transaction.t(), list(Crypto.key()), ref_timestamp :: DateTime.t()) ::
+          boolean()
+  def valid_election?(tx, validation_node_public_keys, ref_timestamp)
       when is_list(validation_node_public_keys) do
-    validation_nodes = get_validation_nodes(tx)
+    validation_nodes = get_validation_nodes(tx, ref_timestamp)
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
 
@@ -129,7 +132,7 @@ defmodule Archethic.Mining do
 
     aggregated_responses =
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        Archethic.task_supervisors(),
         storage_nodes,
         &P2P.send_message(&1, message),
         max_concurrency: nb_storage_nodes,

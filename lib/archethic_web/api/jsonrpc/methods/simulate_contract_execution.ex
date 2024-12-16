@@ -7,7 +7,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -49,7 +49,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
 
     results =
       Task.Supervisor.async_stream_nolink(
-        TaskSupervisor,
+        Archethic.task_supervisors(),
         recipients,
         &fetch_recipient_tx_and_simulate(&1, trigger_tx),
         on_timeout: :kill_task

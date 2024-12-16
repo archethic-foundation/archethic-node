@@ -9,8 +9,6 @@ defmodule Archethic.BeaconChain.Slot.Validation do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
@@ -21,7 +19,7 @@ defmodule Archethic.BeaconChain.Slot.Validation do
   @spec valid_transaction_attestations?(Slot.t()) :: boolean()
   def valid_transaction_attestations?(%Slot{transaction_attestations: transaction_attestations}) do
     Task.Supervisor.async_stream(
-      TaskSupervisor,
+      Archethic.task_supervisors(),
       transaction_attestations,
       &valid_transaction_attestation/1,
       ordered: false,

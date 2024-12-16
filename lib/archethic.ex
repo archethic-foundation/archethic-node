@@ -24,7 +24,7 @@ defmodule Archethic do
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
-  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -41,6 +41,14 @@ defmodule Archethic do
   @spec up? :: boolean()
   def up?() do
     :persistent_term.get(:archethic_up, nil) == :up
+  end
+
+  @doc """
+  Return the via tuple to use in the Task.Supervisor module.
+  """
+  @spec task_supervisors() :: tuple()
+  def task_supervisors() do
+    {:via, PartitionSupervisor, {Archethic.TaskSupervisors, self()}}
   end
 
   @doc """
@@ -66,14 +74,21 @@ defmodule Archethic do
     welcome_node_key = Keyword.get(opts, :welcome_node_key, Crypto.first_node_public_key())
     contract_context = Keyword.get(opts, :contract_context, nil)
     forward? = Keyword.get(opts, :forward?, false)
+    ref_timestamp = DateTime.utc_now()
 
     cond do
       P2P.authorized_and_available_node?() and shared_secret_synced?() ->
-        validation_nodes = Mining.get_validation_nodes(tx)
+        validation_nodes = Mining.get_validation_nodes(tx, ref_timestamp)
 
         responses =
           %{already_locked?: already_locked?} =
-          do_send_transaction(tx, validation_nodes, welcome_node_key, contract_context)
+          do_send_transaction(
+            tx,
+            validation_nodes,
+            welcome_node_key,
+            contract_context,
+            ref_timestamp
+          )
 
         maybe_start_resync(responses)
 
@@ -113,7 +128,8 @@ defmodule Archethic do
          tx = %Transaction{type: tx_type},
          validation_nodes,
          welcome_node_key,
-         contract_context
+         contract_context,
+         ref_timestamp
        ) do
     message = %StartMining{
       transaction: tx,
@@ -122,11 +138,11 @@ defmodule Archethic do
       network_chains_view_hash: NetworkView.get_chains_hash(),
       p2p_view_hash: NetworkView.get_p2p_hash(),
       contract_context: contract_context,
-      ref_timestamp: DateTime.utc_now()
+      ref_timestamp: ref_timestamp
     }
 
     Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
+      Archethic.task_supervisors(),
       validation_nodes,
       &P2P.send_message(&1, message),
       ordered: false,
@@ -157,7 +173,7 @@ defmodule Archethic do
       P2P.authorized_and_available_nodes()
       |> Enum.reject(&(&1.first_public_key == welcome_node_key))
       |> Enum.sort_by(& &1.first_public_key)
-      |> P2P.nearest_nodes(welcome_node_patch)
+      |> P2P.sort_by_nearest_nodes(welcome_node_patch)
       |> Enum.filter(&P2P.node_connected?/1)
 
     this_node = Crypto.first_node_public_key()
@@ -173,7 +189,7 @@ defmodule Archethic do
         nodes
       end
 
-    TaskSupervisor
+    Archethic.task_supervisors()
     |> Task.Supervisor.start_child(fn ->
       message = %NewTransaction{
         transaction: tx,
@@ -265,7 +281,7 @@ defmodule Archethic do
   defp get_welcome_node_public_key(_, key), do: key
 
   defp notify_welcome_node(welcome_node_key, address, :already_locked) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.start_child(task_supervisors(), fn ->
       message = %ValidationError{error: MiningError.new(:transaction_in_mining), address: address}
       P2P.send_message(welcome_node_key, message)
     end)
