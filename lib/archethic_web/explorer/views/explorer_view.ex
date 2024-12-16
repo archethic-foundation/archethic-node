@@ -52,10 +52,11 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
 
   def format_transaction_content(:node, content) do
     {:ok, ip, port, http_port, transport, reward_address, origin_public_key, key_certificate,
-     mining_public_key} = Node.decode_transaction_content(content)
+     mining_public_key, geo_patch} = Node.decode_transaction_content(content)
 
     content = """
     IP: #{:inet.ntoa(ip)}
+    GeoPatch: #{geo_patch}
     P2P Port: #{port}
     HTTP Port: #{http_port}
     Transport: #{transport}

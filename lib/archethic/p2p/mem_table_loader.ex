@@ -8,6 +8,7 @@ defmodule Archethic.P2P.MemTableLoader do
 
   alias Archethic.DB
 
+  alias Archethic.P2P
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Node
@@ -85,7 +86,7 @@ defmodule Archethic.P2P.MemTableLoader do
   end
 
   @doc """
-  Load the transaction and update the P2P view
+  Load the transaction and update the P2P view.
   """
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{
@@ -105,7 +106,9 @@ defmodule Archethic.P2P.MemTableLoader do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
     {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate,
-     mining_public_key} = Node.decode_transaction_content(content)
+     mining_public_key, geo_patch} = Node.decode_transaction_content(content)
+
+    geo_patch = if geo_patch == nil, do: GeoPatch.from_ip(ip), else: geo_patch
 
     if first_node_change?(first_public_key, previous_public_key) do
       node = %Node{
@@ -114,7 +117,7 @@ defmodule Archethic.P2P.MemTableLoader do
         http_port: http_port,
         first_public_key: first_public_key,
         last_public_key: previous_public_key,
-        geo_patch: GeoPatch.from_ip(ip),
+        geo_patch: geo_patch,
         transport: transport,
         last_address: address,
         reward_address: reward_address,
@@ -123,29 +126,38 @@ defmodule Archethic.P2P.MemTableLoader do
         mining_public_key: mining_public_key
       }
 
-      node
-      |> Node.enroll(timestamp)
-      |> MemTable.add_node()
+      node = Node.enroll(node, timestamp)
+      MemTable.add_node(node)
     else
       {:ok, node} = MemTable.get_node(first_public_key)
 
-      MemTable.add_node(%{
+      if node.geo_patch != geo_patch do
+        Logger.info("GeoPatch changed for node",
+          node: Base.encode16(first_public_key)
+        )
+
+        start_notifier_for_geopatch_change(timestamp)
+      end
+
+      updated_node = %Node{
         node
         | ip: ip,
           port: port,
           http_port: http_port,
           last_public_key: previous_public_key,
-          geo_patch: GeoPatch.from_ip(ip),
+          geo_patch: geo_patch,
           transport: transport,
           last_address: address,
           reward_address: reward_address,
           origin_public_key: origin_public_key,
           last_update_date: timestamp,
           mining_public_key: mining_public_key
-      })
+      }
+
+      MemTable.add_node(updated_node)
     end
 
-    Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+    Logger.info("Node loaded into in-memory P2P tables", node: Base.encode16(first_public_key))
   end
 
   def load_transaction(%Transaction{
@@ -190,5 +202,18 @@ defmodule Archethic.P2P.MemTableLoader do
     else
       MemTable.set_node_unavailable(node_public_key, availability_update)
     end
+  end
+
+  defp start_notifier_for_geopatch_change(timestamp) do
+    Logger.info("Starting Notifier for GeoPatch change")
+
+    prev_available_nodes = P2P.authorized_and_available_nodes(timestamp, true)
+    new_available_nodes = P2P.authorized_and_available_nodes()
+
+    Archethic.SelfRepair.Notifier.start_link(%{
+      availability_update: timestamp,
+      prev_available_nodes: prev_available_nodes,
+      new_available_nodes: new_available_nodes
+    })
   end
 end

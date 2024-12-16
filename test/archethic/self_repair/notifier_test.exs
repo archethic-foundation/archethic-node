@@ -25,7 +25,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  test "new_storage_nodes/2 should return new election" do
+  test "new_storage_nodes/1 should return new election" do
     node1 = %Node{
       first_public_key: "node1",
       last_public_key: "node1",
@@ -68,13 +68,20 @@ defmodule Archethic.SelfRepair.NotifierTest do
     P2P.add_and_connect_node(node4)
 
     prev_storage_nodes = ["node2", "node3"]
-    new_available_nodes = [node1, node2, node3, node4]
+    prev_io_nodes = []
+    new_storage_nodes = ["node4", "node1"]
+    new_io_nodes = []
 
-    assert {"Alice1", ["node4", "node1"], []} =
-             Notifier.new_storage_nodes(
-               {"Alice1", [], prev_storage_nodes, []},
-               new_available_nodes
-             )
+    result =
+      Notifier.new_storage_nodes(%{
+        address: "Alice1",
+        new_io_nodes: new_io_nodes,
+        new_storage_nodes: new_storage_nodes,
+        prev_io_nodes: prev_io_nodes,
+        prev_storage_nodes: prev_storage_nodes
+      })
+
+    assert {"Alice1", ["node4", "node1"], []} = result
   end
 
   test "map_last_address_for_node/1 should create a map with last address for each node" do
@@ -96,7 +103,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
     assert ^expected = Notifier.map_last_addresses_for_node(tab)
   end
 
-  test "repair_transactions/3 should send message to new storage nodes" do
+  test "repair_transactions/2 should send message to new storage nodes" do
     node = %Node{
       first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
@@ -179,7 +186,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
         {:ok, %Ok{}}
     end)
 
-    Notifier.repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
+    Notifier.repair_transactions(prev_available_nodes, new_available_nodes)
 
     # Expect to receive only 1 new node for Alice2
     assert_receive :new_node

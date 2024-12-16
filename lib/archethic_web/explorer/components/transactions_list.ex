@@ -52,6 +52,7 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
       <ul>
         <li class="columns is-mobile th">
           <div class="column is-3-tablet is-6-mobile">Address</div>
+          <div class="column is-3-tablet is-hidden-mobile">Genesis</div>
           <div class="column is-6-mobile">Type</div>
           <div class="column is-hidden-mobile">Date (UTC)</div>
           <div class="column is-hidden-mobile">Fee</div>
@@ -66,6 +67,16 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
                     @socket,
                     ArchethicWeb.Explorer.TransactionDetailsLive,
                     Base.encode16(tx.address)
+                  )
+              ) %>
+            </div>
+            <div class="column is-3-tablet is-hidden-mobile">
+              <%= link(short_address(get_genesis(tx)),
+                to:
+                  Routes.live_path(
+                    @socket,
+                    ArchethicWeb.Explorer.TransactionChainLive,
+                    address: Base.encode16(get_genesis(tx))
                   )
               ) %>
             </div>
@@ -87,16 +98,28 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
     """
   end
 
-  # reward/nss/home...
+  # beacon
   defp get_timestamp(%TransactionSummary{timestamp: timestamp}), do: timestamp
 
   # chain page
   defp get_timestamp(%Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}),
     do: timestamp
 
-  # oracle/origin page
+  # nss/reward/oracle/origin page
   defp get_timestamp(map) do
     Map.get(map, :timestamp)
+  end
+
+  defp get_genesis(%Transaction{
+         validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+       }),
+       do: genesis_address
+
+  defp get_genesis(%TransactionSummary{genesis_address: genesis_address}),
+    do: genesis_address
+
+  defp get_genesis(map) do
+    Map.get(map, :genesis_address)
   end
 
   # reward/nss/home...

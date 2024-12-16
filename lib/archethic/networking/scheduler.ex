@@ -10,6 +10,7 @@ defmodule Archethic.Networking.Scheduler do
   alias Archethic.Networking.PortForwarding
 
   alias Archethic.P2P
+  alias(Archethic.P2P.GeoPatch)
   alias Archethic.P2P.Listener, as: P2PListener
   alias Archethic.P2P.Node
 
@@ -103,21 +104,23 @@ defmodule Archethic.Networking.Scheduler do
       origin_public_key = Crypto.origin_node_public_key()
       mining_public_key = Crypto.mining_node_public_key()
       key_certificate = Crypto.get_key_certificate(origin_public_key)
+      new_geo_patch = GeoPatch.from_ip(ip)
 
       tx =
         Transaction.new(:node, %TransactionData{
           code: code,
           content:
-            Node.encode_transaction_content(
-              ip,
-              p2p_port,
-              web_port,
-              transport,
-              reward_address,
-              origin_public_key,
-              key_certificate,
-              mining_public_key
-            )
+            Node.encode_transaction_content(%{
+              ip: ip,
+              port: p2p_port,
+              http_port: web_port,
+              transport: transport,
+              reward_address: reward_address,
+              origin_public_key: origin_public_key,
+              key_certificate: key_certificate,
+              mining_public_key: mining_public_key,
+              geo_patch: new_geo_patch
+            })
         })
 
       Archethic.send_new_transaction(tx, forward?: true)
