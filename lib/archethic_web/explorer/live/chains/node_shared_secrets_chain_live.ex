@@ -3,6 +3,7 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
 
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -110,7 +111,15 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
           |> update(
             :transactions,
             fn tx_list ->
-              [display_data(address, nb_auth_nodes, timestamp) | tx_list]
+              [
+                display_data(
+                  SharedSecrets.genesis_address(@txn_type),
+                  address,
+                  nb_auth_nodes,
+                  timestamp
+                )
+                | tx_list
+              ]
               |> Enum.take(@display_limit)
             end
           )
@@ -135,8 +144,8 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
       if nb_drops < 0, do: {0, @display_limit + nb_drops}, else: {nb_drops, @display_limit}
 
     case SharedSecrets.genesis_address(@txn_type) do
-      address when is_binary(address) ->
-        address
+      genesis_address when is_binary(genesis_address) ->
+        genesis_address
         |> TransactionChain.list_chain_addresses()
         |> Stream.drop(nb_drops)
         |> Stream.take(display_limit)
@@ -144,6 +153,7 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
           nb_authorized_nodes = nb_of_authorized_keys(addr)
 
           display_data(
+            genesis_address,
             addr,
             nb_authorized_nodes,
             timestamp
@@ -168,13 +178,15 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
   end
 
   @spec display_data(
-          address :: binary(),
+          genesis_address :: Crypto.prepended_hash(),
+          address :: Crypto.prepended_hash(),
           nb_authorized_nodes :: non_neg_integer(),
           timestamp :: DateTime.t()
         ) ::
           map()
-  defp display_data(address, nb_authorized_nodes, timestamp) do
+  defp display_data(genesis_address, address, nb_authorized_nodes, timestamp) do
     %{
+      genesis_address: genesis_address,
       address: address,
       type: @txn_type,
       timestamp: timestamp,
