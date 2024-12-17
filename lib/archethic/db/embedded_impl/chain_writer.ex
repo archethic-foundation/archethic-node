@@ -28,7 +28,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @spec append_transaction(binary(), Transaction.t()) :: :ok
   def append_transaction(genesis_address, tx = %Transaction{}) do
     via_tuple = {:via, PartitionSupervisor, {ChainWriterSupervisor, genesis_address}}
-    GenServer.call(via_tuple, {:append_tx, genesis_address, tx})
+    GenServer.call(via_tuple, {:append_tx, genesis_address, tx}, :infinity)
   end
 
   @doc """

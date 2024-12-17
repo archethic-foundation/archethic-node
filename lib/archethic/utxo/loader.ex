@@ -29,7 +29,7 @@ defmodule Archethic.UTXO.Loader do
   def add_utxo(utxo = %VersionedUnspentOutput{}, genesis_address) do
     genesis_address
     |> via_tuple()
-    |> GenServer.call({:add_utxo, utxo, genesis_address})
+    |> GenServer.call({:add_utxo, utxo, genesis_address}, :infinity)
   end
 
   @doc """
@@ -39,7 +39,7 @@ defmodule Archethic.UTXO.Loader do
   def add_utxos(utxos, genesis_address) do
     genesis_address
     |> via_tuple()
-    |> GenServer.call({:add_utxos, utxos, genesis_address})
+    |> GenServer.call({:add_utxos, utxos, genesis_address}, :infinity)
   end
 
   @doc """
@@ -59,7 +59,7 @@ defmodule Archethic.UTXO.Loader do
   def consume_inputs(tx = %Transaction{}, genesis_address) do
     genesis_address
     |> via_tuple()
-    |> GenServer.call({:consume_inputs, tx, genesis_address})
+    |> GenServer.call({:consume_inputs, tx, genesis_address}, :infinity)
   end
 
   defp via_tuple(genesis_address) do
