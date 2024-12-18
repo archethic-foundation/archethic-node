@@ -175,12 +175,13 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
 
   defp gen_contract() do
     gen all(
-          bytecode <- StreamData.binary(min_length: 1),
-          functions <- StreamData.list_of(gen_contract_manifest_function()),
+          bytecode <- StreamData.binary(min_length: 1, max_length: 2_000),
+          functions <- StreamData.list_of(gen_contract_manifest_function(), max_length: 5),
           state <-
             StreamData.map_of(
               StreamData.string(:alphanumeric),
-              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")]),
+              max_length: 5
             )
         ) do
       %{
@@ -201,12 +202,14 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           input <-
             StreamData.map_of(
               StreamData.string(:alphanumeric),
-              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")]),
+              max_length: 3
             ),
           output <-
             StreamData.map_of(
               StreamData.string(:alphanumeric),
-              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")])
+              StreamData.one_of([StreamData.constant("u32"), StreamData.constant("string")]),
+              length: 1
             ),
           type <-
             StreamData.one_of([

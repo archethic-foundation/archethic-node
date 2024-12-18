@@ -400,11 +400,21 @@ defmodule Archethic.Contracts do
     {:error, raise_to_failure(err, stacktrace)}
   end
 
-  defp cast_trigger_result({:error, reason}, _, _) do
+  defp cast_trigger_result({:error, reason}, _, _) when is_binary(reason) do
     {:error,
      %Failure{
-       error: "invalid execution",
+       error: :execution_raise,
        user_friendly_error: reason,
+       stacktrace: [],
+       logs: []
+     }}
+  end
+
+  defp cast_trigger_result({:error, %{"message" => message}}, _, _) do
+    {:error,
+     %Failure{
+       error: :contract_throw,
+       user_friendly_error: message,
        stacktrace: [],
        logs: []
      }}

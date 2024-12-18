@@ -112,15 +112,17 @@ defmodule Archethic.TransactionChain.TransactionData do
       end
 
     smart_contract_binary =
-      if tx_version >= 4 do
-        if contract != nil do
-          <<byte_size(contract.bytecode)::32, contract.bytecode::binary,
-            TypedEncoding.serialize(contract.manifest, mode)::bitstring>>
-        else
-          <<0::32>>
-        end
-      else
+      if tx_version <= 3 do
         <<byte_size(code)::32, code::binary>>
+      else
+        case contract do
+          nil ->
+            <<byte_size(code)::32, code::binary, 0::32>>
+
+          %{bytecode: bytecode, manifest: manifest} ->
+            <<0::32, byte_size(bytecode)::32, bytecode::binary,
+              TypedEncoding.serialize(manifest, mode)::bitstring>>
+        end
       end
 
     <<smart_contract_binary::bitstring, byte_size(content)::32, content::binary,
@@ -160,23 +162,30 @@ defmodule Archethic.TransactionChain.TransactionData do
     {%{tx_data | code: code}, rest}
   end
 
-  def deserialize(<<0::32, rest::bitstring>>, tx_version, serialization_mode),
-    do: do_deserialize(rest, tx_version, serialization_mode)
-
   def deserialize(
-        <<bytecode_size::32, bytecode::binary-size(bytecode_size), rest::bitstring>>,
+        <<code_size::32, code::binary-size(code_size), bytecode_size::32,
+          bytecode::binary-size(bytecode_size), rest::bitstring>>,
         tx_version,
         serialization_mode
       ) do
-    {manifest, rest} = TypedEncoding.deserialize(rest, serialization_mode)
+    {contract, rest} =
+      if bytecode_size > 0 do
+        {manifest, rest} = TypedEncoding.deserialize(rest, serialization_mode)
+
+        {
+          %{bytecode: bytecode, manifest: manifest},
+          rest
+        }
+      else
+        {nil, rest}
+      end
+
     {tx_data, rest} = do_deserialize(rest, tx_version, serialization_mode)
 
     {%{
        tx_data
-       | contract: %{
-           bytecode: bytecode,
-           manifest: manifest
-         }
+       | contract: contract,
+         code: decompress_code(code)
      }, rest}
   end
 
