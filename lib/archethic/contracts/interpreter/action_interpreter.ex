@@ -1,8 +1,8 @@
 defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys

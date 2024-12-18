@@ -43,7 +43,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
     Enum.map(1..nb_transactions, fn i ->
       Task.async(fn ->
         SmartContract.trigger(Enum.at(triggers_seeds, i - 1), contract_address, endpoint,
-          await_timeout: 60_000
+          await_timeout: 60_000,
+          version: 3
         )
       end)
     end)

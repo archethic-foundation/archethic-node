@@ -76,7 +76,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     end
   end
 
-  defp validate_recipients_version(params) do
+  defp validate_recipients_version(params = %{"version" => version}) do
     case get_in(params, ["data", "recipients"]) do
       nil ->
         :ok
@@ -86,7 +86,11 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
           {:error,
            [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
         else
-          :ok
+          if version > 3 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) do
+            {:error, [{"From V4, recipient arguments must be a map", "#/data/recipients"}]}
+          else
+            :ok
+          end
         end
     end
   end
@@ -101,12 +105,14 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   def to_transaction(params) do
     # Remove recipient args to not convert them to atom
     {original_recipients, params} = remove_recipient_args(params)
+    {origin_contract, params} = remove_contract(params)
 
     params
     |> Utils.atomize_keys(to_snake_case?: true)
-    |> decode_hex()
+    |> Utils.hex2bin(keys_to_base_decode: @keys_to_base_decode)
     |> format_ownerships()
     |> put_original_recipients_args(original_recipients)
+    |> put_origin_contract(origin_contract)
     |> Transaction.cast()
   end
 
@@ -119,6 +125,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         updated_recipients =
           Enum.map(recipients, fn
             recipient = %{"args" => args} when is_list(args) -> Map.put(recipient, "args", [])
+            recipient = %{"args" => args} when is_map(args) -> Map.put(recipient, "args", %{})
             recipient -> recipient
           end)
 
@@ -143,21 +150,20 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     end)
   end
 
-  defp decode_hex(params) when is_map(params) do
-    params
-    |> Map.keys()
-    |> Enum.reduce(params, fn
-      key, acc when key in @keys_to_base_decode ->
-        Map.update!(acc, key, &Base.decode16!(&1, case: :mixed))
-
-      key, acc ->
-        Map.update!(acc, key, &decode_hex/1)
+  defp remove_contract(params) do
+    get_and_update_in(params, ["data", "contract"], fn
+      nil -> {nil, nil}
+      contract -> {contract, nil}
     end)
   end
 
-  defp decode_hex(params) when is_list(params), do: Enum.map(params, &decode_hex/1)
+  defp put_origin_contract(params, nil), do: params
 
-  defp decode_hex(params), do: params
+  defp put_origin_contract(params, %{"bytecode" => bytecode, "manifest" => manifest}) do
+    update_in(params, [:data, :contract], fn _ ->
+      %{bytecode: Base.decode16!(bytecode, case: :mixed), manifest: manifest}
+    end)
+  end
 
   defp format_ownerships(params) do
     update_in(params, [:data, :ownerships], fn

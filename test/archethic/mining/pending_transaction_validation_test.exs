@@ -151,7 +151,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         TransactionFactory.create_non_valided_transaction(
           type: :data,
-          content: :crypto.strong_rand_bytes(3_145_711)
+          content: :crypto.strong_rand_bytes(3_145_700)
         )
 
       assert :ok = PendingTransactionValidation.validate_size(tx)
@@ -365,8 +365,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   end
 
   describe "Contract" do
-    test "should return error when code is empty" do
-      assert {:error, "Invalid contract type transaction -  code is empty"} =
+    test "should return error when code  or contract is empty" do
+      assert {:error, "Invalid contract type transaction -  contract's code is empty"} =
                ContractFactory.create_valid_contract_tx("")
                |> PendingTransactionValidation.validate_type_rules(DateTime.utc_now())
     end
@@ -1531,7 +1531,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           type: :keychain_access,
           content: "",
           ownerships: ownerships,
-          recipients: [%Recipient{address: random_address(), action: "do_something", args: []}]
+          recipients: [%Recipient{address: random_address(), action: "do_something", args: %{}}]
         )
 
       assert {:error, "Invalid Keychain Access transaction"} =

@@ -224,8 +224,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
   describe "request_many/2" do
     test "should return a status -4001 for timeout" do
       assert [
-               %{"status" => 200},
-               %{"status" => -4001}
+               %{"status" => -4001},
+               %{"status" => 200}
              ] =
                HttpImpl.request_many(
                  [
@@ -234,6 +234,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
                  ],
                  false
                )
+               |> Enum.sort_by(fn %{"status" => status} -> status end)
     end
 
     test "should return a status -4004 for non https" do

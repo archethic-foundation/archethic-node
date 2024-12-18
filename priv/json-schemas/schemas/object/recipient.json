@@ -35,7 +35,7 @@
   "else": {
     "properties": {
       "args": {
-        "type": "array",
+        "type": ["array", "object"],
         "items": {
           "type": [
             "array",

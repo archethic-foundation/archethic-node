@@ -4,8 +4,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
   import ArchethicCase
 
-  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Constants
   alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys
 

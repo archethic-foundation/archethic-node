@@ -9,6 +9,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
   alias __MODULE__.P2PType
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
+  alias __MODULE__.JsonType
   alias __MODULE__.TransactionType
   alias __MODULE__.IntegerType
   alias __MODULE__.AddressType
@@ -37,6 +38,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
   import_types(OracleData)
   import_types(Version)
   import_types(BeaconChainSummary)
+  import_types(JsonType)
 
   query do
     @desc """

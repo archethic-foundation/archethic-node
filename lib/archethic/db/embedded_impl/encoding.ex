@@ -3,6 +3,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   Handle the encoding and decoding of the transaction and its fields
   """
 
+  alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -34,6 +35,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         data: %TransactionData{
           content: content,
           code: code,
+          contract: contract,
           ownerships: ownerships,
           ledger: %Ledger{uco: uco_ledger, token: token_ledger},
           recipients: recipients
@@ -111,12 +113,26 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> length()
       |> VarInt.from_value()
 
+    contract_binary =
+      case contract do
+        %{
+          bytecode: bytecode,
+          manifest: manifest
+        } ->
+          <<byte_size(bytecode)::32, bytecode::binary,
+            :zlib.zip(TypedEncoding.serialize(manifest, :compact))::binary>>
+
+        nil ->
+          <<>>
+      end
+
     encoding =
       [
         {"address", address},
         {"type", <<Transaction.serialize_type(type)::8>>},
         {"data.content", content},
         {"data.code", TransactionData.compress_code(code)},
+        {"data.contract", contract_binary},
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger, tx_version)},
         {"data.ledger.token", TokenLedger.serialize(token_ledger, tx_version)},
         {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},
@@ -164,6 +180,28 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, "data.code", code, acc) do
     put_in(acc, [Access.key(:data, %{}), :code], code)
+  end
+
+  def decode(_version, "data.contract", <<>>, acc),
+    do: put_in(acc, [Access.key(:data, %{}), :contract], nil)
+
+  def decode(
+        _version,
+        "data.contract",
+        <<contract_bytecode_size::32, contract_bytecode::binary-size(contract_bytecode_size),
+          contract_manifest_compressed::binary>>,
+        acc
+      ) do
+    manifest =
+      contract_manifest_compressed
+      |> :zlib.unzip()
+      |> TypedEncoding.deserialize(:compact)
+      |> elem(0)
+
+    put_in(acc, [Access.key(:data, %{}), :contract], %{
+      bytecode: contract_bytecode,
+      manifest: manifest
+    })
   end
 
   def decode(tx_version, "data.ownerships", <<rest::binary>>, acc) do

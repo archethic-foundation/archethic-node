@@ -55,7 +55,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.DeterministicBalance
       fn seed ->
         SmartContract.trigger(seed, contract_address, endpoint,
           await_timeout: 60_000,
-          ledger: ledger
+          ledger: ledger,
+          version: 3
         )
       end,
       max_concurrency: length(triggers_seeds),

@@ -1,8 +1,8 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.Legacy.Library
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
