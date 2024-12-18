@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.WasmContract do
 
   @type t() :: %__MODULE__{
           version: integer(),
-          module: WasmModule.t(),
+          module: nil | WasmModule.t(),
           state: State.t(),
           transaction: Transaction.t()
         }
@@ -79,8 +79,8 @@ defmodule Archethic.Contracts.WasmContract do
   def from_transaction(tx = %Transaction{data: %TransactionData{contract: contract}})
       when contract != nil do
     case parse(contract) do
-      {:ok, contract} ->
-        {:ok, %{contract | state: get_state_from_tx(tx), transaction: tx}}
+      {:ok, module} ->
+        {:ok, %{module | state: get_state_from_tx(tx), transaction: tx}}
 
       {:error, _} = e ->
         e

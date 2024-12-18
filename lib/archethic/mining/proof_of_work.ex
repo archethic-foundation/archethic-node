@@ -11,7 +11,7 @@ defmodule Archethic.Mining.ProofOfWork do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.InterpretedContract
+  alias Archethic.Contracts.Interpreter.Contract, as: InterpretedContract
 
   alias Archethic.Crypto
 

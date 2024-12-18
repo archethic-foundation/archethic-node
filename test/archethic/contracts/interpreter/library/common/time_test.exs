@@ -3,9 +3,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts
-  alias Archethic.Contracts.InterpretedContract, as: Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Interpreter.Library.Common.Time
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData

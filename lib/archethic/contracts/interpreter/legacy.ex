@@ -7,7 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   alias __MODULE__.ConditionInterpreter
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.InterpretedContract, as: Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Interpreter.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
 

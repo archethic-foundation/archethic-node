@@ -1,13 +1,13 @@
-defmodule Archethic.Contracts.InterpretedContractTest do
+defmodule Archethic.Contracts.Interpreter.ContractTest do
   use ArchethicCase
   # import ArchethicCase
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts
-  alias Archethic.Contracts.InterpretedContract, as: Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData

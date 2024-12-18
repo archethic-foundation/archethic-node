@@ -8,7 +8,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.PubSub
 
   alias Archethic.ContractSupervisor
-  alias Archethic.Contracts.InterpretedContract, as: Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Worker
 
   alias Archethic.P2P.Message.StartMining

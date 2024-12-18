@@ -6,7 +6,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract.Context
-  alias Archethic.Contracts.InterpretedContract
+  alias Archethic.Contracts.Interpreter.Contract, as: InterpretedContract
   alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.Wasm.ReadResult

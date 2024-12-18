@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.InterpretedContract do
+defmodule Archethic.Contracts.Interpreter.Contract do
   @moduledoc """
   Represents a smart contract
   """

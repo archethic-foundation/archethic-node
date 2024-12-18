@@ -2,7 +2,7 @@ defmodule Archethic.ContractsTest do
   use ArchethicCase
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.InterpretedContract, as: Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected

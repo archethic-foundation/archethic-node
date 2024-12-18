@@ -3,7 +3,7 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
-  alias Archethic.Contracts.InterpretedContract
+  alias Archethic.Contracts.Interpreter.Contract, as: InterpretedContract
   alias Archethic.Contracts.WasmSpec
   alias Archethic.Contracts.WasmContract
   alias Archethic.Contracts.WasmModule

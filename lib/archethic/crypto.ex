@@ -1438,7 +1438,7 @@ defmodule Archethic.Crypto do
   """
   @spec aggregate_signatures(signatures :: list(binary()), public_keys :: list(key())) :: binary()
   def aggregate_signatures(signatures, public_keys) do
-    BlsEx.aggregate_signatures(
+    BlsEx.aggregate_signatures!(
       signatures,
       Enum.map(public_keys, fn <<_::8, _::8, public_key::binary>> -> public_key end)
     )
@@ -1451,7 +1451,7 @@ defmodule Archethic.Crypto do
   def aggregate_mining_public_keys(public_keys) do
     public_keys
     |> Enum.map(fn <<_::8, _::8, public_key::binary>> -> public_key end)
-    |> BlsEx.aggregate_public_keys()
+    |> BlsEx.aggregate_public_keys!()
     |> ID.prepend_key(:bls)
   end
 end

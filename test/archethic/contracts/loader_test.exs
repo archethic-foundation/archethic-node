@@ -5,7 +5,7 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.ContractRegistry
   alias Archethic.ContractSupervisor
 
-  alias Archethic.Contracts.InterpretedContract, as: Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Loader
   alias Archethic.Contracts.Worker
   alias Archethic.Contracts.Contract.Context

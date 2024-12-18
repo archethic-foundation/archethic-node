@@ -151,7 +151,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       tx =
         TransactionFactory.create_non_valided_transaction(
           type: :data,
-          content: :crypto.strong_rand_bytes(3_145_711)
+          content: :crypto.strong_rand_bytes(3_145_700)
         )
 
       assert :ok = PendingTransactionValidation.validate_size(tx)

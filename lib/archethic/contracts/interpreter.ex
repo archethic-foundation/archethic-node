@@ -11,9 +11,9 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.Legacy
   alias __MODULE__.Scope
   alias Archethic.Contracts
-  alias Archethic.Contracts.Intepreter.Conditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Interpreter.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.Constants
-  alias Archethic.Contracts.InterpretedContract, as: Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
