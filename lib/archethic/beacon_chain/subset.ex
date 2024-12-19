@@ -336,7 +336,7 @@ defmodule Archethic.BeaconChain.Subset do
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
       if summary_time?(time) do
-        SummaryCache.add_slot(subset, current_slot, Crypto.first_node_public_key())
+        SummaryCache.add_slot(current_slot, Crypto.first_node_public_key())
       else
         next_summary_time = SummaryTimer.next_summary(time)
         broadcast_beacon_slot(subset, next_summary_time, current_slot)
@@ -376,9 +376,9 @@ defmodule Archethic.BeaconChain.Subset do
 
   defp handle_summary(time, subset) do
     beacon_slots =
-      subset
-      |> SummaryCache.stream_current_slots()
+      SummaryCache.stream_slots(time, subset)
       |> Stream.map(fn {slot, _} -> slot end)
+      |> Enum.to_list()
 
     if Enum.empty?(beacon_slots) do
       :ok
