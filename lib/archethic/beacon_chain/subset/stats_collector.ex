@@ -44,8 +44,9 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     JobCache.get!(
       {:get, summary_time},
       function: fn ->
-        get_current_node_subsets(summary_time)
-        |> do_get_stats(timeout)
+        summary_time
+        |> get_current_node_subsets()
+        |> do_get_stats(summary_time, timeout)
       end,
       timeout: timeout
     )
@@ -119,7 +120,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
           function: fn ->
             case action do
               :get ->
-                do_get_stats(subsets, NetworkCoordinates.timeout())
+                do_get_stats(subsets, summary_time, NetworkCoordinates.timeout())
 
               :fetch ->
                 do_fetch_stats(summary_time, NetworkCoordinates.timeout())
@@ -133,12 +134,11 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     JobCache.stop(key)
   end
 
-  defp do_get_stats(subsets, timeout) do
+  defp do_get_stats(subsets, summary_time, timeout) do
     subsets
     |> Task.async_stream(
       fn subset ->
-        stats = BeaconChain.get_network_stats(subset)
-
+        stats = BeaconChain.get_network_stats(subset, summary_time)
         {subset, stats}
       end,
       timeout: timeout,

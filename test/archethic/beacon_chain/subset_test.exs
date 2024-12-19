@@ -271,7 +271,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       # Add old slot in SummaryCache to ensure it will be deleted
       %{current_slot: slot} = :sys.get_state(pid)
       old_slot = %Slot{slot | slot_time: ~U[2023-07-11 00:50:00Z]}
-      SummaryCache.add_slot(subset, old_slot, Crypto.first_node_public_key())
+      SummaryCache.add_slot(old_slot, Crypto.first_node_public_key())
 
       me = self()
 

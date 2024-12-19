@@ -57,7 +57,8 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   defp fetch_last_transactions(n \\ 5) do
-    Archethic.list_transactions_summaries_from_current_slot()
+    DateTime.utc_now()
+    |> Archethic.list_transactions_summaries_from_current_slot()
     |> Enum.take(n)
   end
 end
