@@ -300,8 +300,11 @@ defmodule Archethic.BeaconChain do
     start_time = System.monotonic_time()
 
     authorized_nodes =
-      download_nodes
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+      if length(download_nodes) > 1 do
+        Enum.reject(download_nodes, &(&1.first_public_key == Crypto.first_node_public_key()))
+      else
+        download_nodes
+      end
 
     # get the summaries addresses to download per node
     summaries_by_node =
