@@ -93,33 +93,93 @@
             </div>
 
             <%!-------------------------------- CODE --------------------------------%>
-            <div class="columns" x-data="{show: true}">
-              <% code_bytes = byte_size(TransactionData.compress_code(@transaction.data.code)) %>
-              <div class="column ae-left-heading is-2">
-                <p>Code (<%= format_bytes(code_bytes) %>)</p>
-                <%= if code_bytes > 0 do %>
-                  <p>
-                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
-                    <a
-                      id="copy-code-button"
-                      phx-hook="CopyToClipboard"
-                      data-target="#copy-code"
-                      class="copy-icon"
-                    >
-                    </a>
-                  </p>
-                <% end %>
+            <%= if @transaction.version < 4 do %>
+              <div class="columns" x-data="{show: true}">
+                <% code_bytes = byte_size(TransactionData.compress_code(@transaction.data.code)) %>
+                <div class="column ae-left-heading is-2">
+                  <p>Code (<%= format_bytes(code_bytes) %>)</p>
+                  <%= if code_bytes > 0 do %>
+                    <p>
+                      <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'">
+                      </a>
+                      <a
+                        id="copy-code-button"
+                        phx-hook="CopyToClipboard"
+                        data-target="#copy-code"
+                        class="copy-icon"
+                      >
+                      </a>
+                    </p>
+                  <% end %>
+                </div>
+                <div class="column">
+                  <%= if code_bytes == 0 do %>
+                    <div></div>
+                  <% else %>
+                    <div x-show="show" class="is-relative">
+                      <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
+                    </div>
+                  <% end %>
+                </div>
               </div>
-              <div class="column">
-                <%= if code_bytes == 0 do %>
-                  <div></div>
-                <% else %>
-                  <div x-show="show" class="is-relative">
-                    <pre id="copy-code" class="language-elixir" phx-hook="CodeViewer"><%= @transaction.data.code %></pre>
+            <% else %>
+              <%!-------------------------------- CONTRACT --------------------------------%>
+              <div class="columns" x-data="{show: true}">
+                <% code_bytes =
+                  if @transaction.data.contract != nil,
+                    do: byte_size(@transaction.data.contract.bytecode),
+                    else: 0 %>
+                <div class="column ae-left-heading is-2">
+                  <p>Contract (<%= format_bytes(code_bytes) %>)</p>
+                  <%= if code_bytes > 0 do %>
+                    <p>
+                      <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'">
+                      </a>
+                      <a
+                        id="copy-contract-bytecode-button"
+                        phx-hook="CopyToClipboard"
+                        data-target="#copy-contract-bytecode"
+                        class="copy-icon"
+                      >
+                      </a>
+                    </p>
+                  <% end %>
+                </div>
+                <div class="column">
+                  <%= if code_bytes == 0 do %>
+                    <div></div>
+                  <% else %>
+                    <div x-show="show" class="is-relative">
+                      <pre id="copy-contract-bytecode" class="language-json" phx-hook="CodeViewer"><%= Base.encode16(@transaction.data.contract.bytecode, case: :lower) %></pre>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+
+              <%= if @transaction.data.contract != nil do %>
+                <div class="columns" x-data="{show: true}">
+                  <div class="column ae-left-heading is-2">
+                    <p>Contract manifest</p>
+                    <p>
+                      <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'">
+                      </a>
+                      <a
+                        id="copy-contract-manifest-button"
+                        phx-hook="CopyToClipboard"
+                        data-target="#copy-contract-manifest"
+                        class="copy-icon"
+                      >
+                      </a>
+                    </p>
                   </div>
-                <% end %>
-              </div>
-            </div>
+                  <div class="column">
+                    <div x-show="show" class="is-relative">
+                      <pre id="copy-contract-manifest" class="language-json" phx-hook="CodeViewer"><%= Jason.encode!(@transaction.data.contract.manifest, pretty: true) %></pre>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
 
             <%!-------------------------------- CONTENT --------------------------------%>
             <div class="columns" x-data="{show: true}">
@@ -185,7 +245,7 @@
                     x-show="show"
                     class="language-json"
                     phx-hook="CodeViewer"
-                  > 
+                  >
                     <%= print_state(state_utxo) %>
                   </pre>
                 <% end %>

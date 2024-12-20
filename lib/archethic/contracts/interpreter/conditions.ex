@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Conditions do
+defmodule Archethic.Contracts.Interpreter.Conditions do
   @moduledoc """
   Represents the smart contract conditions
   """

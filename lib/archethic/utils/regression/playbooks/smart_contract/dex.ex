@@ -361,7 +361,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
   end
 
   defp trigger(seed, contract_address, opts, endpoint) do
-    opts = opts |> Keyword.merge(await_timeout: 60_000)
+    opts = opts |> Keyword.merge(await_timeout: 60_000) |> Keyword.put(:version, 3)
     SmartContract.trigger(seed, contract_address, endpoint, opts)
   end
 
@@ -402,7 +402,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Dex do
 
       lp_token_to_mint = get_lp_token_to_mint(token1_amount, token2_amount)
 
-      # Handle invalid values and refund user 
+      # Handle invalid values and refund user
       valid_amounts? = final_amounts.token1 > 0 && final_amounts.token2 > 0
       valid_liquidity? = lp_token_to_mint > 0
 

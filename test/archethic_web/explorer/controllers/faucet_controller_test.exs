@@ -63,7 +63,7 @@ defmodule ArchethicWeb.Explorer.FaucetControllerTest do
           },
           @pool_seed,
           0,
-          Crypto.default_curve()
+          curve: Crypto.default_curve()
         )
 
       MockClient
@@ -124,7 +124,7 @@ defmodule ArchethicWeb.Explorer.FaucetControllerTest do
           },
           @pool_seed,
           0,
-          Crypto.default_curve()
+          curve: Crypto.default_curve()
         )
 
       MockClient

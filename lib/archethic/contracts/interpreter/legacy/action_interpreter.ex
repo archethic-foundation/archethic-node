@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
   @moduledoc false
-  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 

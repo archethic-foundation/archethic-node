@@ -2,7 +2,7 @@ defmodule Archethic.ContractsTest do
   use ArchethicCase
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -542,7 +542,7 @@ defmodule Archethic.ContractsTest do
       trigger_tx = TransactionFactory.create_valid_transaction()
 
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Juliette"]}
-      condition_key = Contract.get_trigger_for_recipient(recipient)
+      condition_key = Recipient.get_trigger(recipient)
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -576,7 +576,7 @@ defmodule Archethic.ContractsTest do
         )
 
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
-      condition_key = Contract.get_trigger_for_recipient(recipient)
+      condition_key = Recipient.get_trigger(recipient)
 
       assert {:ok, _} =
                Contracts.execute_condition(
@@ -610,7 +610,7 @@ defmodule Archethic.ContractsTest do
         )
 
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
-      condition_key = Contract.get_trigger_for_recipient(recipient)
+      condition_key = Recipient.get_trigger(recipient)
 
       assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
