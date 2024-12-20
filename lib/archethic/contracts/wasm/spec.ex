@@ -230,5 +230,8 @@ defmodule Archethic.Contracts.WasmSpec do
     |> Enum.into(%{})
   end
 
+  def cast_wasm_output(list, [output]) when is_list(list),
+    do: Enum.map(list, &cast_wasm_output(&1, output))
+
   def cast_wasm_output(value, _output), do: value
 end
