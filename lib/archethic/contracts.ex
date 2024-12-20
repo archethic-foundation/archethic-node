@@ -472,9 +472,9 @@ defmodule Archethic.Contracts do
            logs: []
          }}
 
-      %WasmSpec.Function{input: input, output: output} ->
+      {:ok, %WasmSpec.Function{input: input}} ->
         with {:ok, arg} <- WasmSpec.cast_wasm_input(args_values, input),
-             {:ok, value} <-
+             {:ok, %ReadResult{value: value}} <-
                WasmModule.execute(module, function_name,
                  state: state,
                  balance: UTXO.get_balance(inputs),
@@ -487,10 +487,7 @@ defmodule Archethic.Contracts do
                      Archethic.fetch_genesis_address(contract_tx.address) |> elem(1)
                    )
                ) do
-          case value do
-            %ReadResult{value: value} -> {:ok, WasmSpec.cast_wasm_output(value, output), []}
-            nil -> {:ok, nil, []}
-          end
+          {:ok, value, []}
         else
           {:error, reason} ->
             {:error,

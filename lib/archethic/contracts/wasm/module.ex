@@ -165,17 +165,13 @@ defmodule Archethic.Contracts.WasmModule do
   end
 
   @spec execute(module :: t(), functionName :: binary(), opts :: execution_opts()) ::
-          {:ok, ReadResult.t() | UpdateResult.t() | nil}
-          | {:error, any()}
+          {:ok, ReadResult.t() | UpdateResult.t()} | {:error, any()}
   def execute(%__MODULE__{module: module, store: store}, function_name, opts \\ [])
       when is_binary(function_name) do
     input =
       %{
         state: Keyword.get(opts, :state, %{}),
-        transaction:
-          opts
-          |> Keyword.get(:transaction)
-          |> cast_transaction(),
+        transaction: opts |> Keyword.get(:transaction) |> cast_transaction(),
         arguments: Keyword.get(opts, :arguments),
         balance: Keyword.get(opts, :balance, %{uco: 0, tokens: []}),
         contract: opts |> Keyword.get(:contract) |> cast_transaction()
@@ -230,7 +226,7 @@ defmodule Archethic.Contracts.WasmModule do
     }
   end
 
-  defp cast_output(nil), do: {:ok, nil}
+  defp cast_output(nil), do: {:ok, WasmResult.cast(nil)}
 
   defp cast_output(output) do
     with {:ok, json} <- Jason.decode(output) do

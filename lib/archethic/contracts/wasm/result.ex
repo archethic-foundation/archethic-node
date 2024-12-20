@@ -50,7 +50,7 @@ defmodule Archethic.Contracts.WasmResult do
   @doc """
   Cast JSON WebAssembly result in `UpdateResult` or `ReadResult`
   """
-  @spec cast(map()) :: UpdateResult.t() | ReadResult.t()
+  @spec cast(map() | nil) :: UpdateResult.t() | ReadResult.t()
   def cast(result) when is_map_key(result, "state") or is_map_key(result, "transaction") do
     %UpdateResult{
       state: Map.get(result, "state") |> cast_state(),
