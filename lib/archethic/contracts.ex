@@ -453,7 +453,7 @@ defmodule Archethic.Contracts do
           | {:error, Failure.t()}
   def execute_function(
         %WasmContract{
-          module: module = %WasmModule{spec: %WasmSpec{public_functions: functions}},
+          module: module = %WasmModule{spec: spec},
           state: state,
           transaction: contract_tx
         },
@@ -462,8 +462,8 @@ defmodule Archethic.Contracts do
         inputs
       )
       when is_map(args_values) do
-    case Enum.find(functions, &(&1.name == function_name)) do
-      nil ->
+    case WasmSpec.get_function_spec(spec, function_name) do
+      {:error, :function_does_not_exist} ->
         {:error,
          %Failure{
            error: :function_does_not_exist,

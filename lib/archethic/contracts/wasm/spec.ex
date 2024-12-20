@@ -45,6 +45,18 @@ defmodule Archethic.Contracts.WasmSpec do
   end
 
   @doc """
+  Retrieve function spec
+  """
+  @spec get_function_spec(spec :: t(), function_name :: String.t()) ::
+          {:ok, Function.t()} | {:error, :function_does_not_exist}
+  def get_function_spec(%__MODULE__{public_functions: functions}, function_name) do
+    case Enum.find(functions, &(Map.get(&1, :name) == function_name)) do
+      nil -> {:error, :function_does_not_exist}
+      spec -> {:ok, spec}
+    end
+  end
+
+  @doc """
   Return the function exposed in the spec
   """
   @spec function_names(t()) :: list(String.t())
