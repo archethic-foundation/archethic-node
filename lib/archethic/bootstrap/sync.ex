@@ -56,36 +56,63 @@ defmodule Archethic.Bootstrap.Sync do
           :inet.port_number(),
           :inet.port_number(),
           P2P.supported_transport(),
+          binary(),
           DateTime.t() | nil
         ) :: boolean()
-  def require_update?(_ip, _port, _http_port, _transport, nil), do: false
+  def require_update?(_ip, _port, _http_port, _transport, _geo_patch, nil), do: false
 
-  def require_update?(ip, port, http_port, transport, last_sync_date) do
+  def require_update?(ip, port, http_port, transport, geo_patch, last_sync_date) do
     first_node_public_key = Crypto.first_node_public_key()
 
-    case P2P.authorized_and_available_nodes() do
-      [%Node{first_public_key: ^first_node_public_key}] ->
-        false
+    if is_node_active?(first_node_public_key) do
+      false
+    else
+      needs_update?(
+        ip,
+        port,
+        http_port,
+        transport,
+        geo_patch,
+        last_sync_date,
+        first_node_public_key
+      )
+    end
+  end
+
+  defp is_node_active?(first_node_public_key) do
+    P2P.authorized_and_available_nodes()
+    |> Enum.any?(fn %Node{first_public_key: pk} -> pk == first_node_public_key end)
+  end
+
+  defp needs_update?(
+         ip,
+         port,
+         http_port,
+         transport,
+         geo_patch,
+         last_sync_date,
+         first_node_public_key
+       ) do
+    diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
+
+    case P2P.get_node_info(first_node_public_key) do
+      {:ok,
+       %Node{
+         ip: prev_ip,
+         port: prev_port,
+         http_port: prev_http_port,
+         transport: prev_transport,
+         geo_patch: prev_geo_patch
+       }} ->
+        ip != prev_ip or
+          port != prev_port or
+          http_port != prev_http_port or
+          geo_patch != prev_geo_patch or
+          diff_sync > @out_of_sync_date_threshold or
+          prev_transport != transport
 
       _ ->
-        diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
-
-        case P2P.get_node_info(first_node_public_key) do
-          {:ok,
-           %Node{
-             ip: prev_ip,
-             port: prev_port,
-             http_port: prev_http_port,
-             transport: prev_transport
-           }}
-          when ip != prev_ip or port != prev_port or http_port != prev_http_port or
-                 diff_sync > @out_of_sync_date_threshold or
-                 prev_transport != transport ->
-            true
-
-          _ ->
-            false
-        end
+        false
     end
   end
 
