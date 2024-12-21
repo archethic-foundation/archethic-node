@@ -86,7 +86,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
       contents = File.read!(filename)
 
-      assert contents == Encoding.encode(tx1)
+      assert contents == Encoding.encode(tx1, storage_type: :io)
     end
 
     test "should delete transaction in io storage after writing it in chain storage", %{
@@ -295,7 +295,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return a page and its paging state" do
       transactions =
-        Enum.map(1..20, fn i ->
+        Enum.map(0..19, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -325,7 +325,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return an empty list when the Paging Address is not found" do
       transactions =
-        Enum.map(1..15, fn i ->
+        Enum.map(0..14, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -352,7 +352,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return entire chain if paging_address is the genesis (asc)" do
       transactions =
-        Enum.map(1..5, fn i ->
+        Enum.map(0..4, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -379,7 +379,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return empty if paging_address is the genesis (desc)" do
       transactions =
-        Enum.map(1..5, fn i ->
+        Enum.map(0..4, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -414,7 +414,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return all transactions if there are less than one page (10)" do
       transactions =
-        Enum.map(1..9, fn i ->
+        Enum.map(0..8, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -435,7 +435,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return transactions paginated if there are more than one page (10)" do
       transactions =
-        Enum.map(1..28, fn i ->
+        Enum.map(0..27, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -474,7 +474,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should be able to load the last page if there are 10 transactions (for a page_size=10)" do
       transactions =
-        Enum.map(1..30, fn i ->
+        Enum.map(0..29, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,
@@ -519,7 +519,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should return the number of transaction in a chain" do
       transactions =
-        Enum.map(1..20, fn i ->
+        Enum.map(0..19, fn i ->
           tx =
             TransactionFactory.create_valid_transaction([],
               index: i,

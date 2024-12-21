@@ -104,18 +104,27 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     tx =
       Transaction.new(:node, %TransactionData{
         content:
-          Node.encode_transaction_content(
-            {80, 10, 20, 102},
-            3000,
-            4000,
-            MockTransport,
-            <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
-              234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
-            origin_public_key,
-            certificate,
-            Crypto.generate_random_keypair(:bls) |> elem(0)
-          )
+          Node.encode_transaction_content(%{
+            ip: {80, 10, 20, 102},
+            port: 3000,
+            http_port: 4000,
+            transport: MockTransport,
+            reward_address:
+              <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209,
+                6, 234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
+            origin_public_key: origin_public_key,
+            key_certificate: certificate,
+            mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+            geo_patch: "F1B"
+          })
       })
+
+    stub(MockGeoIP, :get_coordinates, fn ip ->
+      case ip do
+        {80, 10, 20, 102} ->
+          {38.345170, -0.481490}
+      end
+    end)
 
     {:ok,
      %{
@@ -1322,6 +1331,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
     %ValidationContext{
+      genesis_address: Transaction.previous_address(tx),
       transaction: tx,
       previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: [
@@ -1344,6 +1354,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   end
 
   defp create_validation_stamp(%ValidationContext{
+         genesis_address: genesis_address,
          transaction: tx,
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
@@ -1366,6 +1377,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> LedgerValidation.to_ledger_operations()
 
     %ValidationStamp{
+      genesis_address: genesis_address,
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),

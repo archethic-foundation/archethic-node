@@ -1,6 +1,7 @@
 defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
   use ArchethicCase
   use ExUnitProperties
+  import ArchethicCase
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -15,18 +16,20 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
             pow <- StreamData.binary(length: 32),
             poi <- StreamData.binary(length: 33),
             poe <- StreamData.binary(length: 64),
-            signature <- StreamData.binary(length: 64)
+            signature <- StreamData.binary(length: 64),
+            protocol_version <- StreamData.integer(1..Archethic.Mining.protocol_version())
           ) do
       pub = Crypto.last_node_public_key()
 
       validation_stamp = %ValidationStamp{
+        genesis_address: random_address(),
         timestamp: DateTime.utc_now(),
         proof_of_work: <<0::8, 0::8, pow::binary>>,
         proof_of_integrity: poi,
         proof_of_election: poe,
         ledger_operations: %LedgerOperations{},
         signature: signature,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: protocol_version
       }
 
       cross_stamp =

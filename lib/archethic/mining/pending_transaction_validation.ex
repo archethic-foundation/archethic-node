@@ -17,6 +17,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.OracleChain
 
   alias Archethic.P2P
+  alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GetFirstPublicKey
   alias Archethic.P2P.Node
@@ -317,7 +318,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         },
         _
       ) do
-    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key} <-
+    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key,
+          geo_patch} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,
@@ -338,7 +340,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          {:mining_public_key, true} <-
            {:mining_public_key,
             Crypto.valid_public_key?(mining_public_key) and
-              Crypto.get_public_key_curve(mining_public_key) == :bls} do
+              Crypto.get_public_key_curve(mining_public_key) == :bls},
+         {:geo_patch, true} <-
+           {:geo_patch, valid_geopatch?(ip, geo_patch)} do
       :ok
     else
       :error ->
@@ -362,6 +366,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:mining_public_key, false} ->
         {:error, "Invalid mining public key"}
+
+      {:geo_patch, false} ->
+        {:error, "Invalid geo patch from IP"}
     end
   end
 
@@ -964,6 +971,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     else
       Enum.all?(collection, &(!Map.has_key?(&1, "id")))
     end
+  end
+
+  defp valid_geopatch?(ip, calculated_geopatch) do
+    calculated_geopatch == GeoPatch.from_ip(ip)
   end
 
   defp get_allowed_node_key_origins do

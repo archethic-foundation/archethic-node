@@ -120,6 +120,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
   defp send_new_transaction(next_reward_address) do
     %Node{
       ip: ip,
+      geo_patch: geo_patch,
       port: port,
       http_port: http_port,
       transport: transport,
@@ -149,16 +150,17 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
         },
         code: code,
         content:
-          Node.encode_transaction_content(
-            ip,
-            port,
-            http_port,
-            transport,
-            next_reward_address,
-            Crypto.origin_node_public_key(),
-            Crypto.get_key_certificate(Crypto.origin_node_public_key()),
-            Crypto.mining_node_public_key()
-          )
+          Node.encode_transaction_content(%{
+            ip: ip,
+            port: port,
+            http_port: http_port,
+            transport: transport,
+            reward_address: next_reward_address,
+            origin_public_key: Crypto.origin_node_public_key(),
+            key_certificate: Crypto.get_key_certificate(Crypto.origin_node_public_key()),
+            mining_public_key: Crypto.mining_node_public_key(),
+            geo_patch: geo_patch
+          })
       })
 
     TransactionSubscriber.register(tx.address, System.monotonic_time())
@@ -169,6 +171,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
   defp send_noop_transaction() do
     %Node{
       ip: ip,
+      geo_patch: geo_patch,
       port: port,
       http_port: http_port,
       transport: transport,
@@ -184,16 +187,17 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
       Transaction.new(:node, %TransactionData{
         code: code,
         content:
-          Node.encode_transaction_content(
-            ip,
-            port,
-            http_port,
-            transport,
-            reward_address,
-            Crypto.origin_node_public_key(),
-            Crypto.get_key_certificate(Crypto.origin_node_public_key()),
-            Crypto.mining_node_public_key()
-          )
+          Node.encode_transaction_content(%{
+            ip: ip,
+            port: port,
+            http_port: http_port,
+            transport: transport,
+            reward_address: reward_address,
+            origin_public_key: Crypto.origin_node_public_key(),
+            key_certificate: Crypto.get_key_certificate(Crypto.origin_node_public_key()),
+            mining_public_key: Crypto.mining_node_public_key(),
+            geo_patch: geo_patch
+          })
       })
 
     TransactionSubscriber.register(tx.address, System.monotonic_time())
