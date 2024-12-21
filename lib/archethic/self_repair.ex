@@ -215,7 +215,7 @@ defmodule Archethic.SelfRepair do
         genesis_address = TransactionChain.get_genesis_address(address)
 
         addresses
-        |> Enum.sort_by(fn {_address, timestamp} -> timestamp end)
+        |> Enum.sort_by(fn {_address, timestamp} -> timestamp end, DateTime)
         |> Enum.each(fn {address, timestamp} ->
           TransactionChain.register_last_address(genesis_address, address, timestamp)
         end)
