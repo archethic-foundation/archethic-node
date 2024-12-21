@@ -39,7 +39,8 @@ defmodule Archethic.Mining.Error do
   defp get_error_code_message(:invalid_pending_transaction),
     do: {-30100, "Invalid transaction data"}
 
-  defp get_error_code_message(:insufficient_funds), do: {-31000, "Insufficient funds"}
+  defp get_error_code_message(:insufficient_funds),
+    do: {-31000, "Insufficient funds"}
 
   defp get_error_code_message(:invalid_inherit_constraints),
     do: {-31001, "Invalid contract inherit condition"}
@@ -56,8 +57,14 @@ defmodule Archethic.Mining.Error do
   defp get_error_code_message(:invalid_contract_context_inputs),
     do: {-31500, "Invalid contract context inputs"}
 
-  defp get_error_code_message(:consensus_not_reached), do: {-31501, "Consensus not reached"}
-  defp get_error_code_message(:timeout), do: {-31502, "Transaction validation timeout"}
+  defp get_error_code_message(:consensus_not_reached),
+    do: {-31501, "Consensus not reached"}
+
+  defp get_error_code_message(:timeout),
+    do: {-31502, "Transaction validation timeout"}
+
+  defp get_error_code_message(:invalid_origin_signature),
+    do: {-31503, "Invalid origin signature"}
 
   @doc """
   Return the context of the error.
@@ -79,6 +86,7 @@ defmodule Archethic.Mining.Error do
   def to_stamp_error(%__MODULE__{code: -31003}), do: :invalid_recipients_execution
   def to_stamp_error(%__MODULE__{code: -31004}), do: :recipients_not_distinct
   def to_stamp_error(%__MODULE__{code: -31500}), do: :invalid_contract_context_inputs
+  def to_stamp_error(%__MODULE__{code: -31503}), do: :invalid_origin_signature
   def to_stamp_error(_), do: nil
 
   @doc """
