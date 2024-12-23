@@ -8,6 +8,7 @@ defmodule Archethic.Contracts.WasmContract do
   alias Archethic.Contracts.WasmSpec
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -57,18 +58,14 @@ defmodule Archethic.Contracts.WasmContract do
   @doc """
   Parse smart contract json block and return a contract struct
   """
-  @spec parse(%{bytecode: binary(), manifest: map()}) ::
-          {:ok, t()} | {:error, String.t()}
-  def parse(%{manifest: manifest, bytecode: bytecode}) do
+  @spec parse(Contract.t()) :: {:ok, t()} | {:error, String.t()}
+  def parse(%Contract{manifest: manifest, bytecode: bytecode}) do
     uncompressed_bytes = :zlib.unzip(bytecode)
     spec = WasmSpec.from_manifest(manifest)
 
     case WasmModule.parse(uncompressed_bytes, spec) do
-      {:ok, module} ->
-        {:ok, %__MODULE__{module: module}}
-
-      {:error, reason} ->
-        {:error, "#{inspect(reason)}"}
+      {:ok, module} -> {:ok, %__MODULE__{module: module}}
+      {:error, reason} -> {:error, "#{inspect(reason)}"}
     end
   end
 
@@ -76,19 +73,18 @@ defmodule Archethic.Contracts.WasmContract do
   Create a contract from a transaction
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
-  def from_transaction(tx = %Transaction{data: %TransactionData{contract: contract}})
-      when contract != nil do
+  def from_transaction(%Transaction{data: %TransactionData{contract: nil}}),
+    do: {:error, "No contract to parse"}
+
+  def from_transaction(tx = %Transaction{data: %TransactionData{contract: contract}}) do
     case parse(contract) do
-      {:ok, module} ->
-        {:ok, %{module | state: get_state_from_tx(tx), transaction: tx}}
+      {:ok, wasm_contract} ->
+        {:ok, %__MODULE__{wasm_contract | state: get_state_from_tx(tx), transaction: tx}}
 
       {:error, _} = e ->
         e
     end
   end
-
-  def from_transaction(%Transaction{data: %TransactionData{contract: nil}}),
-    do: {:error, "No contract to parse"}
 
   defp get_state_from_tx(%Transaction{
          validation_stamp: %ValidationStamp{

@@ -6,6 +6,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   alias Archethic.Utils.TypedEncoding
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -115,15 +116,12 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
     contract_binary =
       case contract do
-        %{
-          bytecode: bytecode,
-          manifest: manifest
-        } ->
-          <<byte_size(bytecode)::32, bytecode::binary,
-            :zlib.zip(TypedEncoding.serialize(manifest, :compact))::binary>>
-
         nil ->
           <<>>
+
+        %Contract{bytecode: bytecode, manifest: manifest} ->
+          <<byte_size(bytecode)::32, bytecode::binary,
+            manifest |> TypedEncoding.serialize(:compact) |> :zlib.zip()::binary>>
       end
 
     encoding =
@@ -198,7 +196,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> TypedEncoding.deserialize(:compact)
       |> elem(0)
 
-    put_in(acc, [Access.key(:data, %{}), :contract], %{
+    put_in(acc, [Access.key(:data, %{}), :contract], %Contract{
       bytecode: contract_bytecode,
       manifest: manifest
     })
