@@ -349,6 +349,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
       Code.eval_quoted(code,
         scope:
           Map.put(constants, "next_transaction", %Transaction{
+            version: 3,
             data: %TransactionData{}
           })
       )

@@ -29,6 +29,7 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
@@ -358,14 +359,16 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   # TODO: instead of address we could have a transaction_summary with proof of validation/replication
   # TODO: to avoid downloading the tx
-  defp validate_trigger({:transaction, address, recipient}, _, contract_genesis_address, inputs) do
+  defp validate_trigger(
+         {:transaction, address, versioned_recipient},
+         _,
+         contract_genesis_address,
+         inputs
+       ) do
     storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    recipient = VersionedRecipient.unwrap_recipient(versioned_recipient)
 
-    with true <-
-           Enum.any?(
-             inputs,
-             &(&1.type == :call and &1.from == address)
-           ),
+    with true <- Enum.any?(inputs, &(&1.type == :call and &1.from == address)),
          {:ok, tx} <-
            TransactionChain.fetch_transaction(address, storage_nodes,
              acceptance_resolver: :accept_transaction
@@ -410,14 +413,16 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
-  defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
+  defp trigger_to_recipient({:transaction, _, versioned_recipient}),
+    do: VersionedRecipient.unwrap_recipient(versioned_recipient)
+
   defp trigger_to_recipient(_), do: nil
   defp trigger_to_trigger_type({:oracle, _}), do: :oracle
   defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
   defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
 
-  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}),
-    do: Recipient.get_trigger(recipient)
+  defp trigger_to_trigger_type({:transaction, _, versioned_recipient = %VersionedRecipient{}}),
+    do: VersionedRecipient.unwrap_recipient(versioned_recipient) |> Recipient.get_trigger()
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,

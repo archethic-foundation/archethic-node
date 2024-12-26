@@ -135,7 +135,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def new(type, data = %TransactionData{}) do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
+    # TODO: update network chain to use WASM contract to update version
     %__MODULE__{
+      version: 3,
       address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
@@ -150,7 +152,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def new(type, data = %TransactionData{}, index) do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type, index)
 
+    # TODO: update network chain to use WASM contract to update version
     %__MODULE__{
+      version: 3,
       address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
@@ -186,7 +190,8 @@ defmodule Archethic.TransactionChain.Transaction do
       when type in @transaction_types and is_binary(seed) and is_integer(index) and index >= 0 do
     curve = Keyword.get(opts, :curve, Crypto.default_curve())
     origin = Keyword.get(opts, :origin, :software)
-    version = Keyword.get(opts, :version, version())
+    # TODO: update network chain to use WASM contract to update version
+    version = Keyword.get(opts, :version, 3)
 
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(seed, index, curve, origin)
@@ -208,20 +213,26 @@ defmodule Archethic.TransactionChain.Transaction do
   Create transaction with the direct use of private and public keys
   """
   @spec new_with_keys(
-          transaction_type(),
-          TransactionData.t(),
-          Crypto.key(),
-          Crypto.key(),
-          Crypto.key()
+          type :: transaction_type(),
+          data :: TransactionData.t(),
+          previous_private_key :: Crypto.key(),
+          previous_public_key :: Crypto.key(),
+          next_public_key :: Crypto.key(),
+          opts :: Keyword.t()
         ) :: t()
   def new_with_keys(
         type,
         data = %TransactionData{},
         previous_private_key,
         previous_public_key,
-        next_public_key
+        next_public_key,
+        opts \\ []
       ) do
+    # TODO: update network chain to use WASM contract to update version
+    version = Keyword.get(opts, :version, 3)
+
     %__MODULE__{
+      version: version,
       address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,

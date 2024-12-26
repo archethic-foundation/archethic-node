@@ -52,7 +52,9 @@ defmodule Archethic.TransactionChain.TransactionData.Contract do
   end
 
   @doc false
-  @spec cast(contract :: map()) :: t()
+  @spec cast(contract :: nil | map()) :: nil | t()
+  def cast(nil), do: nil
+
   def cast(%{bytecode: bytecode, manifest: manifest}),
     do: %__MODULE__{bytecode: bytecode, manifest: manifest}
 

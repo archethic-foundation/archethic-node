@@ -28,6 +28,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -130,6 +131,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @spec validate_contract(transaction :: Transaction.t()) :: :ok | {:error, String.t()}
   def validate_contract(%Transaction{data: %TransactionData{code: "", contract: nil}}), do: :ok
 
+  def validate_contract(%Transaction{version: version, data: %TransactionData{code: code}})
+      when code != "" and version >= 4,
+      do: {:error, "Invalid transaction, from v4 code is deprecated"}
+
+  def validate_contract(%Transaction{
+        version: version,
+        data: %TransactionData{contract: %Contract{}}
+      })
+      when version <= 3,
+      do: {:error, "Invalid transaction, before v3 contract is not allowed"}
+
   def validate_contract(
         tx = %Transaction{
           data: %TransactionData{code: code, contract: contract, ownerships: ownerships}
@@ -142,19 +154,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp validate_code_size(code, _contract) when code != "" do
-    if TransactionData.code_size_valid?(code) do
-      :ok
-    else
-      {:error, "Invalid transaction, code exceed max size"}
-    end
+    if TransactionData.code_size_valid?(code, false),
+      do: :ok,
+      else: {:error, "Invalid transaction, code exceed max size"}
   end
 
-  defp validate_code_size(_code, %{bytecode: bytecode}) do
-    if TransactionData.code_size_valid?(bytecode) do
-      :ok
-    else
-      {:error, "Invalid transaction, code exceed max size"}
-    end
+  defp validate_code_size(_code, %Contract{bytecode: bytecode}) do
+    if TransactionData.code_size_valid?(bytecode),
+      do: :ok,
+      else: {:error, "Invalid transaction, code exceed max size"}
   end
 
   defp parse_contract(tx) do
@@ -165,22 +173,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp validate_contract_ownership(contract, ownerships) do
-    if Contracts.contains_trigger?(contract) do
-      ensure_ownership_in_contract(ownerships)
-    else
-      :ok
-    end
+    if Contracts.contains_trigger?(contract),
+      do: ensure_ownership_in_contract(ownerships),
+      else: :ok
   end
 
   defp ensure_ownership_in_contract(ownerships) do
-    if Enum.any?(
-         ownerships,
-         &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
-       ) do
-      :ok
-    else
-      {:error, "Requires storage nonce public key as authorized public keys"}
-    end
+    storage_nonce = Crypto.storage_nonce_public_key()
+
+    if Enum.any?(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce)),
+      do: :ok,
+      else: {:error, "Requires storage nonce public key as authorized public keys"}
   end
 
   @doc """

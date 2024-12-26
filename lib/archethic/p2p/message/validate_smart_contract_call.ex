@@ -43,13 +43,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
         recipient: recipient,
-        transaction: tx = %Transaction{},
+        transaction: tx = %Transaction{version: tx_version},
         timestamp: timestamp
       }) do
-    tx_version = Transaction.version()
     recipient_bin = Recipient.serialize(recipient, tx_version)
 
-    <<recipient_bin::bitstring, Transaction.serialize(tx)::bitstring,
+    <<Transaction.serialize(tx)::bitstring, recipient_bin::bitstring,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -58,9 +57,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(data) when is_bitstring(data) do
-    tx_version = Transaction.version()
-    {recipient, rest} = Recipient.deserialize(data, tx_version)
-    {tx, <<timestamp::64, rest::bitstring>>} = Transaction.deserialize(rest)
+    {tx = %Transaction{version: tx_version}, rest} = Transaction.deserialize(data)
+    {recipient, <<timestamp::64, rest::bitstring>>} = Recipient.deserialize(rest, tx_version)
 
     {
       %__MODULE__{

@@ -118,9 +118,7 @@ defmodule Archethic.Contracts do
 
       %WasmSpec.UpgradeOpts{from: from} ->
         {:ok, genesis_address} =
-          trigger_tx
-          |> Transaction.previous_address()
-          |> Archethic.fetch_genesis_address()
+          trigger_tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address()
 
         if genesis_address == from do
           with {:ok, %{"bytecode" => new_code, "manifest" => manifest}} <-
@@ -895,6 +893,7 @@ defmodule Archethic.Contracts do
   defp generate_next_tx(%Transaction{data: %TransactionData{code: code, contract: contract}}) do
     if code != "" do
       %Transaction{
+        version: 3,
         type: :contract,
         data: %TransactionData{
           code: code
@@ -1002,7 +1001,7 @@ defmodule Archethic.Contracts do
           transaction:
             prev_tx = %Transaction{previous_public_key: previous_public_key, address: address}
         },
-        %Transaction{type: next_type, data: next_data},
+        %Transaction{version: version, type: next_type, data: next_data},
         index
       ) do
     case get_contract_seed(prev_tx) do
@@ -1017,7 +1016,8 @@ defmodule Archethic.Contracts do
             contract_seed,
             index,
             curve: Crypto.get_public_key_curve(previous_public_key),
-            origin: Crypto.get_public_key_origin(previous_public_key)
+            origin: Crypto.get_public_key_origin(previous_public_key),
+            version: version
           )
 
         {:ok, signed_tx}

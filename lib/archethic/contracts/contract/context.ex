@@ -11,8 +11,7 @@ defmodule Archethic.Contracts.Contract.Context do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -33,7 +32,7 @@ defmodule Archethic.Contracts.Contract.Context do
   """
   @type trigger ::
           {:oracle, Crypto.prepended_hash()}
-          | {:transaction, Crypto.prepended_hash(), Recipient.t()}
+          | {:transaction, Crypto.prepended_hash(), VersionedRecipient.t()}
           | {:datetime, DateTime.t()}
           | {:interval, String.t(), DateTime.t()}
 
@@ -52,14 +51,9 @@ defmodule Archethic.Contracts.Contract.Context do
         inputs: inputs
       }) do
     inputs_bin =
-      inputs
-      |> Enum.map(&VersionedUnspentOutput.serialize/1)
-      |> :erlang.list_to_bitstring()
+      inputs |> Enum.map(&VersionedUnspentOutput.serialize/1) |> :erlang.list_to_bitstring()
 
-    inputs_len_bin =
-      inputs
-      |> length()
-      |> VarInt.from_value()
+    inputs_len_bin = inputs |> length() |> VarInt.from_value()
 
     <<serialize_status(status)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       serialize_trigger(trigger)::bitstring, inputs_len_bin::binary, inputs_bin::bitstring>>
@@ -104,8 +98,7 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp serialize_trigger({:transaction, address, recipient}) do
-    tx_version = Transaction.version()
-    recipient_bin = Recipient.serialize(recipient, tx_version)
+    recipient_bin = VersionedRecipient.serialize(recipient)
     <<4::8, address::binary, recipient_bin::bitstring>>
   end
 
@@ -126,10 +119,8 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp deserialize_trigger(<<4::8, rest::bitstring>>) do
-    tx_version = Transaction.version()
-
     {tx_address, rest} = Utils.deserialize_address(rest)
-    {recipient, rest} = Recipient.deserialize(rest, tx_version)
+    {recipient, rest} = VersionedRecipient.deserialize(rest)
 
     {{:transaction, tx_address, recipient}, rest}
   end

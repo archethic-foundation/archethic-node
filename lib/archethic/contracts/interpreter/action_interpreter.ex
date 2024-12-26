@@ -49,7 +49,13 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     :ok = Macro.validate(ast)
 
     # initiate a transaction that will be used by the "Contract" module
-    initial_next_tx = %Transaction{type: :contract, data: %TransactionData{code: code}}
+    # Keep version 3 as it is the last version to support code.
+    # Upgrade to further version is done throught Contract.set_contract function
+    initial_next_tx = %Transaction{
+      version: 3,
+      type: :contract,
+      data: %TransactionData{code: code}
+    }
 
     constants =
       constants
@@ -61,14 +67,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     state = Scope.read_global([:state])
 
     # return a next transaction only if it has been modified
-    if Scope.read_global([:next_transaction_changed]) do
-      {
-        Scope.read_global([:next_transaction]),
-        state
-      }
-    else
-      {nil, state}
-    end
+    if Scope.read_global([:next_transaction_changed]),
+      do: {Scope.read_global([:next_transaction]), state},
+      else: {nil, state}
   end
 
   # ----------------------------------------------------------------------

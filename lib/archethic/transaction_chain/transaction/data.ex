@@ -101,7 +101,7 @@ defmodule Archethic.TransactionChain.TransactionData do
       recipients_bin::bitstring>>
   end
 
-  defp serialize_contract(%__MODULE__{code: code}, mode, tx_version) when tx_version <= 3 do
+  defp serialize_contract(%__MODULE__{code: code}, tx_version, mode) when tx_version <= 3 do
     code =
       case mode do
         # used when msg passing

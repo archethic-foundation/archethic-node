@@ -32,6 +32,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   @spec validate(params :: map()) :: :ok | {:error, map()} | :error
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
+         :ok <- validate_contract_version(params),
          :ok <- validate_code_size(params),
          :ok <- validate_recipients_version(params) do
       :ok
@@ -42,58 +43,46 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
 
   def validate(_), do: :error
 
-  defp validate_code_size(params) do
-    case get_in(params, ["data", "code"]) do
-      nil ->
-        :ok
+  defp validate_contract_version(%{"version" => version, "data" => %{"code" => code}})
+       when code != "" and version >= 4,
+       do: {:error, [{"From v4, code is deprecated", "#/data/code"}]}
 
-      "" ->
-        :ok
+  defp validate_contract_version(%{"version" => version, "data" => %{"contract" => contract}})
+       when contract != nil and version <= 3,
+       do: {:error, [{"Before V4, contract is not allowed", "#/data/contract"}]}
 
-      code ->
-        if TransactionData.code_size_valid?(code) do
-          :ok
-        else
-          {:error,
-           [
-             {"Invalid transaction, code exceed max size.", "#/data/code"}
-           ]}
-        end
+  defp validate_contract_version(_), do: :ok
+
+  defp validate_code_size(%{"data" => %{"code" => code}})
+       when is_binary(code) and code != "" do
+    if TransactionData.code_size_valid?(code, false),
+      do: :ok,
+      else: {:error, [{"Invalid transaction, code exceed max size.", "#/data/code"}]}
+  end
+
+  defp validate_code_size(_), do: :ok
+
+  defp validate_recipients_version(%{
+         "version" => version,
+         "data" => %{"recipients" => recipients}
+       })
+       when is_list(recipients) do
+    cond do
+      version == 1 and Enum.any?(recipients, &is_map/1) ->
+        {:error, [{"Transaction V1 cannot use named action recipients", "#/data/recipients"}]}
+
+      version >= 2 and Enum.any?(recipients, &is_binary/1) ->
+        {:error, [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
+
+      version >= 4 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) ->
+        {:error, [{"From V4, recipient arguments must be a map", "#/data/recipients"}]}
+
+      true ->
+        :ok
     end
   end
 
-  defp validate_recipients_version(params = %{"version" => 1}) do
-    case get_in(params, ["data", "recipients"]) do
-      nil ->
-        :ok
-
-      recipients ->
-        if Enum.any?(recipients, &is_map/1) do
-          {:error, [{"Transaction V1 cannot use named action recipients", "#/data/recipients"}]}
-        else
-          :ok
-        end
-    end
-  end
-
-  defp validate_recipients_version(params = %{"version" => version}) do
-    case get_in(params, ["data", "recipients"]) do
-      nil ->
-        :ok
-
-      recipients ->
-        if Enum.any?(recipients, &is_binary/1) do
-          {:error,
-           [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
-        else
-          if version > 3 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) do
-            {:error, [{"From V4, recipient arguments must be a map", "#/data/recipients"}]}
-          else
-            :ok
-          end
-        end
-    end
-  end
+  defp validate_recipients_version(_), do: :ok
 
   defp format_errors(errors),
     do: Enum.reduce(errors, %{}, fn {details, field}, acc -> Map.put(acc, field, details) end)

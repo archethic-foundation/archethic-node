@@ -20,6 +20,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -493,14 +494,16 @@ defmodule Archethic.Contracts.Worker do
 
   defp get_contract_context(
          {:transaction, _, _},
-         %Transaction{address: address},
+         %Transaction{address: address, version: tx_version},
          recipient,
          unspent_outputs
        ) do
+    versioned_recipient = VersionedRecipient.wrap_recipient(recipient, tx_version)
+
     # In a next issue, we'll have different status such as :no_output and :failure
     %Context{
       status: :tx_output,
-      trigger: {:transaction, address, recipient},
+      trigger: {:transaction, address, versioned_recipient},
       timestamp: DateTime.utc_now(),
       inputs: unspent_outputs
     }
