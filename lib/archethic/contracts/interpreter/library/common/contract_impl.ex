@@ -36,7 +36,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
          unspent_outputs = Archethic.get_unspent_outputs(genesis_address),
          {:ok, output, _logs} <-
            Contracts.execute_function(contract, function, args, unspent_outputs) do
-      cast_function_output(contract, function, output)
+      cast_function_output(function, contract, output)
     else
       {:error, reason} -> raise Library.Error, message: error_to_message(reason)
     end

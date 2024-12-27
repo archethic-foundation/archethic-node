@@ -226,7 +226,7 @@ defmodule Archethic.Mining.SmartContractValidation do
       when contract != nil do
     # only contract without triggers are allowed to NOT have a Context
 
-    {:ok, contract} = WasmContract.from_transaction(prev_tx)
+    contract = WasmContract.from_transaction!(prev_tx)
 
     if WasmContract.contains_trigger?(contract) do
       {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")}

@@ -47,11 +47,8 @@ defmodule Archethic.Contracts.WasmContract do
   @spec from_transaction!(Transaction.t()) :: t()
   def from_transaction!(tx = %Transaction{}) do
     case from_transaction(tx) do
-      {:ok, contract} ->
-        contract
-
-      {:error, reason} ->
-        raise reason
+      {:ok, contract} -> contract
+      {:error, reason} -> raise reason
     end
   end
 

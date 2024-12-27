@@ -4,6 +4,7 @@ defmodule Archethic.TransactionChain.TransactionData.VersionedRecipient do
   Usefull when recipient is used alone without link with its transaction
   """
   alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   defstruct [:address, :action, :args, :tx_version]
