@@ -73,6 +73,7 @@ defmodule Archethic.ContractFactory do
       Keyword.update(opts, :type, :contract, & &1)
       |> Keyword.put(:ownerships, [contract_seed_ownership | ownerships])
       |> Keyword.put(:code, code)
+      |> Keyword.put(:version, 3)
 
     inputs =
       Keyword.get(opts, :inputs, [

@@ -70,7 +70,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         })
 
       assert %{
-               "fee" => 6_500_309,
+               "fee" => 6_500_275,
                "rates" => %{
                  "eur" => 0.2,
                  "usd" => 0.2
@@ -158,7 +158,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => current_transaction_version()
+        "version" => 3
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -262,7 +262,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => current_transaction_version()
+        "version" => 3
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -342,7 +342,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => current_transaction_version()
+        "version" => 3
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -395,7 +395,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => current_transaction_version()
+        "version" => 3
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)

@@ -5,12 +5,12 @@
     "bytecode": {
       "$ref": "file://schemas/base/hexadecimal.json",
       "description": "Contract's bytecode in hexadecimal",
-      "maxLength": 262144
+      "maxLength": 524288
     },
     "manifest": {
       "type": "object",
       "description": "Metadata about the smart contract",
-      "properties":  {
+      "properties": {
         "abi": {
           "type": "object",
           "description": "Define functions and types of the contract",
@@ -46,22 +46,35 @@
                     "description": "Define the argument for specific trigger such as interval & datetime"
                   },
                   "input": {
-                    "type": [ "string", "object"],
+                    "type": [
+                      "string",
+                      "object"
+                    ],
                     "description": "Define the types of the input(s)"
                   },
                   "output": {
-                    "type": ["string", "object"],
+                    "type": [
+                      "string",
+                      "object"
+                    ],
                     "description": "Define the types of the output(s)"
                   }
                 },
-                "required": ["type"]
+                "required": [
+                  "type"
+                ]
               }
             }
           },
-          "required": ["state", "functions"]
+          "required": [
+            "state",
+            "functions"
+          ]
         }
       },
-      "required": ["abi"]
+      "required": [
+        "abi"
+      ]
     }
   },
   "required": [

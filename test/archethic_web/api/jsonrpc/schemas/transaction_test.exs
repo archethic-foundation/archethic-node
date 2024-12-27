@@ -120,7 +120,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
 
     test "should return an error if the code length is more than limit" do
       map = %{
-        "version" => current_transaction_version(),
+        "version" => 3,
         "address" => Base.encode16(random_address()),
         "type" => "transfer",
         "previousPublicKey" => Base.encode16(random_address()),
