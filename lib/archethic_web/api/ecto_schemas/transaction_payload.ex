@@ -104,27 +104,24 @@ defmodule ArchethicWeb.API.TransactionPayload do
     [] |> validate_recipient_format(version, params) |> validate_contract_data(version, params)
   end
 
-  defp validate_recipient_format(errors, version, params) do
-    recipients = get_in(params, ["data", "recipients"])
+  defp validate_recipient_format(errors, version, %{"data" => %{"recipients" => recipients}})
+       when is_list(recipients) and is_integer(version) do
+    cond do
+      version == 1 and Enum.any?(recipients, &is_map/1) ->
+        Keyword.put(errors, :recipents, "Transaction V1 cannot use named action recipients")
 
-    if not is_nil(version) and not is_nil(recipients) do
-      cond do
-        version == 1 and Enum.any?(recipients, &is_map/1) ->
-          Keyword.put(errors, :recipents, "Transaction V1 cannot use named action recipients")
+      version >= 2 and Enum.any?(recipients, &is_binary/1) ->
+        Keyword.put(errors, :recipents, "From V2, transaction must use named action recipients")
 
-        version >= 2 and Enum.any?(recipients, &is_binary/1) ->
-          Keyword.put(errors, :recipents, "From V2, transaction must use named action recipients")
+      version >= 4 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) ->
+        Keyword.put(errors, :recipents, "From V4, recipient arguments must be a map")
 
-        version >= 4 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) ->
-          Keyword.put(errors, :recipents, "From V4, recipient arguments must be a map")
-
-        true ->
-          errors
-      end
-    else
-      errors
+      true ->
+        errors
     end
   end
+
+  defp validate_recipient_format(errors, _, _), do: errors
 
   defp validate_contract_data(errors, version, params) do
     code = get_in(params, ["data", "code"])
