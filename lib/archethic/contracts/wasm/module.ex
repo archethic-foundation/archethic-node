@@ -185,6 +185,7 @@ defmodule Archethic.Contracts.WasmModule do
            Wasmex.start_link(%{module: module, store: store, imports: imports(io_mem_pid)}),
          {:ok, _} <- Wasmex.call_function(instance_pid, function_name, []) do
       output = WasmMemory.get_output(io_mem_pid)
+      IO.inspect(output, label: "contract_output")
       cast_output(output)
     else
       {:error, _} = e ->

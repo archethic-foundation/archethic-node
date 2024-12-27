@@ -47,6 +47,8 @@ defmodule Archethic.Contracts.WasmResult do
   alias Archethic.Contracts.Wasm.UpdateResult
   alias Archethic.Contracts.Wasm.ReadResult
 
+  alias Archethic.Utils
+
   @doc """
   Cast JSON WebAssembly result in `UpdateResult` or `ReadResult`
   """
@@ -64,14 +66,5 @@ defmodule Archethic.Contracts.WasmResult do
   defp cast_state(state), do: state
 
   defp cast_transaction(nil), do: nil
-
-  defp cast_transaction(%{
-         "type" => type,
-         "data" => tx_data
-       }) do
-    %{
-      type: type,
-      data: Archethic.Utils.atomize_keys(tx_data)
-    }
-  end
+  defp cast_transaction(tx) when is_map(tx), do: Utils.atomize_keys(tx)
 end
