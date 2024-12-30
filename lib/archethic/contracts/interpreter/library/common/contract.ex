@@ -14,6 +14,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   alias Archethic.Tag
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils
@@ -131,6 +132,26 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
     TransactionStatements.add_ownerships(next_tx, casted_args)
   end
 
+  @tag [:write_contract]
+  @spec set_contract(Transaction.t(), map()) :: Transaction.t()
+  def set_contract(next_tx, %{"bytecode" => bytecode, "manifest" => manifest}) do
+    bytecode =
+      case Base.decode16(bytecode, case: :mixed) do
+        {:ok, bytecode} -> bytecode
+        _ -> raise Library.Error, message: "Contract bytecode should be hexadecimal"
+      end
+
+    if not is_map(manifest),
+      do: raise(Library.Error, message: "Contract manifest should be a map")
+
+    contract = %Contract{bytecode: bytecode, manifest: manifest}
+
+    next_tx
+    |> put_in([Access.key!(:data), Access.key!(:code)], "")
+    |> put_in([Access.key!(:data), Access.key!(:contract)], contract)
+    |> Map.put(:version, Transaction.version())
+  end
+
   @tag [:io]
   @spec call_function(address :: binary(), function :: binary(), args :: list()) :: any()
   def call_function(address, function, args) do
@@ -186,6 +207,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
 
   def check_types(:add_uco_transfers, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:set_contract, [first]) do
+    AST.is_map?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(:call_function, [first, second, third]) do
