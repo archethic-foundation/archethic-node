@@ -550,17 +550,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         end
       end
     )
-    |> then(fn tx ->
-      # To avoid atomize manfiest keys we need to extract and inject it later
-      {contract, tx} =
-        get_and_update_in(tx, [Access.key(:data, %{}), :contract], fn contract ->
-          {contract, nil}
-        end)
-
-      tx
-      |> Utils.atomize_keys()
-      |> put_in([:data, :contract], contract)
-    end)
+    |> Utils.atomize_keys()
     |> Transaction.cast()
   end
 end

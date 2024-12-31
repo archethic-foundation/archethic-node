@@ -276,9 +276,7 @@ defmodule Archethic.Utils do
     atomize_keys(map, nest_dot?, to_snake_case?)
   end
 
-  def atomize_keys(struct = %{__struct__: _}, _, _) do
-    struct
-  end
+  def atomize_keys(map, _, _) when is_struct(map), do: map
 
   def atomize_keys(map = %{}, nest_dot?, to_snake_case?) do
     map
@@ -320,9 +318,7 @@ defmodule Archethic.Utils do
       atomize_keys(rest, nest_dot?, to_snake_case?)
   end
 
-  def atomize_keys(not_a_map, _, _) do
-    not_a_map
-  end
+  def atomize_keys(not_a_map, _, _), do: not_a_map
 
   defp nested_path(_keys, acc \\ [])
 
