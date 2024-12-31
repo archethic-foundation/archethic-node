@@ -8,10 +8,12 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.PubSub
 
   alias Archethic.ContractSupervisor
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Worker
 
   alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -56,6 +58,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
     MockDB
     |> stub(:chain_size, fn _ -> 1 end)
+
+    MockClient
+    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ ->
+      {:ok, %UnspentOutputList{unspent_outputs: []}}
+    end)
 
     transaction_seed = :crypto.strong_rand_bytes(32)
 
@@ -219,7 +226,8 @@ defmodule Archethic.Contracts.WorkerTest do
           seed: random_seed(),
           recipients: [
             %Recipient{address: contract_genesis, action: "test", args: []}
-          ]
+          ],
+          version: 3
         )
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
@@ -266,7 +274,8 @@ defmodule Archethic.Contracts.WorkerTest do
           seed: random_seed(),
           recipients: [
             %Recipient{address: contract_genesis, action: "test", args: []}
-          ]
+          ],
+          version: 3
         )
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
@@ -322,7 +331,8 @@ defmodule Archethic.Contracts.WorkerTest do
           seed: random_seed(),
           recipients: [
             %Recipient{address: contract_genesis, action: "test", args: []}
-          ]
+          ],
+          version: 3
         )
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
@@ -386,7 +396,8 @@ defmodule Archethic.Contracts.WorkerTest do
           seed: random_seed(),
           recipients: [
             %Recipient{address: contract_genesis, action: "test", args: []}
-          ]
+          ],
+          version: 3
         )
 
       trigger_genesis = Transaction.previous_address(trigger_tx)
@@ -439,7 +450,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: genesis}],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -488,7 +502,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [%Recipient{address: genesis}])
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: genesis}],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -553,7 +570,8 @@ defmodule Archethic.Contracts.WorkerTest do
         %Transaction{address: trigger_address} =
         TransactionFactory.create_valid_transaction([],
           recipients: [%Recipient{address: genesis}],
-          content: "Mr.X"
+          content: "Mr.X",
+          version: 3
         )
 
       MockDB
@@ -680,7 +698,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
+        TransactionFactory.create_valid_transaction([],
+          ledger: ledger,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -736,7 +758,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -785,7 +811,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       trigger_tx =
         %Transaction{address: trigger_tx_address} =
-        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
+        TransactionFactory.create_valid_transaction([],
+          ledger: ledger,
+          recipients: [recipient],
+          version: 3
+        )
 
       MockDB
       |> stub(:get_last_chain_address, fn address -> {address, DateTime.utc_now()} end)
@@ -846,7 +876,8 @@ defmodule Archethic.Contracts.WorkerTest do
         TransactionFactory.create_valid_transaction([],
           content: "0",
           recipients: [recipient],
-          seed: random_seed()
+          seed: random_seed(),
+          version: 3
         )
 
       valid_trigger_tx =
@@ -854,7 +885,8 @@ defmodule Archethic.Contracts.WorkerTest do
         TransactionFactory.create_valid_transaction([],
           content: "2",
           recipients: [recipient],
-          seed: random_seed()
+          seed: random_seed(),
+          version: 3
         )
 
       MockDB

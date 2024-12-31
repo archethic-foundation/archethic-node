@@ -35,7 +35,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Throw do
            recipients: [
              %Recipient{address: contract_address, action: "action", args: ["Hello"]}
            ],
-           wait: true
+           wait: true,
+           version: 3
          ) do
       {:ok, _} ->
         last_tx = Api.get_last_transaction(contract_address, endpoint)
@@ -61,7 +62,8 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Throw do
     case SmartContract.trigger(trigger_seed, contract_address, endpoint,
            recipients: [
              %Recipient{address: contract_address, action: "action", args: ["Invalid"]}
-           ]
+           ],
+           version: 3
          ) do
       {:ok, _} ->
         Logger.error(

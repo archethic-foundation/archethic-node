@@ -395,8 +395,10 @@ defmodule Archethic.Crypto do
   defp do_generate_deterministic_keypair(:bls, origin, seed) do
     private_key = :crypto.hash(:sha512, seed)
 
+    {:ok, public_key} = BlsEx.get_public_key(private_key)
+
     keypair = {
-      BlsEx.get_public_key(private_key),
+      public_key,
       private_key
     }
 
@@ -442,7 +444,7 @@ defmodule Archethic.Crypto do
   end
 
   defp do_sign(:ed25519, data, key), do: Ed25519.sign(key, data)
-  defp do_sign(:bls, data, key), do: BlsEx.sign(key, data)
+  defp do_sign(:bls, data, key), do: BlsEx.sign!(key, data)
   defp do_sign(curve, data, key), do: ECDSA.sign(curve, key, data)
 
   @doc """
@@ -576,7 +578,7 @@ defmodule Archethic.Crypto do
   end
 
   defp do_verify?(:ed25519, key, data, sig), do: Ed25519.verify?(key, data, sig)
-  defp do_verify?(:bls, key, data, sig), do: BlsEx.verify_signature(key, data, sig)
+  defp do_verify?(:bls, key, data, sig), do: BlsEx.verify_signature?(key, data, sig)
   defp do_verify?(curve, key, data, sig), do: ECDSA.verify?(curve, key, data, sig)
 
   @doc """
@@ -1436,7 +1438,7 @@ defmodule Archethic.Crypto do
   """
   @spec aggregate_signatures(signatures :: list(binary()), public_keys :: list(key())) :: binary()
   def aggregate_signatures(signatures, public_keys) do
-    BlsEx.aggregate_signatures(
+    BlsEx.aggregate_signatures!(
       signatures,
       Enum.map(public_keys, fn <<_::8, _::8, public_key::binary>> -> public_key end)
     )
@@ -1449,7 +1451,7 @@ defmodule Archethic.Crypto do
   def aggregate_mining_public_keys(public_keys) do
     public_keys
     |> Enum.map(fn <<_::8, _::8, public_key::binary>> -> public_key end)
-    |> BlsEx.aggregate_public_keys()
+    |> BlsEx.aggregate_public_keys!()
     |> ID.prepend_key(:bls)
   end
 end

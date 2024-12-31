@@ -5,7 +5,12 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Context
+  alias Archethic.Contracts.Interpreter.Contract, as: InterpretedContract
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
+  alias Archethic.Contracts.Wasm.ReadResult
+
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
@@ -24,6 +29,7 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
@@ -166,14 +172,14 @@ defmodule Archethic.Mining.SmartContractValidation do
   It also return the result because it's need to extract the state
   """
   @spec validate_contract_execution(
-          contract_context :: Contract.Context.t(),
+          contract_context :: Context.t(),
           prev_tx :: Transaction.t(),
           genesis_address :: Crypto.prepended_hash(),
           next_tx :: Transaction.t(),
           chain_unspent_outputs :: list(VersionedUnspentOutput.t())
         ) :: {:ok, State.encoded() | nil} | {:error, Error.t()}
   def validate_contract_execution(
-        contract_context = %Contract.Context{
+        contract_context = %Context{
           status: status,
           trigger: trigger,
           timestamp: timestamp
@@ -201,13 +207,83 @@ defmodule Archethic.Mining.SmartContractValidation do
         _chain_unspent_outputs
       )
       when code != "" do
-    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
-    if prev_tx |> Contract.from_transaction!() |> Contract.contains_trigger?(),
+    # only contract without triggers (with only conditions) are allowed to NOT have a context
+
+    {:ok, contract} = InterpretedContract.from_transaction(prev_tx)
+
+    if InterpretedContract.contains_trigger?(contract),
       do: {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")},
       else: {:ok, nil}
   end
 
-  def validate_contract_execution(_, _, _, _, _), do: {:ok, nil}
+  def validate_contract_execution(
+        _contract_context = nil,
+        prev_tx = %Transaction{data: %TransactionData{contract: contract}},
+        _genesis_address,
+        _next_tx = %Transaction{},
+        _chain_unspent_outputs
+      )
+      when contract != nil do
+    # only contract without triggers are allowed to NOT have a Context
+
+    contract = WasmContract.from_transaction!(prev_tx)
+
+    if WasmContract.contains_trigger?(contract) do
+      {:error, Error.new(:invalid_contract_execution, "Contract has not been triggered")}
+    else
+      {:ok, nil}
+    end
+  end
+
+  def validate_contract_execution(
+        _contract_context,
+        nil,
+        _genesis_address,
+        next_tx = %Transaction{data: %TransactionData{contract: contract}},
+        _chain_unspent_outputs
+      )
+      when contract != nil do
+    case WasmContract.from_transaction(next_tx) do
+      {:ok, %WasmContract{module: module}} ->
+        if "onInit" in WasmModule.list_exported_functions_name(module) do
+          wasm_init_state(module, next_tx)
+        else
+          {:ok, nil}
+        end
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  def validate_contract_execution(
+        _contract_context,
+        _prev_tx,
+        _genesis_address,
+        _next_tx,
+        _chain_unspent_outputs
+      ),
+      do: {:ok, nil}
+
+  defp wasm_init_state(module = %WasmModule{}, next_tx = %Transaction{}) do
+    # FIXME when genesis will be integrated in transaction's structure
+    next_tx = Map.put(next_tx, :genesis, Transaction.previous_address(next_tx))
+
+    case WasmModule.execute(module, "onInit", transaction: next_tx) do
+      {:ok, %ReadResult{value: state}} when is_map(state) ->
+        if State.empty?(state) do
+          {:ok, nil}
+        else
+          {:ok, State.serialize(state)}
+        end
+
+      {:ok, %ReadResult{}} ->
+        {:ok, nil}
+
+      {:error, e} ->
+        {:error, Error.new(:invalid_contract_execution, "onInit call failed #{inspect(e)}")}
+    end
+  end
 
   @doc """
   Validate contract inherit constraint
@@ -218,14 +294,16 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract_inputs :: list(VersionedUnspentOutput.t())
         ) :: :ok | {:error, Error.t()}
   def validate_inherit_condition(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        prev_tx = %Transaction{data: %TransactionData{code: code, contract: contract}},
         next_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
         contract_inputs
       )
-      when code != "" do
+      when code != "" or contract != nil do
+    {:ok, contract} = Contracts.from_transaction(prev_tx)
+
     case Contracts.execute_condition(
            :inherit,
-           Contract.from_transaction!(prev_tx),
+           contract,
            next_tx,
            nil,
            validation_time,
@@ -281,14 +359,16 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   # TODO: instead of address we could have a transaction_summary with proof of validation/replication
   # TODO: to avoid downloading the tx
-  defp validate_trigger({:transaction, address, recipient}, _, contract_genesis_address, inputs) do
+  defp validate_trigger(
+         {:transaction, address, versioned_recipient},
+         _,
+         contract_genesis_address,
+         inputs
+       ) do
     storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    recipient = VersionedRecipient.unwrap_recipient(versioned_recipient)
 
-    with true <-
-           Enum.any?(
-             inputs,
-             &(&1.type == :call and &1.from == address)
-           ),
+    with true <- Enum.any?(inputs, &(&1.type == :call and &1.from == address)),
          {:ok, tx} <-
            TransactionChain.fetch_transaction(address, storage_nodes,
              acceptance_resolver: :accept_transaction
@@ -333,16 +413,16 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
-  defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
-  defp trigger_to_recipient(_), do: nil
+  defp trigger_to_recipient({:transaction, _, versioned_recipient}),
+    do: VersionedRecipient.unwrap_recipient(versioned_recipient)
 
+  defp trigger_to_recipient(_), do: nil
   defp trigger_to_trigger_type({:oracle, _}), do: :oracle
   defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
   defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
 
-  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}) do
-    Contract.get_trigger_for_recipient(recipient)
-  end
+  defp trigger_to_trigger_type({:transaction, _, versioned_recipient = %VersionedRecipient{}}),
+    do: VersionedRecipient.unwrap_recipient(versioned_recipient) |> Recipient.get_trigger()
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,
@@ -358,7 +438,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   end
 
   defp parse_contract(prev_tx) do
-    case Contract.from_transaction(prev_tx) do
+    case Contracts.from_transaction(prev_tx) do
       {:ok, contract} ->
         {:ok, contract}
 
@@ -374,7 +454,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   end
 
   defp execute_trigger(
-         %Contract.Context{trigger: trigger, inputs: contract_inputs},
+         %Context{trigger: trigger, inputs: contract_inputs},
          contract,
          maybe_trigger_tx
        ) do
@@ -405,7 +485,7 @@ defmodule Archethic.Mining.SmartContractValidation do
          _status = :tx_output
        ) do
     same_payload? =
-      next_tx |> Contract.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
+      next_tx |> Contracts.remove_seed_ownership() |> Transaction.same_payload?(expected_next_tx)
 
     if same_payload? do
       {:ok, encoded_state}

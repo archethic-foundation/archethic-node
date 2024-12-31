@@ -4,7 +4,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   """
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
@@ -81,7 +80,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
          {:ok, contract} <- validate_and_parse_contract_tx(contract_tx),
          {:ok, genesis_address} <- Archethic.fetch_genesis_address(contract_tx.address),
          inputs = Archethic.get_unspent_outputs(genesis_address),
-         trigger <- Contract.get_trigger_for_recipient(recipient),
+         trigger <- Recipient.get_trigger(recipient),
          :ok <-
            validate_contract_condition(
              trigger,
@@ -94,7 +93,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
          {:ok, next_tx} <-
            validate_and_execute_trigger(trigger, contract, trigger_tx, recipient, inputs),
          # Here the index to sign transaction is not accurate has we are in simulation
-         {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, 0) do
+         {:ok, next_tx} <- Contracts.sign_next_transaction(contract, next_tx, 0) do
       validate_contract_condition(:inherit, contract, next_tx, nil, timestamp, inputs)
     end
   end

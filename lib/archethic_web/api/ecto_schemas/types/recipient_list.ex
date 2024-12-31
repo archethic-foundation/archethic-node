@@ -66,6 +66,10 @@ defmodule ArchethicWeb.API.Types.RecipientList do
 
   defp valid_action_and_args?(_action = nil, _args = nil), do: true
   defp valid_action_and_args?(_action = "", _args), do: false
-  defp valid_action_and_args?(action, args) when is_binary(action) and is_list(args), do: true
+
+  defp valid_action_and_args?(action, args)
+       when is_binary(action) and (is_list(args) or is_map(args)),
+       do: true
+
   defp valid_action_and_args?(_, _), do: false
 end

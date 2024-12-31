@@ -3,10 +3,14 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter.Contract, as: InterpretedContract
+  alias Archethic.Contracts.WasmSpec
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.Context
   alias Archethic.Contracts.Loader
   alias Archethic.Crypto
   alias Archethic.Election
@@ -15,6 +19,8 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.PubSub
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -50,7 +56,7 @@ defmodule Archethic.Contracts.Worker do
   """
   @spec set_contract(
           genesis_address :: Crypto.prepended_hash(),
-          contract :: Contract.t(),
+          contract :: InterpretedContract.t() | WasmContract.t(),
           execute_contract? :: boolean()
         ) :: :ok
   def set_contract(genesis_address, contract, execute_contract?) do
@@ -82,9 +88,9 @@ defmodule Archethic.Contracts.Worker do
         :internal,
         :start_schedulers,
         _state,
-        data = %{contract: %Contract{triggers: triggers}}
+        data = %{contract: contract}
       ) do
-    triggers_type = Map.keys(triggers)
+    triggers_type = get_contract_trigger_types(contract)
 
     # stop all existing timers
     data = cancel_schedulers(data)
@@ -148,9 +154,16 @@ defmodule Archethic.Contracts.Worker do
         :cast,
         :reparse_contract,
         _,
-        data = %{contract: %Contract{transaction: contract_tx}}
+        data = %{contract: contract = %{transaction: contract_tx}}
       ) do
-    {:keep_state, %{data | contract: Contract.from_transaction!(contract_tx)}}
+    case contract do
+      # We need to reparse the contract to update the parsed contract in the state (triggers, etc.)
+      %InterpretedContract{} ->
+        {:keep_state, %{data | contract: InterpretedContract.from_transaction!(contract_tx)}}
+
+      _ ->
+        :keep_state_and_data
+    end
   end
 
   # TRIGGER: DATETIME or INTERVAL
@@ -215,7 +228,7 @@ defmodule Archethic.Contracts.Worker do
         {:EXIT, _pid, _},
         _state,
         data = %{
-          contract: %Contract{transaction: %Transaction{address: contract_address}},
+          contract: %{transaction: %Transaction{address: contract_address}},
           genesis_address: genesis_address
         }
       ) do
@@ -238,8 +251,17 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
+  defp get_contract_trigger_types(%InterpretedContract{triggers: triggers}),
+    do: Map.keys(triggers)
+
+  defp get_contract_trigger_types(%WasmContract{
+         module: %WasmModule{spec: %WasmSpec{triggers: triggers}}
+       }) do
+    Enum.map(triggers, & &1.type)
+  end
+
   defp get_next_trigger(%{
-         contract: %Contract{transaction: %Transaction{address: contract_address}},
+         contract: %{transaction: %Transaction{address: contract_address}},
          genesis_address: genesis_address,
          self_triggers: []
        }) do
@@ -272,7 +294,7 @@ defmodule Archethic.Contracts.Worker do
          trigger_type = {:interval, interval},
          data = %{
            genesis_address: genesis_address,
-           contract: contract = %Contract{triggers: triggers}
+           contract: contract
          }
        ) do
     unspent_outputs = fetch_unspent_outputs(genesis_address)
@@ -283,7 +305,9 @@ defmodule Archethic.Contracts.Worker do
         {:ok, new_data}
 
       _ ->
-        interval_timer = schedule_trigger({:interval, interval}, Map.keys(triggers))
+        interval_timer =
+          schedule_trigger({:interval, interval}, get_contract_trigger_types(contract))
+
         new_data = put_in(data, [:timers, trigger_type], interval_timer)
         {:error, new_data}
     end
@@ -298,20 +322,20 @@ defmodule Archethic.Contracts.Worker do
     unspent_outputs = fetch_unspent_outputs(genesis_address)
 
     with {:ok, oracle_tx} <- TransactionChain.get_transaction(tx_address),
-         {:ok, _logs} <-
-           Contracts.execute_condition(
-             :oracle,
+         :ok <-
+           execute_trigger(
              contract,
+             :oracle,
              oracle_tx,
              nil,
              trigger_datetime,
-             VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
-           ),
-         :ok <-
-           execute_contract(contract, :oracle, oracle_tx, nil, genesis_address, unspent_outputs) do
+             unspent_outputs,
+             genesis_address
+           ) do
       {:ok, data}
     else
-      _ -> {:error, data}
+      _ ->
+        {:error, data}
     end
   end
 
@@ -323,40 +347,83 @@ defmodule Archethic.Contracts.Worker do
           }, recipient},
          data = %{
            genesis_address: genesis_address,
-           contract: contract = %Contract{transaction: %Transaction{address: contract_address}}
+           contract: contract = %{transaction: %Transaction{address: contract_address}}
          }
        ) do
-    trigger = Contract.get_trigger_for_recipient(recipient)
+    trigger = Recipient.get_trigger(recipient)
     unspent_outputs = fetch_unspent_outputs(genesis_address)
 
-    with {:ok, _logs} <-
-           Contracts.execute_condition(
-             trigger,
-             contract,
-             trigger_tx,
-             recipient,
-             timestamp,
-             VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
-           ),
-         :ok <-
-           execute_contract(
-             contract,
-             trigger,
-             trigger_tx,
-             recipient,
-             genesis_address,
-             unspent_outputs
-           ) do
-      {:ok, Map.put(data, :last_call_processed, from)}
-    else
+    case execute_trigger(
+           contract,
+           trigger,
+           trigger_tx,
+           recipient,
+           timestamp,
+           unspent_outputs,
+           genesis_address
+         ) do
+      :ok ->
+        {:ok, Map.put(data, :last_call_processed, from)}
+
       _ ->
         Loader.invalidate_call(genesis_address, contract_address, from)
         {:error, data}
     end
   end
 
+  defp execute_trigger(
+         contract = %InterpretedContract{},
+         trigger,
+         trigger_tx,
+         recipient,
+         timestamp,
+         unspent_outputs,
+         genesis_address
+       ) do
+    case Contracts.execute_condition(
+           trigger,
+           contract,
+           trigger_tx,
+           recipient,
+           timestamp,
+           VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
+         ) do
+      {:ok, _logs} ->
+        execute_contract(
+          contract,
+          trigger,
+          trigger_tx,
+          recipient,
+          genesis_address,
+          unspent_outputs
+        )
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp execute_trigger(
+         contract = %WasmContract{},
+         trigger,
+         trigger_tx,
+         recipient,
+         _timestamp,
+         unspent_outputs,
+         genesis_address
+       ) do
+    execute_contract(
+      contract,
+      trigger,
+      trigger_tx,
+      recipient,
+      genesis_address,
+      unspent_outputs
+    )
+  end
+
   defp execute_contract(
-         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         contract = %{transaction: %Transaction{address: contract_address}},
          trigger,
          maybe_trigger_tx,
          maybe_recipient,
@@ -375,7 +442,7 @@ defmodule Archethic.Contracts.Worker do
              VersionedUnspentOutput.unwrap_unspent_outputs(unspent_outputs)
            ),
          index = TransactionChain.get_size(contract_address),
-         {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
+         {:ok, next_tx} <- Contracts.sign_next_transaction(contract, next_tx, index),
          contract_context <-
            get_contract_context(trigger, maybe_trigger_tx, maybe_recipient, unspent_outputs),
          :ok <- send_transaction(contract_context, next_tx, contract_genesis_address) do
@@ -390,14 +457,14 @@ defmodule Archethic.Contracts.Worker do
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
         :error
 
-      _ ->
-        Logger.debug("Contract execution failed", meta)
+      {:error, reason} ->
+        Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
         :error
     end
   end
 
   defp get_contract_context(:oracle, %Transaction{address: address}, _, unspent_outputs) do
-    %Contract.Context{
+    %Context{
       status: :tx_output,
       trigger: {:oracle, address},
       timestamp: DateTime.utc_now(),
@@ -408,7 +475,7 @@ defmodule Archethic.Contracts.Worker do
   defp get_contract_context({:interval, interval}, _, _, unspent_outputs) do
     interval_datetime = Utils.get_current_time_for_interval(interval)
 
-    %Contract.Context{
+    %Context{
       status: :tx_output,
       trigger: {:interval, interval, interval_datetime},
       timestamp: DateTime.utc_now(),
@@ -417,7 +484,7 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp get_contract_context(trigger = {:datetime, _}, _, _, unspent_outputs) do
-    %Contract.Context{
+    %Context{
       status: :tx_output,
       trigger: trigger,
       timestamp: DateTime.utc_now(),
@@ -427,14 +494,16 @@ defmodule Archethic.Contracts.Worker do
 
   defp get_contract_context(
          {:transaction, _, _},
-         %Transaction{address: address},
+         %Transaction{address: address, version: tx_version},
          recipient,
          unspent_outputs
        ) do
+    versioned_recipient = VersionedRecipient.wrap_recipient(recipient, tx_version)
+
     # In a next issue, we'll have different status such as :no_output and :failure
-    %Contract.Context{
+    %Context{
       status: :tx_output,
-      trigger: {:transaction, address, recipient},
+      trigger: {:transaction, address, versioned_recipient},
       timestamp: DateTime.utc_now(),
       inputs: unspent_outputs
     }
@@ -542,6 +611,6 @@ defmodule Archethic.Contracts.Worker do
     address
     |> TransactionChain.fetch_unspent_outputs(nodes)
     |> Enum.to_list()
-    |> Contract.Context.filter_inputs()
+    |> Context.filter_inputs()
   end
 end

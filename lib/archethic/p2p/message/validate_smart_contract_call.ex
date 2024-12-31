@@ -6,9 +6,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @enforce_keys [:recipient, :transaction, :timestamp]
   defstruct [:recipient, :transaction, :timestamp]
 
-  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.Context
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ConditionRejected
@@ -44,13 +43,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
         recipient: recipient,
-        transaction: tx = %Transaction{},
+        transaction: tx = %Transaction{version: tx_version},
         timestamp: timestamp
       }) do
-    tx_version = Transaction.version()
     recipient_bin = Recipient.serialize(recipient, tx_version)
 
-    <<recipient_bin::bitstring, Transaction.serialize(tx)::bitstring,
+    <<Transaction.serialize(tx)::bitstring, recipient_bin::bitstring,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -59,9 +57,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(data) when is_bitstring(data) do
-    tx_version = Transaction.version()
-    {recipient, rest} = Recipient.deserialize(data, tx_version)
-    {tx, <<timestamp::64, rest::bitstring>>} = Transaction.deserialize(rest)
+    {tx = %Transaction{version: tx_version}, rest} = Transaction.deserialize(data)
+    {recipient, <<timestamp::64, rest::bitstring>>} = Recipient.deserialize(rest, tx_version)
 
     {
       %__MODULE__{
@@ -124,7 +121,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     case get_last_transaction(recipient_address) do
       {:ok, contract_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
         with {:ok, contract} <- parse_contract(contract_tx),
-             trigger = Contract.get_trigger_for_recipient(recipient),
+             trigger = Recipient.get_trigger(recipient),
              :ok <-
                execute_condition(
                  trigger,
@@ -154,7 +151,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
                ) do
           %SmartContractCallValidation{
             status: :ok,
-            fee: calculate_fee(execution_result, datetime),
+            fee: calculate_fee(execution_result, contract, datetime),
             last_chain_sync_date: timestamp
           }
         else
@@ -214,12 +211,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   end
 
   defp sign_next_transaction(
-         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         contract = %{transaction: %Transaction{address: contract_address}},
          res = %ActionWithTransaction{next_tx: next_tx}
        ) do
     index = TransactionChain.get_size(contract_address)
 
-    case Contract.sign_next_transaction(contract, next_tx, index) do
+    case Contracts.sign_next_transaction(contract, next_tx, index) do
       {:ok, tx} -> {:ok, %ActionWithTransaction{res | next_tx: tx}}
       _ -> {:error, :parsing_error, "Unable to sign contract transaction"}
     end
@@ -255,19 +252,26 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp calculate_fee(
          %ActionWithTransaction{next_tx: next_tx, encoded_state: encoded_state},
+         contract,
          timestamp
        ) do
-    previous_usd_price =
-      timestamp
-      |> OracleChain.get_last_scheduling_date()
-      |> OracleChain.get_uco_price()
-      |> Keyword.fetch!(:usd)
+    case sign_next_transaction(contract, next_tx) do
+      {:ok, tx} ->
+        previous_usd_price =
+          timestamp
+          |> OracleChain.get_last_scheduling_date()
+          |> OracleChain.get_uco_price()
+          |> Keyword.fetch!(:usd)
 
-    # Here we use a nil contract_context as we return the fees the user has to pay for the contract
-    Mining.get_transaction_fee(next_tx, nil, previous_usd_price, timestamp, encoded_state)
+        # Here we use a nil contract_context as we return the fees the user has to pay for the contract
+        Mining.get_transaction_fee(tx, nil, previous_usd_price, timestamp, encoded_state)
+
+      _ ->
+        0
+    end
   end
 
-  defp calculate_fee(_, _), do: 0
+  defp calculate_fee(_, _, _), do: 0
 
   defp enough_funds_to_send?(
          %ActionWithTransaction{next_tx: tx},

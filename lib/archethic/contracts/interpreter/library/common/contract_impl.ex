@@ -7,6 +7,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.WasmContract
+  alias Archethic.Contracts.WasmModule
+  alias Archethic.Contracts.WasmSpec
 
   use Archethic.Tag
 
@@ -31,9 +34,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
          {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
          {:ok, contract} <- Contracts.from_transaction(tx),
          unspent_outputs = Archethic.get_unspent_outputs(genesis_address),
-         {:ok, value, _logs} <-
+         {:ok, output, _logs} <-
            Contracts.execute_function(contract, function, args, unspent_outputs) do
-      value
+      cast_function_output(function, contract, output)
     else
       {:error, reason} -> raise Library.Error, message: error_to_message(reason)
     end
@@ -46,4 +49,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
   defp error_to_message(reason) do
     "Contract.call_function failed with #{inspect(reason)}"
   end
+
+  defp cast_function_output(function, %WasmContract{module: %WasmModule{spec: spec}}, output) do
+    {:ok, function_spec} = WasmSpec.get_function_spec(spec, function)
+    WasmSpec.cast_wasm_output(output, function_spec)
+  end
+
+  defp cast_function_output(_, _, output), do: output
 end

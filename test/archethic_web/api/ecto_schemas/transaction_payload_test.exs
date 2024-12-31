@@ -604,7 +604,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
 
     test "should accept recipients both named & unnamed" do
       map = %{
-        "version" => current_transaction_version(),
+        "version" => 3,
         "address" => Base.encode16(random_address()),
         "type" => "transfer",
         "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),

@@ -32,6 +32,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   @spec validate(params :: map()) :: :ok | {:error, map()} | :error
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
+         :ok <- validate_contract_version(params),
          :ok <- validate_code_size(params),
          :ok <- validate_recipients_version(params) do
       :ok
@@ -42,54 +43,46 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
 
   def validate(_), do: :error
 
-  defp validate_code_size(params) do
-    case get_in(params, ["data", "code"]) do
-      nil ->
-        :ok
+  defp validate_contract_version(%{"version" => version, "data" => %{"code" => code}})
+       when code != "" and version >= 4,
+       do: {:error, [{"From v4, code is deprecated", "#/data/code"}]}
 
-      "" ->
-        :ok
+  defp validate_contract_version(%{"version" => version, "data" => %{"contract" => contract}})
+       when contract != nil and version <= 3,
+       do: {:error, [{"Before V4, contract is not allowed", "#/data/contract"}]}
 
-      code ->
-        if TransactionData.code_size_valid?(code) do
-          :ok
-        else
-          {:error,
-           [
-             {"Invalid transaction, code exceed max size.", "#/data/code"}
-           ]}
-        end
+  defp validate_contract_version(_), do: :ok
+
+  defp validate_code_size(%{"data" => %{"code" => code}})
+       when is_binary(code) and code != "" do
+    if TransactionData.code_size_valid?(code, false),
+      do: :ok,
+      else: {:error, [{"Invalid transaction, code exceed max size.", "#/data/code"}]}
+  end
+
+  defp validate_code_size(_), do: :ok
+
+  defp validate_recipients_version(%{
+         "version" => version,
+         "data" => %{"recipients" => recipients}
+       })
+       when is_list(recipients) do
+    cond do
+      version == 1 and Enum.any?(recipients, &is_map/1) ->
+        {:error, [{"Transaction V1 cannot use named action recipients", "#/data/recipients"}]}
+
+      version >= 2 and Enum.any?(recipients, &is_binary/1) ->
+        {:error, [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
+
+      version >= 4 and Enum.any?(recipients, &is_list(Map.get(&1, "args"))) ->
+        {:error, [{"From V4, recipient arguments must be a map", "#/data/recipients"}]}
+
+      true ->
+        :ok
     end
   end
 
-  defp validate_recipients_version(params = %{"version" => 1}) do
-    case get_in(params, ["data", "recipients"]) do
-      nil ->
-        :ok
-
-      recipients ->
-        if Enum.any?(recipients, &is_map/1) do
-          {:error, [{"Transaction V1 cannot use named action recipients", "#/data/recipients"}]}
-        else
-          :ok
-        end
-    end
-  end
-
-  defp validate_recipients_version(params) do
-    case get_in(params, ["data", "recipients"]) do
-      nil ->
-        :ok
-
-      recipients ->
-        if Enum.any?(recipients, &is_binary/1) do
-          {:error,
-           [{"From V2, transaction must use named action recipients", "#/data/recipients"}]}
-        else
-          :ok
-        end
-    end
-  end
+  defp validate_recipients_version(_), do: :ok
 
   defp format_errors(errors),
     do: Enum.reduce(errors, %{}, fn {details, field}, acc -> Map.put(acc, field, details) end)
@@ -101,12 +94,14 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   def to_transaction(params) do
     # Remove recipient args to not convert them to atom
     {original_recipients, params} = remove_recipient_args(params)
+    {origin_contract, params} = remove_contract(params)
 
     params
     |> Utils.atomize_keys(to_snake_case?: true)
-    |> decode_hex()
+    |> Utils.hex2bin(keys_to_base_decode: @keys_to_base_decode)
     |> format_ownerships()
     |> put_original_recipients_args(original_recipients)
+    |> put_origin_contract(origin_contract)
     |> Transaction.cast()
   end
 
@@ -119,6 +114,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         updated_recipients =
           Enum.map(recipients, fn
             recipient = %{"args" => args} when is_list(args) -> Map.put(recipient, "args", [])
+            recipient = %{"args" => args} when is_map(args) -> Map.put(recipient, "args", %{})
             recipient -> recipient
           end)
 
@@ -143,21 +139,20 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     end)
   end
 
-  defp decode_hex(params) when is_map(params) do
-    params
-    |> Map.keys()
-    |> Enum.reduce(params, fn
-      key, acc when key in @keys_to_base_decode ->
-        Map.update!(acc, key, &Base.decode16!(&1, case: :mixed))
-
-      key, acc ->
-        Map.update!(acc, key, &decode_hex/1)
+  defp remove_contract(params) do
+    get_and_update_in(params, ["data", "contract"], fn
+      nil -> {nil, nil}
+      contract -> {contract, nil}
     end)
   end
 
-  defp decode_hex(params) when is_list(params), do: Enum.map(params, &decode_hex/1)
+  defp put_origin_contract(params, nil), do: params
 
-  defp decode_hex(params), do: params
+  defp put_origin_contract(params, %{"bytecode" => bytecode, "manifest" => manifest}) do
+    update_in(params, [:data, :contract], fn _ ->
+      %{bytecode: Base.decode16!(bytecode, case: :mixed), manifest: manifest}
+    end)
+  end
 
   defp format_ownerships(params) do
     update_in(params, [:data, :ownerships], fn

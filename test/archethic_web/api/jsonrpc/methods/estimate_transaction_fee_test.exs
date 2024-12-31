@@ -57,7 +57,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.EstimateTransactionFeeTest do
 
       assert {:ok,
               %{
-                "fee" => 5_000_080,
+                "fee" => 5_000_064,
                 "rates" => %{
                   "eur" => 0.2,
                   "usd" => 0.2

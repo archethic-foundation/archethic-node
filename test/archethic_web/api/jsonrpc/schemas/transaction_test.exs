@@ -120,7 +120,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
 
     test "should return an error if the code length is more than limit" do
       map = %{
-        "version" => current_transaction_version(),
+        "version" => 3,
         "address" => Base.encode16(random_address()),
         "type" => "transfer",
         "previousPublicKey" => Base.encode16(random_address()),
@@ -505,7 +505,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
 
     test "should accept recipients both named & unnamed" do
       map = %{
-        "version" => current_transaction_version(),
+        "version" => 3,
         "address" => Base.encode16(random_address()),
         "type" => "transfer",
         "previousPublicKey" => Base.encode16(random_address()),
@@ -520,6 +520,29 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
               "address" => Base.encode16(random_address()),
               "action" => "something",
               "args" => []
+            }
+          ]
+        }
+      }
+
+      assert :ok = TransactionSchema.validate(map)
+
+      map = %{
+        "version" => current_transaction_version(),
+        "address" => Base.encode16(random_address()),
+        "type" => "transfer",
+        "previousPublicKey" => Base.encode16(random_address()),
+        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "data" => %{
+          "recipients" => [
+            %{
+              "address" => Base.encode16(random_address())
+            },
+            %{
+              "address" => Base.encode16(random_address()),
+              "action" => "something",
+              "args" => %{}
             }
           ]
         }
@@ -619,6 +642,20 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
         "previousSignature" => Base.encode16(previous_signature),
         "originSignature" => Base.encode16(origin_signature),
         "data" => %{
+          "contract" => %{
+            "bytecode" => :crypto.strong_rand_bytes(32) |> Base.encode16(),
+            "manifest" => %{
+              "abi" => %{
+                "state" => %{},
+                "functions" => %{
+                  "inc" => %{
+                    "type" => "action",
+                    "triggerType" => "transaction"
+                  }
+                }
+              }
+            }
+          },
           "ledger" => %{
             "uco" => %{
               "transfers" => [
@@ -648,18 +685,21 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
         }
       }
 
+      :abi
+      :functions
+
       assert %Transaction{
-               version: transaction_version,
-               address: address,
+               version: ^transaction_version,
+               address: ^address,
                type: :transfer,
-               previous_public_key: previous_public_key,
-               previous_signature: previous_signature,
-               origin_signature: origin_signature,
+               previous_public_key: ^previous_public_key,
+               previous_signature: ^previous_signature,
+               origin_signature: ^origin_signature,
                data: %TransactionData{
                  recipients: [
-                   %Recipient{address: recipient, action: nil, args: nil},
+                   %Recipient{address: ^recipient, action: nil, args: nil},
                    %Recipient{
-                     address: recipient2_address,
+                     address: ^recipient2_address,
                      action: "something",
                      args: [1, 2, 3]
                    }
@@ -667,20 +707,34 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
                  ledger: %Ledger{
                    uco: %UCOLedger{
                      transfers: [
-                       %UCOTransfer{to: uco_to, amount: 1_020_000_000}
+                       %UCOTransfer{to: ^uco_to, amount: 1_020_000_000}
                      ]
                    }
                  },
                  ownerships: [
                    %Ownership{
-                     secret: secret,
+                     secret: ^secret,
                      authorized_keys: %{
-                       authorized_public_key => encrypted_key
+                       ^authorized_public_key => ^encrypted_key
                      }
                    }
-                 ]
+                 ],
+                 contract: %{
+                   bytecode: _,
+                   manifest: %{
+                     "abi" => %{
+                       "functions" => %{
+                         "inc" => %{
+                           "type" => "action",
+                           "triggerType" => "transaction"
+                         }
+                       },
+                       "state" => %{}
+                     }
+                   }
+                 }
                }
-             } == TransactionSchema.to_transaction(map)
+             } = TransactionSchema.to_transaction(map)
     end
   end
 end

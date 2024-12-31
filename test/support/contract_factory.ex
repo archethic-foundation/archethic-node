@@ -3,7 +3,7 @@ defmodule Archethic.ContractFactory do
 
   alias Archethic.Crypto
 
-  alias Archethic.Contracts.Constants
+  alias Archethic.Contracts.Interpreter.Constants
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.Transaction
@@ -73,6 +73,7 @@ defmodule Archethic.ContractFactory do
       Keyword.update(opts, :type, :contract, & &1)
       |> Keyword.put(:ownerships, [contract_seed_ownership | ownerships])
       |> Keyword.put(:code, code)
+      |> Keyword.put(:version, 3)
 
     inputs =
       Keyword.get(opts, :inputs, [

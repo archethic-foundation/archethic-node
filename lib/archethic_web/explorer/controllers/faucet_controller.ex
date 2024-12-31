@@ -111,7 +111,7 @@ defmodule ArchethicWeb.Explorer.FaucetController do
         },
         @pool_seed,
         transaction_index,
-        curve
+        curve: curve
       )
 
     tx_address = tx.address

@@ -2,7 +2,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
 
   alias Archethic.Crypto
 
@@ -29,6 +28,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Contract
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -68,6 +68,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                          |> ExJsonSchema.Schema.resolve()
 
   @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+
+  @prod? Mix.env() == :prod
+
+  @doc """
+  Ensure transaction version is allowed
+  Used to differentiate mainnet / testnet network
+  """
+  @spec(validate_transaction_version(transaction :: Transaction.t()) :: :ok, {:error, String.t()})
+  def validate_transaction_version(%Transaction{version: version}) do
+    if @prod? and System.get_env("ARCHETHIC_NETWORK_TYPE") != "testnet" and version >= 4,
+      do: {:error, "Transaction V4 are not yet supported on mainnet"},
+      else: :ok
+  end
 
   @doc """
   Ensure transaction size does not exceed the limit size
@@ -129,41 +142,61 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   Ensure contract is valid (size, code, ownerships)
   """
   @spec validate_contract(transaction :: Transaction.t()) :: :ok | {:error, String.t()}
-  def validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
+  def validate_contract(%Transaction{data: %TransactionData{code: "", contract: nil}}), do: :ok
+
+  def validate_contract(%Transaction{version: version, data: %TransactionData{code: code}})
+      when code != "" and version >= 4,
+      do: {:error, "Invalid transaction, from v4 code is deprecated"}
 
   def validate_contract(%Transaction{
-        data: %TransactionData{code: code, ownerships: ownerships}
-      }) do
-    with :ok <- validate_code_size(code),
-         {:ok, contract} <- parse_contract(code) do
+        version: version,
+        data: %TransactionData{contract: %Contract{}}
+      })
+      when version <= 3,
+      do: {:error, "Invalid transaction, before v3 contract is not allowed"}
+
+  def validate_contract(
+        tx = %Transaction{
+          data: %TransactionData{code: code, contract: contract, ownerships: ownerships}
+        }
+      ) do
+    with :ok <- validate_code_size(code, contract),
+         {:ok, contract} <- parse_contract(tx) do
       validate_contract_ownership(contract, ownerships)
     end
   end
 
-  defp validate_code_size(code) do
-    if TransactionData.code_size_valid?(code),
+  defp validate_code_size(code, _contract) when code != "" do
+    if TransactionData.code_size_valid?(code, false),
       do: :ok,
       else: {:error, "Invalid transaction, code exceed max size"}
   end
 
-  defp parse_contract(code) do
-    case Contracts.parse(code) do
+  defp validate_code_size(_code, %Contract{bytecode: bytecode}) do
+    if TransactionData.code_size_valid?(bytecode),
+      do: :ok,
+      else: {:error, "Invalid transaction, code exceed max size"}
+  end
+
+  defp parse_contract(tx) do
+    case Contracts.from_transaction(tx) do
       {:ok, contract} -> {:ok, contract}
       {:error, reason} -> {:error, "Smart contract invalid #{inspect(reason)}"}
     end
   end
 
   defp validate_contract_ownership(contract, ownerships) do
-    with true <- Contract.contains_trigger?(contract),
-         false <-
-           Enum.any?(
-             ownerships,
-             &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
-           ) do
-      {:error, "Requires storage nonce public key as authorized public keys"}
-    else
-      _ -> :ok
-    end
+    if Contracts.contains_trigger?(contract),
+      do: ensure_ownership_in_contract(ownerships),
+      else: :ok
+  end
+
+  defp ensure_ownership_in_contract(ownerships) do
+    storage_nonce = Crypto.storage_nonce_public_key()
+
+    if Enum.any?(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce)),
+      do: :ok,
+      else: {:error, "Requires storage nonce public key as authorized public keys"}
   end
 
   @doc """
@@ -670,8 +703,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_type_rules(%Transaction{type: :contract, data: %TransactionData{code: ""}}, _),
-    do: {:error, "Invalid contract type transaction -  code is empty"}
+  def validate_type_rules(
+        %Transaction{type: :contract, data: %TransactionData{code: code, contract: contract}},
+        _
+      )
+      when code == "" and contract == nil,
+      do: {:error, "Invalid contract type transaction -  contract's code is empty"}
 
   def validate_type_rules(
         %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},

@@ -34,6 +34,7 @@ defmodule Archethic.TransactionFactory do
     ledger = Keyword.get(opts, :ledger, %Ledger{})
     recipients = Keyword.get(opts, :recipients, [])
     ownerships = Keyword.get(opts, :ownerships, [])
+    version = Keyword.get(opts, :version, current_transaction_version())
 
     Transaction.new(
       type,
@@ -45,7 +46,8 @@ defmodule Archethic.TransactionFactory do
         ownerships: ownerships
       },
       seed,
-      index
+      index,
+      version: version
     )
   end
 
@@ -72,6 +74,7 @@ defmodule Archethic.TransactionFactory do
     prev_tx = Keyword.get(opts, :prev_tx)
     protocol_version = Keyword.get(opts, :protocol_version, current_protocol_version())
     contract_context = Keyword.get(opts, :contract_context, nil)
+    version = Keyword.get(opts, :version, current_transaction_version())
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -89,7 +92,8 @@ defmodule Archethic.TransactionFactory do
           recipients: recipients
         },
         seed,
-        index
+        index,
+        version: version
       )
 
     fee = Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, 0, current_protocol_version())

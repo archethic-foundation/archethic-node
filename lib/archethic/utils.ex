@@ -276,9 +276,7 @@ defmodule Archethic.Utils do
     atomize_keys(map, nest_dot?, to_snake_case?)
   end
 
-  def atomize_keys(struct = %{__struct__: _}, _, _) do
-    struct
-  end
+  def atomize_keys(map, _, _) when is_struct(map), do: map
 
   def atomize_keys(map = %{}, nest_dot?, to_snake_case?) do
     map
@@ -320,9 +318,7 @@ defmodule Archethic.Utils do
       atomize_keys(rest, nest_dot?, to_snake_case?)
   end
 
-  def atomize_keys(not_a_map, _, _) do
-    not_a_map
-  end
+  def atomize_keys(not_a_map, _, _), do: not_a_map
 
   defp nested_path(_keys, acc \\ [])
 
@@ -1329,4 +1325,57 @@ defmodule Archethic.Utils do
 
     {Enum.reverse(items), more?, offset}
   end
+
+  @doc """
+  Replace bitstring by hex
+  """
+  @spec bin2hex(any()) :: any()
+  def bin2hex(data = %DateTime{}), do: data
+
+  def bin2hex(data = %{__struct__: struct}) do
+    data
+    |> Map.from_struct()
+    |> bin2hex()
+    |> Map.put(:__struct__, struct)
+  end
+
+  def bin2hex(data) when is_map(data) do
+    Enum.reduce(data, %{}, fn {key, value}, acc ->
+      Map.put(acc, bin2hex(key), bin2hex(value))
+    end)
+  end
+
+  def bin2hex(data) when is_list(data) do
+    Enum.map(data, &bin2hex/1)
+  end
+
+  def bin2hex(data) when is_binary(data) do
+    if String.printable?(data) do
+      data
+    else
+      Base.encode16(data)
+    end
+  end
+
+  def bin2hex(data), do: data
+
+  def hex2bin(params, opts \\ [])
+
+  def hex2bin(params, opts) when is_map(params) do
+    keys_to_base_decode = Keyword.get(opts, :keys_to_base_decode, [])
+
+    params
+    |> Map.keys()
+    |> Enum.reduce(params, fn key, acc ->
+      if key in keys_to_base_decode and is_binary(Map.get(acc, key)) do
+        Map.update!(acc, key, &Base.decode16!(&1, case: :mixed))
+      else
+        Map.update!(acc, key, &hex2bin(&1, opts))
+      end
+    end)
+  end
+
+  def hex2bin(params, opts) when is_list(params), do: Enum.map(params, &hex2bin(&1, opts))
+
+  def hex2bin(params, _opts), do: params
 end

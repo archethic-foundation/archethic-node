@@ -51,14 +51,9 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
 
   def serialize(%__MODULE__{transaction: tx, contract_context: contract_context, inputs: inputs}) do
     inputs_bin =
-      inputs
-      |> Enum.map(&VersionedUnspentOutput.serialize/1)
-      |> :erlang.list_to_bitstring()
+      inputs |> Enum.map(&VersionedUnspentOutput.serialize/1) |> :erlang.list_to_bitstring()
 
-    inputs_size =
-      inputs
-      |> length()
-      |> Utils.VarInt.from_value()
+    inputs_size = inputs |> length() |> Utils.VarInt.from_value()
 
     <<Transaction.serialize(tx)::bitstring, 1::8,
       Contract.Context.serialize(contract_context)::bitstring, inputs_size::binary,

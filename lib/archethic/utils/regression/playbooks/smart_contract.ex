@@ -80,13 +80,11 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         ]
     }
 
+    # Code is supported until version 3
+    opts = if data.code != "", do: [version: 3], else: []
+
     {:ok, address} =
-      Api.send_transaction_with_await_replication(
-        seed,
-        :contract,
-        data,
-        endpoint
-      )
+      Api.send_transaction_with_await_replication(seed, :contract, data, endpoint, opts)
 
     Logger.debug("DEPLOY: Deployed at #{Base.encode16(address)}")
 
@@ -116,6 +114,12 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
       else
         nil
       end
+
+    # Recipient with list is supported until version 3
+    opts =
+      if opts |> Keyword.get(:recipients, []) |> Enum.any?(&is_list(&1.args)),
+        do: Keyword.update(opts, :version, 3, & &1),
+        else: opts
 
     res =
       Api.send_transaction_with_await_replication(

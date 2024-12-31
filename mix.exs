@@ -117,23 +117,28 @@ defmodule Archethic.MixProject do
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
-      {:easy_ssl, "~> 1.3"},
-      {:castore, "~> 1.0", override: true},
       {:floki, "~> 0.33"},
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"},
       {:git_diff, "~> 0.6.4"},
       {:decimal, "~> 2.0"},
-      {:plug_crypto, "~> 1.2"},
       {:ex_abi, "0.6.1"},
+
+      # Crypto
+      {:easy_ssl, "~> 1.3"},
+      {:castore, "~> 1.0", override: true},
+      {:plug_crypto, "~> 1.2"},
+      {:ex_keccak, "~> 0.7.3"},
+      {:ex_secp256k1, "~> 0.7.2"},
+      {:bls_ex, "~> 0.1"},
 
       # Numbering
       {:nx, "~> 0.5"},
       {:exla, "~> 0.5"},
-      {:ex_keccak, "0.7.1"},
-      {:ex_secp256k1, "~> 0.7.2"},
       {:nimble_csv, "~> 1.1", only: :test, runtime: false},
-      {:bls_ex, "~> 0.1"}
+
+      # WASM
+      {:wasmex, "~> 0.9"}
     ]
   end
 

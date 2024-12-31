@@ -4,9 +4,9 @@ defmodule Archethic.Contracts.InterpreterTest do
   import ArchethicCase
 
   alias Archethic.ContractFactory
-  alias Archethic.Contracts.Conditions
-  alias Archethic.Contracts.Constants
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter.Conditions
+  alias Archethic.Contracts.Interpreter.Constants
+  alias Archethic.Contracts.Interpreter.Contract
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Library
@@ -576,7 +576,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       %Contract{
         conditions: %{
-          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+          {:transaction, nil, nil} => %Conditions{subjects: subjects}
         }
       } = Contract.from_transaction!(contract_tx)
 
@@ -645,7 +645,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       %Contract{
         functions: functions,
         conditions: %{
-          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+          {:transaction, nil, nil} => %Conditions{subjects: subjects}
         }
       } = Contract.from_transaction!(contract_tx)
 
@@ -1093,9 +1093,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipients = [recipient, %Recipient{address: random_address()}]
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: recipients)
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: recipients,
+          version: 3
+        )
 
-      trigger_key = Contract.get_trigger_for_recipient(recipient)
+      trigger_key = Recipient.get_trigger(recipient)
 
       assert {:ok, %Transaction{data: %TransactionData{content: "Dr. Who?"}}, _state, _logs} =
                Interpreter.execute_trigger(
@@ -1159,9 +1163,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
-      trigger_key = Contract.get_trigger_for_recipient(recipient)
+      trigger_key = Recipient.get_trigger(recipient)
 
       assert {:ok, %Transaction{data: %TransactionData{content: "3"}}, _state, _logs} =
                Interpreter.execute_trigger(
@@ -1187,9 +1195,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
       trigger_tx =
-        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
+        TransactionFactory.create_valid_transaction([],
+          type: :data,
+          recipients: [recipient],
+          version: 3
+        )
 
-      trigger_key = Contract.get_trigger_for_recipient(recipient)
+      trigger_key = Recipient.get_trigger(recipient)
 
       assert {:ok, %Transaction{data: %TransactionData{content: "3"}}, _state, _logs} =
                Interpreter.execute_trigger(

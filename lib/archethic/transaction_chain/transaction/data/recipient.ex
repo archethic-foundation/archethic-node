@@ -7,7 +7,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
-  alias __MODULE__.ArgumentsEncoding
+  alias Archethic.Utils.TypedEncoding
 
   defstruct [:address, :action, :args]
 
@@ -17,15 +17,8 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @type t :: %__MODULE__{
           address: Crypto.prepended_hash(),
           action: String.t() | nil,
-          args: list(any()) | nil
+          args: list(any()) | map() | nil
         }
-
-  @doc """
-  Return wether this is a named action call or not
-  """
-  @spec is_named_action?(recipient :: t()) :: boolean()
-  def is_named_action?(%__MODULE__{action: nil, args: nil}), do: false
-  def is_named_action?(%__MODULE__{}), do: true
 
   @doc """
   Serialize a recipient
@@ -47,38 +40,27 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   def serialize(
         %__MODULE__{address: address, action: action, args: args},
-        _version = 2,
-        _serialization_mode
-      ) do
-    # action is stored on 8 bytes which means 255 characters
-    # we force that in the interpreters (action & condition)
-    action_bytes = byte_size(action)
-
-    serialized_args = Jason.encode!(args)
-
-    args_bytes =
-      serialized_args
-      |> byte_size()
-      |> Utils.VarInt.from_value()
-
-    <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
-      serialized_args::bitstring>>
-  end
-
-  def serialize(
-        %__MODULE__{address: address, action: action, args: args},
-        _version = 3,
+        version,
         serialization_mode
       ) do
-    # action is stored on 8 bytes which means 255 characters
-    # we force that in the interpreters (action & condition)
-    action_bytes = byte_size(action)
+    serialized_args = serialize_args(args, version, serialization_mode)
 
-    serialized_args = ArgumentsEncoding.serialize(args, serialization_mode)
-
-    <<@named_action::8, address::binary, action_bytes::8, action::binary,
+    <<@named_action::8, address::binary, byte_size(action)::8, action::binary,
       serialized_args::bitstring>>
   end
+
+  defp serialize_args(args, _version = 2, _) do
+    serialized_args = Jason.encode!(args)
+    args_bytes = serialized_args |> byte_size() |> Utils.VarInt.from_value()
+    <<args_bytes::binary, serialized_args::binary>>
+  end
+
+  defp serialize_args(args, _version = 3, mode) when is_list(args) do
+    bin = args |> Enum.map(&TypedEncoding.serialize(&1, mode)) |> :erlang.list_to_bitstring()
+    <<length(args)::8, bin::bitstring>>
+  end
+
+  defp serialize_args(args, _, mode) when is_map(args), do: TypedEncoding.serialize(args, mode)
 
   @doc """
   Deserialize a recipient
@@ -97,44 +79,36 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   def deserialize(<<@unnamed_action::8, rest::bitstring>>, _version, _serialization_mode) do
     {address, rest} = Utils.deserialize_address(rest)
-
-    {
-      %__MODULE__{address: address},
-      rest
-    }
+    {%__MODULE__{address: address}, rest}
   end
 
-  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 2, _serialization_mode) do
+  def deserialize(<<@named_action::8, rest::bitstring>>, version, serialization_mode) do
     {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
     <<action::binary-size(action_bytes), rest::bitstring>> = rest
+    {args, rest} = deserialize_args(rest, version, serialization_mode)
 
+    {%__MODULE__{address: address, action: action, args: args}, rest}
+  end
+
+  defp deserialize_args(rest, _version = 2, _) do
     {args_bytes, rest} = Utils.VarInt.get_value(rest)
     <<args::binary-size(args_bytes), rest::bitstring>> = rest
-
-    {
-      %__MODULE__{
-        address: address,
-        action: action,
-        args: Jason.decode!(args)
-      },
-      rest
-    }
+    {Jason.decode!(args), rest}
   end
 
-  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 3, serialization_mode) do
-    {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
-    <<action::binary-size(action_bytes), rest::bitstring>> = rest
-    {args, rest} = ArgumentsEncoding.deserialize(rest, serialization_mode)
+  defp deserialize_args(<<0::8, rest::bitstring>>, _version = 3, _), do: {[], rest}
 
-    {
-      %__MODULE__{
-        address: address,
-        action: action,
-        args: args
-      },
-      rest
-    }
+  defp deserialize_args(<<nb_args::8, rest::bitstring>>, _version = 3, mode) do
+    {args, rest} =
+      Enum.reduce(1..nb_args, {[], rest}, fn _, {args, rest} ->
+        {arg, rest} = TypedEncoding.deserialize(rest, mode)
+        {[arg | args], rest}
+      end)
+
+    {Enum.reverse(args), rest}
   end
+
+  defp deserialize_args(rest, _, mode), do: TypedEncoding.deserialize(rest, mode)
 
   @doc false
   @spec cast(recipient :: binary() | map()) :: t()
@@ -153,4 +127,20 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   @spec to_address(recipient :: t()) :: list(binary())
   def to_address(%{address: address}), do: address
+
+  @type trigger_key :: {:transaction, nil | String.t(), nil | non_neg_integer()}
+
+  @doc """
+  Return the args names for this recipient or nil
+  """
+  @spec get_trigger(t()) :: trigger_key()
+  def get_trigger(%__MODULE__{action: nil, args: nil}), do: {:transaction, nil, nil}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_list(args_values),
+      do: {:transaction, action, length(args_values)}
+
+  def get_trigger(%__MODULE__{action: action, args: args_values})
+      when is_map(args_values),
+      do: {:transaction, action, map_size(args_values)}
 end

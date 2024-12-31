@@ -26,6 +26,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
   alias Archethic.ContractFactory
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
   alias Archethic.TransactionFactory
 
   import ArchethicCase
@@ -309,7 +310,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       contract_genesis =
         contract_seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
 
-      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+      recipient = %Recipient{action: "test", args: %{}, address: contract_genesis}
 
       trigger_tx =
         %Transaction{address: trigger_address} =
@@ -333,8 +334,10 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       v_unspent_outputs =
         VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
+      v_recipient = VersionedRecipient.wrap_recipient(recipient, current_transaction_version())
+
       contract_context = %Contract.Context{
-        trigger: {:transaction, trigger_address, recipient},
+        trigger: {:transaction, trigger_address, v_recipient},
         status: :tx_output,
         timestamp: DateTime.utc_now(),
         inputs: Contract.Context.filter_inputs(v_unspent_outputs)
@@ -435,7 +438,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       contract_genesis =
         contract_seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
 
-      recipient = %Recipient{action: "test", args: [], address: contract_genesis}
+      recipient = %Recipient{action: "test", args: %{}, address: contract_genesis}
 
       trigger_tx =
         %Transaction{address: trigger_address} =

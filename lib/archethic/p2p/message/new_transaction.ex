@@ -46,11 +46,8 @@ defmodule Archethic.P2P.Message.NewTransaction do
       }) do
     serialized_contract_context =
       case contract_context do
-        nil ->
-          <<0::8>>
-
-        _ ->
-          <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
+        nil -> <<0::8>>
+        _ -> <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
       end
 
     <<Transaction.serialize(tx)::bitstring, node_pbkey::binary,
@@ -64,11 +61,8 @@ defmodule Archethic.P2P.Message.NewTransaction do
 
     {contract_context, rest} =
       case rest do
-        <<0::8, rest::bitstring>> ->
-          {nil, rest}
-
-        <<1::8, rest::bitstring>> ->
-          Contract.Context.deserialize(rest)
+        <<0::8, rest::bitstring>> -> {nil, rest}
+        <<1::8, rest::bitstring>> -> Contract.Context.deserialize(rest)
       end
 
     {%__MODULE__{

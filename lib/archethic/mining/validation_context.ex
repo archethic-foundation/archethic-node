@@ -301,7 +301,8 @@ defmodule Archethic.Mining.ValidationContext do
       ) do
     start = System.monotonic_time()
 
-    with :ok <- PendingTransactionValidation.validate_previous_public_key(tx),
+    with :ok <- PendingTransactionValidation.validate_transaction_version(tx),
+         :ok <- PendingTransactionValidation.validate_previous_public_key(tx),
          :ok <- PendingTransactionValidation.validate_previous_signature(tx),
          :ok <- PendingTransactionValidation.validate_size(tx),
          :ok <- PendingTransactionValidation.validate_contract(tx),

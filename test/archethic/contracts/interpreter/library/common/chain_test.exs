@@ -7,7 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts.Constants
+  alias Archethic.Contracts.Interpreter.Constants
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
 

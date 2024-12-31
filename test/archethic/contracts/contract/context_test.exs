@@ -5,6 +5,7 @@ defmodule Archethic.Contracts.Contract.ContextTest do
 
   alias Archethic.Contracts.Contract.Context
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -52,13 +53,13 @@ defmodule Archethic.Contracts.Contract.ContextTest do
     test "trigger=transaction" do
       now = DateTime.utc_now()
 
+      recipient =
+        %Recipient{address: random_address()}
+        |> VersionedRecipient.wrap_recipient(current_transaction_version())
+
       ctx = %Context{
         status: :tx_output,
-        trigger:
-          {:transaction, random_address(),
-           %Recipient{
-             address: random_address()
-           }},
+        trigger: {:transaction, random_address(), recipient},
         timestamp: now |> DateTime.truncate(:millisecond)
       }
 
@@ -68,15 +69,17 @@ defmodule Archethic.Contracts.Contract.ContextTest do
     test "trigger=transaction (named action)" do
       now = DateTime.utc_now()
 
+      recipient =
+        %Recipient{
+          address: random_address(),
+          action: "add",
+          args: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4, "e" => 5}
+        }
+        |> VersionedRecipient.wrap_recipient(current_transaction_version())
+
       ctx = %Context{
         status: :tx_output,
-        trigger:
-          {:transaction, random_address(),
-           %Recipient{
-             address: random_address(),
-             action: "add",
-             args: [1, 2, 3, 4, 5]
-           }},
+        trigger: {:transaction, random_address(), recipient},
         timestamp: now |> DateTime.truncate(:millisecond)
       }
 

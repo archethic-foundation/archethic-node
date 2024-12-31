@@ -18,6 +18,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.VersionedRecipient
 
   alias Archethic.TransactionFactory
 
@@ -660,7 +661,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
 
@@ -678,8 +679,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         {:ok, trigger_tx}
       end)
 
+      v_recipient = VersionedRecipient.wrap_recipient(recipient, 3)
+
       contract_context = %Contract.Context{
-        trigger: {:transaction, trigger_address, recipient},
+        trigger: {:transaction, trigger_address, v_recipient},
         status: :tx_output,
         timestamp: trigger_tx.validation_stamp.timestamp,
         inputs: []
@@ -711,7 +714,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       next_contract_tx =
         ContractFactory.create_next_contract_tx(prev_contract_tx, content: "content")
@@ -721,8 +724,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         {:ok, trigger_tx}
       end)
 
+      v_recipient = VersionedRecipient.wrap_recipient(recipient, 3)
+
       contract_context = %Contract.Context{
-        trigger: {:transaction, trigger_address, recipient},
+        trigger: {:transaction, trigger_address, v_recipient},
         status: :tx_output,
         timestamp: trigger_tx.validation_stamp.timestamp
       }
@@ -753,7 +758,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       trigger_tx =
         %Transaction{address: trigger_address} =
-        TransactionFactory.create_valid_transaction([], recipients: [recipient])
+        TransactionFactory.create_valid_transaction([], recipients: [recipient], version: 3)
 
       unspent_outputs = [%UnspentOutput{from: trigger_address, type: :call}]
 
@@ -771,8 +776,11 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         {:ok, trigger_tx}
       end)
 
+      v_recipient =
+        %Recipient{recipient | action: "otter"} |> VersionedRecipient.wrap_recipient(3)
+
       contract_context = %Contract.Context{
-        trigger: {:transaction, trigger_address, %Recipient{recipient | action: "otter"}},
+        trigger: {:transaction, trigger_address, v_recipient},
         status: :tx_output,
         timestamp: trigger_tx.validation_stamp.timestamp,
         inputs: v_unspent_outputs
