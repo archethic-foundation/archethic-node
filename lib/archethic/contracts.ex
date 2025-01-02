@@ -210,7 +210,8 @@ defmodule Archethic.Contracts do
     end
     |> cache_interpreter_execute(key,
       timeout_err_msg: "Trigger's execution timed-out",
-      cache?: Keyword.get(opts, :cache?, true)
+      cache?: Keyword.get(opts, :cache?, true),
+      timeout: 15000
     )
     |> cast_trigger_result(state, contract_tx)
   end

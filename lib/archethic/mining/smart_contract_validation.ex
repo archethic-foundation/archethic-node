@@ -35,7 +35,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Crontab.DateChecker, as: CronDateChecker
 
   @extended_mode? Mix.env() != :prod
-  @timeout 5_000
+  @timeout 15_000
 
   require Logger
 
