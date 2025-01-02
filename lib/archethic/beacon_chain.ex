@@ -365,18 +365,13 @@ defmodule Archethic.BeaconChain do
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
       get_next_summary_elected_subsets_by_nodes(datetime),
-      fn {node, subsets} ->
-        fetch_current_summaries(node, subsets)
-      end,
+      fn {node, subsets} -> fetch_current_summaries(node, subsets) end,
       ordered: false,
       max_concurrency: 256,
       on_timeout: :kill_task
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
-    |> Enum.to_list()
-
-    # remove duplicates & sort
     |> Stream.uniq_by(& &1.address)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end

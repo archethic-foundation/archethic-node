@@ -19,15 +19,19 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryList.t()
   def process(%__MODULE__{subsets: subsets}, _) do
     transaction_summaries =
-      Task.async_stream(subsets, fn subset ->
-        %Slot{transaction_attestations: transaction_attestations} =
-          Subset.get_current_slot(subset)
+      Task.async_stream(
+        subsets,
+        fn subset ->
+          %Slot{transaction_attestations: transaction_attestations} =
+            Subset.get_current_slot(subset)
 
-        transaction_attestations
-        |> Enum.map(& &1.transaction_summary)
-        |> Enum.concat(BeaconChain.get_summary_slots(subset))
-      end)
-      |> Enum.filter(&match?({:ok, _}, &1))
+          transaction_attestations
+          |> Enum.map(& &1.transaction_summary)
+          |> Enum.concat(BeaconChain.get_summary_slots(subset))
+        end,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
       |> Enum.flat_map(fn {:ok, x} -> x end)
 
     %TransactionSummaryList{

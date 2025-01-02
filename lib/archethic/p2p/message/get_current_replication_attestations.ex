@@ -5,7 +5,7 @@ defmodule Archethic.P2P.Message.GetCurrentReplicationAttestations do
   """
 
   @enforce_keys [:subsets]
-  defstruct [:subsets, page: 0]
+  defstruct [:subsets]
 
   alias Archethic.BeaconChain
   alias Archethic.Crypto

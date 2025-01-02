@@ -56,7 +56,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     |> stream_slots(subset)
     |> Stream.flat_map(fn {%Slot{transaction_attestations: attestations}, _} -> attestations end)
     |> Stream.map(& &1.transaction_summary)
-    |> Enum.to_list()
   end
 
   @doc """
@@ -77,20 +76,19 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
     previous_backup_path = recover_path(previous_summary_time)
 
-    Utils.mut_dir("slot_backup*")
+    Utils.mut_dir("slot_backup/*")
     |> Path.wildcard()
     |> Enum.filter(&(&1 < previous_backup_path))
-    |> Enum.each(&File.rm/1)
+    |> Enum.each(&File.rm_rf/1)
   end
 
-  defp recover_path(summary_time = %DateTime{}),
-    do: Utils.mut_dir(Path.join(["slot_backup", "#{DateTime.to_unix(summary_time)}"]))
+  defp recover_path(summary_time = %DateTime{}) do
+    timestamp = DateTime.to_unix(summary_time)
+    "slot_backup" |> Path.join("#{timestamp}") |> Utils.mut_dir()
+  end
 
   defp recover_path(summary_time = %DateTime{}, subset),
-    do:
-      Utils.mut_dir(
-        Path.join(["slot_backup", "#{DateTime.to_unix(summary_time)}", Base.encode16(subset)])
-      )
+    do: summary_time |> recover_path() |> Path.join(Base.encode16(subset))
 
   defp backup_slot(slot = %Slot{slot_time: slot_time, subset: subset}, node_public_key) do
     content = serialize(slot, node_public_key)
@@ -100,13 +98,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
         do: slot_time,
         else: SummaryTimer.next_summary(slot_time)
 
-    path = recover_path(summary_time)
-
-    unless File.dir?(path) do
-      File.mkdir_p!(path)
-    end
-
-    File.write!(Path.join(path, Base.encode16(subset)), content, [:append, :binary])
+    summary_time |> recover_path() |> File.mkdir_p!()
+    summary_time |> recover_path(subset) |> File.write!(content, [:append, :binary])
   end
 
   @spec stream_slots(DateTime.t(), subset :: binary) ::
