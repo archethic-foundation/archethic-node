@@ -686,12 +686,14 @@ defmodule Archethic.ContractsTest do
     end
 
     test "should fail if the state is too big" do
-      code = ~S"""
+      str = :crypto.strong_rand_bytes(1024) |> Base.encode16()
+
+      code = """
         @version 1
         actions triggered_by: datetime, at: 0 do
           str = ""
-          for i in 0..26214 do
-            str = "#{str}0000000000"
+          for i in 0..1638 do
+            str = "\#{str}#{str}"
           end
           State.set("key", str)
         end

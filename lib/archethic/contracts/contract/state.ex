@@ -4,7 +4,8 @@ defmodule Archethic.Contracts.Contract.State do
   """
   alias Archethic.Utils.TypedEncoding
 
-  @max_compressed_state_size 256 * 1024
+  # 3 MB
+  @max_compressed_state_size 3 * 1024 * 1024
 
   @type t() :: map()
   @type encoded() :: binary()
