@@ -529,6 +529,8 @@ defmodule ArchethicTest do
 
   describe "get_balance/1" do
     test "should request storage nodes to fetch the balance" do
+      now = DateTime.utc_now()
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -547,7 +549,7 @@ defmodule ArchethicTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: now
       })
 
       P2P.add_and_connect_node(%Node{
@@ -559,7 +561,7 @@ defmodule ArchethicTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: now
       })
 
       MockClient
@@ -572,7 +574,7 @@ defmodule ArchethicTest do
                  from: ArchethicCase.random_address(),
                  type: :UCO,
                  amount: 1_000_000_000,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                }
              },
              %VersionedUnspentOutput{
@@ -580,11 +582,11 @@ defmodule ArchethicTest do
                  from: ArchethicCase.random_address(),
                  type: {:token, "ETH", 1},
                  amount: 1,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                }
              }
            ],
-           last_chain_sync_date: DateTime.utc_now()
+           last_chain_sync_date: now
          }}
       end)
       |> expect(:send_message, 1, fn _, %GetUnspentOutputs{}, _ ->
@@ -596,7 +598,7 @@ defmodule ArchethicTest do
                  from: ArchethicCase.random_address(),
                  type: :UCO,
                  amount: 2_000_000_000,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                }
              },
              %VersionedUnspentOutput{
@@ -604,7 +606,7 @@ defmodule ArchethicTest do
                  from: ArchethicCase.random_address(),
                  type: {:token, "ETH", 1},
                  amount: 2,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                }
              },
              %VersionedUnspentOutput{
@@ -612,15 +614,15 @@ defmodule ArchethicTest do
                  from: ArchethicCase.random_address(),
                  type: {:token, "BTC", 2},
                  amount: 1,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                }
              }
            ],
-           last_chain_sync_date: DateTime.utc_now()
+           last_chain_sync_date: now
          }}
       end)
 
-      assert %{uco: 2_000_000_000, token: %{{"ETH", 1} => 2, {"BTC", 2} => 1}} =
+      assert %{uco: 3_000_000_000, token: %{{"ETH", 1} => 3, {"BTC", 2} => 1}} =
                Archethic.get_balance("@Alice2")
     end
   end

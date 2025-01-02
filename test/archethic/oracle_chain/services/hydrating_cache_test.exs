@@ -140,13 +140,13 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
 
     state_begin = :sys.get_state(pid)
 
-    Process.sleep(100)
-
     assert_receive {:trace, ^pid, :receive, :hydrate}
-    assert_receive {:trace, ^pid, :receive, {:kill_hydrating_task, _}}
+    assert_receive {:trace, ^pid, :receive, {:kill_hydrating_task, task = %Task{}}}, 150
+    %Task{pid: task_pid, ref: task_ref} = task
+    assert_receive {:trace, ^pid, :receive, {:DOWN, ^task_ref, :process, _, _}}
 
     # check task has been killed but not genserver
-    refute Process.alive?(:sys.get_state(pid).hydrating_task.pid)
+    refute Process.alive?(task_pid)
     assert Process.alive?(pid)
 
     # genserver still able to reply
