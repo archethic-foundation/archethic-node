@@ -85,7 +85,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         {:smart_contract_validation, recipient_address, tx_address,
          DateTime.to_unix(timestamp, :millisecond)},
         function: fn -> validate_smart_contract_call(msg) end,
-        timeout: Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:timeout, 4_500),
+        timeout: Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:timeout, 14_500),
         # We set the maximum timeout for a transaction to be processed before the kill the cache
         ttl: 60_000
       )
