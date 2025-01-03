@@ -4,11 +4,13 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   """
 
   alias Archethic.BeaconChain.Slot
-  alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.Subset.SummaryCacheSupervisor
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
 
   alias Archethic.PubSub
+
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -19,7 +21,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   @batch_read_size 102_400
 
   def start_link(arg \\ []) do
-    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+    GenServer.start_link(__MODULE__, arg)
   end
 
   def init(_) do
@@ -62,8 +64,9 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   Add new beacon slots to the summary's cache
   """
   @spec add_slot(Slot.t(), Crypto.key()) :: :ok
-  def add_slot(slot = %Slot{}, node_public_key) do
-    GenServer.call(__MODULE__, {:add_slot, slot, node_public_key})
+  def add_slot(slot = %Slot{subset: subset}, node_public_key) do
+    via_tuple = {:via, PartitionSupervisor, {SummaryCacheSupervisor, subset}}
+    GenServer.call(via_tuple, {:add_slot, slot, node_public_key})
   end
 
   def handle_call({:add_slot, slot, node_public_key}, _from, state) do

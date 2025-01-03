@@ -6,6 +6,7 @@ defmodule Archethic.BeaconChain.SubsetSupervisor do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Subset
   alias Archethic.BeaconChain.Subset.SummaryCache
+  alias Archethic.BeaconChain.Subset.SummaryCacheSupervisor
   alias Archethic.BeaconChain.Subset.StatsCollector
 
   alias Archethic.Utils
@@ -21,7 +22,8 @@ defmodule Archethic.BeaconChain.SubsetSupervisor do
       Utils.configurable_children([
         {Registry,
          keys: :unique, name: BeaconChain.SubsetRegistry, partitions: System.schedulers_online()},
-        SummaryCache,
+        {PartitionSupervisor,
+         child_spec: SummaryCache, name: SummaryCacheSupervisor, partitions: 64},
         StatsCollector
         | subset_children
       ])
