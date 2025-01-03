@@ -33,7 +33,7 @@ defmodule Archethic.Contracts.Worker do
   require Logger
 
   use GenStateMachine, callback_mode: :handle_event_function
-  @vsn 2
+  @vsn 3
 
   @schedule_trigger {:next_event, :internal, :start_schedulers}
   @process_trigger {:next_event, :internal, :process_next_trigger}
@@ -242,6 +242,15 @@ defmodule Archethic.Contracts.Worker do
 
     new_data = Map.delete(data, :last_call_processed)
     {:keep_state, new_data, @schedule_and_process_trigger}
+  end
+
+  def code_change(2, state, data, _extra) do
+    new_data =
+      Map.update!(data, :contract, fn %{transaction: contract_tx} ->
+        InterpretedContract.from_transaction!(contract_tx)
+      end)
+
+    {:ok, state, new_data}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
