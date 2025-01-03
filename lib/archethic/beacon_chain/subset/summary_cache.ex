@@ -51,8 +51,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   @doc """
   Stream all the transaction summaries
   """
-  @spec stream_summaries(DateTime.utc_now(), pos_integer()) ::
-          list(TransactionSummary.t())
+  @spec stream_summaries(summary_time :: DateTime.t(), subset :: binary()) ::
+          list(TransactionSummary.t()) | Enumerable.t()
   def stream_summaries(summary_time, subset) do
     summary_time
     |> stream_slots(subset)

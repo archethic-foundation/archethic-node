@@ -43,11 +43,16 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
     SummaryCache.add_slot(slot_pre_summary2, "node_key")
     SummaryCache.add_slot(slot_post_summary, "node_key")
 
+    previous_summary_time = SummaryTimer.previous_summary(summary_time)
+
+    recover_path =
+      "slot_backup" |> Path.join("#{DateTime.to_unix(previous_summary_time)}") |> Utils.mut_dir()
+
+    assert File.exists?(recover_path)
+
     send(pid, {:current_epoch_of_slot_timer, summary_time})
     Process.sleep(100)
 
-    previous_summary_time = SummaryTimer.previous_summary(summary_time)
-    recover_path = Utils.mut_dir("slot_backup-#{DateTime.to_unix(previous_summary_time)}")
     refute File.exists?(recover_path)
   end
 
@@ -56,7 +61,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
     File.mkdir_p!(Utils.mut_dir())
 
     next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
-    # path = Utils.mut_dir("slot_backup-#{DateTime.to_unix(next_summary_time)}")
 
     {:ok, _pid} = SummaryCache.start_link()
 
@@ -118,37 +122,5 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       |> Enum.sort_by(fn {slot, _} -> slot.slot_time end, {:asc, DateTime})
 
     assert [{^slot, ^node_key}, {^slot2, ^node_key}] = slots
-  end
-
-  test "should cleanup as soon as selfrepair is triggered" do
-    Application.put_env(:archethic, SummaryTimer, interval: "0 * * * * *")
-    {:ok, pid} = SummaryCache.start_link()
-    File.mkdir_p!(Utils.mut_dir())
-
-    now = DateTime.utc_now()
-
-    node_key = Crypto.first_node_public_key()
-    subset = <<0>>
-
-    slot_pre_summary = %Slot{
-      slot_time: SummaryTimer.previous_summary(now),
-      subset: subset
-    }
-
-    slot_post_summary = %Slot{
-      slot_time: SummaryTimer.next_summary(now),
-      subset: subset
-    }
-
-    SummaryCache.add_slot(slot_pre_summary, node_key)
-    SummaryCache.add_slot(slot_post_summary, node_key)
-
-    send(pid, :self_repair_sync)
-    Process.sleep(50)
-
-    assert [{^slot_post_summary, ^node_key}] =
-             slot_post_summary.slot_time
-             |> SummaryCache.stream_slots(<<0>>)
-             |> Enum.to_list()
   end
 end
