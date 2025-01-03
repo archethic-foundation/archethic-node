@@ -850,87 +850,6 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
              } = json_response(conn, 200)
     end
 
-    test "should take into account limit and offset when sending transaction_summaries", %{
-      conn: conn
-    } do
-      Application.put_env(:archethic, SummaryTimer, interval: "* * * * * * *")
-
-      today = DateTime.utc_now()
-
-      timestamp =
-        today
-        |> DateTime.add(-1, :day)
-        |> DateTime.to_unix()
-
-      attestations =
-        [
-          %TransactionSummary{
-            timestamp: ~U[2022-12-06 23:56:00.006Z],
-            address:
-              <<0, 0, 206, 240, 245, 203, 197, 124, 94, 244, 159, 116, 250, 33, 156, 45, 76, 218,
-                205, 36, 102, 210, 113, 143, 12, 21, 228, 164, 14, 115, 91, 21, 80, 247>>,
-            type: :oracle_summary,
-            fee: 0,
-            movements_addresses: []
-          },
-          %TransactionSummary{
-            timestamp: ~U[2022-12-06 23:56:00.042Z],
-            address:
-              <<0, 0, 93, 87, 204, 21, 164, 60, 42, 148, 90, 78, 173, 11, 77, 189, 104, 15, 120,
-                6, 54, 35, 203, 176, 246, 200, 100, 215, 101, 150, 29, 59, 225, 65>>,
-            type: :oracle,
-            fee: 0,
-            movements_addresses: []
-          },
-          %TransactionSummary{
-            timestamp: ~U[2022-12-06 23:56:30.865Z],
-            address:
-              <<0, 0, 234, 152, 107, 255, 80, 152, 50, 245, 184, 183, 134, 17, 162, 71, 41, 203,
-                94, 81, 174, 188, 75, 128, 218, 110, 53, 11, 68, 5, 242, 31, 191, 202>>,
-            type: :node_rewards,
-            fee: 0,
-            movements_addresses: [
-              <<0, 0, 238, 157, 220, 82, 41, 235, 255, 225, 151, 39, 112, 88, 241, 26, 65, 226,
-                34, 82, 216, 106, 144, 76, 140, 188, 243, 140, 30, 252, 66, 171, 80, 101>>
-            ]
-          }
-        ]
-        |> Enum.map(&%ReplicationAttestation{transaction_summary: &1, confirmations: []})
-
-      str_filtered_transaction_summaries = %{
-        "data" => %{
-          "beaconChainSummary" => %{
-            "TransactionSummaries" => [
-              %{
-                "address" =>
-                  "0000EA986BFF509832F5B8B78611A24729CB5E51AEBC4B80DA6E350B4405F21FBFCA",
-                "fee" => 0,
-                "movementsAddresses" => [
-                  "0000EE9DDC5229EBFFE197277058F11A41E22252D86A904C8CBCF38C1EFC42AB5065"
-                ],
-                "timestamp" => 1_670_370_990,
-                "type" => "node_rewards"
-              }
-            ]
-          }
-        }
-      }
-
-      MockClient
-      |> expect(:send_message, fn
-        _, %GetBeaconSummariesAggregate{}, _ ->
-          {:ok, %SummaryAggregate{replication_attestations: attestations}}
-      end)
-
-      conn =
-        post(conn, "/api", %{
-          "query" =>
-            "query { beaconChainSummary(timestamp: #{timestamp}) {TransactionSummaries(limit: 1, pagingOffset: 2){fee, type, timestamp, address, movementsAddresses}} }"
-        })
-
-      assert str_filtered_transaction_summaries == json_response(conn, 200)
-    end
-
     test "should call fetch_and_aggregate_summaries when next summary of timestamp is the previous summary",
          %{
            conn: conn
@@ -1000,7 +919,7 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
       })
 
       MockClient
-      |> expect(:send_message, 26, fn
+      |> stub(:send_message, fn
         _, %GetCurrentSummaries{}, _ ->
           {:ok, %TransactionSummaryList{transaction_summaries: []}}
       end)

@@ -19,18 +19,20 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryList.t()
   def process(%__MODULE__{subsets: subsets}, _) do
     transaction_summaries =
-      Enum.flat_map(subsets, fn subset ->
-        transaction_summaries = BeaconChain.get_summary_slots(subset)
+      Task.async_stream(
+        subsets,
+        fn subset ->
+          %Slot{transaction_attestations: transaction_attestations} =
+            Subset.get_current_slot(subset)
 
-        %Slot{transaction_attestations: transaction_attestations} =
-          Subset.get_current_slot(subset)
-
-        Enum.reduce(
-          transaction_attestations,
-          transaction_summaries,
-          &[&1.transaction_summary | &2]
-        )
-      end)
+          transaction_attestations
+          |> Enum.map(& &1.transaction_summary)
+          |> Enum.concat(BeaconChain.get_summary_slots(subset))
+        end,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Enum.flat_map(fn {:ok, x} -> x end)
 
     %TransactionSummaryList{
       transaction_summaries: transaction_summaries
@@ -44,9 +46,8 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<nb_subsets::16, rest::binary>>) do
-    subsets_bin = :binary.part(rest, 0, nb_subsets)
+  def deserialize(<<nb_subsets::16, subsets_bin::binary-size(nb_subsets), rest::bitstring>>) do
     subsets = for <<subset::8 <- subsets_bin>>, do: <<subset>>
-    {%__MODULE__{subsets: subsets}, <<>>}
+    {%__MODULE__{subsets: subsets}, rest}
   end
 end

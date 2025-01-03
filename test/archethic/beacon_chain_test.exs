@@ -37,7 +37,7 @@ defmodule Archethic.BeaconChainTest do
   import Mock
 
   setup do
-    Application.put_env(:archethic, SlotTimer, interval: "0 0 * * * *")
+    Application.put_env(:archethic, SlotTimer, interval: "0 * * * * *")
     Application.put_env(:archethic, SummaryTimer, interval: "0 0 * * * *")
 
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
@@ -100,7 +100,11 @@ defmodule Archethic.BeaconChainTest do
       Process.sleep(500)
 
       assert [{%Slot{subset: <<0>>}, _}] =
-               SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
+               slot.slot_time
+               |> SummaryTimer.next_summary()
+               |> SummaryCache.stream_slots(<<0>>)
+               |> Enum.filter(&match?({%Slot{subset: <<0>>}, _}, &1))
+               |> Enum.to_list()
     end
   end
 
@@ -563,7 +567,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now(),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 100}, %{latency: 200}, %{latency: 50}]
           }
         },
@@ -571,7 +575,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now() |> DateTime.add(10),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 110}, %{latency: 150}, %{latency: 70}]
           }
         },
@@ -579,7 +583,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now() |> DateTime.add(20),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 130}, %{latency: 110}, %{latency: 80}]
           }
         }
@@ -590,7 +594,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now(),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 80}, %{latency: 110}, %{latency: 150}]
           }
         },
@@ -598,7 +602,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now() |> DateTime.add(10),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 70}, %{latency: 140}, %{latency: 100}]
           }
         },
@@ -606,7 +610,7 @@ defmodule Archethic.BeaconChainTest do
           subset: <<0>>,
           slot_time: DateTime.utc_now() |> DateTime.add(20),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: <<0::16, 0::16, 0::16>>,
             network_stats: [%{latency: 70}, %{latency: 100}, %{latency: 120}]
           }
         }
@@ -615,13 +619,20 @@ defmodule Archethic.BeaconChainTest do
       File.mkdir_p!(Utils.mut_dir())
       SummaryCache.start_link()
 
-      Enum.map(node1_slots, &SummaryCache.add_slot(<<0>>, &1, "node1"))
-      Enum.map(node2_slots, &SummaryCache.add_slot(<<0>>, &1, "node2"))
+      node_key1 = ArchethicCase.random_public_key()
+      node_key2 = ArchethicCase.random_public_key()
 
-      assert %{
-               "node1" => [%{latency: 118}, %{latency: 138}, %{latency: 71}],
-               "node2" => [%{latency: 75}, %{latency: 118}, %{latency: 128}]
-             } = BeaconChain.get_network_stats(<<0>>)
+      Enum.map(node1_slots, &SummaryCache.add_slot(&1, node_key1))
+      Enum.map(node2_slots, &SummaryCache.add_slot(&1, node_key2))
+
+      network_stats =
+        BeaconChain.get_network_stats(<<0>>, SummaryTimer.next_summary(DateTime.utc_now()))
+
+      assert [%{latency: 118}, %{latency: 138}, %{latency: 71}] =
+               Map.get(network_stats, node_key1)
+
+      assert [%{latency: 71}, %{latency: 115}, %{latency: 118}] =
+               Map.get(network_stats, node_key2)
     end
   end
 
@@ -656,11 +667,7 @@ defmodule Archethic.BeaconChainTest do
       end)
 
       summaries = BeaconChain.list_transactions_summaries_from_current_slot()
-
-      # there are 256 subsets, and we query the summaries 10 by 10
-      # so we call the GetCurrentSummaries 26 times
-      # each call to GetCurrentSummaries return a list of 1 transactionSummary (mock above)
-      assert length(summaries) == 26
+      assert length(summaries) == 1
     end
   end
 

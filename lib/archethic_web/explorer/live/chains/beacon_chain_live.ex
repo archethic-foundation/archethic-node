@@ -110,6 +110,17 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
         list_transactions_from_summaries(date)
       end)
 
+    transactions =
+      case transactions do
+        [] ->
+          date
+          |> list_transactions_from_summaries()
+          |> tap(fn txs -> TransactionCache.put(date, txs) end)
+
+        txs ->
+          txs
+      end
+
     new_assign =
       socket
       |> assign(:fetching, false)
@@ -124,6 +135,17 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
       TransactionCache.resolve(date, fn ->
         list_transactions_from_aggregate(date)
       end)
+
+    transactions =
+      case transactions do
+        [] ->
+          date
+          |> list_transactions_from_aggregate()
+          |> tap(fn txs -> TransactionCache.put(date, txs) end)
+
+        txs ->
+          txs
+      end
 
     new_assign =
       socket

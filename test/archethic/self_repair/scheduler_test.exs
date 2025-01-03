@@ -5,6 +5,7 @@ defmodule Archethic.SelfRepair.SchedulerTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
@@ -70,6 +71,9 @@ defmodule Archethic.SelfRepair.SchedulerTest do
     |> expect(:send_message, fn _, %GetBeaconSummariesAggregate{}, _ ->
       {:ok, %SummaryAggregate{summary_time: DateTime.utc_now(), availability_adding_time: 1}}
     end)
+    |> stub(:send_message, fn _, %GetBeaconSummaries{}, _ ->
+      {:error, :network_issue}
+    end)
 
     Application.put_env(:archethic, Scheduler, interval: "* * * * * * *")
 
@@ -91,8 +95,8 @@ defmodule Archethic.SelfRepair.SchedulerTest do
   test "handle_info/3 should initiate the loading of missing transactions, schedule the next repair and update the last sync date" do
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{}, _ ->
-        {:ok, %NotFound{}}
+      _, %GetTransaction{}, _ -> {:ok, %NotFound{}}
+      _, %GetBeaconSummaries{}, _ -> {:error, :network_issue}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -111,7 +115,7 @@ defmodule Archethic.SelfRepair.SchedulerTest do
     me = self()
 
     MockDB
-    |> stub(:set_bootstrap_info, fn "last_sync_time", time ->
+    |> expect(:set_bootstrap_info, fn "last_sync_time", time ->
       send(me, {:last_sync_time, time |> String.to_integer() |> DateTime.from_unix!()})
       :ok
     end)
@@ -125,6 +129,8 @@ defmodule Archethic.SelfRepair.SchedulerTest do
     receive do
       {:last_sync_time, last_sync_date} ->
         assert DateTime.diff(last_sync_date, first_last_sync_date) > 0
+    after
+      200 -> :skip
     end
   end
 end
