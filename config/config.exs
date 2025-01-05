@@ -162,9 +162,7 @@ config :archethic, Archethic.OracleChain.Services.UCOPrice,
     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko => [refresh_interval: 30_000],
     Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapArchethic => [
       refresh_interval: 30_000
-    ],
-    # Coinpaprika limits to 25K req/mo; with 2min delay we can reach ~21K
-    Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika => [refresh_interval: 120_000]
+    ]
   }
 
 config :archethic, ArchethicWeb.Explorer.FaucetController,
