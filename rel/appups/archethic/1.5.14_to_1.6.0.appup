@@ -358,6 +358,8 @@
                   'Elixir.Archethic.TransactionChain',
                   'Elixir.Archethic.TransactionChain.Transaction',
                   'Elixir.Archethic.Utils']},
+    {load_module,'Elixir.ArchethicWeb.Endpoint',brutal_purge,
+                 soft_purge,[]},
     {update,'Elixir.Archethic.Contracts.Worker',
             {advanced,[]},
             brutal_purge,soft_purge,
