@@ -9,7 +9,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapArcheth
   @impl Impl
   @spec fetch(list(binary())) :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch(pairs) when is_list(pairs) do
-    query = 'https://coinmarketcap.com/currencies/archethic/markets/'
+    query = 'https://coinmarketcap.com/currencies/archethic/'
 
     httpc_options = [
       ssl: [
