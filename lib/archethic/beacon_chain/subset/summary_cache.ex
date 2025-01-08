@@ -138,9 +138,11 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
          {node_public_key, rest} <- Utils.deserialize_public_key(rest) do
       deserialize(rest, [{slot, node_public_key} | acc])
     else
-      _ ->
-        # This happens when the content is not a complete entry
-        {acc, rest}
+      # This happens when the content is not a complete entry
+      _ -> {acc, rest}
     end
+  rescue
+    # This happens when the content is not a complete entry
+    _ -> {acc, rest}
   end
 end
