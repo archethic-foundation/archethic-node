@@ -179,11 +179,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp parse_contract(tx) do
-    case Contracts.from_transaction(tx) do
+    case validate_and_parse_transaction(tx) do
       {:ok, contract} -> {:ok, contract}
       {:error, reason} -> {:error, "Smart contract invalid #{inspect(reason)}"}
     end
   end
+
+  defp validate_and_parse_transaction(tx = %Transaction{data: %TransactionData{code: code}})
+       when code != "",
+       do: Contracts.Interpreter.Contract.from_transaction(tx)
+
+  defp validate_and_parse_transaction(%Transaction{data: %TransactionData{contract: contract}}),
+    do: Contracts.WasmContract.validate_and_parse(contract)
 
   defp validate_contract_ownership(contract, ownerships) do
     if Contracts.contains_trigger?(contract),

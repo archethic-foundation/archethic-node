@@ -53,32 +53,6 @@ defmodule Archethic.Contracts do
   end
 
   @doc """
-  Parse a smart contract code and return a contract struct
-  """
-  @spec parse(binary()) ::
-          {:ok, InterpretedContract.t() | WasmContract.t()} | {:error, String.t()}
-  def parse(contract_code) do
-    case Jason.decode(contract_code) do
-      {:ok, contract_json} ->
-        WasmContract.parse(contract_json)
-
-      _ ->
-        Interpreter.parse(contract_code)
-    end
-  end
-
-  @doc """
-  Same a `parse/1` but raise if the contract is not valid
-  """
-  @spec parse!(binary()) :: InterpretedContract.t() | WasmContract.t()
-  def parse!(contract_code) when is_binary(contract_code) do
-    case parse(contract_code) do
-      {:ok, contract} -> contract
-      {:error, reason} -> raise reason
-    end
-  end
-
-  @doc """
   Execute the contract trigger.
   """
   @spec execute_trigger(
