@@ -49,7 +49,8 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   [TransactionData] represents the data section for every transaction.
   It includes:
   - Ledger: asset transfers
-  - Code: smart contract code (hexadecimal),
+  - Code: interpreted smart contract code (hexadecimal) (up to transaction V3),
+  - Contract: web assembly smart contract code (since transaction V4),
   - Content: free zone for data hosting (string or hexadecimal)
   - Ownership: authorization/delegations containing list of secrets and their authorized public keys to proof the ownership
   - Recipients: For non asset transfers, the list of recipients of the transaction (e.g Smart contract interactions)
