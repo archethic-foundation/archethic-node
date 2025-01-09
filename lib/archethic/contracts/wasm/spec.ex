@@ -16,6 +16,31 @@ defmodule Archethic.Contracts.WasmSpec do
         }
   defstruct [:version, triggers: [], public_functions: [], upgrade_opts: nil]
 
+  @contract_schema :archethic
+                   |> Application.app_dir("priv/json-schemas/schemas/object/contract.json")
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> ExJsonSchema.Schema.resolve()
+
+  @doc """
+  Validate the manifest from the JSON schema specification
+  """
+  @spec validate_manifest(map()) :: :ok | {:error, String.t()}
+  def validate_manifest(manifest) do
+    case ExJsonSchema.Validator.validate_fragment(
+           @contract_schema,
+           "#/properties/manifest",
+           manifest
+         ) do
+      :ok -> :ok
+      {:error, errors} -> {:error, "invalid manifest - #{inspect(errors)}"}
+    end
+  end
+
+  @doc """
+  Cast the JSON manifest into a well-defined structure
+  """
+  @spec from_manifest(map()) :: t()
   def from_manifest(
         manifest = %{
           "abi" => %{
@@ -64,6 +89,9 @@ defmodule Archethic.Contracts.WasmSpec do
     Enum.map(triggers, & &1.name) ++ Enum.map(public_functions, & &1.name)
   end
 
+  @doc """
+  Cast an input to the corresponding type from the spec
+  """
   @spec cast_wasm_input(any(), any()) :: {:ok, any()} | {:error, :invalid_input_type}
   def cast_wasm_input(nil, _), do: {:ok, nil}
 
@@ -153,6 +181,9 @@ defmodule Archethic.Contracts.WasmSpec do
     {:error, :invalid_input_type}
   end
 
+  @doc """
+  Cast an output to the corresponding type from the spec
+  """
   @spec cast_wasm_output(result_value :: any(), manifest_output_type :: any()) :: any()
   def cast_wasm_output(%{"hex" => value}, output)
       when output in ["Address", "Hex", "PublicKey"] do

@@ -115,7 +115,7 @@ defmodule Archethic.Mining.ProofOfWork do
   @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
   def list_origin_public_keys_candidates(tx = %Transaction{data: %TransactionData{code: code}})
       when code != "" do
-    case Contracts.parse(code) do
+    case Contracts.from_transaction(tx) do
       {:ok,
        %InterpretedContract{
          conditions: %{

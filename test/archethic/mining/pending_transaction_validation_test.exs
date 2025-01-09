@@ -269,6 +269,66 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                |> ContractFactory.create_valid_contract_tx()
                |> PendingTransactionValidation.validate_contract()
     end
+
+    test "invalid bytecode" do
+      assert {:error, "Smart contract invalid \"invalid bytecode\""} =
+               Transaction.new(
+                 :contract,
+                 %TransactionData{
+                   contract: %Archethic.TransactionChain.TransactionData.Contract{
+                     bytecode: "",
+                     manifest: %{}
+                   }
+                 },
+                 "seed",
+                 0,
+                 version: 4
+               )
+               |> PendingTransactionValidation.validate_contract()
+    end
+
+    test "invalid manifest" do
+      assert {:error,
+              "Smart contract invalid \"invalid manifest - [{\\\"Required property abi was not present.\\\", \\\"#\\\"}]\""} =
+               Transaction.new(
+                 :contract,
+                 %TransactionData{
+                   contract: %Archethic.TransactionChain.TransactionData.Contract{
+                     bytecode: :zlib.zip(:crypto.strong_rand_bytes(32)),
+                     manifest: %{
+                       "key" => "value"
+                     }
+                   }
+                 },
+                 "seed",
+                 0,
+                 version: 4
+               )
+               |> PendingTransactionValidation.validate_contract()
+    end
+
+    test "invalid wasm module" do
+      assert {:error,
+              "Smart contract invalid \"Error while parsing bytes: input bytes aren't valid utf-8.\""} =
+               Transaction.new(
+                 :contract,
+                 %TransactionData{
+                   contract: %Archethic.TransactionChain.TransactionData.Contract{
+                     bytecode: :zlib.zip(:crypto.strong_rand_bytes(32)),
+                     manifest: %{
+                       "abi" => %{
+                         "functions" => %{},
+                         "state" => %{}
+                       }
+                     }
+                   }
+                 },
+                 "seed",
+                 0,
+                 version: 4
+               )
+               |> PendingTransactionValidation.validate_contract()
+    end
   end
 
   describe "Data" do
