@@ -65,19 +65,22 @@
                 },
                 "required": [
                   "type"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           },
           "required": [
             "state",
             "functions"
-          ]
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
         "abi"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
