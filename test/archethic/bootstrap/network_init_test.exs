@@ -332,8 +332,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetGenesisAddress{}, _ ->
-        {:ok, %NotFound{}}
+      _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
     P2P.add_and_connect_node(%Node{

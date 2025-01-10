@@ -480,7 +480,7 @@ defmodule Archethic.SelfRepair.Sync do
             previous_summary_time
           )
 
-        consolidated_attestation = consolidate_recipients(attestation, tx)
+        consolidated_attestation = consolidate_recipients(attestation, tx, download_nodes)
         {consolidated_attestation, tx, inputs}
       end,
       max_concurrency: System.schedulers_online() * 2,
@@ -507,21 +507,23 @@ defmodule Archethic.SelfRepair.Sync do
                movements_addresses: movements_addresses
              }
          },
-         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients = [_ | _]}}
+         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients = [_ | _]}},
+         download_nodes
        ) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-
     consolidated_movements_addresses =
       recipients
       |> Task.async_stream(
         fn recipient ->
-          genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
+          genesis_nodes = Election.chain_storage_nodes(recipient, download_nodes)
 
           case TransactionChain.fetch_genesis_address(recipient, genesis_nodes,
                  acceptance_resolver: :accept_different_genesis
                ) do
             {:ok, genesis_address} ->
               [recipient, genesis_address]
+
+            {:error, :acceptance_failed} ->
+              [recipient, recipient]
 
             {:error, reason} ->
               raise SelfRepair.Error,
@@ -543,7 +545,7 @@ defmodule Archethic.SelfRepair.Sync do
     %ReplicationAttestation{attestation | transaction_summary: adjusted_summary}
   end
 
-  defp consolidate_recipients(attestation, _tx), do: attestation
+  defp consolidate_recipients(attestation, _tx, _), do: attestation
 
   defp sync_node(end_of_node_synchronizations) do
     end_of_node_synchronizations
