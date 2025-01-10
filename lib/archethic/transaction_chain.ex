@@ -821,7 +821,7 @@ defmodule Archethic.TransactionChain do
   It queries the the network for genesis address.
   """
   @spec fetch_genesis_address(address :: binary(), nodes :: list(Node.t()), opts :: Keyword.t()) ::
-          {:ok, binary()} | {:error, :network_issue}
+          {:ok, binary()} | {:error, :network_issue} | {:error, :acceptance_failed}
   def fetch_genesis_address(address, nodes, opts \\ []) when is_binary(address) do
     case find_genesis_address(address) do
       {:error, :not_found} ->
@@ -851,11 +851,8 @@ defmodule Archethic.TransactionChain do
                timeout: timeout,
                acceptance_resolver: acceptance_resolver
              ) do
-          {:ok, %GenesisAddress{address: genesis_address}} ->
-            {:ok, genesis_address}
-
-          _ ->
-            {:error, :network_issue}
+          {:ok, %GenesisAddress{address: genesis_address}} -> {:ok, genesis_address}
+          error -> error
         end
 
       res ->

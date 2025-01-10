@@ -18,6 +18,7 @@ defmodule Archethic.BootstrapTest do
     EncryptedStorageNonce,
     GetBootstrappingNodes,
     GetGenesisAddress,
+    GenesisAddress,
     GetLastTransactionAddress,
     GetStorageNonce,
     GetTransaction,
@@ -126,14 +127,11 @@ defmodule Archethic.BootstrapTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetGenesisAddress{}, _ ->
-          {:ok, %NotFound{}}
+        _, %GetGenesisAddress{address: address}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetCurrentReplicationAttestations{}, _ ->
-          {:ok,
-           %CurrentReplicationAttestations{
-             replication_attestations: []
-           }}
+          {:ok, %CurrentReplicationAttestations{replication_attestations: []}}
       end)
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)
