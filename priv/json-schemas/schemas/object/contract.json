@@ -75,6 +75,19 @@
             "functions"
           ],
           "additionalProperties": false
+        },
+        "upgradeOpts": {
+          "type": "object",
+          "description": "Define the options to allow contract to be upgraded",
+          "properties": {
+            "from": {
+              "$ref": "file://schemas/base/address.json",
+              "description": "Genesis address allowed to send code upgrade to contract"
+            }
+          },
+          "required": [
+            "from"
+          ]
         }
       },
       "required": [
