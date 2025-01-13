@@ -289,14 +289,14 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
     test "invalid manifest" do
       assert {:error,
-              "Smart contract invalid \"invalid manifest - [{\\\"Required property abi was not present.\\\", \\\"#\\\"}]\""} =
+              "Smart contract invalid \"invalid manifest - [{\\\"Type mismatch. Expected Object but got String.\\\", \\\"#/abi\\\"}]\""} =
                Transaction.new(
                  :contract,
                  %TransactionData{
                    contract: %Archethic.TransactionChain.TransactionData.Contract{
                      bytecode: :zlib.zip(:crypto.strong_rand_bytes(32)),
                      manifest: %{
-                       "key" => "value"
+                       "abi" => "value"
                      }
                    }
                  },
