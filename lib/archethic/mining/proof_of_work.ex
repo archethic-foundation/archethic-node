@@ -112,9 +112,9 @@ defmodule Archethic.Mining.ProofOfWork do
 
   Smart contract code can defined which family to use (like security level)
   """
+  # TODO: support WasmContract inherit conditions
   @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
-  def list_origin_public_keys_candidates(tx = %Transaction{data: %TransactionData{code: code}})
-      when code != "" do
+  def list_origin_public_keys_candidates(tx = %Transaction{version: version}) when version < 4 do
     case Contracts.from_transaction(tx) do
       {:ok,
        %InterpretedContract{
@@ -126,8 +126,6 @@ defmodule Archethic.Mining.ProofOfWork do
        }}
       when family != :all ->
         SharedSecrets.list_origin_public_keys(family)
-
-      # TODO: support WasmContract inherit conditions
 
       _ ->
         do_list_origin_public_keys_candidates(tx)

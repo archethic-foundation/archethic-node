@@ -53,18 +53,6 @@ defmodule Archethic.Contracts.WasmContract do
   end
 
   @doc """
-  Parse smart contract json block and return a contract struct
-  """
-  @spec parse(Contract.t()) :: t()
-  def parse(%Contract{manifest: manifest, bytecode: bytecode}) do
-    uncompressed_bytes = :zlib.unzip(bytecode)
-    spec = WasmSpec.from_manifest(manifest)
-
-    {:ok, module} = WasmModule.parse(uncompressed_bytes, spec)
-    %__MODULE__{module: module}
-  end
-
-  @doc """
   Validate WASM contract
   """
   @spec validate_and_parse(t()) :: {:ok, t()} | {:error, String.t()}
@@ -89,6 +77,14 @@ defmodule Archethic.Contracts.WasmContract do
 
   def from_transaction(tx = %Transaction{data: %TransactionData{contract: contract}}) do
     {:ok, %__MODULE__{parse(contract) | state: get_state_from_tx(tx), transaction: tx}}
+  end
+
+  defp parse(%Contract{manifest: manifest, bytecode: bytecode}) do
+    uncompressed_bytes = :zlib.unzip(bytecode)
+    spec = WasmSpec.from_manifest(manifest)
+
+    {:ok, module} = WasmModule.parse(uncompressed_bytes, spec)
+    %__MODULE__{module: module}
   end
 
   defp get_state_from_tx(%Transaction{
