@@ -788,6 +788,20 @@ defmodule Archethic.Contracts do
     end
   end
 
+  @doc """
+  Returns a contract instance from a transaction
+  """
+  @spec validate_and_parse_transaction(transaction :: Transaction.t()) ::
+          {:ok, InterpretedContract.t() | WasmContract.t()} | {:error, String.t()}
+  def validate_and_parse_transaction(tx = %Transaction{version: version}) when version < 4,
+    do: InterpretedContract.from_transaction(tx)
+
+  def validate_and_parse_transaction(%Transaction{data: %TransactionData{contract: nil}}),
+    do: {:error, "No contract to parse"}
+
+  def validate_and_parse_transaction(%Transaction{data: %TransactionData{contract: contract}}),
+    do: WasmContract.validate_and_parse(contract)
+
   defp get_condition_constants(
          :inherit,
          %InterpretedContract{
