@@ -14,7 +14,9 @@ echo "Install required system dependencies"
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
 # Prevent upgrade to prompt service restart
-sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+if [ -f /etc/needrestart/needrestart.conf ]; then
+  sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+fi
 
 sudo apt-get update
 
