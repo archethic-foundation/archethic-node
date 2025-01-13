@@ -34,7 +34,7 @@ defmodule Archethic.Mining do
   # version 5->6 the POI changed and is now done with tx.data.recipients.args serialized with :extended mode
   # version 6->7 add Add consumed inputs in tx.validation_stamp.ledger_operations
   # version 7->8 movement resolved address are now the genesis address of the destination
-  # version 8->9 genesis in the validation stamp
+  # version 8->9 genesis in the validation stamp // TODO ajouter infos au sujet du Zip du state
   @protocol_version 9
 
   @lock_threshold 0.75

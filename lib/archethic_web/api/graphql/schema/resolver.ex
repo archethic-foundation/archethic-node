@@ -16,7 +16,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   alias Archethic.Mining
 
@@ -90,8 +90,8 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
     inputs =
       address
-      |> Archethic.get_transaction_inputs(paging_offset, limit)
-      |> Enum.map(&TransactionInput.to_map/1)
+      |> Archethic.get_versioned_transaction_inputs(paging_offset, limit)
+      |> Enum.map(&VersionedTransactionInput.to_map/1)
 
     {:ok, inputs}
   end
@@ -342,7 +342,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
 
   def get_genesis_unspent_outputs(address, paging_offset \\ nil, limit \\ 0) do
     {:ok,
-     Archethic.get_unspent_outputs(address, paging_offset, limit)
-     |> Enum.map(&UnspentOutput.to_map/1)}
+     Archethic.get_versioned_unspent_outputs(address, paging_offset, limit)
+     |> Enum.map(&UnspentOutput.to_map(&1.unspent_output, &1.protocol_version))}
   end
 end
