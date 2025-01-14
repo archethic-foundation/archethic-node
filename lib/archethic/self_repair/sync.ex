@@ -417,6 +417,9 @@ defmodule Archethic.SelfRepair.Sync do
           {:ok, genesis_address} ->
             genesis_address
 
+          {:error, :acceptance_failed} ->
+            tx_address
+
           {:error, reason} ->
             raise SelfRepair.Error,
               function: "adjust_attestation",
