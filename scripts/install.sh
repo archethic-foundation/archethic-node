@@ -57,7 +57,7 @@ echo '. $HOME/.asdf/asdf.sh' >> ~/.profile
 echo '. $HOME/.asdf/completions/asdf.bash' >> ~/.profile
 source ~/.profile
 
-asdf update
+asdf update || :
 
 asdf plugin add erlang || :
 asdf plugin add elixir || :
