@@ -608,6 +608,32 @@ defmodule Archethic.TransactionChainTest do
       %{nodes: nodes}
     end
 
+    test "should send a repair message to nodes that does not have it", %{
+      nodes: nodes = [node1 | _]
+    } do
+      txs = Enum.map(0..3, &TransactionFactory.create_valid_transaction([], index: &1))
+
+      %Transaction{
+        address: last_address,
+        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+      } = List.last(txs)
+
+      MockClient
+      |> expect(:send_message, 3, fn
+        ^node1, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: txs}}
+
+        _, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: Enum.take(txs, 2)}}
+      end)
+      |> expect(:send_message, 2, fn
+        _, %ShardRepair{storage_address: ^last_address, genesis_address: ^genesis_address}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      assert ^txs = TransactionChain.fetch(last_address, nodes) |> Enum.to_list()
+    end
+
     test "should get the transaction chain", %{nodes: nodes} do
       address = random_address()
 
