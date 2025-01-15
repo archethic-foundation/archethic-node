@@ -18,6 +18,8 @@ defmodule Archethic.Election do
 
   alias Archethic.Utils
 
+  @nb_synchronization_nodes 4
+
   @doc """
   Create a seed to sort the validation nodes. This will produce a proof for the election
   """
@@ -235,6 +237,35 @@ defmodule Archethic.Election do
       selected_nodes ++ Enum.take(rest_nodes, nb_validations - length(selected_nodes))
     else
       selected_nodes
+    end
+  end
+
+  @doc """
+  Returns the synchronization nodes responsible to communicate with the rest of the validation nodes
+  We priorize nodes from differents geo path and sort patch by number of validation nodes in it
+  """
+  @spec get_synchronization_nodes(nodes :: list(Node.t())) :: list(Node.t())
+  def get_synchronization_nodes(nodes) when length(nodes) <= @nb_synchronization_nodes, do: nodes
+
+  def get_synchronization_nodes(nodes) do
+    grouped_nodes =
+      nodes
+      |> Enum.group_by(&String.first(&1.geo_patch))
+      |> Map.values()
+      |> Enum.sort_by(&length/1, :desc)
+
+    nb_different_patch = length(grouped_nodes)
+
+    if nb_different_patch >= @nb_synchronization_nodes do
+      grouped_nodes |> Enum.take(@nb_synchronization_nodes) |> Enum.map(&List.first/1)
+    else
+      nb_nodes_from_first_patch = 1 + (@nb_synchronization_nodes - nb_different_patch)
+      [first_patch_nodes | rest] = grouped_nodes
+      other_patch_nodes = Enum.map(rest, &List.first/1)
+
+      first_patch_nodes
+      |> Enum.take(nb_nodes_from_first_patch)
+      |> Enum.concat(other_patch_nodes)
     end
   end
 
