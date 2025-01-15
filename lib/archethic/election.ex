@@ -106,7 +106,7 @@ defmodule Archethic.Election do
       ...>     %Node{last_public_key: "node8", geo_patch: "F10"},
       ...>     %Node{last_public_key: "node9", geo_patch: "ECA"}
       ...>   ],
-      ...>   %ValidationConstraints{validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end}
+      ...>   %ValidationConstraints{validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end}
       ...> )
       [
         %Node{last_public_key: "node1", geo_patch: "AAA"},
@@ -135,10 +135,7 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
-    # Ensure there is never more validation nodes than storage nodes
-    nb_validations =
-      min(length(storage_nodes), validation_number_fun.(tx, length(authorized_nodes)))
-
+    nb_validations = validation_number_fun.(authorized_nodes)
     min_geo_patch = min_geo_patch_fun.()
 
     nodes =
