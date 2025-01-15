@@ -208,6 +208,8 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
       })
 
+      me = self()
+
       MockClient
       |> expect(:send_message, 3, fn
         _, %StartMining{}, _ ->
@@ -216,12 +218,14 @@ defmodule ArchethicTest do
       |> expect(
         :send_message,
         fn %Node{first_public_key: ^welcome_node_key}, %ValidationError{}, _ ->
+          send(me, :welcome_node_response)
           {:ok, %Ok{}}
         end
       )
 
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
       assert :ok = Archethic.send_new_transaction(tx, welcome_node_key: welcome_node_key)
+      assert_receive :welcome_node_response
     end
 
     test "should forward Transaction & Start Repair, Current Node Not Synchronized" do
@@ -263,13 +267,14 @@ defmodule ArchethicTest do
 
       me = self()
 
+      now = DateTime.utc_now()
+
       MockClient
       |> stub(:send_message, fn
         # validate nss chain from network
         # anticippated to be failed
         _, %GetLastTransactionAddress{}, _ ->
-          {:ok,
-           %LastTransactionAddress{address: "willnotmatchaddress", timestamp: DateTime.utc_now()}}
+          {:ok, %LastTransactionAddress{address: "willnotmatchaddress", timestamp: now}}
 
         _, %NewTransaction{transaction: _, welcome_node: _}, _ ->
           # forward the tx
@@ -332,24 +337,17 @@ defmodule ArchethicTest do
 
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
+      now = DateTime.utc_now()
+
       MockClient
-      |> expect(:send_message, 4, fn
+      |> stub(:send_message, fn
         _, %GetLastTransactionAddress{}, _ ->
-          {:ok,
-           %LastTransactionAddress{address: "willnotmatchaddress", timestamp: DateTime.utc_now()}}
+          {:ok, %LastTransactionAddress{address: "willnotmatchaddress", timestamp: now}}
 
         %Node{first_public_key: ^second_node_first_public_key},
         %NewTransaction{transaction: ^tx, welcome_node: ^welcome_node},
         _ ->
           send(me, {:forwarded_to_node2, tx})
-          {:ok, %Ok{}}
-
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
-
-        _, %StartMining{transaction: ^tx, welcome_node_public_key: ^welcome_node}, _ ->
-          # we are not handling CONSENSUS DFW order in prelimeinay checks for send transaction
-          # we rely completely on DFW to handle it.
           {:ok, %Ok{}}
       end)
 
