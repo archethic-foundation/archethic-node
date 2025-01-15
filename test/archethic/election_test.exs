@@ -118,6 +118,53 @@ defmodule Archethic.ElectionTest do
     }
   end
 
+  describe "get_synchronization_nodes/1" do
+    test "should return all nodes when nodes count is less than or equal to synchronization nodes limit" do
+      nodes = [
+        %Node{first_public_key: "node1", geo_patch: "AAA"},
+        %Node{first_public_key: "node2", geo_patch: "BBB"},
+        %Node{first_public_key: "node3", geo_patch: "CCC"}
+      ]
+
+      assert nodes == Election.get_synchronization_nodes(nodes)
+    end
+
+    test "should prioritize nodes from different geo patches with highest number of nodes" do
+      nodes = [
+        %Node{first_public_key: "node1", geo_patch: "AAA"},
+        %Node{first_public_key: "node2", geo_patch: "AAA"},
+        %Node{first_public_key: "node3", geo_patch: "BBB"},
+        %Node{first_public_key: "node4", geo_patch: "CCC"},
+        %Node{first_public_key: "node5", geo_patch: "DDD"},
+        %Node{first_public_key: "node6", geo_patch: "DDD"},
+        %Node{first_public_key: "node7", geo_patch: "DDD"},
+        %Node{first_public_key: "node8", geo_patch: "EEE"},
+        %Node{first_public_key: "node9", geo_patch: "FFF"},
+        %Node{first_public_key: "node10", geo_patch: "FFF"}
+      ]
+
+      synchronization_nodes =
+        Election.get_synchronization_nodes(nodes) |> Enum.map(& &1.first_public_key)
+
+      assert ["node5", "node1", "node9", "node3"] == synchronization_nodes
+    end
+
+    test "should handle cases with fewer unique geo patches than synchronization nodes" do
+      nodes = [
+        %Node{first_public_key: "node1", geo_patch: "AAA"},
+        %Node{first_public_key: "node2", geo_patch: "AAA"},
+        %Node{first_public_key: "node3", geo_patch: "BBB"},
+        %Node{first_public_key: "node4", geo_patch: "BBB"},
+        %Node{first_public_key: "node5", geo_patch: "CCC"}
+      ]
+
+      synchronization_nodes =
+        Election.get_synchronization_nodes(nodes) |> Enum.map(& &1.first_public_key)
+
+      assert ["node1", "node2", "node3", "node5"] == synchronization_nodes
+    end
+  end
+
   describe "validation_nodes_election_seed_sorting/2" do
     test "should change for different transactions", %{
       tx1: tx1,
