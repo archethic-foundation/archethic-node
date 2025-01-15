@@ -633,6 +633,29 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    repair_fun = fn
+      %TransactionList{transactions: []}, _ ->
+        :ok
+
+      res = %TransactionList{transactions: transactions}, results_by_node ->
+        %Transaction{
+          address: last_address,
+          validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+        } = if order == :asc, do: List.last(transactions), else: List.first(transactions)
+
+        results_by_node
+        |> Enum.reject(&match?({_, ^res}, &1))
+        |> Enum.map(fn {node_public_key, _} -> node_public_key end)
+        |> P2P.broadcast_message(%ShardRepair{
+          genesis_address: genesis_address,
+          storage_address: last_address,
+          io_addresses: []
+        })
+
+      _, _ ->
+        :ok
+    end
+
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
@@ -644,6 +667,7 @@ defmodule Archethic.TransactionChain do
              order: order
            },
            conflict_resolver: conflict_resolver,
+           repair_fun: repair_fun,
            timeout: timeout
          ) do
       {:ok,
