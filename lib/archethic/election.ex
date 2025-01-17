@@ -140,80 +140,68 @@ defmodule Archethic.Election do
     nb_validations = validation_number_fun.(authorized_nodes)
     min_geo_patch = min_geo_patch_fun.()
 
-    nodes =
-      if length(authorized_nodes) <= nb_validations do
-        authorized_nodes
-      else
-        do_validation_node_election(
-          authorized_nodes,
-          tx,
-          sorting_seed,
-          nb_validations,
-          min_geo_patch,
-          storage_nodes
-        )
-      end
+    authorized_nodes
+    |> sort_validation_nodes(tx, sorting_seed)
+    |> do_validation_node_election(nb_validations, min_geo_patch, storage_nodes)
+    |> tap(fn validation_nodes ->
+      :telemetry.execute(
+        [:archethic, :election, :validation_nodes],
+        %{duration: System.monotonic_time() - start},
+        %{nb_nodes: length(validation_nodes)}
+      )
 
-    :telemetry.execute(
-      [:archethic, :election, :validation_nodes],
-      %{
-        duration: System.monotonic_time() - start
-      },
-      %{nb_nodes: length(nodes)}
-    )
-
-    nodes
+      validation_nodes
+    end)
   end
 
+  defp do_validation_node_election(sorted_nodes, nb_validations, _, _)
+       when length(sorted_nodes) <= nb_validations,
+       do: sorted_nodes
+
   defp do_validation_node_election(
-         authorized_nodes,
-         tx,
-         sorting_seed,
+         sorted_nodes,
          nb_validations,
          min_geo_patch,
          storage_nodes
        ) do
-    sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
-
+    # Discard node in the first place if it's already a storage node and
+    # if another node already present in the geo zone to ensure geo distribution of validations
+    # Then if requires the node may be elected during a refining operation
+    # to ensure the require number of validations
     Enum.reduce_while(
       sorted_nodes,
-      %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
-      fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
-        if validation_constraints_satisfied?(
-             nb_validations,
-             min_geo_patch,
-             acc.nb_nodes,
-             acc.zones
-           ) do
-          {:halt, acc}
-        else
-          # Discard node in the first place if it's already a storage node and
-          # if another node already present in the geo zone to ensure geo distribution of validations
-          # Then if requires the node may be elected during a refining operation
-          # to ensure the require number of validations
+      %{nodes: [], nb_nodes: 0, zones: MapSet.new()},
+      fn node = %Node{geo_patch: geo_patch}, acc ->
+        cond do
+          validation_constraints_satisfied?(nb_validations, min_geo_patch, acc) ->
+            {:halt, acc}
 
-          cond do
-            Utils.key_in_node_list?(storage_nodes, last_public_key) ->
-              {:cont, acc}
+          node_disqualified?(node, storage_nodes, acc) ->
+            {:cont, acc}
 
-            MapSet.member?(acc.zones, String.first(geo_patch)) ->
-              {:cont, acc}
+          true ->
+            new_acc =
+              acc
+              |> Map.update!(:nodes, &[node | &1])
+              |> Map.update!(:nb_nodes, &(&1 + 1))
+              |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
 
-            true ->
-              new_acc =
-                acc
-                |> Map.update!(:nb_nodes, &(&1 + 1))
-                |> Map.update!(:nodes, &[node | &1])
-                |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
-
-              {:cont, new_acc}
-          end
+            {:cont, new_acc}
         end
       end
     )
-    |> Map.get(:nodes)
+    |> Map.get(:nodes, [])
     |> Enum.reverse()
     |> refine_necessary_nodes(sorted_nodes, nb_validations)
+  end
+
+  defp node_disqualified?(
+         %Node{last_public_key: last_public_key, geo_patch: geo_patch},
+         storage_nodes,
+         %{zones: zones}
+       ) do
+    Utils.key_in_node_list?(storage_nodes, last_public_key) or
+      MapSet.member?(zones, String.first(geo_patch))
   end
 
   defp sort_validation_nodes(node_list, tx, sorting_seed) do
@@ -226,7 +214,10 @@ defmodule Archethic.Election do
     sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed, :last_public_key)
   end
 
-  defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
+  defp validation_constraints_satisfied?(nb_validations, min_geo_patch, %{
+         nb_nodes: nb_nodes,
+         zones: zones
+       }) do
     MapSet.size(zones) >= min_geo_patch and nb_nodes >= nb_validations
   end
 
