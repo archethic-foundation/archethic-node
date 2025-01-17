@@ -173,7 +173,7 @@ defmodule Archethic.P2P.MessageTest do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
       {welcome_node_public_key, _} = Crypto.generate_deterministic_keypair("wkey")
 
-      validation_node_public_keys =
+      synchronization_node_public_keys =
         Enum.map(1..10, fn i ->
           {pub, _} = Crypto.generate_deterministic_keypair("vkey" <> Integer.to_string(i))
           pub
@@ -187,7 +187,7 @@ defmodule Archethic.P2P.MessageTest do
       assert %StartMining{
                transaction: tx,
                welcome_node_public_key: welcome_node_public_key,
-               validation_node_public_keys: validation_node_public_keys,
+               synchronization_node_public_keys: synchronization_node_public_keys,
                network_chains_view_hash: network_hash,
                p2p_view_hash: p2p_hash,
                ref_timestamp: ref_timestamp
@@ -195,7 +195,7 @@ defmodule Archethic.P2P.MessageTest do
                %StartMining{
                  transaction: tx,
                  welcome_node_public_key: welcome_node_public_key,
-                 validation_node_public_keys: validation_node_public_keys,
+                 synchronization_node_public_keys: synchronization_node_public_keys,
                  network_chains_view_hash: network_hash,
                  p2p_view_hash: p2p_hash,
                  ref_timestamp: ref_timestamp
@@ -214,7 +214,7 @@ defmodule Archethic.P2P.MessageTest do
       assert %StartMining{
                transaction: tx,
                welcome_node_public_key: welcome_node_public_key,
-               validation_node_public_keys: validation_node_public_keys,
+               synchronization_node_public_keys: synchronization_node_public_keys,
                network_chains_view_hash: network_hash,
                p2p_view_hash: p2p_hash,
                contract_context: ctx,
@@ -223,7 +223,7 @@ defmodule Archethic.P2P.MessageTest do
                %StartMining{
                  transaction: tx,
                  welcome_node_public_key: welcome_node_public_key,
-                 validation_node_public_keys: validation_node_public_keys,
+                 synchronization_node_public_keys: synchronization_node_public_keys,
                  network_chains_view_hash: network_hash,
                  p2p_view_hash: p2p_hash,
                  contract_context: ctx,

@@ -3,6 +3,8 @@ defmodule ArchethicTest do
 
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetLastTransactionAddress
@@ -24,6 +26,8 @@ defmodule ArchethicTest do
   alias Archethic.P2P.Message.AddressList
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.UnspentOutputList
+
+  alias Archethic.Mining
 
   alias Archethic.PubSub
 
@@ -210,8 +214,16 @@ defmodule ArchethicTest do
 
       me = self()
 
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      nb_start_mining_msg =
+        tx
+        |> Mining.get_validation_nodes(DateTime.utc_now())
+        |> Election.get_synchronization_nodes()
+        |> length()
+
       MockClient
-      |> expect(:send_message, 3, fn
+      |> expect(:send_message, nb_start_mining_msg, fn
         _, %StartMining{}, _ ->
           {:ok, %Error{reason: :already_locked}}
       end)
@@ -223,7 +235,6 @@ defmodule ArchethicTest do
         end
       )
 
-      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
       assert :ok = Archethic.send_new_transaction(tx, welcome_node_key: welcome_node_key)
       assert_receive :welcome_node_response
     end
