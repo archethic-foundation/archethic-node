@@ -346,9 +346,9 @@ defmodule Archethic do
   Request to fetch the versioned inputs for a transaction address from the closest nodes
   """
   @spec get_versioned_transaction_inputs(
-          Crypto.prepended_hash(),
-          non_neg_integer(),
-          non_neg_integer()
+          address :: Crypto.prepended_hash(),
+          paging_offset :: non_neg_integer(),
+          limit :: non_neg_integer()
         ) ::
           list(VersionedTransactionInput.t())
   def get_versioned_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)

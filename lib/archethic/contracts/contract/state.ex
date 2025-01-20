@@ -25,7 +25,7 @@ defmodule Archethic.Contracts.Contract.State do
   @doc """
   Serialize the given state
   """
-  @spec serialize(t(), protocol_version :: pos_integer()) :: encoded()
+  @spec serialize(state :: t(), protocol_version :: pos_integer()) :: encoded()
   def serialize(state, protocol_version \\ Mining.protocol_version())
 
   def serialize(state, protocol_version) when protocol_version < 9,
@@ -45,7 +45,8 @@ defmodule Archethic.Contracts.Contract.State do
   @doc """
   Deserialize the state
   """
-  @spec deserialize(bitstring(), protocol_version :: pos_integer()) :: {t(), bitstring()}
+  @spec deserialize(bitstring :: bitstring(), protocol_version :: pos_integer()) ::
+          {t(), bitstring()}
   def deserialize(bitstring, protocol_version) when protocol_version < 9,
     do: TypedEncoding.deserialize(bitstring, :compact)
 

@@ -48,8 +48,8 @@ defmodule Archethic.TransactionChain.VersionedTransactionInput do
   Unwrap a list of VersionedTransactionInput into a list of UnspentOutput
   """
   @spec unwrap_inputs(versioned_inputs :: list(t())) :: list(TransactionInput.t())
-  def unwrap_inputs(utxos),
-    do: Enum.map(utxos, &unwrap_input/1)
+  def unwrap_inputs(versioned_inputs),
+    do: Enum.map(versioned_inputs, &unwrap_input/1)
 
   @doc """
   Unwrap a VersionedTransactionInput into an TransactionInput
