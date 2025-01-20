@@ -21,6 +21,8 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   alias Archethic.SelfRepair
   alias Archethic.Utils
 
+  require Logger
+
   @doc """
   Return the timeout to determine network patches
   It is equivalent to 4m30s in production. 4.5s in dev.
@@ -126,7 +128,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     top_eigen_values =
       sorted_eigen_values
       |> Enum.take(2)
-      |> Enum.map(fn {val, _} -> val end)
+      |> Enum.map(fn {val, _} -> abs(val) end)
       |> Nx.tensor()
       |> Nx.sqrt()
 
@@ -165,7 +167,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     end)
   end
 
-  defp get_patch(x_elem, y_elem, v, max) do
+  defp get_patch(x_elem, y_elem, v, max) when is_number(x_elem) and is_number(y_elem) do
     %{x: x, y: y} =
       Enum.reduce_while(0..15, %{x: "", y: ""}, fn j, acc ->
         if acc.x != "" and acc.y != "" do
@@ -180,15 +182,29 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         end
       end)
 
+    # Default to "0" if no digit was found
+    x = if x == "", do: "0", else: x
+    y = if y == "", do: "0", else: y
+
     "#{x}#{y}"
   end
 
-  defp get_digit(acc, coord_name, coord, digit_index, max, v)
-       when coord >= max - v * (digit_index + 1.0) and coord <= max - v * digit_index do
-    Map.put(acc, coord_name, Enum.at(@digits, digit_index))
+  # Handle NaN values
+  defp get_patch(_x_elem, _y_elem, _v, _max) do
+    Logger.warning("Error when calculating network patch, coordinates is NaN")
+    "00"
   end
 
-  defp get_digit(acc, _, _, _, _, _), do: acc
+  defp get_digit(acc, coord_name, coord, digit_index, max, v) do
+    lower_bound = max - v * (digit_index + 1.0)
+    upper_bound = max - v * digit_index
+
+    if coord >= lower_bound and coord <= upper_bound do
+      Map.put(acc, coord_name, Enum.at(@digits, digit_index))
+    else
+      acc
+    end
+  end
 
   @doc """
   Fetch remotely the network stats for a given summary time
