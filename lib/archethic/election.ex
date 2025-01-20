@@ -93,27 +93,27 @@ defmodule Archethic.Election do
       ...> |> Election.validation_nodes(
       ...>   "daily_nonce_proof",
       ...>   [
-      ...>     %Node{last_public_key: "node1", geo_patch: "AAA"},
-      ...>     %Node{last_public_key: "node2", geo_patch: "DEF"},
-      ...>     %Node{last_public_key: "node3", geo_patch: "AA0"},
-      ...>     %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>     %Node{last_public_key: "node5", geo_patch: "F10"},
-      ...>     %Node{last_public_key: "node6", geo_patch: "ECA"}
+      ...>     %Node{first_public_key: "node1", geo_patch: "AAA"},
+      ...>     %Node{first_public_key: "node2", geo_patch: "DEF"},
+      ...>     %Node{first_public_key: "node3", geo_patch: "AA0"},
+      ...>     %Node{first_public_key: "node4", geo_patch: "3AC"},
+      ...>     %Node{first_public_key: "node5", geo_patch: "F10"},
+      ...>     %Node{first_public_key: "node6", geo_patch: "ECA"}
       ...>   ],
       ...>   [
-      ...>     %Node{last_public_key: "node10", geo_patch: "AAA"},
-      ...>     %Node{last_public_key: "node11", geo_patch: "DEF"},
-      ...>     %Node{last_public_key: "node13", geo_patch: "AA0"},
-      ...>     %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>     %Node{last_public_key: "node8", geo_patch: "F10"},
-      ...>     %Node{last_public_key: "node9", geo_patch: "ECA"}
+      ...>     %Node{first_public_key: "node10", geo_patch: "AAA"},
+      ...>     %Node{first_public_key: "node11", geo_patch: "DEF"},
+      ...>     %Node{first_public_key: "node13", geo_patch: "AA0"},
+      ...>     %Node{first_public_key: "node4", geo_patch: "3AC"},
+      ...>     %Node{first_public_key: "node8", geo_patch: "F10"},
+      ...>     %Node{first_public_key: "node9", geo_patch: "ECA"}
       ...>   ],
       ...>   %ValidationConstraints{validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end}
       ...> )
       [
-        %Node{last_public_key: "node1", geo_patch: "AAA"},
-        %Node{last_public_key: "node2", geo_patch: "DEF"},
-        %Node{last_public_key: "node6", geo_patch: "ECA"}
+        %Node{first_public_key: "node1", geo_patch: "AAA"},
+        %Node{first_public_key: "node2", geo_patch: "DEF"},
+        %Node{first_public_key: "node6", geo_patch: "ECA"}
       ]
   """
   @spec validation_nodes(
@@ -196,11 +196,11 @@ defmodule Archethic.Election do
   end
 
   defp node_disqualified?(
-         %Node{last_public_key: last_public_key, geo_patch: geo_patch},
+         %Node{first_public_key: first_public_key, geo_patch: geo_patch},
          storage_nodes,
          %{zones: zones}
        ) do
-    Utils.key_in_node_list?(storage_nodes, last_public_key) or
+    Utils.key_in_node_list?(storage_nodes, first_public_key) or
       MapSet.member?(zones, String.first(geo_patch))
   end
 
@@ -211,7 +211,7 @@ defmodule Archethic.Election do
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed, :last_public_key)
+    sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, %{
@@ -281,7 +281,7 @@ defmodule Archethic.Election do
   def storage_nodes_sorted_by_address(genesis_address, sorting_address, nodes, constraints) do
     genesis_address
     |> storage_nodes(nodes, constraints)
-    |> sort_nodes_by_key_rotation(genesis_address, sorting_address, :first_public_key)
+    |> sort_nodes_by_key_rotation(genesis_address, sorting_address)
   end
 
   @doc """
@@ -325,7 +325,7 @@ defmodule Archethic.Election do
 
     storage_nodes =
       nodes
-      |> sort_nodes_by_key_rotation(address, storage_nonce, :first_public_key)
+      |> sort_nodes_by_key_rotation(address, storage_nonce)
       |> Enum.reduce_while(
         %{
           nb_nodes: 0,
@@ -399,10 +399,9 @@ defmodule Archethic.Election do
   # Each node public key is rotated through a cryptographic operations involving
   # node public key, a nonce and a dynamic information such as transaction content or hash
   # This rotated key acts as sort mechanism to produce a fair node election
-  defp sort_nodes_by_key_rotation(nodes, hash, sorting_seed, key_to_use) do
+  defp sort_nodes_by_key_rotation(nodes, hash, sorting_seed) do
     nodes
-    |> Stream.map(fn node ->
-      <<_::8, _::8, public_key::binary>> = Map.get(node, key_to_use)
+    |> Stream.map(fn node = %Node{first_public_key: <<_::8, _::8, public_key::binary>>} ->
       rotated_key = :crypto.hash(:sha256, [public_key, hash, sorting_seed])
       {rotated_key, node}
     end)

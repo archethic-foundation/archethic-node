@@ -272,11 +272,8 @@ defmodule Archethic do
   # are more susceptible to failures.
   defp get_welcome_node_public_key(:node, key) do
     case P2P.get_node_info(key) do
-      {:error, _} ->
-        Crypto.last_node_public_key()
-
-      _ ->
-        key
+      {:error, _} -> Crypto.first_node_public_key()
+      _ -> key
     end
   end
 
