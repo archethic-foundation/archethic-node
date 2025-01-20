@@ -226,14 +226,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         recipients: recipients,
         signature: signature,
         error: error,
-        genesis_address: genesis_address
+        genesis_address: genesis_address,
+        protocol_version: protocol_version
       }) do
     %{
       timestamp: timestamp,
       proof_of_work: pow,
       proof_of_integrity: poi,
       proof_of_election: poe,
-      ledger_operations: LedgerOperations.to_map(ledger_operations),
+      ledger_operations: LedgerOperations.to_map(ledger_operations, protocol_version),
       recipients: recipients,
       signature: signature,
       error: error,

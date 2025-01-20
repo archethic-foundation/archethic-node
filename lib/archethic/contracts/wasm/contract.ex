@@ -89,12 +89,13 @@ defmodule Archethic.Contracts.WasmContract do
 
   defp get_state_from_tx(%Transaction{
          validation_stamp: %ValidationStamp{
+           protocol_version: protocol_version,
            ledger_operations: %LedgerOperations{unspent_outputs: utxos}
          }
        }) do
     case Enum.find(utxos, &(&1.type == :state)) do
       %UnspentOutput{encoded_payload: encoded_state} ->
-        {state, _rest} = State.deserialize(encoded_state)
+        {state, _rest} = State.deserialize(encoded_state, protocol_version)
         state
 
       nil ->
