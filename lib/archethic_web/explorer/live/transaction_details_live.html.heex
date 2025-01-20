@@ -237,6 +237,8 @@
                   &(&1.type == :state)
                 )
 
+              protocol_version = @transaction.validation_stamp.protocol_version
+
               state_bytes =
                 case state_utxo do
                   nil -> 0
@@ -261,7 +263,7 @@
                     class="language-json"
                     phx-hook="CodeViewer"
                   >
-                    <%= print_state(state_utxo) %>
+                    <%= print_state(state_utxo, protocol_version) %>
                   </pre>
                 <% end %>
               </div>
