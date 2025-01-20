@@ -29,7 +29,7 @@ Current implemented features:
 - Node election: heuristic validation and storage node selection
 - P2P: Inter-node communication, supervised connection to detect the P2P view of nodes in almost real-time
 - Transaction mining: ARCH consensus
-- Beacon chain: Maintains a global view of the network (transactions, P2P view) 
+- Beacon chain: Maintains a global view of the network (transactions, P2P view)
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
 - Embedded explorer leveraging sharding to retrieve information
 - Custom Binary protocol for data transmission
@@ -38,6 +38,51 @@ Current implemented features:
 - Tailored embedded database
 
 ## Running a node for development purpose
+
+### Using Elixir - MacOS specific setups
+
+On Apple Silicon architecture, you might encounter issues running nodes.
+
+Here is how to make it work.
+
+#### Install openssl using brew
+
+```sh
+brew install openssl@3
+```
+
+#### Install erlang using `asdf`
+
+```sh
+cd <project_directory>
+KERL_CONFIGURE_OPTIONS="--disable-jit --without-javac --without-wx --with-ssl=$(brew --prefix openssl@3)" asdf install
+```
+
+#### Locally update `exla` dependency
+
+Edit `mix.exs` and replace the following `deps` item :
+
+```elixir
+      {:exla, "~> 0.5"},
+```
+
+by
+
+```elixir
+      {:exla, "~> 0.5.3"},
+```
+
+Then, install dependencies as usual :
+
+```sh
+mix deps.get
+```
+
+#### 🎉 You can run the node as usual
+
+```sh
+iex -S mix
+```
 
 ### Using Elixir
 
@@ -54,7 +99,7 @@ Requirements:
 Platforms supported:
 
 - Linux (Ubuntu 18.04)
-- Mac OS X
+- Mac OS X ([See specific setups](#using-elixir---macos-specific-setups))
 
 At first, clone the repository:
 
@@ -88,6 +133,7 @@ make clean
 ```
 
 To start mutiple node, you need to update some environment variables:
+
 ```bash
 # Start the first node
 iex -S mix
@@ -125,6 +171,7 @@ docker compose up node3
 ```
 
 To start all nodes at the same time:
+
 ```bash
 docker compose up
 ```
