@@ -3,6 +3,7 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.UTXO
   alias Archethic.BeaconChain
   alias Archethic.Crypto
@@ -331,11 +332,29 @@ defmodule Archethic do
   def get_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
       when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
              is_integer(limit) and limit >= 0 do
+    get_versioned_transaction_inputs(address, paging_offset, limit)
+    |> VersionedTransactionInput.unwrap_inputs()
+  end
+
+  @doc """
+  Request to fetch the versioned inputs for a transaction address from the closest nodes
+  """
+  @spec get_versioned_transaction_inputs(
+          address :: Crypto.prepended_hash(),
+          paging_offset :: non_neg_integer(),
+          limit :: non_neg_integer()
+        ) ::
+          list(VersionedTransactionInput.t())
+  def get_versioned_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
+      when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
+             is_integer(limit) and limit >= 0 do
     case Archethic.fetch_genesis_address(address) do
       {:ok, genesis_address} ->
         genesis_inputs_task =
           Task.async(fn ->
-            genesis_address |> get_unspent_outputs() |> Enum.map(&TransactionInput.from_utxo/1)
+            genesis_address
+            |> get_versioned_unspent_outputs()
+            |> Enum.map(&VersionedTransactionInput.from_utxo/1)
           end)
 
         if address == genesis_address do
@@ -362,8 +381,7 @@ defmodule Archethic do
 
         first_address
         |> TransactionChain.fetch_inputs(storage_nodes, paging_offset, limit)
-        |> Enum.map(& &1.input)
-        |> Enum.map(&TransactionInput.set_spent(&1, genesis_inputs))
+        |> Enum.map(&VersionedTransactionInput.set_spent(&1, genesis_inputs))
 
       _ ->
         Task.await(genesis_inputs_task)
@@ -382,8 +400,7 @@ defmodule Archethic do
 
         next_address
         |> TransactionChain.fetch_inputs(storage_nodes, paging_offset, limit)
-        |> Enum.map(& &1.input)
-        |> Enum.map(&TransactionInput.set_spent(&1, genesis_inputs))
+        |> Enum.map(&VersionedTransactionInput.set_spent(&1, genesis_inputs))
 
       _ ->
         Task.await(genesis_inputs_task)
@@ -399,6 +416,19 @@ defmodule Archethic do
           limit :: non_neg_integer()
         ) :: list(UnspentOutput.t())
   def get_unspent_outputs(address, paging_offset \\ nil, limit \\ 0) do
+    get_versioned_unspent_outputs(address, paging_offset, limit)
+    |> VersionedUnspentOutput.unwrap_unspent_outputs()
+  end
+
+  @doc """
+  Request to fetch the versioned unspent outputs for a transaction address from the closest nodes
+  """
+  @spec get_versioned_unspent_outputs(
+          address :: Crypto.prepended_hash(),
+          paging_offset :: Crypto.sha256() | nil,
+          limit :: non_neg_integer()
+        ) :: list(VersionedUnspentOutput.t())
+  def get_versioned_unspent_outputs(address, paging_offset \\ nil, limit \\ 0) do
     previous_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     nodes =
@@ -408,7 +438,6 @@ defmodule Archethic do
 
     address
     |> TransactionChain.fetch_unspent_outputs(nodes, paging_offset: paging_offset, limit: limit)
-    |> VersionedUnspentOutput.unwrap_unspent_outputs()
   end
 
   @doc """

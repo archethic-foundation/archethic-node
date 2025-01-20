@@ -14,8 +14,14 @@ defmodule Archethic.ContractsTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
+
   alias Archethic.ContractFactory
   alias Archethic.TransactionFactory
+
+  import ArchethicCase
+  import Mox
 
   @moduletag capture_log: true
 
@@ -686,17 +692,30 @@ defmodule Archethic.ContractsTest do
     end
 
     test "should fail if the state is too big" do
-      str = :crypto.strong_rand_bytes(1024) |> Base.encode16()
+      add_and_connect_nodes(2)
+
+      tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetGenesisAddress{}, _ ->
+          {:ok,
+           %GenesisAddress{
+             address: :crypto.strong_rand_bytes(4_096),
+             timestamp: DateTime.utc_now()
+           }}
+      end)
 
       code = """
-        @version 1
-        actions triggered_by: datetime, at: 0 do
-          str = ""
-          for i in 0..1638 do
-            str = "\#{str}#{str}"
-          end
-          State.set("key", str)
+      @version 1
+      actions triggered_by: datetime, at: 0 do
+        str = ""
+        for i in 0..768 do
+           random_address = Chain.get_genesis_address("#{Base.encode16(tx_address)}")
+           str = "\#{str}\#{random_address}"
         end
+        State.set("key", str)
+      end
 
       """
 

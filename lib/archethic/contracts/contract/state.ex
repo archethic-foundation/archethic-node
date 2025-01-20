@@ -3,6 +3,9 @@ defmodule Archethic.Contracts.Contract.State do
   Module to manipulate the contract state
   """
   alias Archethic.Utils.TypedEncoding
+  alias Archethic.Utils
+  alias Archethic.Utils.VarInt
+  alias Archethic.Mining
 
   # 3 MB
   @max_compressed_state_size 3 * 1024 * 1024
@@ -22,14 +25,40 @@ defmodule Archethic.Contracts.Contract.State do
   @doc """
   Serialize the given state
   """
-  @spec serialize(t()) :: encoded()
-  def serialize(state), do: TypedEncoding.serialize(state, :compact)
+  @spec serialize(state :: t(), protocol_version :: pos_integer()) :: encoded()
+  def serialize(state, protocol_version \\ Mining.protocol_version())
+
+  def serialize(state, protocol_version) when protocol_version < 9,
+    do: TypedEncoding.serialize(state, :compact)
+
+  def serialize(state, _protocol_version) do
+    encoded_payload =
+      TypedEncoding.serialize(state, :compact)
+      |> Utils.wrap_binary()
+      |> :zlib.zip()
+
+    encoded_payload_size = encoded_payload |> byte_size() |> VarInt.from_value()
+
+    <<encoded_payload_size::binary, encoded_payload::binary>>
+  end
 
   @doc """
   Deserialize the state
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(bitsting), do: TypedEncoding.deserialize(bitsting, :compact)
+  @spec deserialize(bitstring :: bitstring(), protocol_version :: pos_integer()) ::
+          {t(), bitstring()}
+  def deserialize(bitstring, protocol_version) when protocol_version < 9,
+    do: TypedEncoding.deserialize(bitstring, :compact)
+
+  def deserialize(bitstring, _protocol_version) do
+    {encoded_payload_size, rest} = VarInt.get_value(bitstring)
+
+    <<encoded_payload::binary-size(encoded_payload_size), rest::bitstring>> = rest
+
+    {state, _} = :zlib.unzip(encoded_payload) |> TypedEncoding.deserialize(:compact)
+
+    {state, rest}
+  end
 
   @doc """
   Return a valid JSON of the given state

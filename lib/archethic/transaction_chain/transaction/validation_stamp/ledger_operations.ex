@@ -191,16 +191,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{
-        transaction_movements: transaction_movements,
-        unspent_outputs: unspent_outputs,
-        fee: fee,
-        consumed_inputs: consumed_inputs
-      }) do
+  @spec to_map(t(), protocol_version :: pos_integer()) :: map()
+  def to_map(
+        %__MODULE__{
+          transaction_movements: transaction_movements,
+          unspent_outputs: unspent_outputs,
+          fee: fee,
+          consumed_inputs: consumed_inputs
+        },
+        protocol_version
+      ) do
     %{
       transaction_movements: Enum.map(transaction_movements, &TransactionMovement.to_map/1),
-      unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map/1),
+      unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map(&1, protocol_version)),
       fee: fee,
       consumed_inputs: Enum.map(consumed_inputs, &VersionedUnspentOutput.to_map/1)
     }
