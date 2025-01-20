@@ -668,6 +668,7 @@ defmodule Archethic.Contracts do
         %WasmContract{module: module},
         transaction = %Transaction{
           validation_stamp: %ValidationStamp{
+            protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
               unspent_outputs: next_unspent_outputs
             }
@@ -685,7 +686,7 @@ defmodule Archethic.Contracts do
             %{}
 
           %UnspentOutput{encoded_payload: encoded_payload} ->
-            {state, _} = State.deserialize(encoded_payload)
+            {state, _} = State.deserialize(encoded_payload, protocol_version)
             state
         end
 

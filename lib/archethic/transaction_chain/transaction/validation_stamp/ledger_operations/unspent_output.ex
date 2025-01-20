@@ -262,7 +262,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   type: :UCO,
       ...>   timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...> }
-      ...> |> UnspentOutput.to_map()
+      ...> |> UnspentOutput.to_map(9)
       %{
         from:
           <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159,
@@ -282,7 +282,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...> }
-      ...> |> UnspentOutput.to_map()
+      ...> |> UnspentOutput.to_map(9)
       %{
         from:
           <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159,
@@ -296,13 +296,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: nil
       }
   """
-  @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{
-        from: from,
-        amount: amount,
-        type: :UCO,
-        timestamp: timestamp
-      }) do
+  @spec to_map(t(), protocol_version :: pos_integer()) :: map()
+  def to_map(
+        %__MODULE__{
+          from: from,
+          amount: amount,
+          type: :UCO,
+          timestamp: timestamp
+        },
+        _protocol_version
+      ) do
     %{
       from: from,
       amount: amount,
@@ -311,12 +314,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  def to_map(%__MODULE__{
-        from: from,
-        amount: amount,
-        type: {:token, token_address, token_id},
-        timestamp: timestamp
-      }) do
+  def to_map(
+        %__MODULE__{
+          from: from,
+          amount: amount,
+          type: {:token, token_address, token_id},
+          timestamp: timestamp
+        },
+        _protocol_version
+      ) do
     %{
       from: from,
       amount: amount,
@@ -327,25 +333,31 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  def to_map(%__MODULE__{
-        from: from,
-        type: :state,
-        encoded_payload: encoded_payload,
-        timestamp: timestamp
-      }) do
+  def to_map(
+        %__MODULE__{
+          from: from,
+          type: :state,
+          encoded_payload: encoded_payload,
+          timestamp: timestamp
+        },
+        protocol_version
+      ) do
     %{
       from: from,
       type: "state",
-      state: State.deserialize(encoded_payload) |> elem(0),
+      state: State.deserialize(encoded_payload, protocol_version) |> elem(0),
       timestamp: timestamp
     }
   end
 
-  def to_map(%__MODULE__{
-        from: from,
-        type: :call,
-        timestamp: timestamp
-      }) do
+  def to_map(
+        %__MODULE__{
+          from: from,
+          type: :call,
+          timestamp: timestamp
+        },
+        _protocol_version
+      ) do
     %{
       from: from,
       type: "call",
