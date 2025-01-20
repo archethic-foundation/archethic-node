@@ -389,14 +389,16 @@ defmodule Archethic.Replication do
   defp stream_previous_chain(tx, genesis_address, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
-    if TransactionChain.transaction_exists?(previous_address),
-      do: [],
-      else:
-        TransactionContext.stream_transaction_chain(
-          genesis_address,
-          previous_address,
-          download_nodes
-        )
+    if previous_address == genesis_address or
+         TransactionChain.transaction_exists?(previous_address) do
+      []
+    else
+      TransactionContext.stream_transaction_chain(
+        genesis_address,
+        previous_address,
+        download_nodes
+      )
+    end
   end
 
   @doc """
