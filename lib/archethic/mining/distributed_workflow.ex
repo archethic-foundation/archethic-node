@@ -256,7 +256,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
-    [coordinator_node = %Node{last_public_key: coordinator_key} | cross_validation_nodes] =
+    [coordinator_node = %Node{first_public_key: coordinator_key} | cross_validation_nodes] =
       validation_nodes
 
     context =
@@ -873,7 +873,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validation_nodes =
       [coordinator_node | cross_validation_nodes]
       |> P2P.distinct_nodes()
-      |> Enum.reject(&(&1.last_public_key == node_public_key))
+      |> Enum.reject(&(&1.first_public_key == node_public_key))
 
     P2P.broadcast_message(validation_nodes, %ReplicationError{
       address: tx.address,
@@ -940,7 +940,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           |> Map.put(:cross_validation_nodes, next_cross_validation_nodes)
           |> Map.put(:cross_validation_nodes_confirmation, <<0::size(nb_cross_validation_nodes)>>)
 
-        if next_coordinator.last_public_key == node_public_key do
+        if next_coordinator.first_public_key == node_public_key do
           {:next_state, :coordinator, %{data | context: new_context}}
         else
           actions = [
@@ -1067,7 +1067,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       address: tx_address,
       utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
       validation_node_public_key: node_public_key,
-      previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
+      previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.first_public_key),
       chain_storage_nodes_view: chain_storage_nodes_view,
       beacon_storage_nodes_view: beacon_storage_nodes_view,
       io_storage_nodes_view: io_storage_nodes_view
@@ -1115,7 +1115,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     nodes =
       [coordinator_node | cross_validation_nodes]
       |> P2P.distinct_nodes()
-      |> Enum.reject(&(&1.last_public_key == Crypto.last_node_public_key()))
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     Logger.info(
       "Send cross validation stamps to #{Enum.map_join(nodes, ", ", &Node.endpoint/1)}",
@@ -1173,7 +1173,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       validation_nodes =
         [coordinator_node | cross_validation_nodes]
         |> P2P.distinct_nodes()
-        |> Enum.reject(&(&1.last_public_key == node_public_key))
+        |> Enum.reject(&(&1.first_public_key == node_public_key))
 
       Logger.info(
         "Send replication validation message to validation nodes: #{Enum.map_join(validation_nodes, ",", &Node.endpoint/1)}",
