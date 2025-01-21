@@ -7,7 +7,7 @@ defmodule Archethic.P2P.Message.StartMining do
   @enforce_keys [
     :transaction,
     :welcome_node_public_key,
-    :validation_node_public_keys,
+    :synchronization_node_public_keys,
     :network_chains_view_hash,
     :p2p_view_hash,
     :ref_timestamp
@@ -15,7 +15,7 @@ defmodule Archethic.P2P.Message.StartMining do
   defstruct [
     :transaction,
     :welcome_node_public_key,
-    :validation_node_public_keys,
+    :synchronization_node_public_keys,
     :network_chains_view_hash,
     :p2p_view_hash,
     :contract_context,
@@ -34,15 +34,13 @@ defmodule Archethic.P2P.Message.StartMining do
 
   require Logger
 
-  @ref_timestamp_drift Application.compile_env!(:archethic, [
-                         Archethic.Mining,
-                         :start_mining_message_drift
-                       ])
+  @ref_timestamp_drift :archethic
+                       |> Application.compile_env!([Archethic.Mining, :start_mining_message_drift])
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
           welcome_node_public_key: Crypto.key(),
-          validation_node_public_keys: list(Crypto.key()),
+          synchronization_node_public_keys: list(Crypto.key()),
           network_chains_view_hash: binary(),
           p2p_view_hash: binary(),
           contract_context: nil | Contract.Context.t(),
@@ -54,7 +52,7 @@ defmodule Archethic.P2P.Message.StartMining do
         %__MODULE__{
           transaction: tx = %Transaction{},
           welcome_node_public_key: welcome_node_public_key,
-          validation_node_public_keys: validation_nodes,
+          synchronization_node_public_keys: synchronization_nodes,
           network_chains_view_hash: network_chains_view_hash,
           p2p_view_hash: p2p_view_hash,
           contract_context: contract_context,
@@ -62,17 +60,19 @@ defmodule Archethic.P2P.Message.StartMining do
         },
         _
       ) do
+    validation_nodes = Mining.get_validation_nodes(tx, ref_timestamp)
+
     with :ok <- check_ref_timestamp(ref_timestamp),
          :ok <- check_synchronization(network_chains_view_hash, p2p_view_hash),
-         :ok <- check_valid_election(tx, validation_nodes, ref_timestamp),
-         :ok <- check_current_node_is_elected(validation_nodes),
+         :ok <- check_valid_synchronization_nodes(synchronization_nodes, validation_nodes),
+         :ok <- check_current_node_is_elected(synchronization_nodes),
          :ok <- check_not_already_mining(tx.address),
          :ok <- Mining.request_chain_lock(tx) do
       {:ok, _} =
         Mining.start(
           tx,
           welcome_node_public_key,
-          validation_nodes,
+          synchronization_nodes,
           contract_context,
           ref_timestamp
         )
@@ -83,8 +83,8 @@ defmodule Archethic.P2P.Message.StartMining do
     end
   end
 
-  defp get_response(tx, :invalid_validation_nodes_election) do
-    Logger.error("Invalid validation node election",
+  defp get_response(tx, :invalid_synchronization_nodes_election) do
+    Logger.error("Invalid synchronization node election",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
@@ -141,7 +141,7 @@ defmodule Archethic.P2P.Message.StartMining do
   def serialize(%__MODULE__{
         transaction: tx,
         welcome_node_public_key: welcome_node_public_key,
-        validation_node_public_keys: validation_node_public_keys,
+        synchronization_node_public_keys: synchronization_node_public_keys,
         network_chains_view_hash: network_chains_view_hash,
         p2p_view_hash: p2p_view_hash,
         contract_context: contract_context,
@@ -154,8 +154,8 @@ defmodule Archethic.P2P.Message.StartMining do
       end
 
     <<Transaction.serialize(tx)::bitstring, welcome_node_public_key::binary,
-      length(validation_node_public_keys)::8,
-      :erlang.list_to_binary(validation_node_public_keys)::binary,
+      length(synchronization_node_public_keys)::8,
+      :erlang.list_to_binary(synchronization_node_public_keys)::binary,
       network_chains_view_hash::binary, p2p_view_hash::binary,
       serialized_contract_context::bitstring, DateTime.to_unix(ref_timestamp, :millisecond)::64>>
   end
@@ -164,11 +164,11 @@ defmodule Archethic.P2P.Message.StartMining do
   def deserialize(<<rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
 
-    {welcome_node_public_key, <<nb_validation_nodes::8, rest::bitstring>>} =
+    {welcome_node_public_key, <<nb_synchronization_nodes::8, rest::bitstring>>} =
       Utils.deserialize_public_key(rest)
 
-    {validation_node_public_keys, rest} =
-      Utils.deserialize_public_key_list(rest, nb_validation_nodes, [])
+    {synchronization_node_public_keys, rest} =
+      Utils.deserialize_public_key_list(rest, nb_synchronization_nodes, [])
 
     <<network_chains_view_hash::binary-size(32), p2p_view_hash::binary-size(32), rest::bitstring>> =
       rest
@@ -182,7 +182,7 @@ defmodule Archethic.P2P.Message.StartMining do
     {%__MODULE__{
        transaction: tx,
        welcome_node_public_key: welcome_node_public_key,
-       validation_node_public_keys: validation_node_public_keys,
+       synchronization_node_public_keys: synchronization_node_public_keys,
        network_chains_view_hash: network_chains_view_hash,
        p2p_view_hash: p2p_view_hash,
        contract_context: contract_context,
@@ -204,20 +204,18 @@ defmodule Archethic.P2P.Message.StartMining do
     end
   end
 
-  defp check_current_node_is_elected(validation_nodes) do
-    if Enum.any?(validation_nodes, &(&1 == Crypto.last_node_public_key())) do
-      :ok
-    else
-      {:error, :current_node_not_elected}
-    end
+  defp check_current_node_is_elected(synchronization_nodes) do
+    node_key = Crypto.first_node_public_key()
+
+    if Enum.any?(synchronization_nodes, &(&1 == node_key)),
+      do: :ok,
+      else: {:error, :current_node_not_elected}
   end
 
-  defp check_valid_election(tx, validation_nodes, ref_timestamp) do
-    if Mining.valid_election?(tx, validation_nodes, ref_timestamp) do
-      :ok
-    else
-      {:error, :invalid_validation_nodes_election}
-    end
+  defp check_valid_synchronization_nodes(synchronization_nodes, validation_nodes) do
+    if Enum.all?(synchronization_nodes, &Utils.key_in_node_list?(validation_nodes, &1)),
+      do: :ok,
+      else: {:error, :invalid_synchronization_nodes_election}
   end
 
   defp check_synchronization(network_chains_view_hash, p2p_view_hash) do

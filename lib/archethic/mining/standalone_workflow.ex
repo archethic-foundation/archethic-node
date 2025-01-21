@@ -160,7 +160,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   defp validate(context = %ValidationContext{}) do
     context
-    |> ValidationContext.confirm_validation_node(Crypto.last_node_public_key())
+    |> ValidationContext.confirm_validation_node(Crypto.first_node_public_key())
     |> ValidationContext.create_validation_stamp()
     |> ValidationContext.create_replication_tree()
     |> ValidationContext.cross_validate()
@@ -247,10 +247,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     message = %ValidationError{address: tx_address, error: error}
 
     Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
-      P2P.send_message(
-        Crypto.last_node_public_key(),
-        message
-      )
+      P2P.send_message(Crypto.first_node_public_key(), message)
     end)
 
     # Notify storage nodes to unlock chain

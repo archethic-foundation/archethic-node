@@ -313,7 +313,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert io_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
-      assert <<0::1, 1::1>> == confirmed_validation_nodes
+      assert <<0::1, 0::1, 1::1>> == confirmed_validation_nodes
     end
 
     test "aggregate context and create validation stamp when enough context are retrieved", %{

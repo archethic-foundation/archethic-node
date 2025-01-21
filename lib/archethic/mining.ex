@@ -74,7 +74,7 @@ defmodule Archethic.Mining do
       transaction: tx,
       welcome_node: P2P.get_node_info!(welcome_node_public_key),
       validation_nodes: Enum.map(validation_node_public_keys, &P2P.get_node_info!/1),
-      node_public_key: Crypto.last_node_public_key(),
+      node_public_key: Crypto.first_node_public_key(),
       contract_context: contract_context,
       ref_timestamp: ref_timestamp
     })

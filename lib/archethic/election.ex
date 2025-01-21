@@ -18,6 +18,8 @@ defmodule Archethic.Election do
 
   alias Archethic.Utils
 
+  @nb_synchronization_nodes 4
+
   @doc """
   Create a seed to sort the validation nodes. This will produce a proof for the election
   """
@@ -91,27 +93,27 @@ defmodule Archethic.Election do
       ...> |> Election.validation_nodes(
       ...>   "daily_nonce_proof",
       ...>   [
-      ...>     %Node{last_public_key: "node1", geo_patch: "AAA"},
-      ...>     %Node{last_public_key: "node2", geo_patch: "DEF"},
-      ...>     %Node{last_public_key: "node3", geo_patch: "AA0"},
-      ...>     %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>     %Node{last_public_key: "node5", geo_patch: "F10"},
-      ...>     %Node{last_public_key: "node6", geo_patch: "ECA"}
+      ...>     %Node{first_public_key: "node1", geo_patch: "AAA"},
+      ...>     %Node{first_public_key: "node2", geo_patch: "DEF"},
+      ...>     %Node{first_public_key: "node3", geo_patch: "AA0"},
+      ...>     %Node{first_public_key: "node4", geo_patch: "3AC"},
+      ...>     %Node{first_public_key: "node5", geo_patch: "F10"},
+      ...>     %Node{first_public_key: "node6", geo_patch: "ECA"}
       ...>   ],
       ...>   [
-      ...>     %Node{last_public_key: "node10", geo_patch: "AAA"},
-      ...>     %Node{last_public_key: "node11", geo_patch: "DEF"},
-      ...>     %Node{last_public_key: "node13", geo_patch: "AA0"},
-      ...>     %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>     %Node{last_public_key: "node8", geo_patch: "F10"},
-      ...>     %Node{last_public_key: "node9", geo_patch: "ECA"}
+      ...>     %Node{first_public_key: "node10", geo_patch: "AAA"},
+      ...>     %Node{first_public_key: "node11", geo_patch: "DEF"},
+      ...>     %Node{first_public_key: "node13", geo_patch: "AA0"},
+      ...>     %Node{first_public_key: "node4", geo_patch: "3AC"},
+      ...>     %Node{first_public_key: "node8", geo_patch: "F10"},
+      ...>     %Node{first_public_key: "node9", geo_patch: "ECA"}
       ...>   ],
-      ...>   %ValidationConstraints{validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end}
+      ...>   %ValidationConstraints{validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end}
       ...> )
       [
-        %Node{last_public_key: "node1", geo_patch: "AAA"},
-        %Node{last_public_key: "node2", geo_patch: "DEF"},
-        %Node{last_public_key: "node6", geo_patch: "ECA"}
+        %Node{first_public_key: "node1", geo_patch: "AAA"},
+        %Node{first_public_key: "node2", geo_patch: "DEF"},
+        %Node{first_public_key: "node6", geo_patch: "ECA"}
       ]
   """
   @spec validation_nodes(
@@ -135,86 +137,71 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
-    # Ensure there is never more validation nodes than storage nodes
-    nb_validations =
-      min(length(storage_nodes), validation_number_fun.(tx, length(authorized_nodes)))
-
+    nb_validations = validation_number_fun.(authorized_nodes)
     min_geo_patch = min_geo_patch_fun.()
 
-    nodes =
-      if length(authorized_nodes) <= nb_validations do
-        authorized_nodes
-      else
-        do_validation_node_election(
-          authorized_nodes,
-          tx,
-          sorting_seed,
-          nb_validations,
-          min_geo_patch,
-          storage_nodes
-        )
-      end
+    authorized_nodes
+    |> sort_validation_nodes(tx, sorting_seed)
+    |> do_validation_node_election(nb_validations, min_geo_patch, storage_nodes)
+    |> tap(fn validation_nodes ->
+      :telemetry.execute(
+        [:archethic, :election, :validation_nodes],
+        %{duration: System.monotonic_time() - start},
+        %{nb_nodes: length(validation_nodes)}
+      )
 
-    :telemetry.execute(
-      [:archethic, :election, :validation_nodes],
-      %{
-        duration: System.monotonic_time() - start
-      },
-      %{nb_nodes: length(nodes)}
-    )
-
-    nodes
+      validation_nodes
+    end)
   end
 
+  defp do_validation_node_election(sorted_nodes, nb_validations, _, _)
+       when length(sorted_nodes) <= nb_validations,
+       do: sorted_nodes
+
   defp do_validation_node_election(
-         authorized_nodes,
-         tx,
-         sorting_seed,
+         sorted_nodes,
          nb_validations,
          min_geo_patch,
          storage_nodes
        ) do
-    sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
-
+    # Discard node in the first place if it's already a storage node and
+    # if another node already present in the geo zone to ensure geo distribution of validations
+    # Then if requires the node may be elected during a refining operation
+    # to ensure the require number of validations
     Enum.reduce_while(
       sorted_nodes,
-      %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
-      fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
-        if validation_constraints_satisfied?(
-             nb_validations,
-             min_geo_patch,
-             acc.nb_nodes,
-             acc.zones
-           ) do
-          {:halt, acc}
-        else
-          # Discard node in the first place if it's already a storage node and
-          # if another node already present in the geo zone to ensure geo distribution of validations
-          # Then if requires the node may be elected during a refining operation
-          # to ensure the require number of validations
+      %{nodes: [], nb_nodes: 0, zones: MapSet.new()},
+      fn node = %Node{geo_patch: geo_patch}, acc ->
+        cond do
+          validation_constraints_satisfied?(nb_validations, min_geo_patch, acc) ->
+            {:halt, acc}
 
-          cond do
-            Utils.key_in_node_list?(storage_nodes, last_public_key) ->
-              {:cont, acc}
+          node_disqualified?(node, storage_nodes, acc) ->
+            {:cont, acc}
 
-            MapSet.member?(acc.zones, String.first(geo_patch)) ->
-              {:cont, acc}
+          true ->
+            new_acc =
+              acc
+              |> Map.update!(:nodes, &[node | &1])
+              |> Map.update!(:nb_nodes, &(&1 + 1))
+              |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
 
-            true ->
-              new_acc =
-                acc
-                |> Map.update!(:nb_nodes, &(&1 + 1))
-                |> Map.update!(:nodes, &[node | &1])
-                |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
-
-              {:cont, new_acc}
-          end
+            {:cont, new_acc}
         end
       end
     )
-    |> Map.get(:nodes)
+    |> Map.get(:nodes, [])
     |> Enum.reverse()
     |> refine_necessary_nodes(sorted_nodes, nb_validations)
+  end
+
+  defp node_disqualified?(
+         %Node{first_public_key: first_public_key, geo_patch: geo_patch},
+         storage_nodes,
+         %{zones: zones}
+       ) do
+    Utils.key_in_node_list?(storage_nodes, first_public_key) or
+      MapSet.member?(zones, String.first(geo_patch))
   end
 
   defp sort_validation_nodes(node_list, tx, sorting_seed) do
@@ -224,10 +211,13 @@ defmodule Archethic.Election do
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed, :last_public_key)
+    sort_nodes_by_key_rotation(node_list, tx_hash, sorting_seed)
   end
 
-  defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
+  defp validation_constraints_satisfied?(nb_validations, min_geo_patch, %{
+         nb_nodes: nb_nodes,
+         zones: zones
+       }) do
     MapSet.size(zones) >= min_geo_patch and nb_nodes >= nb_validations
   end
 
@@ -238,6 +228,35 @@ defmodule Archethic.Election do
       selected_nodes ++ Enum.take(rest_nodes, nb_validations - length(selected_nodes))
     else
       selected_nodes
+    end
+  end
+
+  @doc """
+  Returns the synchronization nodes responsible to communicate with the rest of the validation nodes
+  We priorize nodes from differents geo path and sort patch by number of validation nodes in it
+  """
+  @spec get_synchronization_nodes(nodes :: list(Node.t())) :: list(Node.t())
+  def get_synchronization_nodes(nodes) when length(nodes) <= @nb_synchronization_nodes, do: nodes
+
+  def get_synchronization_nodes(nodes) do
+    grouped_nodes =
+      nodes
+      |> Enum.group_by(&String.first(&1.geo_patch))
+      |> Map.values()
+      |> Enum.sort_by(&length/1, :desc)
+
+    nb_different_patch = length(grouped_nodes)
+
+    if nb_different_patch >= @nb_synchronization_nodes do
+      grouped_nodes |> Enum.take(@nb_synchronization_nodes) |> Enum.map(&List.first/1)
+    else
+      nb_nodes_from_first_patch = 1 + (@nb_synchronization_nodes - nb_different_patch)
+      [first_patch_nodes | rest] = grouped_nodes
+      other_patch_nodes = Enum.map(rest, &List.first/1)
+
+      first_patch_nodes
+      |> Enum.take(nb_nodes_from_first_patch)
+      |> Enum.concat(other_patch_nodes)
     end
   end
 
@@ -262,7 +281,7 @@ defmodule Archethic.Election do
   def storage_nodes_sorted_by_address(genesis_address, sorting_address, nodes, constraints) do
     genesis_address
     |> storage_nodes(nodes, constraints)
-    |> sort_nodes_by_key_rotation(genesis_address, sorting_address, :first_public_key)
+    |> sort_nodes_by_key_rotation(genesis_address, sorting_address)
   end
 
   @doc """
@@ -306,7 +325,7 @@ defmodule Archethic.Election do
 
     storage_nodes =
       nodes
-      |> sort_nodes_by_key_rotation(address, storage_nonce, :first_public_key)
+      |> sort_nodes_by_key_rotation(address, storage_nonce)
       |> Enum.reduce_while(
         %{
           nb_nodes: 0,
@@ -380,10 +399,9 @@ defmodule Archethic.Election do
   # Each node public key is rotated through a cryptographic operations involving
   # node public key, a nonce and a dynamic information such as transaction content or hash
   # This rotated key acts as sort mechanism to produce a fair node election
-  defp sort_nodes_by_key_rotation(nodes, hash, sorting_seed, key_to_use) do
+  defp sort_nodes_by_key_rotation(nodes, hash, sorting_seed) do
     nodes
-    |> Stream.map(fn node ->
-      <<_::8, _::8, public_key::binary>> = Map.get(node, key_to_use)
+    |> Stream.map(fn node = %Node{first_public_key: <<_::8, _::8, public_key::binary>>} ->
       rotated_key = :crypto.hash(:sha256, [public_key, hash, sorting_seed])
       {rotated_key, node}
     end)
