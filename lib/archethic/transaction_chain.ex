@@ -1470,11 +1470,16 @@ defmodule Archethic.TransactionChain do
   @spec get_next_addresses(address :: binary(), limit :: non_neg_integer()) ::
           list({address :: binary(), timestamp :: DateTime.t()})
   def get_next_addresses(address, limit \\ 0) do
-    case get_transaction(address, validation_stamp: [:timestamp]) do
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+    case get_transaction(address, validation_stamp: [:genesis_address, :timestamp]) do
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           timestamp: address_timestamp,
+           genesis_address: genesis_address
+         }
+       }} ->
         addresses =
-          address
-          |> get_genesis_address()
+          genesis_address
           |> list_chain_addresses()
           |> Enum.filter(fn {_address, timestamp} ->
             DateTime.compare(timestamp, address_timestamp) == :gt

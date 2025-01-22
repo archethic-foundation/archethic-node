@@ -50,9 +50,15 @@ defmodule Archethic.SelfRepairTest do
     MockDB
     |> expect(:get_last_chain_address, fn "Alice2" -> {"Alice2", ~U[2022-11-27 00:10:00Z]} end)
     |> expect(:get_transaction, fn "Alice2", _, _ ->
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2022-11-27 00:10:00Z]}}}
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           genesis_address: "Alice0",
+           timestamp: ~U[2022-11-27 00:10:00Z]
+         }
+       }}
     end)
-    |> expect(:get_genesis_address, 2, fn "Alice2" -> "Alice0" end)
+    |> expect(:get_genesis_address, 1, fn "Alice2" -> "Alice0" end)
     |> expect(:list_chain_addresses, fn "Alice0" ->
       [
         {"Alice1", ~U[2022-11-27 00:09:00Z]},
