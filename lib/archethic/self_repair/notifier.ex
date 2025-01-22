@@ -118,32 +118,30 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
-    genesis_address = TransactionChain.get_genesis_address(address)
-
     address
     |> TransactionChain.get([
       :address,
-      validation_stamp: [ledger_operations: [:transaction_movements]]
+      validation_stamp: [:genesis_address, ledger_operations: [:transaction_movements]]
     ])
-    |> Stream.map(&get_previous_election(&1, prev_available_nodes, genesis_address))
+    |> Stream.map(&get_previous_election(&1, prev_available_nodes))
     |> Stream.filter(&storage_or_io_node?(&1, unavailable_nodes))
     |> Stream.filter(&notify?(&1))
     |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
     |> map_last_addresses_for_node()
-    |> notify_nodes(genesis_address)
+    |> notify_nodes()
   end
 
   defp get_previous_election(
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
+             genesis_address: genesis_address,
              protocol_version: protocol_version,
              ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
              recipients: recipients
            }
          },
-         prev_available_nodes,
-         genesis_address
+         prev_available_nodes
        ) do
     prev_storage_nodes =
       address
@@ -189,17 +187,18 @@ defmodule Archethic.SelfRepair.Notifier do
       |> Election.io_storage_nodes(prev_available_nodes)
       |> Enum.map(& &1.first_public_key)
 
-    {address, resolved_addresses, prev_storage_nodes, prev_io_nodes -- prev_storage_nodes}
+    {address, genesis_address, resolved_addresses, prev_storage_nodes,
+     prev_io_nodes -- prev_storage_nodes}
   end
 
-  defp storage_or_io_node?({_, _, prev_storage_nodes, prev_io_nodes}, unavailable_nodes) do
+  defp storage_or_io_node?({_, _, _, prev_storage_nodes, prev_io_nodes}, unavailable_nodes) do
     nodes = prev_storage_nodes ++ prev_io_nodes
     Enum.any?(unavailable_nodes, &Enum.member?(nodes, &1))
   end
 
   # Notify only if the current node is part of the previous storage / io nodes
   # to reduce number of messages
-  defp notify?({_, _, prev_storage_nodes, prev_io_nodes}) do
+  defp notify?({_, _, _, prev_storage_nodes, prev_io_nodes}) do
     Enum.member?(prev_storage_nodes ++ prev_io_nodes, Crypto.first_node_public_key())
   end
 
@@ -213,7 +212,7 @@ defmodule Archethic.SelfRepair.Notifier do
         ) ::
           {binary(), list(Crypto.key()), list(Crypto.key())}
   def new_storage_nodes(
-        {address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
+        {address, genesis_address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
         new_available_nodes
       ) do
     new_storage_nodes =
@@ -229,7 +228,7 @@ defmodule Archethic.SelfRepair.Notifier do
       |> Enum.map(& &1.first_public_key)
       |> Enum.reject(&Enum.member?(already_stored_nodes, &1))
 
-    {address, new_storage_nodes, new_io_nodes}
+    {address, genesis_address, new_storage_nodes, new_io_nodes}
   end
 
   @doc """
@@ -240,7 +239,7 @@ defmodule Archethic.SelfRepair.Notifier do
     Enum.reduce(
       stream,
       %{},
-      fn {address, new_storage_nodes, new_io_nodes}, acc ->
+      fn {address, genesis_address, new_storage_nodes, new_io_nodes}, acc ->
         acc =
           Enum.reduce(new_storage_nodes, acc, fn first_public_key, acc ->
             Map.update(
@@ -251,23 +250,37 @@ defmodule Archethic.SelfRepair.Notifier do
             )
           end)
 
-        Enum.reduce(new_io_nodes, acc, fn first_public_key, acc ->
-          Map.update(
+        acc =
+          Enum.reduce(new_io_nodes, acc, fn first_public_key, acc ->
+            Map.update(
+              acc,
+              first_public_key,
+              %{last_address: nil, io_addresses: [address]},
+              &Map.update(&1, :io_addresses, [address], fn addresses -> [address | addresses] end)
+            )
+          end)
+
+        Enum.reduce(Map.keys(acc), acc, fn first_public_key, acc ->
+          Map.update!(
             acc,
             first_public_key,
-            %{last_address: nil, io_addresses: [address]},
-            &Map.update(&1, :io_addresses, [address], fn addresses -> [address | addresses] end)
+            &Map.put(&1, :genesis_address, genesis_address)
           )
         end)
       end
     )
   end
 
-  defp notify_nodes(acc, genesis_address) do
+  defp notify_nodes(acc) do
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
       acc,
-      fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
+      fn {node_first_public_key,
+          %{
+            genesis_address: genesis_address,
+            last_address: last_address,
+            io_addresses: io_addresses
+          }} ->
         Logger.info(
           "Send Shard Repair message to #{Base.encode16(node_first_public_key)}" <>
             "with storage_address #{if last_address, do: Base.encode16(last_address), else: nil}, " <>

@@ -70,27 +70,31 @@ defmodule Archethic.SelfRepair.NotifierTest do
     prev_storage_nodes = ["node2", "node3"]
     new_available_nodes = [node1, node2, node3, node4]
 
-    assert {"Alice1", ["node4", "node1"], []} =
+    assert {"Alice1", "Alice0", ["node4", "node1"], []} =
              Notifier.new_storage_nodes(
-               {"Alice1", [], prev_storage_nodes, []},
+               {"Alice1", "Alice0", [], prev_storage_nodes, []},
                new_available_nodes
              )
   end
 
   test "map_last_address_for_node/1 should create a map with last address for each node" do
     tab = [
-      {"Alice1", ["node1"], ["node3"]},
-      {"Alice2", [], ["node1"]},
-      {"Alice3", ["node1"], ["node3"]},
-      {"Alice4", ["node4"], ["node2"]},
-      {"Alice5", ["node3"], []}
+      {"Alice1", "Alice0", ["node1"], ["node3"]},
+      {"Alice2", "Alice0", [], ["node1"]},
+      {"Alice3", "Alice0", ["node1"], ["node3"]},
+      {"Alice4", "Alice0", ["node4"], ["node2"]},
+      {"Alice5", "Alice0", ["node3"], []}
     ]
 
     expected = %{
-      "node1" => %{last_address: "Alice3", io_addresses: ["Alice2"]},
-      "node2" => %{last_address: nil, io_addresses: ["Alice4"]},
-      "node3" => %{last_address: "Alice5", io_addresses: ["Alice3", "Alice1"]},
-      "node4" => %{last_address: "Alice4", io_addresses: []}
+      "node1" => %{genesis_address: "Alice0", last_address: "Alice3", io_addresses: ["Alice2"]},
+      "node2" => %{genesis_address: "Alice0", last_address: nil, io_addresses: ["Alice4"]},
+      "node3" => %{
+        genesis_address: "Alice0",
+        last_address: "Alice5",
+        io_addresses: ["Alice3", "Alice1"]
+      },
+      "node4" => %{genesis_address: "Alice0", last_address: "Alice4", io_addresses: []}
     }
 
     assert ^expected = Notifier.map_last_addresses_for_node(tab)
@@ -148,18 +152,21 @@ defmodule Archethic.SelfRepair.NotifierTest do
           %Transaction{
             address: "Alice1",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           },
           %Transaction{
             address: "Alice2",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           },
           %Transaction{
             address: "Alice3",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           }
@@ -170,7 +177,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     MockClient
     |> stub(:send_message, fn
-      node, %ShardRepair{genesis_address: "Alice1", storage_address: "Alice2"}, _ ->
+      node, %ShardRepair{genesis_address: "Alice0", storage_address: "Alice2"}, _ ->
         if Enum.member?(new_possible_nodes, node.first_public_key) do
           send(me, :new_node)
         end
