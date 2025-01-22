@@ -13,10 +13,13 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.TransactionChain.TransactionData.Contract
+
   alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.WebSocket.Client, as: WSClient
 
   alias __MODULE__.Counter
+  alias __MODULE__.WasmCounter
   alias __MODULE__.Legacy
   alias __MODULE__.UcoAth
   alias __MODULE__.DeterministicBalance
@@ -45,6 +48,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     res = [
       {"DeterministicBalance", DeterministicBalance.play(storage_nonce_pubkey, endpoint)},
       {"Counter", Counter.play(storage_nonce_pubkey, endpoint)},
+      {"WasmCounter", WasmCounter.play(storage_nonce_pubkey, endpoint)},
       {"Legacy", Legacy.play(storage_nonce_pubkey, endpoint)},
       {"Dex", Dex.play(storage_nonce_pubkey, endpoint)},
       {"Throw", Throw.play(storage_nonce_pubkey, endpoint)},
@@ -89,6 +93,20 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     Logger.debug("DEPLOY: Deployed at #{Base.encode16(address)}")
 
     address
+  end
+
+  @doc """
+  Loads a Wasm smart contract from files
+  """
+  @spec read_wasm_contract(
+          bytecode_file :: binary(),
+          manifest_file :: binary()
+        ) :: Contract.t()
+  def read_wasm_contract(bytecode_file, manifest_file) do
+    %Contract{
+      bytecode: File.read!(bytecode_file) |> :zlib.zip(),
+      manifest: File.read!(manifest_file) |> Jason.decode!()
+    }
   end
 
   @doc """
@@ -205,7 +223,10 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         :ok
 
       calls ->
-        Logger.debug("Remaining calls #{length(calls)}")
+        Logger.debug(
+          "Remaining calls #{length(calls)} on contract #{Base.encode16(contract_address)}"
+        )
+
         Process.sleep(200)
         await_no_more_calls(contract_address, endpoint)
     end
