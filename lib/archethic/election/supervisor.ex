@@ -4,7 +4,6 @@ defmodule Archethic.Election.Supervisor do
   use Supervisor
 
   alias Archethic.Election.Constraints
-  alias Archethic.Election.HypergeometricDistribution
 
   alias Archethic.Utils
 
@@ -14,8 +13,7 @@ defmodule Archethic.Election.Supervisor do
 
   def init(_args) do
     optional_children = [
-      {Constraints, [], []},
-      {HypergeometricDistribution, [], []}
+      {Constraints, [], []}
     ]
 
     children = Utils.configurable_children(optional_children)
