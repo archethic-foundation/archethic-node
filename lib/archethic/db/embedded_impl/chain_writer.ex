@@ -36,21 +36,25 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   """
   @spec write_io_transaction(Transaction.t(), String.t()) :: :ok
   def write_io_transaction(tx = %Transaction{address: address}, db_path) do
-    start = System.monotonic_time()
+    if ChainIndex.transaction_exists?(tx.address, :io, db_path) do
+      {:error, :transaction_already_exists}
+    else
+      start = System.monotonic_time()
 
-    filename = io_path(db_path, address)
+      filename = io_path(db_path, address)
 
-    data = Encoding.encode(tx, storage_type: :io)
+      data = Encoding.encode(tx, storage_type: :io)
 
-    File.write!(
-      filename,
-      data,
-      [:exclusive, :binary]
-    )
+      File.write!(
+        filename,
+        data,
+        [:exclusive, :binary]
+      )
 
-    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-      query: "write_io_transaction"
-    })
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "write_io_transaction"
+      })
+    end
   end
 
   @doc """
@@ -154,23 +158,27 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   defp write_transaction(genesis_address, tx, db_path) do
-    start = System.monotonic_time()
+    if ChainIndex.transaction_exists?(tx.address, db_path) do
+      {:error, :transaction_already_exists}
+    else
+      start = System.monotonic_time()
 
-    filename = chain_path(db_path, genesis_address)
+      filename = chain_path(db_path, genesis_address)
 
-    data = Encoding.encode(tx)
+      data = Encoding.encode(tx)
 
-    File.write!(
-      filename,
-      data,
-      [:append, :binary]
-    )
+      File.write!(
+        filename,
+        data,
+        [:append, :binary]
+      )
 
-    index_transaction(tx, genesis_address, byte_size(data), db_path)
+      index_transaction(tx, genesis_address, byte_size(data), db_path)
 
-    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-      query: "write_transaction"
-    })
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "write_transaction"
+      })
+    end
   end
 
   defp index_transaction(

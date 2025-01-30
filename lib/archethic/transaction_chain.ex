@@ -1128,7 +1128,7 @@ defmodule Archethic.TransactionChain do
   Persist only one transaction
   """
   @spec write_transaction(transaction :: Transaction.t(), storage_location :: DB.storage_type()) ::
-          :ok
+          :ok | {:error, :reason}
   def write_transaction(
         tx = %Transaction{
           address: address,
