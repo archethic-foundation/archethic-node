@@ -1055,7 +1055,7 @@ defmodule Archethic.TransactionChain do
   Persist only one transaction
   """
   @spec write_transaction(transaction :: Transaction.t(), storage_location :: DB.storage_type()) ::
-          :ok
+          :ok | {:error, :transaction_already_exist}
   def write_transaction(
         tx = %Transaction{
           address: address,
@@ -1064,12 +1064,14 @@ defmodule Archethic.TransactionChain do
         storage_type \\ :chain
       ) do
     DB.write_transaction(tx, storage_type)
-    KOLedger.remove_transaction(address)
+    |> tap(fn _ ->
+      KOLedger.remove_transaction(address)
 
-    Logger.info("Transaction stored",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+      Logger.info("Transaction stored",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+    end)
   end
 
   @doc """
