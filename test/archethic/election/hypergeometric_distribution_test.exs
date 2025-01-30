@@ -7,8 +7,10 @@ defmodule Archethic.Election.HypergeometricDistributionTest do
   doctest HypergeometricDistribution
 
   property "run_simulation/1 is always < 200" do
+    params = HypergeometricDistribution.get_max_security_parameters()
+
     check all(nb_nodes <- positive_integer()) do
-      assert HypergeometricDistribution.run_simulation(nb_nodes) < 200
+      assert HypergeometricDistribution.run_simulation(nb_nodes, params) |> elem(0) < 200
     end
   end
 end
