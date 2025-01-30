@@ -7,22 +7,22 @@ defmodule Archethic.Election.ValidationConstraints do
 
   defstruct [
     :min_geo_patch,
-    :validation_number
+    :validation_numbers
   ]
 
   alias Archethic.Election.HypergeometricDistribution
-  alias Archethic.TransactionChain.Transaction
 
   @typedoc """
   Each validation constraints represent a function which will be executed during the election algorithms:
   - min_geo_patch: Require number of distinct geographic patch for the elected validation nodes.
   This property ensure the geographical security of the transaction validation by spliting
   the computation in many place on the world.
-  - validation_number: Require number of validation nodes for a given transaction.
+  - validation_numbers: Required number of validation nodes for a given transaction and the allowed
+  number of overboking nodes
   """
   @type t :: %__MODULE__{
           min_geo_patch: (() -> non_neg_integer()),
-          validation_number: (Transaction.t(), non_neg_integer() -> non_neg_integer())
+          validation_numbers: (pos_integer() -> {non_neg_integer(), non_neg_integer()})
         }
 
   def new(
@@ -31,7 +31,7 @@ defmodule Archethic.Election.ValidationConstraints do
       ) do
     %__MODULE__{
       min_geo_patch: min_geo_patch_fun,
-      validation_number: validation_number_fun
+      validation_numbers: validation_number_fun
     }
   end
 
@@ -44,10 +44,9 @@ defmodule Archethic.Election.ValidationConstraints do
   @doc """
   Run a simulation of the hypergeometric distribution based on a number of nodes
   """
-  @spec hypergeometric_distribution(nodes :: list(Node.t())) :: pos_integer()
-  def hypergeometric_distribution(nodes) when is_list(nodes) and length(nodes) >= 0 do
-    nodes
-    |> length()
-    |> HypergeometricDistribution.run_simulation()
+  @spec hypergeometric_distribution(nb_nodes :: pos_integer()) :: pos_integer()
+  def hypergeometric_distribution(nb_nodes) when nb_nodes > 0 do
+    security_paramters = HypergeometricDistribution.get_security_parameters(nb_nodes)
+    HypergeometricDistribution.run_simulation(nb_nodes, security_paramters)
   end
 end

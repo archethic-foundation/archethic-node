@@ -213,8 +213,7 @@ defmodule Archethic.ElectionTest do
           tx1,
           Election.validation_nodes_election_seed_sorting(tx1, ref_timestamp),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       second_election =
@@ -222,8 +221,7 @@ defmodule Archethic.ElectionTest do
           tx2,
           Election.validation_nodes_election_seed_sorting(tx2, ref_timestamp),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       assert Enum.map(first_election, & &1.last_public_key) !=
@@ -247,8 +245,7 @@ defmodule Archethic.ElectionTest do
           tx,
           Election.validation_nodes_election_seed_sorting(tx, ref_timestamp_first_attempt),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       second_election =
@@ -256,8 +253,7 @@ defmodule Archethic.ElectionTest do
           tx,
           Election.validation_nodes_election_seed_sorting(tx, ref_timestamp_second_attempt),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       assert Enum.map(first_election, & &1.last_public_key) !=
@@ -278,8 +274,7 @@ defmodule Archethic.ElectionTest do
           tx,
           Election.validation_nodes_election_seed_sorting(tx, ref_timestamp),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       second_election =
@@ -287,8 +282,7 @@ defmodule Archethic.ElectionTest do
           tx,
           Election.validation_nodes_election_seed_sorting(tx, ref_timestamp),
           authorized_nodes,
-          storage_nodes,
-          ValidationConstraints.new()
+          storage_nodes
         )
 
       assert Enum.map(first_election, & &1.last_public_key) ==

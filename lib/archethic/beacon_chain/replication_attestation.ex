@@ -5,7 +5,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election.HypergeometricDistribution
+  alias Archethic.Election.StorageConstraints
 
   alias Archethic.P2P
 
@@ -187,8 +187,10 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
         confirmations: confirmations
       }) do
     # For security reason we reject the attestation with less than 35% of expected confirmations
+    %StorageConstraints{number_replicas: number_replicas_fun} = StorageConstraints.new()
+
     with nb_nodes when nb_nodes > 0 <- P2P.authorized_and_available_nodes(timestamp) |> length(),
-         replicas_count <- HypergeometricDistribution.run_simulation(nb_nodes),
+         replicas_count <- number_replicas_fun.(nb_nodes),
          true <- replicas_count > @minimum_nodes_for_threshold do
       length(confirmations) >= replicas_count * @confirmations_threshold
     else

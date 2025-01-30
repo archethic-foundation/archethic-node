@@ -15,14 +15,19 @@ defmodule Archethic.Election.HypergeometricDistribution do
   alias __MODULE__.SecurityParameters
 
   # Constants
+  @storage_malicious_rate 0.9
+  @storage_tolerance 1.0e-9
   @scaling_limit 200
   @min_nodes 10
+  @max_overbooked_nodes 20
   # Maximum security parameters (for nodes >200)
-  @max_malicious_rate 0.90
+  @max_malicious_rate 0.75
   @min_tolerance 1.0e-9
+  @min_overbooking_rate 0.10
   # Minimum security parameters (for small networks)
-  @min_malicious_rate 0.50
+  @min_malicious_rate 0.65
   @max_tolerance 1.0e-6
+  @max_overbooking_rate 0.25
 
   defmodule SecurityParameters do
     @moduledoc """
@@ -38,20 +43,21 @@ defmodule Archethic.Election.HypergeometricDistribution do
   end
 
   @doc """
-  Returns the maximum security parameters
+  Returns the storage security parameters
   """
-  @spec get_max_security_parameters() :: SecurityParameters.t()
-  def get_max_security_parameters() do
+  @spec get_storage_security_parameters() :: SecurityParameters.t()
+  def get_storage_security_parameters() do
     %SecurityParameters{
-      malicious_rate: @max_malicious_rate,
-      tolerance: @min_tolerance,
+      malicious_rate: @storage_malicious_rate,
+      tolerance: @storage_tolerance,
       overbooking_rate: 0.0
     }
   end
 
   @doc """
   Returns the security parameters (malicious rate and tolerance) based on the number of nodes.
-  Uses logarithmic scaling from 10 to 200 nodes
+  Uses logarithmic scaling from 10 to 200 nodes for malicious rate and tolerance
+  Uses linear scaling from 10 to 200 nodes for overbooking rate
   """
   @spec get_security_parameters(nb_nodes :: integer()) ::
           {malicious_rate :: float(), tolerance :: float()}
@@ -59,7 +65,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
     %SecurityParameters{
       malicious_rate: @max_malicious_rate,
       tolerance: @min_tolerance,
-      overbooking_rate: 0.0
+      overbooking_rate: @min_overbooking_rate
     }
   end
 
@@ -67,25 +73,33 @@ defmodule Archethic.Election.HypergeometricDistribution do
     %SecurityParameters{
       malicious_rate: @min_malicious_rate,
       tolerance: @max_tolerance,
-      overbooking_rate: 0.0
+      overbooking_rate: @max_overbooking_rate
     }
   end
 
   def get_security_parameters(nb_nodes) do
-    scale = :math.log(nb_nodes - @min_nodes) / :math.log(@scaling_limit - @min_nodes)
-    scale = scale |> max(0) |> min(1)
+    log_scale = :math.log(nb_nodes - @min_nodes) / :math.log(@scaling_limit - @min_nodes)
+    log_scale = log_scale |> max(0) |> min(1)
 
-    malicious_rate = @min_malicious_rate + (@max_malicious_rate - @min_malicious_rate) * scale
+    malicious_rate = @min_malicious_rate + (@max_malicious_rate - @min_malicious_rate) * log_scale
 
     log_min_tol = :math.log(@min_tolerance)
     log_max_tol = :math.log(@max_tolerance)
-    log_tol = log_max_tol + (log_min_tol - log_max_tol) * scale
+    log_tol = log_max_tol + (log_min_tol - log_max_tol) * log_scale
     tolerance = :math.exp(log_tol)
+
+    lin_scale = (nb_nodes - @min_nodes) / (@scaling_limit - @min_nodes)
+    lin_scale = lin_scale |> max(0) |> min(1)
+
+    log_min_over = :math.log(@min_overbooking_rate)
+    log_max_over = :math.log(@max_overbooking_rate)
+    log_over = log_max_over + (log_min_over - log_max_over) * lin_scale
+    overbooking_rate = :math.exp(log_over)
 
     %SecurityParameters{
       malicious_rate: malicious_rate,
       tolerance: tolerance,
-      overbooking_rate: 0.0
+      overbooking_rate: overbooking_rate
     }
   end
 
@@ -97,71 +111,53 @@ defmodule Archethic.Election.HypergeometricDistribution do
 
   ## Examples
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(5, params)
       {5, 0}
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(20, params)
       {19, 0}
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(40, params)
       {37, 0}
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(100, params)
       {84, 0}
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(1000, params)
       {178, 0}
 
-      iex> params = HypergeometricDistribution.get_max_security_parameters()
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
       ...> HypergeometricDistribution.run_simulation(10000, params)
       {195, 0}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(5)
-      ...>   |> Map.put(:overbooking_rate, 0.1)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(5)
       ...> HypergeometricDistribution.run_simulation(5, params)
-      {3, 0}
+      {4, 1}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(20)
-      ...>   |> Map.put(:overbooking_rate, 0.1)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(20)
       ...> HypergeometricDistribution.run_simulation(20, params)
-      {14, 1}
+      {14, 4}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(40)
-      ...>   |> Map.put(:overbooking_rate, 0.1)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(40)
       ...> HypergeometricDistribution.run_simulation(40, params)
-      {31, 3}
+      {29, 7}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(100)
-      ...>   |> Map.put(:overbooking_rate, 0.1)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(100)
       ...> HypergeometricDistribution.run_simulation(100, params)
-      {85, 9}
+      {73, 13}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(1000)
-      ...>   |> Map.put(:overbooking_rate, 0.05)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(1000)
       ...> HypergeometricDistribution.run_simulation(1000, params)
-      {527, 27}
+      {180, 19}
 
-      iex> params =
-      ...>   HypergeometricDistribution.get_security_parameters(10000)
-      ...>   |> Map.put(:overbooking_rate, 0.05)
-      ...> 
+      iex> params = HypergeometricDistribution.get_security_parameters(10000)
       ...> HypergeometricDistribution.run_simulation(10000, params)
-      {908, 47}
+      {199, 20}
   """
   @spec run_simulation(nb_nodes :: pos_integer(), security_parameters :: SecurityParameters.t()) ::
           {required_validations :: pos_integer(), overbooking :: pos_integer()}
@@ -171,12 +167,12 @@ defmodule Archethic.Election.HypergeometricDistribution do
       )
       when is_integer(nb_nodes) and nb_nodes > 0 do
     nb_malicious = trunc(nb_nodes * malicious_rate)
-    nb_good = nb_nodes - nb_malicious
+    nb_honest = nb_nodes - nb_malicious
 
     cond do
-      nb_good == 0 -> {nb_nodes, 0}
-      nb_malicious == 0 -> {1, max(nb_nodes - 1, 3)}
-      true -> do_run_simulation(nb_nodes, nb_malicious, nb_good, security_parameters)
+      nb_honest == 0 -> {nb_nodes, 0}
+      nb_malicious == 0 -> {1, min(nb_nodes - 1, 3)}
+      true -> do_run_simulation(nb_nodes, nb_malicious, nb_honest, security_parameters)
     end
   end
 
@@ -199,12 +195,13 @@ defmodule Archethic.Election.HypergeometricDistribution do
     end)
   end
 
-  defp do_run_simulation(nb_nodes, nb_malicious, nb_good, %SecurityParameters{
+  defp do_run_simulation(nb_nodes, nb_malicious, nb_honest, %SecurityParameters{
          tolerance: tolerance,
          overbooking_rate: overbooking_rate
        }) do
     Enum.reduce_while(1..nb_nodes, {nb_nodes, 0}, fn n, acc ->
-      nb_overbooked = trunc(n * overbooking_rate) |> min(nb_good)
+      # All overbooked nodes have to be honest
+      nb_overbooked = trunc(n * overbooking_rate) |> min(nb_honest) |> min(@max_overbooked_nodes)
       nb_max_malicious = n - nb_overbooked
 
       cond do
@@ -216,7 +213,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
           nb_max_malicious,
           nb_overbooked,
           nb_malicious,
-          nb_good,
+          nb_honest,
           nb_nodes,
           tolerance
         ) ->
@@ -240,28 +237,28 @@ defmodule Archethic.Election.HypergeometricDistribution do
          nb_max_malicious,
          nb_overbooked,
          nb_malicious,
-         nb_good,
+         nb_honest,
          nb_nodes,
          tolerance
        ) do
     log_mal = log_binomial(nb_malicious, nb_max_malicious)
-    log_good = log_binomial(nb_good, nb_overbooked)
+    log_honest = log_binomial(nb_honest, nb_overbooked)
     log_total = log_binomial(nb_nodes, n)
 
-    p = :math.exp(log_mal + log_good - log_total)
+    p = :math.exp(log_mal + log_honest - log_total)
 
     cond do
       p >= tolerance ->
         false
 
-      nb_overbooked < 1 ->
+      nb_overbooked < 1 or nb_max_malicious == nb_malicious ->
         true
 
       true ->
         # Calculate probability to have more malicious with same number of nodes
         log_mal_increased = log_binomial(nb_malicious, nb_max_malicious + 1)
-        log_good_decreased = log_binomial(nb_good, nb_overbooked - 1)
-        pn = :math.exp(log_mal_increased + log_good_decreased - log_total)
+        log_honest_decreased = log_binomial(nb_honest, nb_overbooked - 1)
+        pn = :math.exp(log_mal_increased + log_honest_decreased - log_total)
 
         # Probability to have more malicious node in the set must be lower
         pn < p

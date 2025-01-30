@@ -108,7 +108,10 @@ defmodule Archethic.Election do
       ...>     %Node{first_public_key: "node8", geo_patch: "F10"},
       ...>     %Node{first_public_key: "node9", geo_patch: "ECA"}
       ...>   ],
-      ...>   %ValidationConstraints{validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end}
+      ...>   %ValidationConstraints{
+      ...>     validation_numbers: fn _ -> {3, 0} end,
+      ...>     min_geo_patch: fn -> 2 end
+      ...>   }
       ...> )
       [
         %Node{first_public_key: "node1", geo_patch: "AAA"},
@@ -129,7 +132,7 @@ defmodule Archethic.Election do
         authorized_nodes,
         storage_nodes,
         %ValidationConstraints{
-          validation_number: validation_number_fun,
+          validation_numbers: validation_number_fun,
           min_geo_patch: min_geo_patch_fun
         } \\ ValidationConstraints.new()
       )
@@ -137,8 +140,12 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
-    nb_validations = validation_number_fun.(authorized_nodes)
+    nb_nodes = length(authorized_nodes)
+
+    {nb_required, nb_overbooking} = validation_number_fun.(nb_nodes)
     min_geo_patch = min_geo_patch_fun.()
+
+    nb_validations = nb_required + nb_overbooking
 
     authorized_nodes
     |> sort_validation_nodes(tx, sorting_seed)
@@ -316,8 +323,9 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate the storage election constraints
+    nb_nodes = length(nodes)
 
-    nb_replicas = number_replicas_fun.(nodes)
+    nb_replicas = number_replicas_fun.(nb_nodes)
     min_geo_patch_avg_availability = min_geo_patch_avg_availability_fun.()
     min_geo_patch = min_geo_patch_fun.()
 
