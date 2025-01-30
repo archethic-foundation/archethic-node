@@ -66,7 +66,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   @spec add_slot(Slot.t(), Crypto.key()) :: :ok
   def add_slot(slot = %Slot{subset: subset}, node_public_key) do
     via_tuple = {:via, PartitionSupervisor, {SummaryCacheSupervisor, subset}}
-    GenServer.call(via_tuple, {:add_slot, slot, node_public_key})
+    GenServer.call(via_tuple, {:add_slot, slot, node_public_key}, :infinity)
   end
 
   def handle_call({:add_slot, slot, node_public_key}, _from, state) do
