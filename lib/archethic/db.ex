@@ -33,7 +33,8 @@ defmodule Archethic.DB do
                 order: :asc | :desc
               ]
             ) :: Enumerable.t()
-  @callback write_transaction(Transaction.t(), storage_type()) :: :ok
+  @callback write_transaction(Transaction.t(), storage_type()) ::
+              :ok | {:error, :transaction_already_exists}
   @callback write_beacon_summary(Summary.t()) :: :ok
   @callback clear_beacon_summaries() :: :ok
   @callback write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok

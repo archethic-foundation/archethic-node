@@ -155,39 +155,46 @@ defmodule Archethic.Replication do
     tx
     |> stream_previous_chain(genesis_address, download_nodes)
     |> Stream.each(fn tx = %Transaction{address: address, type: type} ->
-      TransactionChain.write_transaction(tx)
+      if TransactionChain.write_transaction(tx) == :ok do
+        # There is some case where a transaction is not replicated while it should
+        # because of some latency or network issue. So when we replicate a past chain
+        # we also ingest the transaction if we are storage node of it
 
-      # There is some case where a transaction is not replicated while it should
-      # because of some latency or network issue. So when we replicate a past chain
-      # we also ingest the transaction if we are storage node of it
+        ingest? =
+          Transaction.network_type?(type) or
+            Election.chain_storage_node?(address, first_node_key, download_nodes) or
+            Election.chain_storage_node?(genesis_address, first_node_key, download_nodes)
 
-      ingest? =
-        Transaction.network_type?(type) or
-          Election.chain_storage_node?(address, first_node_key, download_nodes) or
-          Election.chain_storage_node?(genesis_address, first_node_key, download_nodes)
-
-      opts = Keyword.delete(ingest_opts, :resolved_addresses)
-      if ingest?, do: ingest_transaction(tx, genesis_address, opts)
+        opts = Keyword.delete(ingest_opts, :resolved_addresses)
+        if ingest?, do: ingest_transaction(tx, genesis_address, opts)
+      end
     end)
     |> Stream.run()
 
-    TransactionChain.write_transaction(tx)
+    case TransactionChain.write_transaction(tx) do
+      :ok ->
+        :ok = ingest_transaction(tx, genesis_address, ingest_opts)
 
-    :ok = ingest_transaction(tx, genesis_address, ingest_opts)
+        Logger.info("Replication finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-    Logger.info("Replication finished",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+        PubSub.notify_new_transaction(address, type, timestamp)
 
-    PubSub.notify_new_transaction(address, type, timestamp)
+        :telemetry.execute(
+          [:archethic, :replication, :full_write],
+          %{
+            duration: System.monotonic_time() - start_time
+          }
+        )
 
-    :telemetry.execute(
-      [:archethic, :replication, :full_write],
-      %{
-        duration: System.monotonic_time() - start_time
-      }
-    )
+      error ->
+        Logger.debug("Replication chain aborted (#{inspect(error)})",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+    end
 
     :ok
   end
@@ -285,15 +292,25 @@ defmodule Archethic.Replication do
         opts \\ []
       )
       when is_list(opts) do
-    :ok = TransactionChain.write_transaction(tx, :io)
-    ingest_transaction(tx, genesis_address, Keyword.put(opts, :io_transaction?, true))
+    case TransactionChain.write_transaction(tx, :io) do
+      :ok ->
+        ingest_transaction(tx, genesis_address, Keyword.put(opts, :io_transaction?, true))
 
-    Logger.info("Replication finished",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+        Logger.info("Replication finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-    PubSub.notify_new_transaction(address, type, timestamp)
+        PubSub.notify_new_transaction(address, type, timestamp)
+
+      error ->
+        Logger.debug("Replication IO aborted (#{inspect(error)})",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+    end
+
+    # TODO: Should not ingest if write_transaction failed
   end
 
   defp fetch_context(tx = %Transaction{}) do

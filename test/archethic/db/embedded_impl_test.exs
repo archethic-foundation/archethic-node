@@ -107,6 +107,20 @@ defmodule Archethic.DB.EmbeddedTest do
       assert File.exists?(filename_chain)
       assert !File.exists?(filename_io)
     end
+
+    test "should return an error when transaction already exists in chain storage" do
+      tx1 = TransactionFactory.create_valid_transaction()
+      assert :ok == EmbeddedImpl.write_transaction(tx1)
+
+      assert {:error, :transaction_already_exists} == EmbeddedImpl.write_transaction(tx1)
+    end
+
+    test "should return an error when transaction already exists in io storage" do
+      tx1 = TransactionFactory.create_valid_transaction()
+      assert :ok == EmbeddedImpl.write_transaction(tx1, :io)
+
+      assert {:error, :transaction_already_exists} == EmbeddedImpl.write_transaction(tx1, :io)
+    end
   end
 
   describe "transaction_exists?/2" do

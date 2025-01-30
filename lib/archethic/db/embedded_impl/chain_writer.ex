@@ -25,7 +25,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   Append a transaction to a file for the given genesis address
   """
-  @spec append_transaction(binary(), Transaction.t()) :: :ok
+  @spec append_transaction(binary(), Transaction.t()) ::
+          :ok | {:error, :transaction_already_exists}
   def append_transaction(genesis_address, tx = %Transaction{}) do
     via_tuple = {:via, PartitionSupervisor, {ChainWriterSupervisor, genesis_address}}
     GenServer.call(via_tuple, {:append_tx, genesis_address, tx}, :infinity)
@@ -34,23 +35,28 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   write an io transaction in a file name by it's address
   """
-  @spec write_io_transaction(Transaction.t(), String.t()) :: :ok
+  @spec write_io_transaction(Transaction.t(), String.t()) ::
+          :ok | {:error, :transaction_already_exists}
   def write_io_transaction(tx = %Transaction{address: address}, db_path) do
-    start = System.monotonic_time()
+    if ChainIndex.transaction_exists?(tx.address, :io, db_path) do
+      {:error, :transaction_already_exists}
+    else
+      start = System.monotonic_time()
 
-    filename = io_path(db_path, address)
+      filename = io_path(db_path, address)
 
-    data = Encoding.encode(tx)
+      data = Encoding.encode(tx)
 
-    File.write!(
-      filename,
-      data,
-      [:exclusive, :binary]
-    )
+      File.write!(
+        filename,
+        data,
+        [:exclusive, :binary]
+      )
 
-    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-      query: "write_io_transaction"
-    })
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "write_io_transaction"
+      })
+    end
   end
 
   @doc """
@@ -140,17 +146,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
         _from,
         state = %{db_path: db_path}
       ) do
-    write_transaction(genesis_address, tx, db_path)
-    {:reply, :ok, state}
-  end
-
-  def handle_call(
-        {:write_io_transaction, tx},
-        _from,
-        state = %{db_path: db_path}
-      ) do
-    write_io_transaction(tx, db_path)
-    {:reply, :ok, state}
+    if ChainIndex.transaction_exists?(tx.address, db_path) do
+      {:reply, {:error, :transaction_already_exists}, state}
+    else
+      write_transaction(genesis_address, tx, db_path)
+      {:reply, :ok, state}
+    end
   end
 
   defp write_transaction(genesis_address, tx, db_path) do
