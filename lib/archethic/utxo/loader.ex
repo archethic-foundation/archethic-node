@@ -114,7 +114,8 @@ defmodule Archethic.UTXO.Loader do
       genesis_address
       |> UTXO.stream_unspent_outputs()
       |> Stream.reject(&Enum.member?(consumed_inputs, &1.unspent_output))
-      |> Enum.concat(transaction_unspent_outputs)
+      |> Stream.concat(transaction_unspent_outputs)
+      |> Enum.uniq()
 
     # We compact all the unspent outputs into new ones, cleaning the previous unspent outputs
     DBLedger.flush(genesis_address, new_unspent_outputs)
