@@ -28,7 +28,7 @@ defmodule ArchethicWeb.API.JsonRPCController do
   @max_batch_size 20
 
   def rpc(conn, param) do
-    requests = wrap_param_in_list(param)
+    {type, requests} = wrap_param_in_list(param)
 
     responses =
       if exceed_max_batch_size?(requests) do
@@ -36,20 +36,18 @@ defmodule ArchethicWeb.API.JsonRPCController do
           %{"jsonrpc" => "2.0", "id" => nil},
           {:internal_error, "Batch size excedeed limit of #{@max_batch_size}"}
         )
-        |> List.wrap()
       else
         execute_request_concurently(requests)
       end
 
-    case responses do
-      [response] -> conn |> put_status(:ok) |> json(response)
-      responses -> conn |> put_status(:ok) |> json(responses)
-    end
+    res = if type == :batch, do: responses, else: List.first(responses)
+
+    conn |> put_status(:ok) |> json(res)
   end
 
-  defp wrap_param_in_list(%{"_json" => requests}) when is_list(requests), do: requests
-  defp wrap_param_in_list(%{"_json" => request}), do: List.wrap(request)
-  defp wrap_param_in_list(param), do: List.wrap(param)
+  defp wrap_param_in_list(%{"_json" => requests}) when is_list(requests), do: {:batch, requests}
+  defp wrap_param_in_list(%{"_json" => request}), do: {:single, List.wrap(request)}
+  defp wrap_param_in_list(param), do: {:single, List.wrap(param)}
 
   defp exceed_max_batch_size?(requests), do: length(requests) > @max_batch_size
 
