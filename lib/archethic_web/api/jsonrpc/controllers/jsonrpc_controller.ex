@@ -54,7 +54,8 @@ defmodule ArchethicWeb.API.JsonRPCController do
   defp execute_request_concurently(requests) do
     Task.Supervisor.async_stream(Archethic.task_supervisors(), requests, &execute_request/1,
       on_timeout: :kill_task,
-      timeout: 30_000
+      timeout: 30_000,
+      max_concurrency: length(requests)
     )
     |> Enum.zip(requests)
     |> Enum.map(fn
