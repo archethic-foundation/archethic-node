@@ -239,7 +239,6 @@ defmodule Archethic.Contracts.WasmModule do
   defp cast_transaction(tx) do
     tx
     |> Transaction.to_map()
-    |> Map.put(:genesis, Map.get(tx, :genesis))
     |> wrap_binary()
   end
 
@@ -253,7 +252,9 @@ defmodule Archethic.Contracts.WasmModule do
            ownerships: ownerships,
            action_recipients: recipients
          },
-         genesis: genesis
+         validation_stamp: %{
+           genesis_address: genesis
+         }
        }) do
     %{
       address: %{hex: Base.encode16(address)},

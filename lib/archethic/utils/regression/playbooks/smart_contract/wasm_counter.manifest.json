@@ -1,0 +1,13 @@
+{
+  "abi": {
+    "state": {
+      "counter": "i32"
+    },
+    "functions": {
+      "inc": {
+        "type": "action",
+        "triggerType": "transaction"
+      }
+    }
+  }
+}

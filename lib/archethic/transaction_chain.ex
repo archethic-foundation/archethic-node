@@ -1480,10 +1480,11 @@ defmodule Archethic.TransactionChain do
   (because the poi contains the hash of the previous if any)
   """
   @spec first_transaction?(Transaction.t()) :: boolean()
-  def first_transaction?(
-        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
-      ) do
-    poi == proof_of_integrity([tx])
+  def first_transaction?(%Transaction{
+        address: address,
+        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+      }) do
+    address == genesis_address
   end
 
   # @doc """
@@ -1510,11 +1511,16 @@ defmodule Archethic.TransactionChain do
   @spec get_next_addresses(address :: binary(), limit :: non_neg_integer()) ::
           list({address :: binary(), timestamp :: DateTime.t()})
   def get_next_addresses(address, limit \\ 0) do
-    case get_transaction(address, validation_stamp: [:timestamp]) do
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+    case get_transaction(address, validation_stamp: [:genesis_address, :timestamp]) do
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           timestamp: address_timestamp,
+           genesis_address: genesis_address
+         }
+       }} ->
         addresses =
-          address
-          |> get_genesis_address()
+          genesis_address
           |> list_chain_addresses()
           |> Enum.filter(fn {_address, timestamp} ->
             DateTime.compare(timestamp, address_timestamp) == :gt

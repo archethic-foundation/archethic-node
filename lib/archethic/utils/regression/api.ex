@@ -204,13 +204,22 @@ defmodule Archethic.Utils.Regression.Api do
 
     Process.sleep(100)
 
+    request = %{
+      "jsonrpc" => "2.0",
+      "id" => 1,
+      "method" => "send_transaction",
+      "params" => %{
+        "transaction" => tx_to_json(tx)
+      }
+    }
+
     case WebClient.with_connection(
            endpoint.host,
            endpoint.port,
-           &WebClient.json(&1, "/api/transaction", tx_to_json(tx)),
+           &WebClient.json(&1, "/api/rpc", request),
            endpoint.protocol
          ) do
-      {:ok, %{"status" => "pending"}} ->
+      {:ok, %{"result" => %{"status" => "pending"}}} ->
         await_timeout = Keyword.get(opts, :await_timeout, 5000)
 
         case Task.yield(replication_attestation, await_timeout) ||
@@ -230,7 +239,7 @@ defmodule Archethic.Utils.Regression.Api do
             {:error, :timeout}
         end
 
-      {:ok, %{"status" => "invalid", "errors" => errors}} ->
+      {:ok, %{"result" => %{"status" => "invalid", "errors" => errors}}} ->
         {:error, errors}
 
       {:error, reason} ->
@@ -559,6 +568,7 @@ defmodule Archethic.Utils.Regression.Api do
              token: %TokenLedger{transfers: token_transfers}
            },
            code: code,
+           contract: contract,
            content: content,
            recipients: recipients,
            ownerships: ownerships
@@ -567,6 +577,11 @@ defmodule Archethic.Utils.Regression.Api do
          previous_signature: previous_signature,
          origin_signature: origin_signature
        }) do
+    contract =
+      if contract == nil,
+        do: nil,
+        else: Map.from_struct(contract) |> Map.update!(:bytecode, &Base.encode16/1)
+
     %{
       "version" => version,
       "address" => Base.encode16(address),
@@ -599,8 +614,9 @@ defmodule Archethic.Utils.Regression.Api do
               end)
           }
         },
+        "contract" => contract,
         "code" => code,
-        "content" => Base.encode16(content),
+        "content" => content,
         "recipients" =>
           Enum.map(recipients, fn %Recipient{address: address, action: action, args: args} ->
             %{"address" => Base.encode16(address), "action" => action, "args" => args}
