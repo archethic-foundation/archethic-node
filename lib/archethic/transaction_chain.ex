@@ -1440,10 +1440,11 @@ defmodule Archethic.TransactionChain do
   (because the poi contains the hash of the previous if any)
   """
   @spec first_transaction?(Transaction.t()) :: boolean()
-  def first_transaction?(
-        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
-      ) do
-    poi == proof_of_integrity([tx])
+  def first_transaction?(%Transaction{
+        address: address,
+        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+      }) do
+    address == genesis_address
   end
 
   # @doc """
