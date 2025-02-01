@@ -37,37 +37,39 @@ defmodule Archethic.BeaconChain.Subset.P2PSamplingTest do
     assert [%Node{port: 3004}] = P2PSampling.list_nodes_to_sample(<<1>>)
   end
 
-  test "get_p2p_views/2 fetch p2p node availability and latency for the given list of nodes" do
-    nodes = [
-      %Node{ip: {127, 0, 0, 1}, port: 3001, first_public_key: "key1"},
-      %Node{ip: {127, 0, 0, 1}, port: 3002, first_public_key: "key2"},
-      %Node{ip: {127, 0, 0, 1}, port: 3003, first_public_key: "key3"},
-      %Node{ip: {127, 0, 0, 1}, port: 3004, first_public_key: "key4"}
-    ]
+  test "get_p2p_views/2 fetch p2p node availability time and latency for the given subset" do
+    node1 = %Node{ip: {127, 0, 0, 1}, port: 3001, first_public_key: "key1"}
+    node2 = %Node{ip: {127, 0, 0, 1}, port: 3002, first_public_key: "key2"}
+    node3 = %Node{ip: {127, 0, 0, 1}, port: 3003, first_public_key: "key3"}
+    node4 = %Node{ip: {127, 0, 0, 1}, port: 3004, first_public_key: "key4"}
 
-    node_availability_time = [600, 500, 365, 0]
+    nodes = [node1, node2, node3, node4]
 
     MockClient
-    |> expect(:send_message, fn %Node{port: 3001}, %Ping{}, _ ->
+    |> expect(:send_message, fn ^node1, %Ping{}, _ ->
       Process.sleep(10)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3002}, %Ping{}, _ ->
+    |> expect(:send_message, fn ^node2, %Ping{}, _ ->
       Process.sleep(100)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3003}, %Ping{}, _ ->
+    |> expect(:send_message, fn ^node3, %Ping{}, _ ->
       Process.sleep(300)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3004}, %Ping{}, _ ->
+    |> expect(:send_message, fn ^node4, %Ping{}, _ ->
       {:error, :network_issue}
     end)
+    |> expect(:get_availability_timer, fn "key4", _ -> 0 end)
+    |> expect(:get_availability_timer, fn "key1", _ -> 600 end)
+    |> expect(:get_availability_timer, fn "key2", _ -> 500 end)
+    |> expect(:get_availability_timer, fn "key3", _ -> 365 end)
 
     Enum.each(nodes, &P2P.add_and_connect_node/1)
 
     assert [{600, node1_lat}, {500, node2_lat}, {365, node3_lat}, {0, 0}] =
-             P2PSampling.get_p2p_views(nodes, node_availability_time)
+             P2PSampling.get_p2p_views(nodes)
 
     assert node1_lat < node2_lat
     assert node2_lat < node3_lat
