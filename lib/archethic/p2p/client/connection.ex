@@ -91,6 +91,9 @@ defmodule Archethic.P2P.Client.Connection do
   @spec get_availability_timer(Crypto.key(), boolean()) :: non_neg_integer()
   def get_availability_timer(public_key, reset?) do
     GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
+  rescue
+    # call timeout
+    _ -> 0
   end
 
   @doc """

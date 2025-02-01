@@ -254,7 +254,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
              }
            }}
       end)
-      |> expect(:get_availability_timer, 4, fn _, _ -> 0 end)
+      |> expect(:get_availability_timer, 2, fn _, _ -> 0 end)
 
       # slot time matches summary time interval
       slot_time = ~U[2023-07-11 01:00:00Z]

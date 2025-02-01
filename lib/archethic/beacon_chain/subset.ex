@@ -24,7 +24,6 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Client
   alias Archethic.P2P.Message.NewBeaconSlot
   alias Archethic.P2P.Message.BeaconUpdate
   alias Archethic.P2P.Message.TransactionSummaryMessage
@@ -149,27 +148,8 @@ defmodule Archethic.BeaconChain.Subset do
         }
       )
       when time == slot_time do
-    if P2P.authorized_and_available_node?(Crypto.first_node_public_key(), time, true) do
-      nodes_availability_times =
-        P2PSampling.list_nodes_to_sample(subset)
-        |> Task.async_stream(
-          fn node ->
-            if node.first_public_key == Crypto.first_node_public_key() do
-              SlotTimer.get_time_interval()
-            else
-              Client.get_availability_timer(node.first_public_key, true)
-            end
-          end,
-          on_timeout: :kill_task
-        )
-        |> Enum.map(fn
-          {:ok, res} -> res
-          _ -> 0
-        end)
-
-      if beacon_slot_node?(subset, time, node_public_key) do
-        handle_slot(time, current_slot, nodes_availability_times)
-      end
+    if P2P.authorized_and_available_node?(node_public_key, time, true) do
+      handle_slot(current_slot, node_public_key)
 
       if summary_time?(time) and beacon_summary_node?(subset, time, node_public_key) do
         handle_summary(time, subset)
@@ -302,17 +282,16 @@ defmodule Archethic.BeaconChain.Subset do
     |> P2P.broadcast_message(tx_summary_message)
   end
 
-  defp handle_slot(
-         time,
-         current_slot = %Slot{subset: subset},
-         nodes_availability_times
-       ) do
-    current_slot = ensure_p2p_view(current_slot, nodes_availability_times)
+  defp handle_slot(current_slot = %Slot{subset: subset, slot_time: time}, node_public_key) do
+    current_slot =
+      if beacon_slot_node?(current_slot, node_public_key),
+        do: add_p2p_view(current_slot),
+        else: current_slot
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
       if summary_time?(time) do
-        SummaryCache.add_slot(current_slot, Crypto.first_node_public_key())
+        SummaryCache.add_slot(current_slot, node_public_key)
       else
         next_summary_time = SummaryTimer.next_summary(time)
         broadcast_beacon_slot(subset, next_summary_time, current_slot)
@@ -417,11 +396,8 @@ defmodule Archethic.BeaconChain.Subset do
     SummaryTimer.match_interval?(DateTime.truncate(time, :millisecond))
   end
 
-  defp beacon_slot_node?(subset, slot_time, node_public_key) do
-    %Slot{subset: subset, slot_time: slot_time}
-    |> Slot.involved_nodes()
-    |> Utils.key_in_node_list?(node_public_key)
-  end
+  defp beacon_slot_node?(slot, node_public_key),
+    do: slot |> Slot.involved_nodes() |> Utils.key_in_node_list?(node_public_key)
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
     node_list = P2P.authorized_and_available_nodes(summary_time, true)
@@ -435,19 +411,8 @@ defmodule Archethic.BeaconChain.Subset do
     |> Utils.key_in_node_list?(node_public_key)
   end
 
-  defp add_p2p_view(current_slot = %Slot{subset: subset}, nodes_availability_times) do
-    p2p_views =
-      P2PSampling.get_p2p_views(
-        P2PSampling.list_nodes_to_sample(subset),
-        nodes_availability_times
-      )
-
+  defp add_p2p_view(current_slot = %Slot{subset: subset}) do
+    p2p_views = subset |> P2PSampling.list_nodes_to_sample() |> P2PSampling.get_p2p_views()
     Slot.add_p2p_view(current_slot, p2p_views)
   end
-
-  defp ensure_p2p_view(slot = %Slot{p2p_view: %{availabilities: <<>>}}, nodes_availability_times) do
-    add_p2p_view(slot, nodes_availability_times)
-  end
-
-  defp ensure_p2p_view(slot = %Slot{}, _), do: slot
 end

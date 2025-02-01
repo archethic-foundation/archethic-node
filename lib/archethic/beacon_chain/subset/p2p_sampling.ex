@@ -1,12 +1,19 @@
 defmodule Archethic.BeaconChain.Subset.P2PSampling do
   @moduledoc false
 
+  alias Archethic.BeaconChain.SlotTimer
+
+  alias Archethic.Crypto
+
   alias Archethic.P2P
+  alias Archethic.P2P.Client
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
 
-  @type p2p_view :: {available? :: boolean(), latency :: non_neg_integer()}
+  @type p2p_view :: {availability_time :: non_neg_integer(), latency :: non_neg_integer()}
+
+  @sample_timeout 1000
 
   @doc """
   Provide the list of nodes to sample for the given subset
@@ -23,36 +30,39 @@ defmodule Archethic.BeaconChain.Subset.P2PSampling do
   @doc """
   Get the p2p view for the given nodes while computing the bandwidth from the latency
   """
-  @spec get_p2p_views(list(Node.t()), list(non_neg_integer())) :: list(p2p_view())
-  def get_p2p_views(nodes, nodes_availability_times) when is_list(nodes) do
-    timeout = 1_000
+  @spec get_p2p_views(nodes :: list(Node.t())) :: list(p2p_view())
+  def get_p2p_views(nodes = [_ | _]) do
+    node_key = Crypto.first_node_public_key()
 
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
       nodes,
-      &do_sample_p2p_view(&1, timeout),
-      on_timeout: :kill_task
+      &do_sample_p2p_view(&1, node_key),
+      on_timeout: :kill_task,
+      max_concurrency: length(nodes)
     )
-    |> Enum.with_index()
     |> Enum.map(fn
-      {{:ok, latency}, index} ->
-        {Enum.at(nodes_availability_times, index), latency}
-
-      {{:exit, :timeout}, index} ->
-        {Enum.at(nodes_availability_times, index), 0}
+      {:ok, p2p_view} -> p2p_view
+      {:exit, :timeout} -> {0, 0}
     end)
   end
 
-  defp do_sample_p2p_view(node = %Node{}, timeout) do
+  def get_p2p_views(_), do: []
+
+  defp do_sample_p2p_view(node = %Node{first_public_key: first_public_key}, node_key) do
     start_time = System.monotonic_time(:millisecond)
 
-    case P2P.send_message(node, %Ping{}, timeout) do
-      {:ok, %Ok{}} ->
-        end_time = System.monotonic_time(:millisecond)
-        end_time - start_time
+    latency =
+      case P2P.send_message(node, %Ping{}, @sample_timeout) do
+        {:ok, %Ok{}} -> System.monotonic_time(:millisecond) - start_time
+        {:error, _} -> 0
+      end
 
-      {:error, _} ->
-        0
-    end
+    availability_time =
+      if node_key == first_public_key,
+        do: SlotTimer.get_time_interval(),
+        else: Client.get_availability_timer(first_public_key, true)
+
+    {availability_time, latency}
   end
 end
