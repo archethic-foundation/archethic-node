@@ -55,7 +55,7 @@ defmodule Archethic.Contracts.WasmContract do
   @doc """
   Validate WASM contract
   """
-  @spec validate_and_parse(t()) :: {:ok, t()} | {:error, String.t()}
+  @spec validate_and_parse(contract :: Contract.t()) :: {:ok, t()} | {:error, String.t()}
   def validate_and_parse(%Contract{manifest: manifest, bytecode: bytecode}) do
     uncompressed_bytes = :zlib.unzip(bytecode)
 
