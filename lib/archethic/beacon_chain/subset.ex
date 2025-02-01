@@ -228,31 +228,7 @@ defmodule Archethic.BeaconChain.Subset do
         )
       end
 
-      # Request the P2P view sampling if the not perfomed from the last 3 seconds
-      if update_p2p_view?(state) do
-        nodes_availability_times =
-          P2PSampling.list_nodes_to_sample(subset)
-          |> Task.async_stream(fn node ->
-            if node.first_public_key == Crypto.first_node_public_key() do
-              SlotTimer.get_time_interval()
-            else
-              Client.get_availability_timer(node.first_public_key, false)
-            end
-          end)
-          |> Enum.map(fn
-            {:ok, res} -> res
-            _ -> 0
-          end)
-
-        new_state =
-          state
-          |> Map.put(:current_slot, add_p2p_view(new_slot, nodes_availability_times))
-          |> Map.put(:sampling_time, DateTime.utc_now())
-
-        {:noreply, new_state}
-      else
-        {:noreply, %{state | current_slot: new_slot}}
-      end
+      {:noreply, %{state | current_slot: new_slot}}
     else
       {:forward?, true} ->
         forward_attestation(attestation, subset, slot_time)
@@ -343,12 +319,6 @@ defmodule Archethic.BeaconChain.Subset do
       end
     end
   end
-
-  defp update_p2p_view?(%{sampling_time: time}) do
-    DateTime.diff(DateTime.utc_now(), time) > 3
-  end
-
-  defp update_p2p_view?(_), do: true
 
   defp next_state(state = %{subset: subset}, time) do
     next_time = SlotTimer.next_slot(time)
