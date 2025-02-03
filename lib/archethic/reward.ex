@@ -20,8 +20,6 @@ defmodule Archethic.Reward do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer
 
-  alias Archethic.UTXO
-
   alias Archethic.Utils
 
   alias Crontab.CronExpression.Parser, as: CronParser
@@ -131,17 +129,15 @@ defmodule Archethic.Reward do
 
     nodes =
       P2P.authorized_and_available_nodes()
+      |> Enum.sort_by(& &1.first_public_key)
       |> Enum.map(fn %Node{reward_address: reward_address} ->
         {reward_address, uco_amount}
       end)
 
     reward_balance =
       genesis_address()
-      |> UTXO.stream_unspent_outputs()
-      |> Stream.map(& &1.unspent_output)
-      |> UTXO.get_balance()
+      |> Archethic.get_balance()
       |> Map.get(:token)
-      |> Map.to_list()
       |> Enum.sort(fn {_, qty1}, {_, qty2} -> qty1 < qty2 end)
 
     do_get_transfers(nodes, reward_balance, [])
