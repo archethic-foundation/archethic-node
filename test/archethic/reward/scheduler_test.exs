@@ -1,11 +1,17 @@
 defmodule Archethic.Reward.SchedulerTest do
   use ArchethicCase, async: false
 
-  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message.StartMining, P2P.Message.Ok}
-  alias Archethic.{Reward.Scheduler, TransactionChain.Transaction}
+  alias Archethic.Crypto
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.Reward.Scheduler
+  alias Archethic.TransactionChain.Transaction
 
-  import ArchethicCase, only: [setup_before_send_tx: 0]
-
+  import ArchethicCase
   import Mox
 
   setup do
@@ -73,6 +79,8 @@ defmodule Archethic.Reward.SchedulerTest do
     end
 
     test "should send mint transaction when burning fees > 0 and node reward transaction" do
+      :persistent_term.put(:reward_gen_addr, random_address())
+
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 15_000 end)
 
@@ -84,6 +92,9 @@ defmodule Archethic.Reward.SchedulerTest do
 
       MockClient
       |> stub(:send_message, fn
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
+
         _, %StartMining{transaction: %Transaction{address: address, type: type}}, _ ->
           send(pid, {:new_transaction, address, type, DateTime.utc_now()})
           send(me, type)
@@ -92,10 +103,13 @@ defmodule Archethic.Reward.SchedulerTest do
 
       assert_receive :mint_rewards, 1_500
       assert_receive :node_rewards, 1_500
+      :persistent_term.erase(:reward_gen_addr)
       Process.exit(pid, :kill)
     end
 
     test "should not send transaction when burning fees = 0 and should send node rewards" do
+      :persistent_term.put(:reward_gen_addr, random_address())
+
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 0 end)
 
@@ -105,6 +119,9 @@ defmodule Archethic.Reward.SchedulerTest do
 
       MockClient
       |> stub(:send_message, fn
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
+
         _, %StartMining{transaction: %Transaction{address: address, type: type}}, _ ->
           send(pid, {:new_transaction, address, type, DateTime.utc_now()})
           send(me, type)
@@ -115,6 +132,7 @@ defmodule Archethic.Reward.SchedulerTest do
 
       refute_receive :mint_rewards, 1_200
       assert_receive :node_rewards, 1_500
+      :persistent_term.erase(:reward_gen_addr)
       Process.exit(pid, :kill)
     end
   end
