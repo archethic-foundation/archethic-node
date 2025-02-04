@@ -99,7 +99,6 @@ defmodule Mix.Tasks.Archethic.Db do
 
     TransactionChain.Supervisor.start_link()
     Crypto.Supervisor.start_link([])
-    Election.Supervisor.start_link([])
     P2P.Supervisor.start_link()
     UTXO.Supervisor.start_link()
     Reward.Supervisor.start_link()
