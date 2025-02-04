@@ -154,19 +154,16 @@ defmodule Archethic.Replication do
 
     tx
     |> stream_previous_chain(genesis_address, download_nodes)
-    |> Stream.each(fn tx = %Transaction{address: address, type: type} ->
-      if TransactionChain.write_transaction(tx) == :ok do
+    |> Stream.each(fn tx ->
+      with :ok <- TransactionChain.write_transaction(tx),
+           true <-
+             ingest_previous_transaction?(tx, first_node_key, download_nodes, genesis_address) do
         # There is some case where a transaction is not replicated while it should
         # because of some latency or network issue. So when we replicate a past chain
         # we also ingest the transaction if we are storage node of it
 
-        ingest? =
-          Transaction.network_type?(type) or
-            Election.chain_storage_node?(address, first_node_key, download_nodes) or
-            Election.chain_storage_node?(genesis_address, first_node_key, download_nodes)
-
         opts = Keyword.delete(ingest_opts, :resolved_addresses)
-        if ingest?, do: ingest_transaction(tx, genesis_address, opts)
+        ingest_transaction(tx, genesis_address, opts)
       end
     end)
     |> Stream.run()
@@ -197,6 +194,17 @@ defmodule Archethic.Replication do
     end
 
     :ok
+  end
+
+  defp ingest_previous_transaction?(
+         %Transaction{address: address, type: type},
+         first_node_key,
+         download_nodes,
+         genesis_address
+       ) do
+    Transaction.network_type?(type) or
+      Election.chain_storage_node?(address, first_node_key, download_nodes) or
+      Election.chain_storage_node?(genesis_address, first_node_key, download_nodes)
   end
 
   @doc """
