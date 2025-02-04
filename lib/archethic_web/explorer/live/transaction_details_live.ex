@@ -53,9 +53,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         {:error, :transaction_not_exists} ->
           PubSub.register_to_new_transaction_by_address(addr)
           {:noreply, handle_not_existing_transaction(socket, addr)}
-
-        {:error, :invalid_transaction} ->
-          {:noreply, handle_invalid_transaction(socket, addr)}
       end
     else
       _ ->
@@ -323,12 +320,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     socket
     |> assign(:address, address)
     |> assign(:error, :invalid_address)
-  end
-
-  defp handle_invalid_transaction(socket, address) do
-    socket
-    |> assign(:address, address)
-    |> assign(:ko?, true)
   end
 
   def print_state(%UnspentOutput{encoded_payload: encoded_state}) do

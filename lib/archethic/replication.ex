@@ -96,8 +96,6 @@ defmodule Archethic.Replication do
         )
 
       %ValidationContext{mining_error: error} ->
-        :ok = TransactionChain.write_ko_transaction(tx)
-
         Logger.warning("Invalid transaction for replication - #{inspect(error)}",
           transaction_address: Base.encode16(address),
           transaction_type: type
@@ -270,8 +268,6 @@ defmodule Archethic.Replication do
             else: synchronize_io_transaction(tx, genesis_address, opts)
 
         %ValidationContext{mining_error: error} ->
-          :ok = TransactionChain.write_ko_transaction(tx)
-
           Logger.warning("Invalid transaction for replication - #{inspect(error)}",
             transaction_address: Base.encode16(address),
             transaction_type: type

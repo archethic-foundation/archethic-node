@@ -19,14 +19,8 @@ defmodule Archethic.P2P.Message.GetLastTransaction do
   @spec process(__MODULE__.t(), Crypto.key()) :: NotFound.t() | Error.t() | Transaction.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_last_transaction(address) do
-      {:ok, tx} ->
-        tx
-
-      {:error, :transaction_not_exists} ->
-        %NotFound{}
-
-      {:error, :invalid_transaction} ->
-        %Error{reason: :invalid_transaction}
+      {:ok, tx} -> tx
+      {:error, :transaction_not_exists} -> %NotFound{}
     end
   end
 

@@ -46,9 +46,7 @@ defmodule Archethic.TransactionChain do
     FirstTransactionAddress
   }
 
-  alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
-  # alias __MODULE__.MemTablesLoader
 
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
@@ -160,28 +158,17 @@ defmodule Archethic.TransactionChain do
 
   @doc """
   Get a transaction
-
-  A lookup is performed into the KO ledger to determine if the transaction is invalid
   """
   @spec get_transaction(binary(), fields :: list()) ::
-          {:ok, Transaction.t()}
-          | {:error, :transaction_not_exists}
-          | {:error, :invalid_transaction}
-  def get_transaction(address, fields \\ [], storage_type \\ :chain) when is_list(fields) do
-    if KOLedger.has_transaction?(address) do
-      {:error, :invalid_transaction}
-    else
-      DB.get_transaction(address, fields, storage_type)
-    end
-  end
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  def get_transaction(address, fields \\ [], storage_type \\ :chain) when is_list(fields),
+    do: DB.get_transaction(address, fields, storage_type)
 
   @doc """
   Get the last transaction from a given chain address
   """
   @spec get_last_transaction(binary(), list()) ::
-          {:ok, Transaction.t()}
-          | {:error, :transaction_not_exists}
-          | {:error, :invalid_transaction}
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_last_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
     {address, _} = get_last_address(address)
     get_transaction(address, fields)
@@ -257,13 +244,6 @@ defmodule Archethic.TransactionChain do
   """
   @spec get_size(binary()) :: non_neg_integer()
   defdelegate get_size(address), to: DB, as: :chain_size
-
-  @doc """
-  Get the details from a ko transaction address
-  """
-  @spec get_ko_details(binary()) ::
-          {ValidationStamp.t(), inconsistencies :: list(), errors :: list()}
-  defdelegate get_ko_details(address), to: KOLedger, as: :get_details
 
   @doc """
   List of all the counter signatures regarding a given transaction
@@ -365,11 +345,7 @@ defmodule Archethic.TransactionChain do
           address :: Crypto.prepended_hash(),
           storage_nodes :: list(Node.t()),
           opts :: search_options()
-        ) ::
-          {:ok, Transaction.t()}
-          | {:error, :transaction_not_exists}
-          | {:error, :invalid_transaction}
-          | {:error, :network_issue}
+        ) :: {:ok, Transaction.t()} | {:error, :transaction_not_exists} | {:error, :network_issue}
   def fetch_transaction(address, nodes, opts \\ []) do
     with :hybrid <- Keyword.get(opts, :search_mode, :hybrid),
          {:ok, tx} <- get_transaction(address) do
@@ -424,14 +400,8 @@ defmodule Archethic.TransactionChain do
                timeout: timeout,
                acceptance_resolver: acceptance_resolver
              ) do
-          {:ok, %NotFound{}} ->
-            {:error, :transaction_not_exists}
-
-          {:ok, %Error{}} ->
-            {:error, :invalid_transaction}
-
-          res ->
-            res
+          {:ok, %NotFound{}} -> {:error, :transaction_not_exists}
+          res -> res
         end
     end
   end
@@ -1064,29 +1034,17 @@ defmodule Archethic.TransactionChain do
         storage_type \\ :chain
       ) do
     DB.write_transaction(tx, storage_type)
-    |> tap(fn _ ->
-      KOLedger.remove_transaction(address)
+    |> tap(fn
+      :ok ->
+        Logger.info("Transaction stored",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-      Logger.info("Transaction stored",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+      _ ->
+        :skip
     end)
   end
-
-  @doc """
-  Write an invalid transaction
-  """
-  @spec write_ko_transaction(transaction :: Transaction.t(), errors :: list()) :: :ok
-  defdelegate write_ko_transaction(tx, additional_errors \\ []),
-    to: KOLedger,
-    as: :add_transaction
-
-  @doc """
-  Determine if the transaction already be validated and is invalid
-  """
-  @spec transaction_ko?(address :: binary()) :: boolean()
-  defdelegate transaction_ko?(address), to: KOLedger, as: :has_transaction?
 
   @doc """
   Determine if a transaction address has already sent a counter signature (approval) to another transaction

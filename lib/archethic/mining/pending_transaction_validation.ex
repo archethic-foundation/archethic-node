@@ -909,9 +909,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:ok, {:error, :transaction_not_exists}} ->
         {:error, "Invalid token transaction - token_reference not found"}
 
-      {:ok, {:error, :invalid_transaction}} ->
-        {:error, "Invalid token transaction - token_reference is invalid"}
-
       {:ok, {:error, :network_issue}} ->
         {:error, "A network issue was raised, please retry later"}
 

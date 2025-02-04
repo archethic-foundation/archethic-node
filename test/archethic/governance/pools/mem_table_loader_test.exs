@@ -4,11 +4,9 @@ defmodule Archethic.Governance.Pools.MemTableLoaderTest do
   alias Archethic.Governance.Pools.MemTable
   alias Archethic.Governance.Pools.MemTableLoader
 
-  alias Archethic.TransactionChain.MemTables.KOLedger
   alias Archethic.TransactionChain.Transaction
 
   setup do
-    start_supervised!(KOLedger)
     start_supervised!(MemTable)
 
     :ok
