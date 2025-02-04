@@ -96,9 +96,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   defp format_reason(:transaction_not_exists),
     do: {:error, :transaction_not_exists, "Contract transaction does not exist"}
 
-  defp format_reason(:invalid_transaction),
-    do: {:error, :invalid_transaction, "Contract transaction is invalid"}
-
   defp format_reason(:network_issue),
     do: {:error, :internal_error, "Cannot fetch contract transaction"}
 

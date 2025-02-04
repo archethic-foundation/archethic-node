@@ -170,7 +170,6 @@ config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
   application_interval: "0 0 * * * * *"
 
 config :archethic, Archethic.TransactionChain.MemTables.PendingLedger, enabled: false
-config :archethic, Archethic.TransactionChain.MemTables.KOLedger, enabled: false
 config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
 config :archethic, Archethic.TransactionChain.DBLedger, MockTransactionLedger

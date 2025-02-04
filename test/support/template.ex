@@ -13,7 +13,6 @@ defmodule ArchethicCase do
   alias TransactionChain.{
     Transaction,
     TransactionData,
-    MemTables.KOLedger,
     MemTables.PendingLedger
   }
 
@@ -234,7 +233,6 @@ defmodule ArchethicCase do
       []
     end)
 
-    start_supervised!(KOLedger)
     start_supervised!(PendingLedger)
     start_supervised!(OriginKeyLookup)
     start_supervised!(P2PMemTable)

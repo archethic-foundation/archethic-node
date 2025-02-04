@@ -241,9 +241,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
       {:ok, {:error, :transaction_not_exists}} ->
         {:error, "Transaction not exists"}
 
-      {:ok, {:error, :invalid_transaction}} ->
-        {:error, "Transaction invalid"}
-
       {:error, :decode_error} ->
         {:error, "Error in decoding transaction"}
 

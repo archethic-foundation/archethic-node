@@ -94,17 +94,10 @@ defmodule ArchethicWeb.AEWeb.WebHostingController do
            Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
-      er when er in [:error, false] ->
-        {:error, :invalid_address}
-
-      {:error, %Jason.DecodeError{}} ->
-        {:error, :invalid_content}
-
-      {:error, reason} when reason in [:transaction_not_exists, :invalid_transaction] ->
-        {:error, :website_not_found}
-
-      error ->
-        error
+      er when er in [:error, false] -> {:error, :invalid_address}
+      {:error, %Jason.DecodeError{}} -> {:error, :invalid_content}
+      {:error, :transaction_not_exists} -> {:error, :website_not_found}
+      error -> error
     end
   end
 
