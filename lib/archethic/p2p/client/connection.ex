@@ -431,8 +431,8 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event(
         {:timeout, {:request, msg_id}},
-        _event_data,
-        {:connected, _socket},
+        _,
+        _,
         data = %{node_public_key: node_public_key}
       ) do
     case pop_in(data, [:messages, msg_id]) do
