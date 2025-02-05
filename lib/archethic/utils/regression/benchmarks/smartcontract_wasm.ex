@@ -71,7 +71,6 @@ defmodule Archethic.Utils.Regression.Benchmark.WasmSmartContractTrigger do
             )
 
           SmartContractHelper.await_no_more_calls(genesis_address, trigger_address, endpoint)
-          :cprof.stop()
         end
       },
       [parallel: 4]
