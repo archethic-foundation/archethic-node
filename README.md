@@ -92,7 +92,6 @@ Requirements:
 - OpenSSL 1.11
 - Erlang OTP 25
 - Elixir 1.14
-- GMP (https://gmplib.org/)
 - MiniUPnP used for port forwarding & IP lookup (https://miniupnp.tuxfamily.org/)
 - Npm for static assets (https://nodejs.org/en/download)
 

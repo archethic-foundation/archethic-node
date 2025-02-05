@@ -29,13 +29,7 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
     summary_time = BeaconChain.next_summary_date(slot_time)
     node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
-    beacon_summary_nodes =
-      Election.beacon_storage_nodes(
-        subset,
-        summary_time,
-        node_list,
-        Election.get_storage_constraints()
-      )
+    beacon_summary_nodes = Election.beacon_storage_nodes(subset, summary_time, node_list)
 
     # Load BeaconChain's slot only for the summary nodes
     with true <- Utils.key_in_node_list?(beacon_summary_nodes, Crypto.first_node_public_key()),

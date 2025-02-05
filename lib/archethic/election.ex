@@ -6,7 +6,6 @@ defmodule Archethic.Election do
 
   alias Archethic.Crypto
 
-  alias __MODULE__.Constraints
   alias __MODULE__.StorageConstraints
   alias __MODULE__.ValidationConstraints
 
@@ -108,7 +107,10 @@ defmodule Archethic.Election do
       ...>     %Node{first_public_key: "node8", geo_patch: "F10"},
       ...>     %Node{first_public_key: "node9", geo_patch: "ECA"}
       ...>   ],
-      ...>   %ValidationConstraints{validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end}
+      ...>   %ValidationConstraints{
+      ...>     validation_numbers: fn _ -> {3, 0} end,
+      ...>     min_geo_patch: fn -> 2 end
+      ...>   }
       ...> )
       [
         %Node{first_public_key: "node1", geo_patch: "AAA"},
@@ -129,7 +131,7 @@ defmodule Archethic.Election do
         authorized_nodes,
         storage_nodes,
         %ValidationConstraints{
-          validation_number: validation_number_fun,
+          validation_numbers: validation_number_fun,
           min_geo_patch: min_geo_patch_fun
         } \\ ValidationConstraints.new()
       )
@@ -137,8 +139,12 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
-    nb_validations = validation_number_fun.(authorized_nodes)
+    nb_nodes = length(authorized_nodes)
+
+    {nb_required, nb_overbooking} = validation_number_fun.(nb_nodes)
     min_geo_patch = min_geo_patch_fun.()
+
+    nb_validations = nb_required + nb_overbooking
 
     authorized_nodes
     |> sort_validation_nodes(tx, sorting_seed)
@@ -316,8 +322,9 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate the storage election constraints
+    nb_nodes = length(nodes)
 
-    nb_replicas = number_replicas_fun.(nodes)
+    nb_replicas = number_replicas_fun.(nb_nodes)
     min_geo_patch_avg_availability = min_geo_patch_avg_availability_fun.()
     min_geo_patch = min_geo_patch_fun.()
 
@@ -408,30 +415,6 @@ defmodule Archethic.Election do
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)
     |> Enum.map(fn {_, n} -> n end)
   end
-
-  @doc """
-  Return the actual constraints for the transaction validation
-  """
-  @spec get_validation_constraints() :: ValidationConstraints.t()
-  defdelegate get_validation_constraints, to: Constraints
-
-  @doc """
-  Set the new validation constraints
-  """
-  @spec set_validation_constraints(ValidationConstraints.t()) :: :ok
-  defdelegate set_validation_constraints(constraints), to: Constraints
-
-  @doc """
-  Return the actual constraints for the transaction storage
-  """
-  @spec get_storage_constraints() :: StorageConstraints.t()
-  defdelegate get_storage_constraints(), to: Constraints
-
-  @doc """
-  Set the new storage constraints
-  """
-  @spec set_storage_constraints(StorageConstraints.t()) :: :ok
-  defdelegate set_storage_constraints(constraints), to: Constraints
 
   @doc """
   Find out the next authorized nodes using the TPS from the previous to determine based
@@ -749,13 +732,8 @@ defmodule Archethic.Election do
           binary(),
           Transaction.transaction_type(),
           list(Node.t())
-        ) ::
-          list(Node.t())
-  def chain_storage_nodes_with_type(
-        address,
-        type,
-        node_list
-      )
+        ) :: list(Node.t())
+  def chain_storage_nodes_with_type(address, type, node_list)
       when is_binary(address) and is_atom(type) and is_list(node_list) do
     if Transaction.network_type?(type) do
       node_list
@@ -768,14 +746,8 @@ defmodule Archethic.Election do
   Return the storage nodes for the transaction chain based on the transaction address and set a nodes
   """
   @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
-  def chain_storage_nodes(address, node_list)
-      when is_binary(address) and is_list(node_list) do
-    storage_nodes(
-      address,
-      node_list,
-      get_storage_constraints()
-    )
-  end
+  def chain_storage_nodes(address, node_list) when is_binary(address) and is_list(node_list),
+    do: storage_nodes(address, node_list)
 
   @doc """
 

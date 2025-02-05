@@ -15,6 +15,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.BeaconChain.SubsetRegistry
 
   alias Archethic.Election
+  alias Archethic.Election.ValidationConstraints
 
   alias Archethic.Mining.DistributedWorkflow, as: Workflow
   alias Archethic.Mining.Error
@@ -175,6 +176,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       {:ok, pid} =
@@ -258,6 +262,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       welcome_node = %Node{
@@ -330,7 +337,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert io_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
-      assert <<0::1, 0::1, 1::1>> == confirmed_validation_nodes
+      assert <<0::1, 1::1>> == confirmed_validation_nodes
     end
 
     test "aggregate context and create validation stamp when enough context are retrieved", %{
@@ -367,6 +374,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %Ok{}}
 
         _, %CrossValidate{}, _ ->
+          {:ok, %Ok{}}
+
+        _, _, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -495,6 +505,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %CrossValidate{}, _ ->
           {:ok, %Ok{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       welcome_node = %Node{
@@ -570,7 +583,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          }
        }} = :sys.get_state(coordinator_pid)
 
-      assert confirmed_cross_validations == <<0::1, 1::1>>
+      assert confirmed_cross_validations == <<1::1>>
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1>>
     end
@@ -601,7 +614,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_and_available_nodes(),
-          Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
+          Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes()),
+          ValidationConstraints.new(fn -> 3 end, fn _ -> {3, 0} end)
         )
 
       me = self()
@@ -632,6 +646,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %CrossValidationDone{cross_validation_stamp: stamp}, _ ->
           send(me, {:cross_validation_done, stamp})
+          {:ok, %Ok{}}
+
+        _, _, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -679,13 +696,15 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
 
+      ref_timestamp = DateTime.utc_now()
+
       {:ok, coordinator_pid} =
         Workflow.start_link(
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
           node_public_key: List.first(validation_nodes).last_public_key,
-          ref_timestamp: DateTime.utc_now()
+          ref_timestamp: ref_timestamp
         )
 
       {:ok, cross_validator_pid} =
@@ -694,7 +713,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
           node_public_key: List.last(validation_nodes).last_public_key,
-          ref_timestamp: DateTime.utc_now()
+          ref_timestamp: ref_timestamp
         )
 
       Workflow.add_mining_context(
@@ -943,6 +962,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %ReplicationAttestationMessage{}, _ ->
           send(me, :replication_done)
           {:ok, %Ok{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       {:ok, coordinator_pid} =
@@ -1113,6 +1135,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %UnlockChain{}, _ ->
           send(me, :unlock_chain)
           {:ok, %Transaction{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       {:ok, coordinator_pid} =
@@ -1194,6 +1219,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %UnlockChain{}, _ ->
           send(me, :unlock_chain)
           {:ok, %Transaction{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       {:ok, coordinator_pid} =

@@ -246,12 +246,9 @@ defmodule Archethic.SelfRepair.Sync do
         # Postpone only if we are the current beacon slot node
         # (otherwise all nodes would postpone as the self repair is run on all nodes)
         slot_node? =
-          BeaconChain.subset_from_address(address)
-          |> Election.beacon_storage_nodes(
-            slot_time,
-            nodes,
-            Election.get_storage_constraints()
-          )
+          address
+          |> BeaconChain.subset_from_address()
+          |> Election.beacon_storage_nodes(slot_time, nodes)
           |> Utils.key_in_node_list?(Crypto.first_node_public_key())
 
         if slot_node? do

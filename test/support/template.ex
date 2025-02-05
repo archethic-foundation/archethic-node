@@ -5,7 +5,6 @@ defmodule ArchethicCase do
   alias ArchethicWeb.{TransactionSubscriber}
 
   alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
-  alias Archethic.{Election.Constraints}
   alias Archethic.Contracts.Loader
 
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
@@ -236,7 +235,6 @@ defmodule ArchethicCase do
     start_supervised!(PendingLedger)
     start_supervised!(OriginKeyLookup)
     start_supervised!(P2PMemTable)
-    start_supervised!(Constraints)
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
