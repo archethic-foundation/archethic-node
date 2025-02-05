@@ -76,13 +76,17 @@ defmodule Archethic do
 
     cond do
       P2P.authorized_and_available_node?() and shared_secret_synced?() ->
-        validation_nodes = Mining.get_validation_nodes(tx, ref_timestamp)
+        synchronization_nodes =
+          tx
+          |> Mining.get_validation_nodes(ref_timestamp)
+          |> Enum.filter(&P2P.node_connected?/1)
+          |> Election.get_synchronization_nodes()
 
         responses =
           %{already_locked?: already_locked?} =
           do_send_transaction(
             tx,
-            validation_nodes,
+            synchronization_nodes,
             welcome_node_key,
             contract_context,
             ref_timestamp
@@ -90,7 +94,7 @@ defmodule Archethic do
 
         maybe_start_resync(responses)
 
-        if forward? and not enough_ack?(responses, length(validation_nodes)),
+        if forward? and not enough_ack?(responses, length(synchronization_nodes)),
           do: forward_transaction(tx, welcome_node_key, contract_context)
 
         if already_locked?, do: notify_welcome_node(welcome_node_key, address, :already_locked)
@@ -124,7 +128,7 @@ defmodule Archethic do
 
   defp do_send_transaction(
          tx = %Transaction{type: tx_type},
-         validation_nodes,
+         synchronization_nodes,
          welcome_node_key,
          contract_context,
          ref_timestamp
@@ -132,7 +136,7 @@ defmodule Archethic do
     message = %StartMining{
       transaction: tx,
       welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+      synchronization_node_public_keys: Enum.map(synchronization_nodes, & &1.first_public_key),
       network_chains_view_hash: NetworkView.get_chains_hash(),
       p2p_view_hash: NetworkView.get_p2p_hash(),
       contract_context: contract_context,
@@ -141,7 +145,7 @@ defmodule Archethic do
 
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
-      validation_nodes,
+      synchronization_nodes,
       &P2P.send_message(&1, message),
       ordered: false,
       on_timeout: :kill_task,
@@ -268,11 +272,8 @@ defmodule Archethic do
   # are more susceptible to failures.
   defp get_welcome_node_public_key(:node, key) do
     case P2P.get_node_info(key) do
-      {:error, _} ->
-        Crypto.last_node_public_key()
-
-      _ ->
-        key
+      {:error, _} -> Crypto.first_node_public_key()
+      _ -> key
     end
   end
 

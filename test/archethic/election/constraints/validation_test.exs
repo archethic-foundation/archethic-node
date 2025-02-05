@@ -1,102 +1,34 @@
 defmodule Archethic.Election.ValidationConstraintsTest do
   use ArchethicCase
+  import ArchethicCase
   use ExUnitProperties
 
-  alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-
   alias Archethic.Election.ValidationConstraints
+  alias Archethic.Election.HypergeometricDistribution
 
   doctest ValidationConstraints
 
-  setup do
-    Enum.each(1..50, fn _ ->
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-    end)
-
-    # allocate time to ingest Node updates for HyperGeometric distribution server
-    Process.sleep(50)
-
-    :ok
-  end
-
-  property "validation_number return more than 3 validation nodes and less than 200 validation nodes" do
-    check all(
-            transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0)),
-            nb_authorized_node <- StreamData.positive_integer()
-          ) do
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers:
-                Enum.map(transfers, fn amount ->
-                  %Transfer{to: :crypto.strong_rand_bytes(32), amount: amount}
-                end)
-            }
+  property "validation_number matches hypergeometric distribution" do
+    check all(nb_nodes <- StreamData.integer(1..200)) do
+      nodes =
+        for _ <- 1..nb_nodes do
+          %Node{
+            ip: {127, 0, 0, 1},
+            port: 3000,
+            first_public_key: random_public_key(),
+            last_public_key: random_public_key(),
+            authorized?: true,
+            authorization_date: DateTime.utc_now() |> DateTime.add(-1)
           }
-        }
-      }
+        end
 
-      min = ValidationConstraints.min_validation_nodes(nb_authorized_node)
+      expected = HypergeometricDistribution.run_simulation(length(nodes))
+      constraints = ValidationConstraints.new()
+      actual = constraints.validation_number.(nodes)
 
-      nb_validations = ValidationConstraints.validation_number(tx, nb_authorized_node)
-      assert nb_validations >= min and nb_validations <= 200
-    end
-  end
-
-  describe "validation_number/2" do
-    test "should return the minimum before 10 UCO" do
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 100_000_000}]
-            }
-          }
-        }
-      }
-
-      assert 3 == ValidationConstraints.validation_number(tx, 10)
-    end
-
-    test "should return a number based on the UCO value" do
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 2_000_000_000}]
-            }
-          }
-        }
-      }
-
-      assert 4 == ValidationConstraints.validation_number(tx, 10)
-
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 100_000_000_000}]
-            }
-          }
-        }
-      }
-
-      assert 6 == ValidationConstraints.validation_number(tx, 10)
+      assert actual == expected
     end
   end
 end
