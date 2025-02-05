@@ -1438,15 +1438,13 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  By checking at the proof of integrity (determined by the coordinator) we can ensure a transaction is not the first
-  (because the poi contains the hash of the previous if any)
+  Return if the previous address of the transaction is the genesis address
   """
   @spec first_transaction?(Transaction.t()) :: boolean()
-  def first_transaction?(%Transaction{
-        address: address,
-        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
-      }) do
-    address == genesis_address
+  def first_transaction?(
+        tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}}
+      ) do
+    Transaction.previous_address(tx) == genesis_address
   end
 
   # @doc """
