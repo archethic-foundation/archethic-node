@@ -176,7 +176,7 @@ defmodule ArchethicTest do
       )
 
       MockClient
-      |> expect(:send_message, 3, fn
+      |> expect(:send_message, 2, fn
         _, %StartMining{}, _ ->
           {:ok, %Ok{}}
       end)

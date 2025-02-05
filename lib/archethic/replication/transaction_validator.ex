@@ -167,13 +167,8 @@ defmodule Archethic.Replication.TransactionValidator do
         storage_nodes = Election.chain_storage_nodes(tx_address, authorized_nodes)
 
         validation_nodes =
-          Election.validation_nodes(
-            tx,
-            proof_of_election,
-            authorized_nodes,
-            storage_nodes,
-            Election.get_validation_constraints()
-          )
+          Election.validation_nodes(tx, proof_of_election, authorized_nodes, storage_nodes)
+
           # Update node last public key with the one at transaction date
           |> Enum.map(fn node = %Node{first_public_key: public_key} ->
             %Node{node | last_public_key: DB.get_last_chain_public_key(public_key, tx_timestamp)}

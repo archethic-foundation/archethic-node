@@ -407,12 +407,7 @@ defmodule Archethic.BeaconChain.Subset do
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
     node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
-    Election.beacon_storage_nodes(
-      subset,
-      summary_time,
-      node_list,
-      Election.get_storage_constraints()
-    )
+    Election.beacon_storage_nodes(subset, summary_time, node_list)
     |> Utils.key_in_node_list?(node_public_key)
   end
 

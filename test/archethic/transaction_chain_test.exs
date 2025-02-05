@@ -618,6 +618,8 @@ defmodule Archethic.TransactionChainTest do
         validation_stamp: %ValidationStamp{genesis_address: genesis_address}
       } = List.last(txs)
 
+      me = self()
+
       MockClient
       |> expect(:send_message, 3, fn
         ^node1, %GetTransactionChain{}, _ ->
@@ -628,10 +630,13 @@ defmodule Archethic.TransactionChainTest do
       end)
       |> expect(:send_message, 2, fn
         _, %ShardRepair{storage_address: ^last_address, genesis_address: ^genesis_address}, _ ->
+          send(me, :shard_repair)
           {:ok, %Ok{}}
       end)
 
       assert ^txs = TransactionChain.fetch(last_address, nodes) |> Enum.to_list()
+      assert_receive :shard_repair
+      assert_receive :shard_repair
     end
 
     test "should get the transaction chain", %{nodes: nodes} do

@@ -93,13 +93,7 @@ defmodule Archethic.Mining do
 
     storage_nodes = Election.chain_storage_nodes(tx_address, node_list)
 
-    Election.validation_nodes(
-      tx,
-      sorting_seed,
-      node_list,
-      storage_nodes,
-      Election.get_validation_constraints()
-    )
+    Election.validation_nodes(tx, sorting_seed, node_list, storage_nodes)
   end
 
   @doc """

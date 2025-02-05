@@ -18,7 +18,7 @@ defmodule Archethic.Election.StorageConstraints do
 
   @type min_geo_patch_fun() :: (() -> non_neg_integer())
   @type min_geo_patch_avg_availability_fun() :: (() -> float())
-  @type number_replicas_fun() :: (nonempty_list(Node.t()) -> non_neg_integer())
+  @type number_replicas_fun() :: (pos_integer() -> non_neg_integer())
 
   @typedoc """
   Each storage constraints represent a function which will be executed during the election algorithms:
@@ -29,7 +29,7 @@ defmodule Archethic.Election.StorageConstraints do
   - min_storage_geo_patch_avg_availability: Require number of average availability by distinct geographical patches.
   This property ensures than each patch of the sharding will support a certain availability
   from these nodes.
-  - number_replicas: Require number of storages nodes for a given list of nodes according to their
+  - number_replicas: Required number of storages nodes for a given number of nodes according to their
   availability. 
   """
   @type t :: %__MODULE__{
@@ -39,7 +39,7 @@ defmodule Archethic.Election.StorageConstraints do
         }
 
   @spec new(min_geo_patch_fun(), min_geo_patch_avg_availability_fun(), number_replicas_fun()) ::
-          __MODULE__.t()
+          t()
   def new(
         min_geo_patch_fun \\ &min_geo_patch/0,
         min_geo_patch_avg_availability_fun \\ &min_geo_patch_avg_availability/0,
@@ -106,10 +106,10 @@ defmodule Archethic.Election.StorageConstraints do
   @doc """
   Run a simulation of the hypergeometric distribution based on a number of nodes
   """
-  @spec hypergeometric_distribution(list(Node.t())) :: pos_integer()
-  def hypergeometric_distribution(nodes) when is_list(nodes) and length(nodes) >= 0 do
-    nodes
-    |> length()
-    |> HypergeometricDistribution.run_simulation()
+  @spec hypergeometric_distribution(nb_nodes :: pos_integer()) :: pos_integer()
+  def hypergeometric_distribution(nb_nodes) when nb_nodes > 0 do
+    security_parameters = HypergeometricDistribution.get_storage_security_parameters()
+    {required_nodes, _} = HypergeometricDistribution.run_simulation(nb_nodes, security_parameters)
+    required_nodes
   end
 end

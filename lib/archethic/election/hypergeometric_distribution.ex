@@ -12,118 +12,95 @@ defmodule Archethic.Election.HypergeometricDistribution do
   ensures the atomicity property of network transactions.
   """
 
-  use GenServer
-  @vsn 1
+  alias __MODULE__.SecurityParameters
 
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.PubSub
+  # Constants
+  @storage_malicious_rate 0.9
+  @storage_tolerance 1.0e-9
+  @scaling_limit 200
+  @min_nodes 10
+  @max_overbooked_nodes 20
+  # Maximum security parameters (for nodes >200)
+  @max_malicious_rate 0.75
+  @min_tolerance 1.0e-9
+  @min_overbooking_rate 0.10
+  # Minimum security parameters (for small networks)
+  @min_malicious_rate 0.65
+  @max_tolerance 1.0e-6
+  @max_overbooking_rate 0.25
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  defmodule SecurityParameters do
+    @moduledoc """
+    Security parameters for the hypergeometric distribution algorithm
+    """
+    defstruct [:malicious_rate, :tolerance, :overbooking_rate]
+
+    @type t :: %__MODULE__{
+            malicious_rate: float(),
+            tolerance: float(),
+            overbooking_rate: float()
+          }
   end
 
-  def init(_opts) do
-    PubSub.register_to_node_update()
-
-    {:ok, %{previous_simulations: %{}, clients: %{}, tasks: %{}}}
+  @doc """
+  Returns the storage security parameters
+  """
+  @spec get_storage_security_parameters() :: SecurityParameters.t()
+  def get_storage_security_parameters() do
+    %SecurityParameters{
+      malicious_rate: @storage_malicious_rate,
+      tolerance: @storage_tolerance,
+      overbooking_rate: 0.0
+    }
   end
 
-  def handle_info(
-        {:node_update, %Node{available?: true, authorized?: true}},
-        state = %{tasks: tasks}
-      ) do
-    nb_nodes = length(P2P.authorized_and_available_nodes())
-
-    case Map.get(tasks, nb_nodes) do
-      nil ->
-        %Task{ref: ref} = start_simulation_task(nb_nodes)
-        {:noreply, Map.update!(state, :tasks, &Map.put(&1, nb_nodes, ref))}
-
-      _ ->
-        {:noreply, state}
-    end
+  @doc """
+  Returns the security parameters (malicious rate and tolerance) based on the number of nodes.
+  Uses logarithmic scaling from 10 to 200 nodes for malicious rate and tolerance
+  Uses linear scaling from 10 to 200 nodes for overbooking rate
+  """
+  @spec get_security_parameters(nb_nodes :: integer()) ::
+          {malicious_rate :: float(), tolerance :: float()}
+  def get_security_parameters(nb_nodes) when nb_nodes >= @scaling_limit do
+    %SecurityParameters{
+      malicious_rate: @max_malicious_rate,
+      tolerance: @min_tolerance,
+      overbooking_rate: @min_overbooking_rate
+    }
   end
 
-  def handle_info(
-        {:node_update, %Node{available?: false, authorized?: true}},
-        state = %{tasks: tasks}
-      ) do
-    nb_nodes = length(P2P.authorized_and_available_nodes())
-
-    case Map.get(tasks, nb_nodes) do
-      nil ->
-        %Task{ref: ref} = start_simulation_task(nb_nodes)
-        {:noreply, Map.update!(state, :tasks, &Map.put(&1, nb_nodes, ref))}
-
-      _ ->
-        {:noreply, state}
-    end
+  def get_security_parameters(nb_nodes) when nb_nodes <= @min_nodes do
+    %SecurityParameters{
+      malicious_rate: @min_malicious_rate,
+      tolerance: @max_tolerance,
+      overbooking_rate: @max_overbooking_rate
+    }
   end
 
-  def handle_info({:node_update, _}, state), do: {:noreply, state}
+  def get_security_parameters(nb_nodes) do
+    log_scale = :math.log(nb_nodes - @min_nodes) / :math.log(@scaling_limit - @min_nodes)
+    log_scale = log_scale |> max(0) |> min(1)
 
-  def handle_info(
-        {ref, {nb_nodes, simulation_result}},
-        state = %{clients: clients}
-      ) do
-    clients
-    |> Map.get(ref, [])
-    |> Enum.each(&GenServer.reply(&1, simulation_result))
+    malicious_rate = @min_malicious_rate + (@max_malicious_rate - @min_malicious_rate) * log_scale
 
-    new_state =
-      state
-      |> Map.update!(:previous_simulations, &Map.put(&1, nb_nodes, simulation_result))
-      |> Map.update!(:tasks, &Map.delete(&1, nb_nodes))
-      |> Map.update!(:clients, &Map.delete(&1, ref))
+    log_min_tol = :math.log(@min_tolerance)
+    log_max_tol = :math.log(@max_tolerance)
+    log_tol = log_max_tol + (log_min_tol - log_max_tol) * log_scale
+    tolerance = :math.exp(log_tol)
 
-    {:noreply, new_state}
-  end
+    lin_scale = (nb_nodes - @min_nodes) / (@scaling_limit - @min_nodes)
+    lin_scale = lin_scale |> max(0) |> min(1)
 
-  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state), do: {:noreply, state}
+    log_min_over = :math.log(@min_overbooking_rate)
+    log_max_over = :math.log(@max_overbooking_rate)
+    log_over = log_max_over + (log_min_over - log_max_over) * lin_scale
+    overbooking_rate = :math.exp(log_over)
 
-  def handle_call(
-        {:run_simulation, nb_nodes},
-        from,
-        state = %{previous_simulations: previous_simulations, tasks: tasks}
-      )
-      when is_integer(nb_nodes) and nb_nodes >= 0 do
-    case Map.get(previous_simulations, nb_nodes) do
-      nil ->
-        case Map.get(tasks, nb_nodes) do
-          nil ->
-            %Task{ref: ref} = start_simulation_task(nb_nodes)
-
-            new_state =
-              state
-              |> Map.update!(:clients, &Map.put(&1, ref, [from]))
-              |> Map.update!(:tasks, &Map.put(&1, nb_nodes, ref))
-
-            {:noreply, new_state}
-
-          ref ->
-            {:noreply, update_in(state, [:clients, Access.key(ref, [])], &[from | &1])}
-        end
-
-      simulation ->
-        {:reply, simulation, state}
-    end
-  end
-
-  defp start_simulation_task(nb_nodes) do
-    Task.async(fn ->
-      pid = Port.open({:spawn_executable, executable()}, args: [Integer.to_string(nb_nodes)])
-
-      receive do
-        {^pid, {:data, data}} ->
-          {result, _} = :string.to_integer(data)
-          {nb_nodes, result}
-      end
-    end)
-  end
-
-  defp executable do
-    Application.app_dir(:archethic, "/priv/c_dist/hypergeometric_distribution")
+    %SecurityParameters{
+      malicious_rate: malicious_rate,
+      tolerance: tolerance,
+      overbooking_rate: overbooking_rate
+    }
   end
 
   @doc """
@@ -134,29 +111,168 @@ defmodule Archethic.Election.HypergeometricDistribution do
 
   ## Examples
 
-      iex> HypergeometricDistribution.run_simulation(5)
-      5
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(5, params)
+      {5, 0}
 
-      iex> HypergeometricDistribution.run_simulation(20)
-      19
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(20, params)
+      {19, 0}
 
-      iex> HypergeometricDistribution.run_simulation(40)
-      37
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(40, params)
+      {37, 0}
 
-      iex> HypergeometricDistribution.run_simulation(100)
-      84
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(100, params)
+      {84, 0}
 
-      iex> HypergeometricDistribution.run_simulation(1000)
-      178
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(1000, params)
+      {178, 0}
 
-      iex> HypergeometricDistribution.run_simulation(10000)
-      195
+      iex> params = HypergeometricDistribution.get_storage_security_parameters()
+      ...> HypergeometricDistribution.run_simulation(10000, params)
+      {195, 0}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(5)
+      ...> HypergeometricDistribution.run_simulation(5, params)
+      {4, 1}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(20)
+      ...> HypergeometricDistribution.run_simulation(20, params)
+      {14, 4}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(40)
+      ...> HypergeometricDistribution.run_simulation(40, params)
+      {29, 7}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(100)
+      ...> HypergeometricDistribution.run_simulation(100, params)
+      {73, 13}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(1000)
+      ...> HypergeometricDistribution.run_simulation(1000, params)
+      {180, 19}
+
+      iex> params = HypergeometricDistribution.get_security_parameters(10000)
+      ...> HypergeometricDistribution.run_simulation(10000, params)
+      {199, 20}
   """
-  @spec run_simulation(pos_integer) :: pos_integer
-  def run_simulation(nb_nodes) when is_integer(nb_nodes) and nb_nodes > 0 and nb_nodes <= 10,
-    do: nb_nodes
+  @spec run_simulation(nb_nodes :: pos_integer(), security_parameters :: SecurityParameters.t()) ::
+          {required_validations :: pos_integer(), overbooking :: pos_integer()}
+  def run_simulation(
+        nb_nodes,
+        security_parameters = %SecurityParameters{malicious_rate: malicious_rate}
+      )
+      when is_integer(nb_nodes) and nb_nodes > 0 do
+    nb_malicious = trunc(nb_nodes * malicious_rate)
+    nb_honest = nb_nodes - nb_malicious
 
-  def run_simulation(nb_nodes) when is_integer(nb_nodes) and nb_nodes > 0 do
-    GenServer.call(__MODULE__, {:run_simulation, nb_nodes}, 60_000)
+    cond do
+      nb_honest == 0 -> {nb_nodes, 0}
+      nb_malicious == 0 -> {1, min(nb_nodes - 1, 3)}
+      true -> do_run_simulation(nb_nodes, nb_malicious, nb_honest, security_parameters)
+    end
+  end
+
+  defp do_run_simulation(nb_nodes, nb_malicious, _, %SecurityParameters{
+         tolerance: tolerance,
+         overbooking_rate: overbooking_rate
+       })
+       when overbooking_rate == 0 do
+    Enum.reduce_while(1..nb_nodes, {nb_nodes, 0}, fn n, acc ->
+      cond do
+        n > nb_malicious ->
+          {:halt, {n, 0}}
+
+        simple_probability_under_tolerance?(n, nb_malicious, nb_nodes, tolerance) ->
+          {:halt, {n, 0}}
+
+        true ->
+          {:cont, acc}
+      end
+    end)
+  end
+
+  defp do_run_simulation(nb_nodes, nb_malicious, nb_honest, %SecurityParameters{
+         tolerance: tolerance,
+         overbooking_rate: overbooking_rate
+       }) do
+    Enum.reduce_while(1..nb_nodes, {nb_nodes, 0}, fn n, acc ->
+      # All overbooked nodes have to be honest
+      nb_overbooked = trunc(n * overbooking_rate) |> min(nb_honest) |> min(@max_overbooked_nodes)
+      nb_max_malicious = n - nb_overbooked
+
+      cond do
+        nb_max_malicious > nb_malicious ->
+          {:halt, {nb_max_malicious, nb_overbooked}}
+
+        overbooked_probability_under_tolerance?(
+          n,
+          nb_max_malicious,
+          nb_overbooked,
+          nb_malicious,
+          nb_honest,
+          nb_nodes,
+          tolerance
+        ) ->
+          {:halt, {nb_max_malicious, nb_overbooked}}
+
+        true ->
+          {:cont, acc}
+      end
+    end)
+  end
+
+  defp simple_probability_under_tolerance?(n, nb_malicious, nb_nodes, tolerance) do
+    log_malicious = log_binomial(nb_malicious, n)
+    log_total = log_binomial(nb_nodes, n)
+    p = :math.exp(log_malicious - log_total)
+    p < tolerance
+  end
+
+  defp overbooked_probability_under_tolerance?(
+         n,
+         nb_max_malicious,
+         nb_overbooked,
+         nb_malicious,
+         nb_honest,
+         nb_nodes,
+         tolerance
+       ) do
+    log_mal = log_binomial(nb_malicious, nb_max_malicious)
+    log_honest = log_binomial(nb_honest, nb_overbooked)
+    log_total = log_binomial(nb_nodes, n)
+
+    p = :math.exp(log_mal + log_honest - log_total)
+
+    cond do
+      p >= tolerance ->
+        false
+
+      nb_overbooked < 1 or nb_max_malicious == nb_malicious ->
+        true
+
+      true ->
+        # Calculate probability to have more malicious with same number of nodes
+        log_mal_increased = log_binomial(nb_malicious, nb_max_malicious + 1)
+        log_honest_decreased = log_binomial(nb_honest, nb_overbooked - 1)
+        pn = :math.exp(log_mal_increased + log_honest_decreased - log_total)
+
+        # Probability to have more malicious node in the set must be lower
+        pn < p
+    end
+  end
+
+  defp log_binomial(n, k) when k < 0 or k > n, do: :error
+  defp log_binomial(n, k) when k == 0 or k == n, do: 0
+
+  defp log_binomial(n, k) do
+    k = min(k, n - k)
+
+    Enum.reduce(1..k, 0, fn i, acc ->
+      acc + (:math.log(n - k + i) - :math.log(i))
+    end)
   end
 end

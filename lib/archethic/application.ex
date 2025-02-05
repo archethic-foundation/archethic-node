@@ -13,8 +13,6 @@ defmodule Archethic.Application do
 
   alias Archethic.DB.Supervisor, as: DBSupervisor
 
-  alias Archethic.Election.Supervisor, as: ElectionSupervisor
-
   alias Archethic.Governance.Supervisor, as: GovernanceSupervisor
 
   alias Archethic.Mining.Supervisor, as: MiningSupervisor
@@ -78,7 +76,6 @@ defmodule Archethic.Application do
       DBSupervisor,
       TransactionChainSupervisor,
       CryptoSupervisor,
-      ElectionSupervisor,
       P2PSupervisor,
       MiningSupervisor,
       BeaconChainSupervisor,
