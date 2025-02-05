@@ -50,14 +50,12 @@ export LANG=en_US.UTF-8
 
 if [[ ! -d $HOME/.asdf ]]
 then
-  git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.2
+  git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.15.0
 fi
 
 echo '. $HOME/.asdf/asdf.sh' >> ~/.profile
 echo '. $HOME/.asdf/completions/asdf.bash' >> ~/.profile
 source ~/.profile
-
-asdf update || :
 
 asdf plugin add erlang || :
 asdf plugin add elixir || :
