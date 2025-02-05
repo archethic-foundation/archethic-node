@@ -236,14 +236,14 @@ defmodule Mix.Tasks.Archethic.Db do
   defp ingest_transactions(txs, resolved_addresses) do
     Enum.each(txs, fn
       {nil, tx} ->
-        UTXO.load_transaction(tx, <<>>,
+        UTXO.load_transaction(tx,
           skip_consume_inputs?: true,
           skip_verify_consumed?: true,
           resolved_addresses: resolved_addresses
         )
 
-      {genesis, tx} ->
-        UTXO.load_transaction(tx, genesis,
+      {_genesis, tx} ->
+        UTXO.load_transaction(tx,
           skip_verify_consumed?: true,
           resolved_addresses: resolved_addresses
         )
