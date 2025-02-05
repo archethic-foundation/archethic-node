@@ -86,10 +86,6 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       assert %ValidationContext{
-               previous_storage_nodes: [
-                 %Node{first_public_key: "key1"},
-                 %Node{first_public_key: "key2"}
-               ],
                chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
                beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
                io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
@@ -101,7 +97,6 @@ defmodule Archethic.Mining.ValidationContextTest do
                unspent_outputs: ^utxos_coordinator
              } =
                %ValidationContext{
-                 previous_storage_nodes: [%Node{first_public_key: "key1"}],
                  chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
                  beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
                  io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
@@ -113,7 +108,6 @@ defmodule Archethic.Mining.ValidationContextTest do
                  unspent_outputs: utxos_coordinator
                }
                |> ValidationContext.aggregate_mining_context(
-                 [%Node{first_public_key: "key2"}],
                  <<1::1, 0::1, 1::1>>,
                  <<1::1, 1::1, 1::1>>,
                  <<1::1, 0::1, 0::1>>,
@@ -608,7 +602,6 @@ defmodule Archethic.Mining.ValidationContextTest do
     %ValidationContext{
       genesis_address: Transaction.previous_address(tx),
       transaction: tx,
-      previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: unspent_outputs,
       aggregated_utxos: unspent_outputs,
       welcome_node: welcome_node,

@@ -32,7 +32,6 @@ defmodule Archethic.Mining.ValidationContext do
       beacon: [],
       IO: []
     },
-    previous_storage_nodes: [],
     storage_nodes_confirmations: [],
     sub_replication_tree_validations: [],
     aggregated_utxos: [],
@@ -83,7 +82,6 @@ defmodule Archethic.Mining.ValidationContext do
           welcome_node: nil | Node.t(),
           coordinator_node: nil | Node.t(),
           cross_validation_nodes: nil | list(Node.t()),
-          previous_storage_nodes: list(Node.t()),
           chain_storage_nodes: list(Node.t()),
           beacon_storage_nodes: list(Node.t()),
           io_storage_nodes: list(Node.t()),
@@ -568,58 +566,25 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @doc """
-  Initialize the transaction mining context
-  """
-  @spec put_transaction_context(
-          t(),
-          Transaction.t(),
-          list(VersionedUnspentOutput.t()),
-          list(Node.t()),
-          bitstring(),
-          bitstring(),
-          bitstring()
-        ) :: t()
-  def put_transaction_context(
-        context = %__MODULE__{},
-        previous_transaction,
-        unspent_outputs,
-        previous_storage_nodes,
-        chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        io_storage_nodes_view
-      ) do
-    context
-    |> Map.put(:previous_transaction, previous_transaction)
-    |> Map.put(:unspent_outputs, unspent_outputs)
-    |> Map.put(:previous_storage_nodes, previous_storage_nodes)
-    |> Map.put(:chain_storage_nodes_view, chain_storage_nodes_view)
-    |> Map.put(:beacon_storage_nodes_view, beacon_storage_nodes_view)
-    |> Map.put(:io_storage_nodes_view, io_storage_nodes_view)
-  end
-
-  @doc """
   Aggregate the transaction mining context with the incoming context retrieved from the validation nodes
   """
   @spec aggregate_mining_context(
-          t(),
-          list(Node.t()),
-          bitstring(),
-          bitstring(),
-          bitstring(),
-          Crypto.key(),
-          list(binary())
+          context :: t(),
+          chain_storage_nodes_view :: bitstring(),
+          beacon_storage_nodes_view :: bitstring(),
+          io_storage_nodes_view :: bitstring(),
+          from :: Crypto.key(),
+          utxos_hashes :: list(binary())
         ) :: t()
   def aggregate_mining_context(
         context = %__MODULE__{},
-        previous_storage_nodes,
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         io_storage_nodes_view,
         from,
         utxos_hashes
       )
-      when is_list(previous_storage_nodes) and
-             is_bitstring(chain_storage_nodes_view) and
+      when is_bitstring(chain_storage_nodes_view) and
              is_bitstring(beacon_storage_nodes_view) and
              is_bitstring(io_storage_nodes_view) do
     if cross_validation_node?(context, from) do
@@ -630,7 +595,6 @@ defmodule Archethic.Mining.ValidationContext do
         beacon_storage_nodes_view,
         io_storage_nodes_view
       )
-      |> aggregate_previous_storage_nodes(previous_storage_nodes)
       |> aggregate_utxos(utxos_hashes)
     else
       context
@@ -674,15 +638,6 @@ defmodule Archethic.Mining.ValidationContext do
         io_storage_nodes_view:
           Utils.aggregate_bitstring(io_storage_nodes_view1, io_storage_nodes_view2)
     }
-  end
-
-  defp aggregate_previous_storage_nodes(
-         context = %__MODULE__{previous_storage_nodes: previous_nodes},
-         received_previous_storage_nodes
-       )
-       when is_list(received_previous_storage_nodes) do
-    previous_storage_nodes = P2P.distinct_nodes([previous_nodes, received_previous_storage_nodes])
-    %{context | previous_storage_nodes: previous_storage_nodes}
   end
 
   @doc """

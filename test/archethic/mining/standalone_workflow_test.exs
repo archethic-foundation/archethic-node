@@ -127,7 +127,8 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     assert {:ok, pid} =
              StandaloneWorkflow.start_link(
                transaction: tx,
-               welcome_node: P2P.get_node_info!(Crypto.last_node_public_key())
+               welcome_node: P2P.get_node_info!(Crypto.first_node_public_key()),
+               ref_timestamp: DateTime.utc_now()
              )
 
     receive do

@@ -55,6 +55,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
+  alias Archethic.TransactionFactory
+
   import Mox
   import ArchethicCase
 
@@ -140,6 +142,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           P2P.authorized_and_available_nodes()
         )
 
+      prev_tx = TransactionFactory.create_valid_transaction()
+
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
@@ -155,7 +159,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
         _, %GetTransaction{}, _ ->
-          {:ok, %Transaction{}}
+          {:ok, prev_tx}
 
         _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
@@ -178,8 +182,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
                   chain_storage_nodes_view: _,
                   beacon_storage_nodes_view: _,
                   previous_transaction: _,
-                  unspent_outputs: _,
-                  previous_storage_nodes: _
+                  unspent_outputs: _
                 }
               }} = :sys.get_state(pid)
     end
@@ -226,6 +229,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
         )
 
+      prev_tx = TransactionFactory.create_valid_transaction()
+
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
@@ -241,7 +246,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
         _, %GetTransaction{}, _ ->
-          {:ok, %Transaction{}}
+          {:ok, prev_tx}
 
         _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
@@ -272,36 +277,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           ref_timestamp: DateTime.utc_now()
         )
 
-      previous_storage_nodes = [
-        %Node{
-          ip: {80, 10, 20, 102},
-          port: 3006,
-          http_port: 4000,
-          first_public_key: "key10",
-          last_public_key: "key10",
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-          geo_patch: "AAA",
-          network_patch: "AAA"
-        },
-        %Node{
-          ip: {80, 10, 20, 102},
-          port: 3007,
-          http_port: 4000,
-          first_public_key: "key23",
-          last_public_key: "key23",
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
-          geo_patch: "AAA",
-          network_patch: "AAA"
-        }
-      ]
-
       Workflow.add_mining_context(
         coordinator_pid,
         [],
         List.last(validation_nodes).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
         <<1::1, 1::1, 0::1, 1::1>>,
         <<>>
@@ -418,7 +397,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         [],
         List.last(validation_nodes).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1>>,
         <<1::1, 1::1>>,
         <<>>
@@ -548,7 +526,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         [],
         List.last(validation_nodes).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1>>,
         <<1::1, 1::1>>,
         <<>>
@@ -703,7 +680,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         [],
         Enum.at(validation_nodes, 1).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
         <<1::1, 1::1, 1::1>>,
         <<>>
@@ -713,7 +689,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         [],
         List.last(validation_nodes).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
         <<1::1, 1::1, 1::1>>,
         <<>>
@@ -1001,7 +976,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         [],
         List.last(validation_nodes).last_public_key,
-        previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
         <<1::1, 1::1, 1::1, 1::1>>,
         <<>>
@@ -1094,6 +1068,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       me = self()
 
+      prev_tx = TransactionFactory.create_valid_transaction()
+
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
@@ -1113,7 +1089,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetTransaction{}, _ ->
-          {:ok, %Transaction{}}
+          {:ok, prev_tx}
 
         _, %UnlockChain{}, _ ->
           send(me, :unlock_chain)
@@ -1178,6 +1154,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       me = self()
 
+      prev_tx = TransactionFactory.create_valid_transaction()
+
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
@@ -1197,7 +1175,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetTransaction{}, _ ->
-          {:ok, %Transaction{}}
+          {:ok, prev_tx}
 
         _, %UnlockChain{}, _ ->
           send(me, :unlock_chain)
@@ -1352,7 +1330,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     %ValidationContext{
       genesis_address: Transaction.previous_address(tx),
       transaction: tx,
-      previous_storage_nodes: previous_storage_nodes,
       unspent_outputs: [
         %UnspentOutput{
           from: "@Alice2",

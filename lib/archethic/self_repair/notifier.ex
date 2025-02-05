@@ -207,10 +207,12 @@ defmodule Archethic.SelfRepair.Notifier do
   The set of previous storage nodes is subtracted from the set of new storage nodes.
   """
   @spec new_storage_nodes(
-          {binary(), list(Crypto.prepended_hash()), list(Crypto.key()), list(Crypto.key())},
+          {Crypto.prepended_hash(), Crypto.prepended_hash(), list(Crypto.prepended_hash()),
+           list(Crypto.key()), list(Crypto.key())},
           list(Node.t())
         ) ::
-          {binary(), list(Crypto.key()), list(Crypto.key())}
+          {Crypto.prepended_hash(), Crypto.prepended_hash(), list(Crypto.key()),
+           list(Crypto.key())}
   def new_storage_nodes(
         {address, genesis_address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
         new_available_nodes

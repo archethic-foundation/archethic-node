@@ -53,11 +53,18 @@ defmodule Archethic.Mining do
           contract_context :: nil | Contract.Context.t(),
           ref_timestamp :: DateTime.t()
         ) :: {:ok, pid()}
-  def start(tx = %Transaction{}, welcome_node_public_key, [_ | []], contract_context, _) do
+  def start(
+        tx = %Transaction{},
+        welcome_node_public_key,
+        [_ | []],
+        contract_context,
+        ref_timestamp
+      ) do
     StandaloneWorkflow.start_link(
       transaction: tx,
       welcome_node: P2P.get_node_info!(welcome_node_public_key),
-      contract_context: contract_context
+      contract_context: contract_context,
+      ref_timestamp: ref_timestamp
     )
   end
 
@@ -159,7 +166,6 @@ defmodule Archethic.Mining do
           address :: binary(),
           utxos_hashes :: list(binary()),
           validation_node_public_key :: Crypto.key(),
-          previous_storage_nodes_keys :: list(Crypto.key()),
           chain_storage_nodes_view :: bitstring(),
           beacon_storage_nodes_view :: bitstring(),
           io_storage_nodes_view :: bitstring()
@@ -169,7 +175,6 @@ defmodule Archethic.Mining do
         tx_address,
         utxos_hashes,
         validation_node_public_key,
-        previous_storage_nodes_keys,
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         io_storage_nodes_view
@@ -179,7 +184,6 @@ defmodule Archethic.Mining do
     |> DistributedWorkflow.add_mining_context(
       utxos_hashes,
       validation_node_public_key,
-      P2P.get_nodes_info(previous_storage_nodes_keys),
       chain_storage_nodes_view,
       beacon_storage_nodes_view,
       io_storage_nodes_view

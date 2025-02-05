@@ -17,7 +17,6 @@ defmodule Archethic.P2P.Message.AddMiningContextTest do
       address: random_address(),
       utxos_hashes: [],
       validation_node_public_key: random_public_key(),
-      previous_storage_nodes_public_keys: [random_public_key()],
       chain_storage_nodes_view: <<1::1, 0::1, 0::1, 1::1, 0::1>>,
       beacon_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>,
       io_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>
@@ -55,7 +54,6 @@ defmodule Archethic.P2P.Message.AddMiningContextTest do
       address: random_address(),
       utxos_hashes: [hash1, hash2],
       validation_node_public_key: random_public_key(),
-      previous_storage_nodes_public_keys: [random_public_key()],
       chain_storage_nodes_view: <<1::1, 0::1, 0::1, 1::1, 0::1>>,
       beacon_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>,
       io_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>

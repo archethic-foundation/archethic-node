@@ -44,7 +44,8 @@ defmodule Archethic.Election.ValidationConstraints do
   @doc """
   Run a simulation of the hypergeometric distribution based on a number of nodes
   """
-  @spec hypergeometric_distribution(nb_nodes :: pos_integer()) :: pos_integer()
+  @spec hypergeometric_distribution(nb_nodes :: pos_integer()) ::
+          {pos_integer(), non_neg_integer()}
   def hypergeometric_distribution(nb_nodes) when nb_nodes > 0 do
     security_paramters = HypergeometricDistribution.get_security_parameters(nb_nodes)
     HypergeometricDistribution.run_simulation(nb_nodes, security_paramters)

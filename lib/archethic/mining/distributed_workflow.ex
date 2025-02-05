@@ -13,11 +13,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
   If the atomic commitment is not reached, it starts the malicious detection to ban the dishonest nodes
   """
 
-  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.Crypto
-
-  alias Archethic.Election
 
   alias Archethic.Mining.Error
   alias Archethic.Mining.MaliciousDetection
@@ -42,7 +39,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Node
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -83,7 +79,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
           worker_pid :: pid(),
           utxos_hashes :: list(binary()),
           validation_node_public_key :: Crypto.key(),
-          previous_storage_nodes :: list(Node.t()),
           chain_storage_nodes_view :: bitstring(),
           beacon_storage_nodes_view :: bitstring(),
           io_storage_nodes_view :: bitstring()
@@ -93,15 +88,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
         pid,
         utxos_hashes,
         validation_node_public_key,
-        previous_storage_nodes,
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         io_storage_nodes_view
       ) do
     GenStateMachine.cast(
       pid,
-      {:add_mining_context, validation_node_public_key, previous_storage_nodes,
-       chain_storage_nodes_view, beacon_storage_nodes_view, io_storage_nodes_view, utxos_hashes}
+      {:add_mining_context, validation_node_public_key, chain_storage_nodes_view,
+       beacon_storage_nodes_view, io_storage_nodes_view, utxos_hashes}
     )
   end
 
@@ -173,6 +167,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
   defp get_mining_timeout(_type), do: @mining_timeout
 
   def init(opts \\ []) do
+    start_time = System.monotonic_time()
+
     tx = Keyword.get(opts, :transaction)
     welcome_node = Keyword.get(opts, :welcome_node)
     validation_nodes = Keyword.get(opts, :validation_nodes)
@@ -205,12 +201,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
           {{:timeout, :stop_timeout}, timeout, :any}
         ]
 
-        {:ok, :idle,
-         %{
-           ref_timestamp: ref_timestamp,
-           node_public_key: node_public_key,
-           start_time: System.monotonic_time()
-         }, next_events}
+        data = %{
+          ref_timestamp: ref_timestamp,
+          node_public_key: node_public_key,
+          start_time: start_time
+        }
+
+        {:ok, :idle, data, next_events}
     end
   end
 
@@ -220,64 +217,68 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :idle,
         data = %{ref_timestamp: ref_timestamp, node_public_key: node_public_key}
       ) do
+    start = System.monotonic_time()
+
+    Logger.info("Retrieve transaction context",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     validation_time = ref_timestamp |> DateTime.truncate(:millisecond)
 
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-    chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
+    tx_context = TransactionContext.get(tx, validation_time, authorized_nodes)
 
-    previous_address = Transaction.previous_address(tx)
-    previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
+    :telemetry.execute([:archethic, :mining, :fetch_context], %{
+      duration: System.monotonic_time() - start
+    })
 
-    genesis_address_task =
-      Task.async(fn ->
-        TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
-      end)
+    prev_tx = Keyword.get(tx_context, :previous_transaction)
+    unspent_outputs = Keyword.get(tx_context, :unspent_outputs)
 
-    resolved_addresses_task =
-      Task.async(fn -> TransactionChain.resolve_transaction_addresses!(tx) end)
+    Logger.debug("Previous transaction #{inspect(prev_tx)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-    [{:ok, genesis_address}, resolved_addresses] =
-      Task.await_many([genesis_address_task, resolved_addresses_task])
+    Logger.debug("Unspent outputs #{inspect(unspent_outputs)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
-
-    beacon_storage_nodes =
-      tx.address
-      |> BeaconChain.subset_from_address()
-      |> Election.beacon_storage_nodes(BeaconChain.next_slot(validation_time), authorized_nodes)
-
-    io_storage_nodes =
-      if Transaction.network_type?(tx.type) do
-        P2P.list_nodes()
-      else
-        resolved_addresses
-        |> Map.values()
-        |> Election.io_storage_nodes(authorized_nodes)
-      end
+    Logger.info("Transaction context retrieved",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
     [coordinator_node = %Node{first_public_key: coordinator_key} | cross_validation_nodes] =
       validation_nodes
 
-    context =
-      ValidationContext.new(
+    validation_context =
+      [
         transaction: tx,
         welcome_node: welcome_node,
         coordinator_node: coordinator_node,
         cross_validation_nodes: cross_validation_nodes,
-        chain_storage_nodes: chain_storage_nodes,
-        beacon_storage_nodes: beacon_storage_nodes,
-        io_storage_nodes: P2P.distinct_nodes(io_storage_nodes ++ genesis_storage_nodes),
         validation_time: validation_time,
-        resolved_addresses: resolved_addresses,
-        contract_context: contract_context,
-        genesis_address: genesis_address
-      )
+        contract_context: contract_context
+      ]
+      |> Keyword.merge(tx_context)
+      |> ValidationContext.new()
 
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
 
-    {:next_state, role, Map.put(data, :context, context),
-     {:next_event, :internal, :build_transaction_context}}
+    next_events =
+      case role do
+        :coordinator ->
+          [{:next_event, :internal, :prior_validation}]
+
+        :cross_validator ->
+          [{:next_event, :internal, :notify_context}, {:next_event, :internal, :prior_validation}]
+      end
+
+    {:next_state, role, Map.put(data, :context, validation_context), next_events}
   end
 
   def handle_event(:enter, :idle, :idle, _data = %{}) do
@@ -310,83 +311,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     :keep_state_and_data
-  end
-
-  def handle_event(
-        :internal,
-        :build_transaction_context,
-        state,
-        data = %{
-          context:
-            context = %ValidationContext{
-              genesis_address: genesis_address,
-              transaction: tx,
-              chain_storage_nodes: chain_storage_nodes,
-              beacon_storage_nodes: beacon_storage_nodes,
-              io_storage_nodes: io_storage_nodes
-            }
-        }
-      ) do
-    Logger.info("Retrieve transaction context",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    start = System.monotonic_time()
-
-    {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
-     beacon_storage_nodes_view,
-     io_storage_nodes_view} =
-      TransactionContext.get(
-        Transaction.previous_address(tx),
-        genesis_address,
-        Enum.map(chain_storage_nodes, & &1.first_public_key),
-        Enum.map(beacon_storage_nodes, & &1.first_public_key),
-        Enum.map(io_storage_nodes, & &1.first_public_key)
-      )
-
-    now = System.monotonic_time()
-
-    :telemetry.execute([:archethic, :mining, :fetch_context], %{
-      duration: now - start
-    })
-
-    Logger.debug("Previous transaction #{inspect(prev_tx)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    Logger.debug("Unspent outputs #{inspect(unspent_outputs)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    new_context =
-      ValidationContext.put_transaction_context(
-        context,
-        prev_tx,
-        unspent_outputs,
-        previous_storage_nodes,
-        chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        io_storage_nodes_view
-      )
-
-    Logger.info("Transaction context retrieved",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    next_events =
-      case state do
-        :coordinator ->
-          [{:next_event, :internal, :prior_validation}]
-
-        :cross_validator ->
-          [{:next_event, :internal, :notify_context}, {:next_event, :internal, :prior_validation}]
-      end
-
-    {:keep_state, %{data | context: new_context}, next_events}
   end
 
   def handle_event(:internal, :notify_context, :cross_validator, %{
@@ -456,8 +380,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :cast,
-        {:add_mining_context, from, previous_storage_nodes, chain_storage_nodes_view,
-         beacon_storage_nodes_view, io_storage_nodes_view, utxos_hashes},
+        {:add_mining_context, from, chain_storage_nodes_view, beacon_storage_nodes_view,
+         io_storage_nodes_view, utxos_hashes},
         :coordinator,
         data = %{
           context:
@@ -475,7 +399,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
       new_context =
         ValidationContext.aggregate_mining_context(
           context,
-          previous_storage_nodes,
           chain_storage_nodes_view,
           beacon_storage_nodes_view,
           io_storage_nodes_view,
@@ -1050,7 +973,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
            transaction: %Transaction{address: tx_address, type: tx_type},
            unspent_outputs: unspent_outputs,
            coordinator_node: coordinator_node,
-           previous_storage_nodes: previous_storage_nodes,
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view,
            io_storage_nodes_view: io_storage_nodes_view
@@ -1067,7 +989,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
       address: tx_address,
       utxos_hashes: Enum.map(unspent_outputs, &VersionedUnspentOutput.hash/1),
       validation_node_public_key: node_public_key,
-      previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.first_public_key),
       chain_storage_nodes_view: chain_storage_nodes_view,
       beacon_storage_nodes_view: beacon_storage_nodes_view,
       io_storage_nodes_view: io_storage_nodes_view

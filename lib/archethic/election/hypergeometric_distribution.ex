@@ -59,8 +59,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
   Uses logarithmic scaling from 10 to 200 nodes for malicious rate and tolerance
   Uses linear scaling from 10 to 200 nodes for overbooking rate
   """
-  @spec get_security_parameters(nb_nodes :: integer()) ::
-          {malicious_rate :: float(), tolerance :: float()}
+  @spec get_security_parameters(nb_nodes :: non_neg_integer()) :: SecurityParameters.t()
   def get_security_parameters(nb_nodes) when nb_nodes >= @scaling_limit do
     %SecurityParameters{
       malicious_rate: @max_malicious_rate,
@@ -160,7 +159,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
       {199, 20}
   """
   @spec run_simulation(nb_nodes :: pos_integer(), security_parameters :: SecurityParameters.t()) ::
-          {required_validations :: pos_integer(), overbooking :: pos_integer()}
+          {required_validations :: pos_integer(), overbooking :: non_neg_integer()}
   def run_simulation(
         nb_nodes,
         security_parameters = %SecurityParameters{malicious_rate: malicious_rate}
