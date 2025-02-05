@@ -872,9 +872,11 @@ defmodule Archethic.TransactionChain do
           end
 
         repair_fun = fn
-          res = %GenesisAddress{address: genesis_address}, results_by_node ->
+          %GenesisAddress{address: genesis_address}, results_by_node ->
             results_by_node
-            |> Enum.reject(&match?({_, ^res}, &1))
+            |> Enum.reject(fn {_, %GenesisAddress{address: address}} ->
+              address == genesis_address
+            end)
             |> Enum.map(fn {node_public_key, _} -> node_public_key end)
             |> P2P.broadcast_message(%ShardRepair{
               genesis_address: genesis_address,
