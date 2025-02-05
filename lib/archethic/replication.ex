@@ -496,59 +496,59 @@ defmodule Archethic.Replication do
   ## Examples
 
       iex> validation_nodes = [
-      ...>   %Node{network_patch: "AC2", last_public_key: "key_v1"},
-      ...>   %Node{network_patch: "DF3", last_public_key: "key_v2"},
-      ...>   %Node{network_patch: "C22", last_public_key: "key_v3"},
-      ...>   %Node{network_patch: "E19", last_public_key: "key_v4"},
-      ...>   %Node{network_patch: "22A", last_public_key: "key_v5"}
+      ...>   %Node{network_patch: "AC2", first_public_key: "key_v1"},
+      ...>   %Node{network_patch: "DF3", first_public_key: "key_v2"},
+      ...>   %Node{network_patch: "C22", first_public_key: "key_v3"},
+      ...>   %Node{network_patch: "E19", first_public_key: "key_v4"},
+      ...>   %Node{network_patch: "22A", first_public_key: "key_v5"}
       ...> ]
       ...> 
       ...> storage_nodes = [
-      ...>   %Node{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
-      ...>   %Node{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
-      ...>   %Node{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
-      ...>   %Node{network_patch: "2A9", first_public_key: "key_S4", last_public_key: "key_S4"},
-      ...>   %Node{network_patch: "143", first_public_key: "key_S5", last_public_key: "key_S5"},
-      ...>   %Node{network_patch: "BB2", first_public_key: "key_S6", last_public_key: "key_S6"},
-      ...>   %Node{network_patch: "A63", first_public_key: "key_S7", last_public_key: "key_S7"},
-      ...>   %Node{network_patch: "D32", first_public_key: "key_S8", last_public_key: "key_S8"},
-      ...>   %Node{network_patch: "19A", first_public_key: "key_S9", last_public_key: "key_S9"},
-      ...>   %Node{network_patch: "C2A", first_public_key: "key_S10", last_public_key: "key_S10"},
-      ...>   %Node{network_patch: "C23", first_public_key: "key_S11", last_public_key: "key_S11"},
-      ...>   %Node{network_patch: "F22", first_public_key: "key_S12", last_public_key: "key_S12"},
-      ...>   %Node{network_patch: "E2B", first_public_key: "key_S13", last_public_key: "key_S13"},
-      ...>   %Node{network_patch: "AA0", first_public_key: "key_S14", last_public_key: "key_S14"},
-      ...>   %Node{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
-      ...>   %Node{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
+      ...>   %Node{network_patch: "F36", first_public_key: "key_S1"},
+      ...>   %Node{network_patch: "A23", first_public_key: "key_S2"},
+      ...>   %Node{network_patch: "B43", first_public_key: "key_S3"},
+      ...>   %Node{network_patch: "2A9", first_public_key: "key_S4"},
+      ...>   %Node{network_patch: "143", first_public_key: "key_S5"},
+      ...>   %Node{network_patch: "BB2", first_public_key: "key_S6"},
+      ...>   %Node{network_patch: "A63", first_public_key: "key_S7"},
+      ...>   %Node{network_patch: "D32", first_public_key: "key_S8"},
+      ...>   %Node{network_patch: "19A", first_public_key: "key_S9"},
+      ...>   %Node{network_patch: "C2A", first_public_key: "key_S10"},
+      ...>   %Node{network_patch: "C23", first_public_key: "key_S11"},
+      ...>   %Node{network_patch: "F22", first_public_key: "key_S12"},
+      ...>   %Node{network_patch: "E2B", first_public_key: "key_S13"},
+      ...>   %Node{network_patch: "AA0", first_public_key: "key_S14"},
+      ...>   %Node{network_patch: "042", first_public_key: "key_S15"},
+      ...>   %Node{network_patch: "3BC", first_public_key: "key_S16"}
       ...> ]
       ...> 
       ...> Replication.generate_tree(validation_nodes, storage_nodes)
       %{
         "key_v1" => [
-          %Node{first_public_key: "key_S14", last_public_key: "key_S14", network_patch: "AA0"},
-          %Node{first_public_key: "key_S7", last_public_key: "key_S7", network_patch: "A63"},
-          %Node{first_public_key: "key_S2", last_public_key: "key_S2", network_patch: "A23"}
+          %Node{first_public_key: "key_S14", network_patch: "AA0"},
+          %Node{first_public_key: "key_S7", network_patch: "A63"},
+          %Node{first_public_key: "key_S2", network_patch: "A23"}
         ],
         "key_v2" => [
-          %Node{first_public_key: "key_S13", last_public_key: "key_S13", network_patch: "E2B"},
-          %Node{first_public_key: "key_S8", last_public_key: "key_S8", network_patch: "D32"},
-          %Node{first_public_key: "key_S5", last_public_key: "key_S5", network_patch: "143"}
+          %Node{first_public_key: "key_S13", network_patch: "E2B"},
+          %Node{first_public_key: "key_S8", network_patch: "D32"},
+          %Node{first_public_key: "key_S5", network_patch: "143"}
         ],
         "key_v3" => [
-          %Node{first_public_key: "key_S11", last_public_key: "key_S11", network_patch: "C23"},
-          %Node{first_public_key: "key_S6", last_public_key: "key_S6", network_patch: "BB2"},
-          %Node{first_public_key: "key_S3", last_public_key: "key_S3", network_patch: "B43"}
+          %Node{first_public_key: "key_S11", network_patch: "C23"},
+          %Node{first_public_key: "key_S6", network_patch: "BB2"},
+          %Node{first_public_key: "key_S3", network_patch: "B43"}
         ],
         "key_v4" => [
-          %Node{first_public_key: "key_S12", last_public_key: "key_S12", network_patch: "F22"},
-          %Node{first_public_key: "key_S10", last_public_key: "key_S10", network_patch: "C2A"},
-          %Node{first_public_key: "key_S1", last_public_key: "key_S1", network_patch: "F36"}
+          %Node{first_public_key: "key_S12", network_patch: "F22"},
+          %Node{first_public_key: "key_S10", network_patch: "C2A"},
+          %Node{first_public_key: "key_S1", network_patch: "F36"}
         ],
         "key_v5" => [
-          %Node{first_public_key: "key_S16", last_public_key: "key_S16", network_patch: "3BC"},
-          %Node{first_public_key: "key_S15", last_public_key: "key_S15", network_patch: "042"},
-          %Node{first_public_key: "key_S9", last_public_key: "key_S9", network_patch: "19A"},
-          %Node{first_public_key: "key_S4", last_public_key: "key_S4", network_patch: "2A9"}
+          %Node{first_public_key: "key_S16", network_patch: "3BC"},
+          %Node{first_public_key: "key_S15", network_patch: "042"},
+          %Node{first_public_key: "key_S9", network_patch: "19A"},
+          %Node{first_public_key: "key_S4", network_patch: "2A9"}
         ]
       }
   """
@@ -557,7 +557,7 @@ defmodule Archethic.Replication do
   def generate_tree(validation_nodes, storage_nodes) do
     storage_nodes
     |> Enum.reduce(%{}, fn storage_node, tree_acc ->
-      %Node{last_public_key: validation_node_key} =
+      %Node{first_public_key: validation_node_key} =
         find_closest_validation_node(tree_acc, storage_node, validation_nodes)
 
       Map.update(tree_acc, validation_node_key, [storage_node], &[storage_node | &1])
@@ -568,7 +568,7 @@ defmodule Archethic.Replication do
     {closest_validation_node, _} =
       validation_nodes
       # Get the number of replicas by nodes
-      |> Enum.reduce(%{}, &Map.put(&2, &1, tree_sub_size(tree, &1.last_public_key)))
+      |> Enum.reduce(%{}, &Map.put(&2, &1, tree_sub_size(tree, &1.first_public_key)))
       # Sort each validation nodes by its network patch from the storage node network patch
       |> Enum.sort_by(fn {validation_node, _} ->
         sort_closest_node(validation_node, storage_node)

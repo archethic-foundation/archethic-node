@@ -45,6 +45,9 @@ erl_crash.dump
 # Dialyzer
 /priv/plts
 
+# Code assistant
+.aider*
+
 /assets/node_modules
 
 log_*

@@ -95,8 +95,8 @@ defmodule Archethic.Mining.ValidationContextTest do
                io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
                cross_validation_nodes_confirmation: <<0::1, 1::1>>,
                cross_validation_nodes: [
-                 %Node{last_public_key: "key3"},
-                 %Node{last_public_key: "key5"}
+                 %Node{first_public_key: "key3"},
+                 %Node{first_public_key: "key5"}
                ],
                unspent_outputs: ^utxos_coordinator
              } =
@@ -106,8 +106,8 @@ defmodule Archethic.Mining.ValidationContextTest do
                  beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
                  io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
                  cross_validation_nodes: [
-                   %Node{last_public_key: "key3"},
-                   %Node{last_public_key: "key5"}
+                   %Node{first_public_key: "key3"},
+                   %Node{first_public_key: "key5"}
                  ],
                  cross_validation_nodes_confirmation: <<0::1, 0::1>>,
                  unspent_outputs: utxos_coordinator
@@ -543,7 +543,7 @@ defmodule Archethic.Mining.ValidationContextTest do
     }
 
     coordinator_node = %Node{
-      first_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
