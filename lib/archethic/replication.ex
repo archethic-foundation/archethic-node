@@ -313,8 +313,6 @@ defmodule Archethic.Replication do
           transaction_type: type
         )
     end
-
-    # TODO: Should not ingest if write_transaction failed
   end
 
   defp fetch_context(tx = %Transaction{}) do
@@ -325,16 +323,6 @@ defmodule Archethic.Replication do
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
-
-    genesis_task =
-      Task.Supervisor.async(Archethic.task_supervisors(), fn ->
-        fetch_opts =
-          if TransactionChain.first_transaction?(tx),
-            do: [],
-            else: [acceptance_resolver: :accept_different_genesis]
-
-        TransactionContext.fetch_genesis_address(previous_address, fetch_opts)
-      end)
 
     previous_transaction_task =
       Task.Supervisor.async(Archethic.task_supervisors(), fn ->
@@ -351,15 +339,25 @@ defmodule Archethic.Replication do
         TransactionChain.resolve_transaction_addresses!(tx)
       end)
 
-    genesis_address = Task.await(genesis_task)
+    previous_transaction =
+      case Task.yield(previous_transaction_task, Message.get_max_timeout()) ||
+             Task.shutdown(previous_transaction_task) do
+        {:ok, res} -> res
+        _ -> nil
+      end
+
+    genesis_address =
+      case previous_transaction do
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} ->
+          genesis_address
+
+        _ ->
+          previous_address
+      end
 
     unspent_outputs = fetch_unspent_outputs(tx, genesis_address)
 
-    [previous_transaction, resolved_addresses] =
-      Task.await_many(
-        [previous_transaction_task, resolved_addresses_task],
-        Message.get_max_timeout() + 1000
-      )
+    resolved_addresses = Task.await(resolved_addresses_task)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),
