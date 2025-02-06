@@ -34,6 +34,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.Utils
 
@@ -290,28 +291,21 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       ) do
     last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
-    genesis_address =
-      TransactionChain.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
-
-    {last_reward_address, _} = TransactionChain.get_last_address(genesis_address)
+    {last_reward_address, _} =
+      Reward.genesis_address() |> TransactionChain.get_last_address(last_scheduling_date)
 
     previous_address = Transaction.previous_address(tx)
 
+    nodes = P2P.authorized_and_available_nodes()
+
     time_validation =
       with {:ok, %Transaction{type: :node_rewards}} <-
-             TransactionChain.fetch_transaction(
-               previous_address,
-               P2P.authorized_and_available_nodes()
-             ),
-           {^last_reward_address, _} <-
-             TransactionChain.get_last_address(genesis_address, last_scheduling_date) do
+             TransactionChain.fetch_transaction(previous_address, nodes),
+           true <- previous_address == last_reward_address do
         :ok
       else
-        {:ok, %Transaction{type: :mint_rewards}} ->
-          :ok
-
-        _ ->
-          {:error, :time}
+        {:ok, %Transaction{type: :mint_rewards}} -> :ok
+        _ -> {:error, :time}
       end
 
     with :ok <- time_validation,
@@ -609,97 +603,66 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   # burned fees from the last summary and that there is no transaction since the last
   # reward schedule
   def validate_type_rules(
-        %Transaction{type: :mint_rewards, data: %TransactionData{content: content}},
-        _
+        tx = %Transaction{type: :mint_rewards, data: %TransactionData{content: content}},
+        validation_time
       ) do
     total_fee = DB.get_latest_burned_fees()
 
-    genesis_address =
-      TransactionChain.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
+    last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
-    {last_address, _} = TransactionChain.get_last_address(genesis_address)
+    {last_address, _} =
+      Reward.genesis_address() |> TransactionChain.get_last_address(last_scheduling_date)
 
     with {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
-         {^last_address, _} <-
-           TransactionChain.get_last_address(genesis_address, Reward.get_last_scheduling_date()) do
+         true <- Transaction.previous_address(tx) == last_address do
       :ok
     else
       {:ok, %{"supply" => _}} -> {:error, "The supply do not match burned fees from last summary"}
-      {_, _} -> {:error, "There is already a mint rewards transaction since last schedule"}
-      e -> e
+      _ -> {:error, "There is already a mint rewards transaction since last schedule"}
     end
   end
 
   def validate_type_rules(
-        %Transaction{
-          type: :oracle,
-          data: %TransactionData{
-            content: content
-          }
-        },
+        tx = %Transaction{type: :oracle, data: %TransactionData{content: content}},
         validation_time
       ) do
     last_scheduling_date = OracleChain.get_last_scheduling_date(validation_time)
 
-    genesis_address =
-      validation_time
-      |> OracleChain.next_summary_date()
-      |> Crypto.derive_oracle_address(0)
+    {last_address, _} =
+      OracleChain.genesis_address() |> TransactionChain.get_last_address(last_scheduling_date)
 
-    {last_address, _} = TransactionChain.get_last_address(genesis_address)
-
-    with {^last_address, _} <-
-           TransactionChain.get_last_address(genesis_address, last_scheduling_date),
+    with ^last_address <- Transaction.previous_address(tx),
          true <- OracleChain.valid_services_content?(content) do
       :ok
     else
-      {_, _} ->
-        {:error, "Invalid oracle trigger time"}
-
-      false ->
-        {:error, "Invalid oracle transaction"}
+      false -> {:error, "Invalid oracle transaction"}
+      _ -> {:error, "Invalid oracle trigger time"}
     end
   end
 
   def validate_type_rules(
-        %Transaction{
-          type: :oracle_summary,
-          data: %TransactionData{
-            content: content
-          },
-          previous_public_key: previous_public_key
-        },
+        tx = %Transaction{type: :oracle_summary, data: %TransactionData{content: content}},
         validation_time
       ) do
-    previous_address = Crypto.derive_address(previous_public_key)
+    previous_address = Transaction.previous_address(tx)
 
     last_scheduling_date = OracleChain.get_last_scheduling_date(validation_time)
 
-    genesis_address =
-      validation_time
-      |> OracleChain.next_summary_date()
-      |> Crypto.derive_oracle_address(0)
+    {last_address, last_tx_date} =
+      OracleChain.genesis_address() |> TransactionChain.get_last_address(last_scheduling_date)
 
-    {last_address, _} = TransactionChain.get_last_address(genesis_address)
+    previous_summary_date = OracleChain.previous_summary_date(validation_time)
 
     transactions =
       TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp])
 
-    with {^last_address, _} <-
-           TransactionChain.get_last_address(genesis_address, last_scheduling_date),
-         eq when eq in [:gt, :eq] <-
-           DateTime.compare(validation_time, OracleChain.previous_summary_date(validation_time)),
+    with ^previous_address <- last_address,
+         :lt <- DateTime.compare(last_tx_date, previous_summary_date),
          true <- OracleChain.valid_summary?(content, transactions) do
       :ok
     else
-      {_, _} ->
-        {:error, "Invalid oracle summary trigger time"}
-
-      :lt ->
-        {:error, "Invalid oracle summary trigger time"}
-
-      false ->
-        {:error, "Invalid oracle summary transaction"}
+      false -> {:error, "Invalid oracle summary transaction"}
+      _ -> {:error, "Invalid oracle summary trigger time"}
     end
   end
 
@@ -869,23 +832,24 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         fetch_previous_tx_genesis_address(tx)
       end),
       Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
-        TransactionChain.fetch_genesis_address(token_address, storage_nodes)
-      end),
-      Task.Supervisor.async_nolink(Archethic.task_supervisors(), fn ->
         TransactionChain.fetch_transaction(token_address, storage_nodes)
       end)
     ]
 
     # Shut down the tasks that did not reply nor exit
-    [tx_genesis_result, ref_genesis_result, ref_tx_result] =
+    [tx_genesis_result, ref_tx_result] =
       Task.yield_many(tasks)
       |> Enum.map(fn {task, res} ->
         res || Task.shutdown(task, :brutal_kill)
       end)
 
     with {:ok, {:ok, genesis_address}} <- tx_genesis_result,
-         {:ok, {:ok, ^genesis_address}} <- ref_genesis_result,
-         {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} <- ref_tx_result,
+         {:ok,
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{genesis_address: ^genesis_address}
+           }}} <- ref_tx_result,
          {:ok, reference_json_token} <- Jason.decode(content),
          %{"type" => "fungible", "allow_mint" => true} <- reference_json_token do
       :ok

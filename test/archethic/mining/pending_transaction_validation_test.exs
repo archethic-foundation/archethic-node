@@ -28,6 +28,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias TokenLedger.Transfer, as: TokenTransfer
@@ -1141,7 +1142,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
     test "should return ok with a valid token resupply" do
       address = random_address()
-      genesis_address = random_address()
 
       content =
         Jason.encode!(%{
@@ -1163,7 +1163,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
        }
       """
 
-      token_tx = TransactionFactory.create_valid_transaction([], type: :token, content: content)
+      token_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} =
+        TransactionFactory.create_valid_transaction([], type: :token, content: content)
 
       with_mock(
         TransactionChain,
@@ -1173,14 +1175,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       ) do
         assert :ok = PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 
     test "should return error if not in the same chain" do
       address = random_address()
       genesis_address = random_address()
-      genesis_address2 = random_address()
 
       content =
         Jason.encode!(%{
@@ -1202,14 +1203,16 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
        }
       """
 
-      token_tx = TransactionFactory.create_valid_transaction([], type: :token, content: content)
+      token_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_token}} =
+        TransactionFactory.create_valid_transaction([], type: :token, content: content)
 
       with_mock(
         TransactionChain,
         [:passthrough],
         fetch_genesis_address: fn
-          ^address, _ -> {:ok, genesis_address}
-          _, _ -> {:ok, genesis_address2}
+          ^address, _ -> {:ok, genesis_token}
+          _, _ -> {:ok, genesis_address}
         end,
         fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
@@ -1217,13 +1220,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 "Invalid token transaction - token_reference is not in the same transaction chain"} =
                  PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 
     test "should return error if allow_mint is not true" do
       address = random_address()
-      genesis_address = random_address()
 
       content =
         Jason.encode!(%{
@@ -1244,7 +1246,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
        }
       """
 
-      token_tx = TransactionFactory.create_valid_transaction([], type: :token, content: content)
+      token_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} =
+        TransactionFactory.create_valid_transaction([], type: :token, content: content)
 
       with_mock(
         TransactionChain,
@@ -1256,13 +1260,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 "Invalid token transaction - token_reference does not have allow_mint: true"} =
                  PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 
     test "should return error if token is non-fungible" do
       address = random_address()
-      genesis_address = random_address()
 
       content =
         Jason.encode!(%{
@@ -1293,7 +1296,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
        }
       """
 
-      token_tx = TransactionFactory.create_valid_transaction([], type: :token, content: content)
+      token_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} =
+        TransactionFactory.create_valid_transaction([], type: :token, content: content)
 
       with_mock(
         TransactionChain,
@@ -1304,7 +1309,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         assert {:error, "Invalid token transaction - token_reference must be fungible"} =
                  PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 
@@ -1330,13 +1335,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         assert {:error, "Invalid token transaction - token_reference not found"} =
                  PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 
     test "should return error if token reference is not a proper token definition" do
       address = random_address()
-      genesis_address = random_address()
 
       content =
         Jason.encode!(%{
@@ -1347,19 +1351,21 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       tx = TransactionFactory.create_non_valided_transaction(type: :token, content: content)
 
+      token_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} =
+        TransactionFactory.create_valid_transaction([], content: "not a json")
+
       with_mock(
         TransactionChain,
         [:passthrough],
         fetch_genesis_address: fn _, _ -> {:ok, genesis_address} end,
-        fetch_transaction: fn _, _ ->
-          {:ok, TransactionFactory.create_valid_transaction([], content: "not a json")}
-        end
+        fetch_transaction: fn _, _ -> {:ok, token_tx} end
       ) do
         assert {:error,
                 "Invalid token transaction - token_reference exists but does not contain a valid JSON"} =
                  PendingTransactionValidation.validate_token_transaction(tx)
 
-        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 1)
       end
     end
 

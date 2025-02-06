@@ -263,7 +263,6 @@ defmodule Archethic.Contracts.WasmModule do
       previous_public_key: %{hex: Base.encode16(previous_public_key)},
       data: %{
         content: content,
-        # FIXME: find a better way to avoid timeout
         code: "",
         ledger: %{
           uco: %{
