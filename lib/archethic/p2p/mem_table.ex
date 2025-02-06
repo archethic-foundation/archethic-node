@@ -229,6 +229,7 @@ defmodule Archethic.P2P.MemTable do
   @doc """
   List the P2P nodes
   """
+  # TODO add date en parametre. retourner tout les noeuds ou enrollment_date < date
   @spec list_nodes() :: list(Node.t())
   def list_nodes do
     :ets.foldl(
