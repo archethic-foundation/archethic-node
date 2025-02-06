@@ -625,7 +625,7 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
 
-    UTXO.load_transaction(tx, genesis_address,
+    UTXO.load_transaction(tx,
       resolved_addresses: resolved_addresses,
       download_nodes: download_nodes
     )

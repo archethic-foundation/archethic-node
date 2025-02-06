@@ -38,14 +38,9 @@ defmodule Archethic.UTXO do
           skip_verify_consumed?: boolean()
         ]
 
-  @spec load_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: binary(),
-          opts :: load_opts()
-        ) :: :ok
+  @spec load_transaction(tx :: Transaction.t(), opts :: load_opts()) :: :ok
   def load_transaction(
         tx = %Transaction{validation_stamp: %ValidationStamp{protocol_version: protocol_version}},
-        genesis_address,
         opts \\ []
       ) do
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
@@ -67,7 +62,7 @@ defmodule Archethic.UTXO do
     |> Enum.each(fn {to, utxos} -> Loader.add_utxos(utxos, to) end)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
-    unless skip_consume_inputs?, do: Loader.consume_inputs(tx, genesis_address)
+    unless skip_consume_inputs?, do: Loader.consume_inputs(tx)
 
     Logger.info("Loaded into in memory UTXO tables",
       transaction_address: Base.encode16(tx.address),

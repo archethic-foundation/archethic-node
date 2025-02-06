@@ -4,8 +4,6 @@ defmodule Archethic.UTXO.Loader do
   use GenServer
   @vsn 1
 
-  alias Archethic.Crypto
-
   alias Archethic.UTXO
   alias Archethic.UTXO.DBLedger
   alias Archethic.UTXO.LoaderSupervisor
@@ -45,21 +43,20 @@ defmodule Archethic.UTXO.Loader do
   @doc """
   Ingest the transaction to consumed inputs and allocate the new unspent outputs
   """
-  @spec consume_inputs(tx :: Transaction.t(), genesis_address :: Crypto.prepended_hash()) :: :ok
-  def consume_inputs(
-        %Transaction{
-          validation_stamp: %ValidationStamp{
-            ledger_operations: %LedgerOperations{consumed_inputs: [], unspent_outputs: []}
-          }
-        },
-        _
-      ),
+  @spec consume_inputs(tx :: Transaction.t()) :: :ok
+  def consume_inputs(%Transaction{
+        validation_stamp: %ValidationStamp{
+          ledger_operations: %LedgerOperations{consumed_inputs: [], unspent_outputs: []}
+        }
+      }),
       do: :ok
 
-  def consume_inputs(tx = %Transaction{}, genesis_address) do
+  def consume_inputs(
+        tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}}
+      ) do
     genesis_address
     |> via_tuple()
-    |> GenServer.call({:consume_inputs, tx, genesis_address}, :infinity)
+    |> GenServer.call({:consume_inputs, tx}, :infinity)
   end
 
   defp via_tuple(genesis_address) do
@@ -93,9 +90,10 @@ defmodule Archethic.UTXO.Loader do
            validation_stamp:
              stamp = %ValidationStamp{
                protocol_version: protocol_version,
-               ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+               ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs},
+               genesis_address: genesis_address
              }
-         }, genesis_address},
+         }},
         _,
         state
       ) do
