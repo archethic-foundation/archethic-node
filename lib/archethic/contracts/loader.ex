@@ -51,18 +51,15 @@ defmodule Archethic.Contracts.Loader do
     |> Task.async_stream(
       fn genesis_addresses ->
         genesis_addresses
-        |> Stream.map(fn genesis -> {genesis, TransactionChain.get_last_transaction(genesis)} end)
+        |> Stream.map(&TransactionChain.get_last_transaction/1)
         |> Stream.reject(fn
-          {_,
-           {:ok, %Transaction{type: type, data: %TransactionData{code: code, contract: contract}}}} ->
+          {:ok, %Transaction{type: type, data: %TransactionData{code: code, contract: contract}}} ->
             Transaction.network_type?(type) or (code == "" and contract == nil)
 
-          {_, {:error, _}} ->
+          {:error, _} ->
             true
         end)
-        |> Stream.each(fn {genesis, {:ok, tx}} ->
-          load_transaction(tx, genesis, execute_contract?: false)
-        end)
+        |> Stream.each(fn {:ok, tx} -> load_transaction(tx, execute_contract?: false) end)
         |> Stream.run()
       end,
       timeout: :infinity,
@@ -76,18 +73,14 @@ defmodule Archethic.Contracts.Loader do
   @doc """
   Load the smart contracts based on transaction involving smart contract code
   """
-  @spec load_transaction(
-          Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: Keyword.t()
-        ) :: :ok
-  def load_transaction(tx, genesis_address, opts) do
+  @spec load_transaction(Transaction.t(), opts :: Keyword.t()) :: :ok
+  def load_transaction(tx, opts) do
     execute_contract? = Keyword.fetch!(opts, :execute_contract?)
     download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
     authorized_nodes = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
     node_key = Crypto.first_node_public_key()
 
-    handle_contract_chain(tx, genesis_address, node_key, authorized_nodes, execute_contract?)
+    handle_contract_chain(tx, node_key, authorized_nodes, execute_contract?)
     if execute_contract?, do: handle_contract_call(tx, node_key, authorized_nodes)
 
     :ok
@@ -238,10 +231,10 @@ defmodule Archethic.Contracts.Loader do
            type: type,
            data: %TransactionData{code: code, contract: contract},
            validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs},
+             genesis_address: genesis_address
            }
          },
-         genesis_address,
          node_key,
          authorized_nodes,
          execute_contract?
@@ -266,7 +259,13 @@ defmodule Archethic.Contracts.Loader do
     end
   end
 
-  defp handle_contract_chain(_, genesis_address, _, _, _), do: stop_contract(genesis_address)
+  defp handle_contract_chain(
+         %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}},
+         _,
+         _,
+         _
+       ),
+       do: stop_contract(genesis_address)
 
   defp remove_invalid_input(genesis_address, consumed_inputs) do
     consumed_calls_address =

@@ -284,8 +284,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       end)
 
       attestation = %ReplicationAttestation{
-        transaction_summary:
-          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+        transaction_summary: TransactionSummary.from_transaction(tx)
       }
 
       assert {^tx, ^inputs} =
@@ -338,8 +337,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       assert {^tx, []} =
                TransactionHandler.download_transaction_data(
                  %ReplicationAttestation{
-                   transaction_summary:
-                     TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+                   transaction_summary: TransactionSummary.from_transaction(tx)
                  },
                  P2P.authorized_and_available_nodes(),
                  Crypto.first_node_public_key(),
@@ -387,8 +385,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       end)
 
       attestation = %ReplicationAttestation{
-        transaction_summary:
-          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+        transaction_summary: TransactionSummary.from_transaction(tx)
       }
 
       message =
@@ -428,8 +425,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       end)
 
       attestation = %ReplicationAttestation{
-        transaction_summary:
-          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+        transaction_summary: TransactionSummary.from_transaction(tx)
       }
 
       message =
@@ -508,8 +504,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       end)
 
       attestation = %ReplicationAttestation{
-        transaction_summary:
-          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+        transaction_summary: TransactionSummary.from_transaction(tx)
       }
 
       with_mock(Election, [:passthrough], chain_storage_node?: fn _, _, _, _ -> false end) do
@@ -556,7 +551,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         :ok
       end)
 
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       index =
         ReplicationAttestation.get_node_index(
@@ -624,7 +619,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       |> stub(:list_io_transactions, fn _fields -> [] end)
       |> stub(:list_transactions, fn _fields -> [] end)
 
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       attestation = %ReplicationAttestation{
         version: 1,
@@ -670,7 +665,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           timestamp: ~U[2022-01-02 00:00:00.000Z]
         )
 
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       attestation = %ReplicationAttestation{
         version: 1,
@@ -703,7 +698,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
       tx = TransactionFactory.create_valid_transaction(inputs)
 
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       index =
         ReplicationAttestation.get_node_index(

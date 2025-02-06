@@ -8,12 +8,9 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   use GenServer
   @vsn 1
 
-  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
 
   alias Archethic.Crypto
-
-  alias Archethic.Election
 
   alias Archethic.Mining.Error
   alias Archethic.Mining.TransactionContext
@@ -33,7 +30,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Node
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -49,100 +45,80 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     tx = Keyword.get(arg, :transaction)
     welcome_node = Keyword.fetch!(arg, :welcome_node)
     contract_context = Keyword.get(arg, :contract_context)
+    ref_timestamp = Keyword.get(arg, :ref_timestamp)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
-    {:ok, %{start_time: System.monotonic_time(), welcome_node: welcome_node},
-     {:continue, {:start_mining, tx, contract_context}}}
-  end
-
-  def handle_continue(
-        {:start_mining, tx, contract_context},
-        state = %{welcome_node: welcome_node}
-      ) do
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-    current_node = P2P.get_node_info()
+    {:ok, %{start_time: System.monotonic_time(), welcome_node: welcome_node},
+     {:continue, {:start_mining, tx, contract_context, ref_timestamp}}}
+  end
 
-    authorized_nodes = [current_node]
-
-    chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
-
-    beacon_storage_nodes =
-      Election.beacon_storage_nodes(
-        BeaconChain.subset_from_address(tx.address),
-        BeaconChain.next_slot(DateTime.utc_now()),
-        authorized_nodes
-      )
-
-    resolved_addresses = TransactionChain.resolve_transaction_addresses!(tx)
-
-    previous_address = Transaction.previous_address(tx)
-    previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
-
-    {:ok, genesis_address} =
-      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
-
-    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
-
-    io_storage_nodes =
-      if Transaction.network_type?(tx.type) do
-        P2P.list_nodes()
-      else
-        resolved_addresses
-        |> Map.values()
-        |> Election.io_storage_nodes(authorized_nodes)
-      end
-
+  def handle_continue(
+        {:start_mining, tx, contract_context, ref_timestamp},
+        state = %{welcome_node: welcome_node}
+      ) do
     start = System.monotonic_time()
 
-    {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
-     beacon_storage_nodes_view,
-     io_storage_nodes_view} =
-      TransactionContext.get(
-        Transaction.previous_address(tx),
-        genesis_address,
-        Enum.map(chain_storage_nodes, & &1.first_public_key),
-        Enum.map(beacon_storage_nodes, & &1.first_public_key),
-        Enum.map(io_storage_nodes, & &1.first_public_key)
-      )
+    Logger.info("Retrieve transaction context",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    validation_time = ref_timestamp |> DateTime.truncate(:millisecond)
+
+    current_node = P2P.get_node_info()
+    authorized_nodes = [current_node]
+
+    tx_context = TransactionContext.get(tx, validation_time, authorized_nodes)
 
     :telemetry.execute([:archethic, :mining, :fetch_context], %{
       duration: System.monotonic_time() - start
     })
 
+    prev_tx = Keyword.get(tx_context, :previous_transaction)
+    unspent_outputs = Keyword.get(tx_context, :unspent_outputs)
+
+    Logger.debug("Previous transaction #{inspect(prev_tx)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.debug("Unspent outputs #{inspect(unspent_outputs)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.info("Transaction context retrieved",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     validation_context =
-      ValidationContext.new(
+      [
         transaction: tx,
         welcome_node: welcome_node,
         coordinator_node: current_node,
         cross_validation_nodes: [current_node],
-        chain_storage_nodes: chain_storage_nodes,
-        beacon_storage_nodes: beacon_storage_nodes,
-        io_storage_nodes: P2P.distinct_nodes(io_storage_nodes ++ genesis_storage_nodes),
         validation_time: validation_time,
-        resolved_addresses: resolved_addresses,
-        contract_context: contract_context,
-        genesis_address: genesis_address
-      )
+        contract_context: contract_context
+      ]
+      |> Keyword.merge(tx_context)
+      |> ValidationContext.new()
+
+    :telemetry.execute([:archethic, :mining, :fetch_context], %{
+      duration: System.monotonic_time() - start
+    })
 
     validation_context = ValidationContext.validate_pending_transaction(validation_context)
 
     validation_context =
       %ValidationContext{mining_error: mining_error} =
       validation_context
-      |> ValidationContext.put_transaction_context(
-        prev_tx,
-        unspent_outputs,
-        previous_storage_nodes,
-        chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        io_storage_nodes_view
-      )
       |> ValidationContext.add_aggregated_utxos(unspent_outputs)
       |> validate()
 
@@ -169,7 +145,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp start_replication(
          context = %ValidationContext{
            contract_context: contract_context,
-           genesis_address: genesis_address,
            unspent_outputs: unspent_outputs
          }
        ) do
@@ -210,8 +185,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       )
 
       P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
-        address: validated_tx.address,
-        genesis_address: genesis_address
+        address: validated_tx.address
       })
     else
       errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
@@ -265,15 +239,14 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: address, type: type},
-              validation_time: validation_time,
-              genesis_address: genesis_address
+              validation_time: validation_time
             }
         }
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
          validated_tx <- ValidationContext.get_validated_transaction(context),
-         tx_summary <- TransactionSummary.from_transaction(validated_tx, genesis_address),
+         tx_summary <- TransactionSummary.from_transaction(validated_tx),
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
@@ -339,12 +312,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp notify_attestation(
          context = %ValidationContext{
            welcome_node: welcome_node,
-           storage_nodes_confirmations: confirmations,
-           genesis_address: genesis_address
+           storage_nodes_confirmations: confirmations
          }
        ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
-    tx_summary = TransactionSummary.from_transaction(validated_tx, genesis_address)
+    tx_summary = TransactionSummary.from_transaction(validated_tx)
 
     attestation =
       ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{
@@ -365,7 +337,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> P2P.broadcast_message(attestation)
   end
 
-  defp notify_io_nodes(context = %ValidationContext{genesis_address: genesis_address}) do
+  defp notify_io_nodes(context) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     context
@@ -377,10 +349,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
     end)
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: validated_tx,
-      genesis_address: genesis_address
-    })
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
   end
 
   defp notify_previous_chain(

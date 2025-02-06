@@ -220,18 +220,12 @@ defmodule Archethic.TransactionChain do
   @doc """
   Get a transaction summary from a transaction address
   """
-  @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
+  @spec get_transaction_summary(address :: Crypto.prepended_hash()) ::
+          {:ok, TransactionSummary.t()} | {:error, :not_found}
   def get_transaction_summary(address) do
-    case get_transaction(address, [
-           :address,
-           :type,
-           :validation_stamp
-         ]) do
-      {:ok, tx} ->
-        {:ok, TransactionSummary.from_transaction(tx, get_genesis_address(address))}
-
-      _ ->
-        {:error, :not_found}
+    case get_transaction(address, [:address, :type, :validation_stamp]) do
+      {:ok, tx} -> {:ok, TransactionSummary.from_transaction(tx)}
+      _ -> {:error, :not_found}
     end
   end
 
@@ -872,9 +866,11 @@ defmodule Archethic.TransactionChain do
           end
 
         repair_fun = fn
-          res = %GenesisAddress{address: genesis_address}, results_by_node ->
+          %GenesisAddress{address: genesis_address}, results_by_node ->
             results_by_node
-            |> Enum.reject(&match?({_, ^res}, &1))
+            |> Enum.reject(fn {_, %GenesisAddress{address: address}} ->
+              address == genesis_address
+            end)
             |> Enum.map(fn {node_public_key, _} -> node_public_key end)
             |> P2P.broadcast_message(%ShardRepair{
               genesis_address: genesis_address,
@@ -1436,14 +1432,13 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  By checking at the proof of integrity (determined by the coordinator) we can ensure a transaction is not the first
-  (because the poi contains the hash of the previous if any)
+  Return if the previous address of the transaction is the genesis address
   """
   @spec first_transaction?(Transaction.t()) :: boolean()
   def first_transaction?(
-        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
+        tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}}
       ) do
-    poi == proof_of_integrity([tx])
+    Transaction.previous_address(tx) == genesis_address
   end
 
   # @doc """
@@ -1470,11 +1465,16 @@ defmodule Archethic.TransactionChain do
   @spec get_next_addresses(address :: binary(), limit :: non_neg_integer()) ::
           list({address :: binary(), timestamp :: DateTime.t()})
   def get_next_addresses(address, limit \\ 0) do
-    case get_transaction(address, validation_stamp: [:timestamp]) do
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+    case get_transaction(address, validation_stamp: [:genesis_address, :timestamp]) do
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           timestamp: address_timestamp,
+           genesis_address: genesis_address
+         }
+       }} ->
         addresses =
-          address
-          |> get_genesis_address()
+          genesis_address
           |> list_chain_addresses()
           |> Enum.filter(fn {_address, timestamp} ->
             DateTime.compare(timestamp, address_timestamp) == :gt

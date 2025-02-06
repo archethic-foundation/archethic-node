@@ -190,11 +190,7 @@ defmodule Archethic.Bootstrap do
 
       Sync.load_storage_nonce(closest_bootstrapping_nodes)
 
-      Replication.sync_transaction_chain(
-        validated_tx,
-        node_genesis_address,
-        closest_bootstrapping_nodes
-      )
+      Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
     end
   end
 

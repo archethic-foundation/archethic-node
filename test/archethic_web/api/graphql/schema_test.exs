@@ -40,6 +40,9 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
   alias ArchethicWeb.API.GraphQL.Schema.Resolver
 
+  alias Archethic.TransactionFactory
+
+  import ArchethicCase
   import Mox
   @transaction_chain_page_size 10
 
@@ -178,37 +181,25 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
 
   describe "query: token" do
     test "should return the ownerships", %{conn: conn} do
-      token_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      aes_key = random_seed()
+      transaction_seed = random_seed()
+      storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+      ownership = Ownership.new(transaction_seed, aes_key, [storage_nonce_public_key])
+
+      content = Jason.encode!(%{"supply" => 1_000_000_000, "type" => "fungible"})
+
+      tx =
+        %Transaction{address: token_addr} =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          seed: transaction_seed,
+          ownerships: [ownership],
+          content: content
+        )
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: token_addr, timestamp: DateTime.utc_now()}}
-
-        _, %GetTransaction{}, _ ->
-          aes_key = :crypto.strong_rand_bytes(32)
-          transaction_seed = :crypto.strong_rand_bytes(32)
-          storage_nonce_public_key = Crypto.storage_nonce_public_key()
-          secret = Crypto.aes_encrypt(transaction_seed, aes_key)
-
-          {:ok,
-           %Transaction{
-             type: :token,
-             address: token_addr,
-             data: %TransactionData{
-               content: "{\"supply\": 1000000000, \"type\": \"fungible\" }",
-               ownerships: [
-                 %Ownership{
-                   secret: secret,
-                   authorized_keys: %{
-                     storage_nonce_public_key =>
-                       Crypto.ec_encrypt(aes_key, storage_nonce_public_key)
-                   }
-                 }
-               ]
-             }
-           }}
-      end)
+      |> stub(:send_message, fn _, %GetTransaction{}, _ -> {:ok, tx} end)
 
       conn =
         post(conn, "/api", %{

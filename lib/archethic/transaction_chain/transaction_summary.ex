@@ -40,30 +40,22 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   @doc """
   Convert a transaction into transaction info
   """
-  @spec from_transaction(
-          transaction :: Transaction.t(),
-          genesis_address :: binary(),
-          version :: non_neg_integer()
-        ) :: t()
+  @spec from_transaction(transaction :: Transaction.t(), version :: non_neg_integer()) :: t()
   def from_transaction(
         %Transaction{
           address: address,
           type: type,
           validation_stamp:
             validation_stamp = %ValidationStamp{
+              genesis_address: genesis_address,
               protocol_version: protocol_version,
               timestamp: timestamp,
-              ledger_operations:
-                operations = %LedgerOperations{
-                  fee: fee
-                },
+              ledger_operations: operations = %LedgerOperations{fee: fee},
               recipients: recipients
             }
         },
-        genesis_address,
         version \\ @version
-      )
-      when is_binary(genesis_address) do
+      ) do
     raw_stamp = validation_stamp |> ValidationStamp.serialize() |> Utils.wrap_binary()
     validation_stamp_checksum = :crypto.hash(:sha256, raw_stamp)
 

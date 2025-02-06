@@ -9,63 +9,50 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TokenTest do
 
   alias Archethic.Contracts.Interpreter.Library.Common.Token
 
-  alias Archethic.Crypto
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
 
+  alias Archethic.TransactionFactory
+
   import Mox
 
   doctest Token
 
-  # ----------------------------------------
   describe "fetch_id_from_address/1" do
     test "should work" do
-      seed = "s3cr3t"
-      {genesis_pub_key, _} = Crypto.generate_deterministic_keypair(seed)
-      genesis_address = Crypto.derive_address(genesis_pub_key)
+      content =
+        Jason.encode!(%{
+          supply: 300_000_000,
+          name: "MyToken",
+          type: "non-fungible",
+          symbol: "MTK",
+          properties: %{
+            global: "property"
+          },
+          collection: [
+            %{image: "link", value: "link"},
+            %{image: "link", value: "link"},
+            %{image: "link", value: "link"}
+          ]
+        })
 
-      {pub_key, _} = Crypto.derive_keypair(seed, 24)
-      token_address = Crypto.derive_address(pub_key)
+      tx =
+        %Transaction{address: token_address} =
+        TransactionFactory.create_valid_transaction([], content: content, type: :token, index: 24)
+
+      MockDB
+      |> stub(:get_transaction, fn ^token_address, _, _ -> {:ok, tx} end)
+
+      {:ok, %{id: token_id}} = Utils.get_token_properties(tx)
 
       code = ~s"""
       actions triggered_by: transaction do
-        id = Token.fetch_id_from_address("#{Base.encode16(token_address)}")
-        Contract.set_content id
+      id = Token.fetch_id_from_address("#{Base.encode16(token_address)}")
+      Contract.set_content id
       end
       """
-
-      tx =
-        Transaction.new(
-          :token,
-          %TransactionData{
-            content:
-              Jason.encode!(%{
-                supply: 300_000_000,
-                name: "MyToken",
-                type: "non-fungible",
-                symbol: "MTK",
-                properties: %{
-                  global: "property"
-                },
-                collection: [
-                  %{image: "link", value: "link"},
-                  %{image: "link", value: "link"},
-                  %{image: "link", value: "link"}
-                ]
-              })
-          },
-          seed,
-          0
-        )
-
-      MockDB
-      |> expect(:find_genesis_address, fn ^token_address -> {:ok, genesis_address} end)
-      |> stub(:get_transaction, fn ^token_address, _, _ -> {:ok, tx} end)
-
-      {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
 
       assert {%Transaction{data: %TransactionData{content: content}}, _state} =
                sanitize_parse_execute(code)

@@ -217,9 +217,9 @@ defmodule Archethic.SelfRepair do
   We use a lock on the genesis_address to avoid running concurrent syncs on the same chain
   """
   @spec resync(
-          Crypto.prepended_hash(),
-          Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
-          list(Crypto.prepended_hash())
+          genesis_address :: Crypto.prepended_hash(),
+          storage_addresses :: Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
+          io_addresses :: list(Crypto.prepended_hash())
         ) :: :ok
   defdelegate resync(genesis_address, storage_address, io_addresses),
     to: RepairWorker,
@@ -228,12 +228,9 @@ defmodule Archethic.SelfRepair do
   @doc """
   Replicate the transaction at given address
   """
-  @spec replicate_transaction(
-          address :: Crypto.prepended_hash(),
-          genesis_address :: Crypto.prepended_hash(),
-          storage? :: boolean()
-        ) :: :ok | {:error, term()}
-  def replicate_transaction(address, genesis_address, storage? \\ true) do
+  @spec replicate_transaction(address :: Crypto.prepended_hash(), storage? :: boolean()) ::
+          :ok | {:error, term()}
+  def replicate_transaction(address, storage? \\ true) do
     # We get the authorized nodes before the last summary date as we are sure that they know
     # the informations we need. Requesting current nodes may ask information to nodes in same repair
     # process as we are here.
@@ -246,16 +243,12 @@ defmodule Archethic.SelfRepair do
          {:ok, tx, inputs} <- fetch_transaction_data(address, authorized_nodes) do
       # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do
-        :ok =
-          Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes,
-            self_repair?: true
-          )
-
+        :ok = Replication.sync_transaction_chain(tx, authorized_nodes, self_repair?: true)
         :ok = TransactionChain.write_inputs(address, inputs)
 
         update_last_address(address, authorized_nodes)
       else
-        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
+        Replication.synchronize_io_transaction(tx, self_repair?: true)
       end
     else
       true -> {:error, :transaction_already_exists}

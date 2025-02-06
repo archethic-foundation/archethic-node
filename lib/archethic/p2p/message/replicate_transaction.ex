@@ -2,8 +2,8 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   @moduledoc """
   Represents a message to initiate the replication of the transaction
   """
-  @enforce_keys [:transaction, :genesis_address]
-  defstruct [:transaction, :genesis_address]
+  @enforce_keys [:transaction]
+  defstruct [:transaction]
 
   alias Archethic.Crypto
   alias Archethic.Election
@@ -16,11 +16,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.Utils
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t(),
-          genesis_address: Crypto.prepended_hash()
+          transaction: Transaction.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
@@ -29,9 +27,11 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           transaction:
             tx = %Transaction{
               type: type,
-              validation_stamp: %ValidationStamp{timestamp: validation_time}
-            },
-          genesis_address: genesis_address
+              validation_stamp: %ValidationStamp{
+                timestamp: validation_time,
+                genesis_address: genesis_address
+              }
+            }
         },
         _
       ) do
@@ -41,13 +41,13 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
       cond do
         Transaction.network_type?(type) ->
-          Replication.validate_and_store_transaction(tx, genesis_address, chain?: true)
+          Replication.validate_and_store_transaction(tx, chain?: true)
 
         Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes) ->
-          Replication.validate_and_store_transaction(tx, genesis_address, chain?: true)
+          Replication.validate_and_store_transaction(tx, chain?: true)
 
         io_node?(tx, node_public_key, authorized_nodes) ->
-          Replication.validate_and_store_transaction(tx, genesis_address, chain?: false)
+          Replication.validate_and_store_transaction(tx, chain?: false)
 
         true ->
           :skip
@@ -92,14 +92,13 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx, genesis_address: genesis_address}),
-    do: <<Transaction.serialize(tx)::bitstring, genesis_address::binary>>
+  def serialize(%__MODULE__{transaction: tx}),
+    do: <<Transaction.serialize(tx)::bitstring>>
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) when is_bitstring(bin) do
     {tx, rest} = Transaction.deserialize(bin)
-    {genesis_address, rest} = Utils.deserialize_address(rest)
 
-    {%__MODULE__{transaction: tx, genesis_address: genesis_address}, rest}
+    {%__MODULE__{transaction: tx}, rest}
   end
 end

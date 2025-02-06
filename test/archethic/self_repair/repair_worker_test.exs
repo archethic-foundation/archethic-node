@@ -4,63 +4,86 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
 
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.RepairWorker
+  alias Archethic.SelfRepair.RepairRegistry
 
+  import ArchethicCase
   import Mock
 
   test "should start the worker if not already started" do
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    genesis = random_address()
 
-    with_mock(SelfRepair, replicate_transaction: fn _, _, _ -> :ok end) do
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1"])
-      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    assert [] == Registry.lookup(RepairRegistry, genesis)
 
-      Process.sleep(100)
-      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_, :_), 2)
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok = RepairWorker.repair_addresses(genesis, random_address(), [random_address()])
+
+      assert [{pid, _}] = Registry.lookup(RepairRegistry, genesis)
+
+      await_process_end(pid)
+
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 2)
     end
 
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    assert [] == Registry.lookup(RepairRegistry, genesis)
   end
 
   test "should replicate the transactions coming from sequential calls" do
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    genesis = random_address()
 
-    with_mock(SelfRepair,
-      replicate_transaction: fn _, _, _ ->
-        Process.sleep(10)
-        :ok
-      end
-    ) do
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice4", ["Bob3"])
+    assert [] == Registry.lookup(RepairRegistry, genesis)
 
-      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok =
+        RepairWorker.repair_addresses(genesis, random_address(), [
+          random_address(),
+          random_address()
+        ])
 
-      Process.sleep(100)
-      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_, :_), 6)
+      :ok = RepairWorker.repair_addresses(genesis, random_address(), [])
+      :ok = RepairWorker.repair_addresses(genesis, random_address(), [random_address()])
+
+      assert [{pid, _}] = Registry.lookup(RepairRegistry, genesis)
+
+      await_process_end(pid)
+
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 6)
     end
 
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    assert [] == Registry.lookup(RepairRegistry, genesis)
   end
 
   test "should not replicate the transactions that were already replicated" do
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    genesis = random_address()
 
-    with_mock(SelfRepair,
-      replicate_transaction: fn _, _, _ ->
-        Process.sleep(10)
-        :ok
-      end
-    ) do
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", ["Bob2", "Bob3"])
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])
-      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    assert [] == Registry.lookup(RepairRegistry, genesis)
 
-      Process.sleep(100)
-      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_, :_), 5)
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      address2 = random_address()
+      address3 = random_address()
+      address_io1 = random_address()
+      address_io2 = random_address()
+      address_io3 = random_address()
+
+      :ok = RepairWorker.repair_addresses(genesis, address2, [address_io1, address_io2])
+      :ok = RepairWorker.repair_addresses(genesis, address3, [address_io2, address_io3])
+      :ok = RepairWorker.repair_addresses(genesis, address3, [])
+
+      assert [{pid, _}] = Registry.lookup(RepairRegistry, genesis)
+
+      await_process_end(pid)
+
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 5)
     end
 
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+    assert [] == Registry.lookup(RepairRegistry, genesis)
+  end
+
+  defp await_process_end(pid) do
+    ref = Process.monitor(pid)
+
+    receive do
+      :DOWN -> :ok
+      {:DOWN, ^ref, _, _, _} -> :ok
+    end
   end
 end

@@ -148,9 +148,7 @@ defmodule Archethic.Networking.Scheduler do
 
     case Utils.await_confirmation(tx_address, nodes) do
       {:ok, validated_transaction = %Transaction{address: ^tx_address, data: ^transaction_data}} ->
-        genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
-
-        Replication.sync_transaction_chain(validated_transaction, genesis_address)
+        Replication.sync_transaction_chain(validated_transaction)
 
       {:ok, _} ->
         Logger.warning("Network Scheduler received a non corresponding node transaction")

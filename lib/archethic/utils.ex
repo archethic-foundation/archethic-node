@@ -13,6 +13,7 @@ defmodule Archethic.Utils do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -1069,14 +1070,15 @@ defmodule Archethic.Utils do
   @doc """
   get token properties based on the genesis address and the transaction
   """
-  @spec get_token_properties(binary(), Transaction.t()) ::
+  @spec get_token_properties(Transaction.t()) ::
           {:ok, map()} | {:error, :decode_error} | {:error, :not_a_token_transaction}
-  def get_token_properties(genesis_address, %Transaction{
+  def get_token_properties(%Transaction{
+        type: tx_type,
         data: %TransactionData{
           content: content,
           ownerships: ownerships
         },
-        type: tx_type
+        validation_stamp: %ValidationStamp{genesis_address: genesis_address}
       })
       when tx_type in [:token, :mint_rewards] do
     case Jason.decode(content) do
@@ -1102,7 +1104,7 @@ defmodule Archethic.Utils do
     end
   end
 
-  def get_token_properties(_, _), do: {:error, :not_a_token_transaction}
+  def get_token_properties(_), do: {:error, :not_a_token_transaction}
 
   @doc """
   Run given function in a task and ensure that it is run at most once concurrently

@@ -10,11 +10,18 @@ defmodule Archethic.Utils.Regression do
   alias Archethic.Utils.Regression.Playbook.UCO
 
   alias Archethic.Utils.WebClient
+  alias Archethic.Utils.Regression.Benchmark.LegacySmartContractTrigger
+  alias Archethic.Utils.Regression.Benchmark.WasmSmartContractTrigger
   alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
   alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
   @playbooks [UCO, SmartContract]
-  @benchmarks [P2PMessage, EndToEndValidation]
+  @benchmarks [
+    LegacySmartContractTrigger,
+    WasmSmartContractTrigger,
+    P2PMessage,
+    EndToEndValidation
+  ]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")

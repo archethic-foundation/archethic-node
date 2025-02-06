@@ -131,11 +131,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   end
 
   defp download_transaction(
-         expected_summary = %TransactionSummary{
-           version: version,
-           address: address,
-           genesis_address: genesis_address
-         },
+         expected_summary = %TransactionSummary{version: version, address: address},
          storage_nodes
        ) do
     acceptance_resolver = fn tx = %Transaction{} ->
@@ -145,7 +141,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       # in order to remove malicious node given false transaction's data
 
       tx
-      |> TransactionSummary.from_transaction(genesis_address, version)
+      |> TransactionSummary.from_transaction(version)
       |> TransactionSummary.equals?(expected_summary)
     end
 
@@ -170,10 +166,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
             movements_addresses: movements_addresses
           }
         },
-        tx = %Transaction{
-          address: address,
-          type: type
-        },
+        tx = %Transaction{address: address, type: type},
         inputs,
         node_list,
         node_key
@@ -186,7 +179,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     cond do
       Election.chain_storage_node?(address, type, node_key, node_list) ->
-        Replication.sync_transaction_chain(tx, genesis_address, node_list,
+        Replication.sync_transaction_chain(tx, node_list,
           self_repair?: true,
           resolved_addresses: resolved_addresses
         )
@@ -194,13 +187,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         TransactionChain.write_inputs(address, inputs)
 
       Election.chain_storage_node?(genesis_address, node_key, node_list) ->
-        Replication.sync_transaction_chain(tx, genesis_address, node_list,
+        Replication.sync_transaction_chain(tx, node_list,
           self_repair?: true,
           resolved_addresses: resolved_addresses
         )
 
       io_node?(movements_addresses, node_key, node_list) ->
-        Replication.synchronize_io_transaction(tx, genesis_address,
+        Replication.synchronize_io_transaction(tx,
           self_repair?: true,
           resolved_addresses: resolved_addresses,
           download_nodes: node_list
@@ -252,16 +245,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   defp verify_transaction(
          attestation = %ReplicationAttestation{
-           transaction_summary: %TransactionSummary{
-             genesis_address: genesis_address,
-             version: version
-           }
+           transaction_summary: %TransactionSummary{version: version}
          },
          tx
        )
        when version <= 2 do
     # Convert back the initial transaction_summary's movements (before AEIP-21) for validation
-    tx_summary = TransactionSummary.from_transaction(tx, genesis_address, version)
+    tx_summary = TransactionSummary.from_transaction(tx, version)
     verify_attestation(%{attestation | transaction_summary: tx_summary})
   end
 

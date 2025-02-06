@@ -50,9 +50,15 @@ defmodule Archethic.SelfRepairTest do
     MockDB
     |> expect(:get_last_chain_address, fn "Alice2" -> {"Alice2", ~U[2022-11-27 00:10:00Z]} end)
     |> expect(:get_transaction, fn "Alice2", _, _ ->
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2022-11-27 00:10:00Z]}}}
+      {:ok,
+       %Transaction{
+         validation_stamp: %ValidationStamp{
+           genesis_address: "Alice0",
+           timestamp: ~U[2022-11-27 00:10:00Z]
+         }
+       }}
     end)
-    |> expect(:get_genesis_address, 2, fn "Alice2" -> "Alice0" end)
+    |> expect(:get_genesis_address, 1, fn "Alice2" -> "Alice0" end)
     |> expect(:list_chain_addresses, fn "Alice0" ->
       [
         {"Alice1", ~U[2022-11-27 00:09:00Z]},
@@ -99,7 +105,6 @@ defmodule Archethic.SelfRepairTest do
 
     test "should replicate a new transaction" do
       tx = %Transaction{address: address} = TransactionFactory.create_valid_transaction()
-      genesis_address = Transaction.previous_address(tx)
 
       input1 = %VersionedTransactionInput{
         protocol_version: Archethic.Mining.protocol_version(),
@@ -113,18 +118,18 @@ defmodule Archethic.SelfRepairTest do
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ -> {:ok, tx} end)
 
-      with_mock(Replication, sync_transaction_chain: fn _, _, _, _ -> :ok end) do
+      with_mock(Replication, sync_transaction_chain: fn _, _, _ -> :ok end) do
         with_mock(
           TransactionChain,
           [:passthrough],
           fetch_inputs: fn _, _ -> [input1] end,
           write_inputs: fn _, _ -> :ok end
         ) do
-          assert :ok = SelfRepair.replicate_transaction(address, genesis_address, true)
+          assert :ok = SelfRepair.replicate_transaction(address, true)
 
           assert_called(TransactionChain.fetch_inputs(address, :_))
           assert_called(TransactionChain.write_inputs(address, [input1]))
-          assert_called(Replication.sync_transaction_chain(:_, genesis_address, :_, :_))
+          assert_called(Replication.sync_transaction_chain(tx, :_, :_))
         end
       end
     end
@@ -157,14 +162,13 @@ defmodule Archethic.SelfRepairTest do
 
     test "should replicate a new transaction" do
       tx = %Transaction{address: address} = TransactionFactory.create_valid_transaction()
-      genesis_address = Transaction.previous_address(tx)
 
       MockClient
       |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ -> {:ok, tx} end)
 
-      with_mock(Replication, synchronize_io_transaction: fn _, _, _ -> :ok end) do
-        assert :ok = SelfRepair.replicate_transaction(address, genesis_address, false)
-        assert_called(Replication.synchronize_io_transaction(:_, genesis_address, :_))
+      with_mock(Replication, synchronize_io_transaction: fn _, _ -> :ok end) do
+        assert :ok = SelfRepair.replicate_transaction(address, false)
+        assert_called(Replication.synchronize_io_transaction(tx, :_))
       end
     end
 

@@ -49,18 +49,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   def write_transaction(tx, storage_type \\ :chain)
 
   def write_transaction(tx = %Transaction{}, :chain) do
-    previous_address = Transaction.previous_address(tx)
-
-    genesis_address =
-      case ChainIndex.get_tx_entry(previous_address, filepath()) do
-        {:ok, %{genesis_address: genesis_address}} ->
-          genesis_address
-
-        {:error, :not_exists} ->
-          previous_address
-      end
-
-    case ChainWriter.append_transaction(genesis_address, tx) do
+    case ChainWriter.append_transaction(tx) do
       # Delete IO transaction if it exists as it is now stored as a chain
       :ok -> delete_io_transaction(tx.address)
       error -> error

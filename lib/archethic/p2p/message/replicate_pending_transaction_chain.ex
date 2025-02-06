@@ -1,7 +1,7 @@
 defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   @moduledoc false
 
-  defstruct [:address, :genesis_address]
+  defstruct [:address]
 
   alias Archethic.Crypto
   alias Archethic.Utils
@@ -22,12 +22,11 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.P2P.Message.AcknowledgeStorage
 
   @type t() :: %__MODULE__{
-          address: binary(),
-          genesis_address: binary()
+          address: binary()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{address: address, genesis_address: genesis_address}, sender_public_key) do
+  def process(%__MODULE__{address: address}, sender_public_key) do
     case Replication.get_transaction_in_commit_pool(address) do
       {:ok,
        tx = %Transaction{
@@ -37,14 +36,14 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
         Task.Supervisor.start_child(Archethic.task_supervisors(), fn ->
           authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-          Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
+          Replication.sync_transaction_chain(tx, authorized_nodes)
 
           TransactionChain.write_inputs(
             tx_address,
             convert_unspent_outputs_to_inputs(validation_inputs)
           )
 
-          P2P.send_message(sender_public_key, get_ack_storage(tx, genesis_address))
+          P2P.send_message(sender_public_key, get_ack_storage(tx))
         end)
 
         %Ok{}
@@ -66,35 +65,22 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
     end)
   end
 
-  defp get_ack_storage(tx = %Transaction{address: address}, genesis_address) do
+  defp get_ack_storage(tx = %Transaction{address: address}) do
     signature =
       tx
-      |> TransactionSummary.from_transaction(genesis_address)
+      |> TransactionSummary.from_transaction()
       |> TransactionSummary.serialize()
       |> Crypto.sign_with_first_node_key()
 
-    %AcknowledgeStorage{
-      address: address,
-      signature: signature
-    }
+    %AcknowledgeStorage{address: address, signature: signature}
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{address: address, genesis_address: genesis_address}) do
-    <<address::binary, genesis_address::binary>>
-  end
+  def serialize(%__MODULE__{address: address}), do: <<address::binary>>
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(bin) do
     {address, rest} = Utils.deserialize_address(bin)
-    {genesis_address, rest} = Utils.deserialize_address(rest)
-
-    {
-      %__MODULE__{
-        address: address,
-        genesis_address: genesis_address
-      },
-      rest
-    }
+    {%__MODULE__{address: address}, rest}
   end
 end

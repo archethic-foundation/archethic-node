@@ -12,8 +12,6 @@ defmodule Archethic.UTXOTest do
   alias Archethic.Reward.MemTables.RewardTokens
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.UnspentOutput
-  alias Archethic.TransactionChain.VersionedUnspentOutput
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -22,9 +20,12 @@ defmodule Archethic.UTXOTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias Archethic.UTXO
   alias Archethic.UTXO.MemoryLedger
@@ -56,60 +57,59 @@ defmodule Archethic.UTXOTest do
 
   describe "load_transaction/2" do
     test "should load outputs as io storage nodes and chain even if not genesis node" do
-      destination_previous_address = random_address()
       destination_genesis_address = random_address()
 
-      transaction_address = random_address()
-      transaction_previous_address = random_address()
-      transaction_genesis_address = random_address()
-
-      tx = %Transaction{
-        address: transaction_address,
-        type: :transfer,
-        validation_stamp: %ValidationStamp{
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          protocol_version: current_protocol_version(),
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [
-              %TransactionMovement{
-                to: destination_genesis_address,
-                amount: 100_000_000,
-                type: :UCO
-              }
-            ],
-            unspent_outputs: [
-              %UnspentOutput{
-                from: transaction_address,
-                amount: 300_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs:
-              [
-                %UnspentOutput{
-                  from: transaction_previous_address,
-                  amount: 200_000_000,
-                  type: :UCO
-                },
-                %UnspentOutput{
-                  from: destination_previous_address,
-                  amount: 200_000_000,
-                  type: :UCO
-                }
-              ]
-              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
-          }
+      inputs = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
         },
-        previous_public_key: random_public_key()
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      ledger = %Ledger{
+        uco: %UCOLedger{
+          transfers: [%UCOTransfer{to: destination_genesis_address, amount: 100_000_000}]
+        }
       }
 
-      me = self()
+      tx =
+        %Transaction{
+          address: transaction_address,
+          validation_stamp: %ValidationStamp{
+            timestamp: tx_timestamp,
+            genesis_address: transaction_genesis_address,
+            ledger_operations: %LedgerOperations{
+              unspent_outputs: unspent_outputs,
+              transaction_movements: transaction_movements
+            }
+          }
+        } = TransactionFactory.create_valid_transaction(inputs, ledger: ledger)
+
+      v_utxos =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
+      destination_utxos =
+        transaction_movements
+        |> Enum.map(fn %TransactionMovement{amount: amount, type: type} ->
+          %UnspentOutput{
+            from: transaction_address,
+            amount: amount,
+            timestamp: tx_timestamp,
+            type: type
+          }
+        end)
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
       MockUTXOLedger
-      |> stub(:append_list, fn genesis_address, [utxo] ->
-        send(me, {:append_utxo, genesis_address, utxo})
-      end)
+      |> expect(:append_list, fn ^destination_genesis_address, ^destination_utxos -> :ok end)
 
       with_mock(Election, [:passthrough],
         chain_storage_node?: fn
@@ -117,95 +117,50 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx, transaction_genesis_address)
+        UTXO.load_transaction(tx)
 
-        assert [
-                 %VersionedUnspentOutput{
-                   unspent_output: %UnspentOutput{
-                     from: ^transaction_address,
-                     amount: 100_000_000,
-                     type: :UCO
-                   }
-                 }
-               ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
-
-        assert [
-                 %VersionedUnspentOutput{
-                   unspent_output: %UnspentOutput{
-                     from: transaction_address,
-                     amount: 300_000_000,
-                     type: :UCO,
-                     timestamp: ~U[2023-09-10 05:00:00.000Z]
-                   }
-                 }
-               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
-
-        assert_receive {:append_utxo, ^destination_genesis_address,
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            from: ^transaction_address,
-                            amount: 100_000_000,
-                            type: :UCO
-                          }
-                        }}
+        assert destination_utxos == MemoryLedger.get_unspent_outputs(destination_genesis_address)
+        assert v_utxos == MemoryLedger.get_unspent_outputs(transaction_genesis_address)
       end
     end
 
     test "should load outputs as chain storage node" do
-      destination_previous_address = random_address()
       destination_genesis_address = random_address()
 
-      transaction_address = random_address()
-      transaction_previous_address = random_address()
-      transaction_genesis_address = random_address()
-
-      tx = %Transaction{
-        address: transaction_address,
-        type: :transfer,
-        validation_stamp: %ValidationStamp{
-          protocol_version: current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [
-              %TransactionMovement{
-                to: destination_genesis_address,
-                amount: 100_000_000,
-                type: :UCO
-              }
-            ],
-            unspent_outputs: [
-              %UnspentOutput{
-                from: transaction_address,
-                amount: 300_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs:
-              [
-                %UnspentOutput{
-                  from: transaction_previous_address,
-                  amount: 200_000_000,
-                  type: :UCO
-                },
-                %UnspentOutput{
-                  from: destination_previous_address,
-                  amount: 200_000_000,
-                  type: :UCO
-                }
-              ]
-              |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
-          }
+      inputs = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
         },
-        previous_public_key: random_public_key()
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      ledger = %Ledger{
+        uco: %UCOLedger{
+          transfers: [%UCOTransfer{to: destination_genesis_address, amount: 100_000_000}]
+        }
       }
 
-      me = self()
+      tx =
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            genesis_address: transaction_genesis_address,
+            ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
+          }
+        } = TransactionFactory.create_valid_transaction(inputs, ledger: ledger)
+
+      v_utxos =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
 
       MockUTXOLedger
-      |> stub(:flush, fn genesis_address, utxos ->
-        send(me, {:flush_outputs, genesis_address, utxos})
-      end)
+      |> expect(:flush, fn ^transaction_genesis_address, ^v_utxos -> :ok end)
 
       with_mock(Election, [:passthrough],
         chain_storage_node?: fn
@@ -213,30 +168,10 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx, transaction_genesis_address)
+        UTXO.load_transaction(tx)
 
-        assert [
-                 %VersionedUnspentOutput{
-                   unspent_output: %UnspentOutput{
-                     from: ^transaction_address,
-                     type: :UCO,
-                     timestamp: ~U[2023-09-10 05:00:00.000Z],
-                     amount: 300_000_000
-                   }
-                 }
-               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
-
-        assert [] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
-
-        assert_receive {:flush_outputs, ^transaction_genesis_address,
-                        [
-                          %VersionedUnspentOutput{
-                            unspent_output: %UnspentOutput{
-                              from: ^transaction_address,
-                              amount: 300_000_000
-                            }
-                          }
-                        ]}
+        assert v_utxos == MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+        assert [] == MemoryLedger.get_unspent_outputs(destination_genesis_address)
       end
     end
 
@@ -253,6 +188,7 @@ defmodule Archethic.UTXOTest do
         address: destination_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
+          genesis_address: destination_genesis_address,
           protocol_version: current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
@@ -294,6 +230,7 @@ defmodule Archethic.UTXOTest do
         address: transaction_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
+          genesis_address: transaction_genesis_address,
           protocol_version: current_protocol_version(),
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
@@ -342,7 +279,7 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx1, destination_genesis_address)
+        UTXO.load_transaction(tx1)
 
         assert [
                  %VersionedUnspentOutput{
@@ -355,7 +292,7 @@ defmodule Archethic.UTXOTest do
                  }
                ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        UTXO.load_transaction(tx2, transaction_genesis_address)
+        UTXO.load_transaction(tx2)
 
         assert [
                  %VersionedUnspentOutput{
@@ -374,7 +311,6 @@ defmodule Archethic.UTXOTest do
       destination_genesis_address = random_address()
 
       transaction_address = random_address()
-      transaction_genesis_address = random_address()
 
       tx = %Transaction{
         address: transaction_address,
@@ -400,7 +336,7 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx, transaction_genesis_address)
+        UTXO.load_transaction(tx)
 
         assert [
                  %VersionedUnspentOutput{
@@ -556,7 +492,7 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> true
         end
       ) do
-        UTXO.load_transaction(tx, transaction_genesis)
+        UTXO.load_transaction(tx)
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain1_utxo}] =
                  destination1_genesis |> MemoryLedger.get_unspent_outputs()
@@ -711,7 +647,7 @@ defmodule Archethic.UTXOTest do
           _, _, _ -> true
         end
       ) do
-        UTXO.load_transaction(tx, transaction_genesis)
+        UTXO.load_transaction(tx)
 
         assert [%VersionedUnspentOutput{unspent_output: ^chain1_utxo}] =
                  destination1_genesis |> MemoryLedger.get_unspent_outputs()

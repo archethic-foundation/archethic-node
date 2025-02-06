@@ -38,7 +38,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
     test "should start a resync when remote /= local" do
       last_address = random_address()
       now = DateTime.utc_now()
-      oracle_genesis_address = OracleChain.genesis_address()
 
       MockDB
       |> expect(:get_last_chain_address, 2, fn address ->
@@ -50,9 +49,9 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
         {:ok, %LastTransactionAddress{address: last_address, timestamp: now}}
       end)
 
-      with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
         :ok = NetworkChain.synchronous_resync(:oracle)
-        assert_called(SelfRepair.replicate_transaction(last_address, oracle_genesis_address))
+        assert_called(SelfRepair.replicate_transaction(last_address))
       end
     end
 
@@ -98,7 +97,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
       last_public_key = random_public_key()
       last_address = Crypto.derive_address(last_public_key)
-      genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
 
       MockClient
       |> expect(:send_message, fn _, %ListNodes{}, _ ->
@@ -108,9 +106,9 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
          }}
       end)
 
-      with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
         :ok = NetworkChain.synchronous_resync(:node)
-        assert_called(SelfRepair.replicate_transaction(last_address, genesis_address))
+        assert_called(SelfRepair.replicate_transaction(last_address))
       end
     end
   end

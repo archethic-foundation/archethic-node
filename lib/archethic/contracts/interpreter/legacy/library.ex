@@ -227,32 +227,15 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
   @spec get_token_id(binary()) :: {:error, binary()} | binary()
   def get_token_id(address) do
     address = UtilsInterpreter.get_address(address, :get_token_id)
-    t1 = Task.async(fn -> Archethic.fetch_genesis_address(address) end)
-    t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
-    with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok, {:ok, tx}} <- Task.yield(t2),
-         {:ok, %{id: id}} <- Utils.get_token_properties(genesis_address, tx) do
+    with {:ok, tx} <- Archethic.search_transaction(address),
+         {:ok, %{id: id}} <- Utils.get_token_properties(tx) do
       id
     else
-      {:ok, {:error, :network_issue}} ->
-        {:error, "Network issue"}
-
-      {:ok, {:error, :transaction_not_exists}} ->
-        {:error, "Transaction not exists"}
-
-      {:error, :decode_error} ->
-        {:error, "Error in decoding transaction"}
-
-      {:error, :not_a_token_transaction} ->
-        {:error, "Transaction is not of type token"}
-
-      {:exit, reason} ->
-        Logger.debug("Task exited with reason #{inspect(reason)}")
-        {:error, "Task Exited!"}
-
-      nil ->
-        {:error, "Task didn't responded within timeout!"}
+      {:error, :network_issue} -> {:error, "Network issue"}
+      {:error, :transaction_not_exists} -> {:error, "Transaction not exists"}
+      {:error, :decode_error} -> {:error, "Error in decoding transaction"}
+      {:error, :not_a_token_transaction} -> {:error, "Transaction is not of type token"}
     end
   end
 

@@ -98,33 +98,31 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   defp sync_chain(address, previous_nodes, new_nodes) do
-    genesis_address = TransactionChain.get_genesis_address(address)
-
     address
     |> TransactionChain.get([
       :address,
-      validation_stamp: [ledger_operations: [:transaction_movements]]
+      validation_stamp: [:genesis_address, ledger_operations: [:transaction_movements]]
     ])
-    |> Stream.map(&compute_elections(&1, previous_nodes, new_nodes, genesis_address))
+    |> Stream.map(&compute_elections(&1, previous_nodes, new_nodes))
     |> Stream.filter(&election_changed?(&1))
     |> Stream.filter(&notify?(&1))
     |> Stream.map(&filter_nodes_to_notify(&1))
     |> map_last_addresses_for_node()
-    |> notify_nodes(genesis_address)
+    |> notify_nodes()
   end
 
   defp compute_elections(
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
+             genesis_address: genesis_address,
              protocol_version: protocol_version,
              ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
              recipients: recipients
            }
          },
          previous_nodes,
-         new_nodes,
-         genesis_address
+         new_nodes
        ) do
     movements_addresses = transaction_movements |> Enum.map(& &1.to) |> Enum.concat(recipients)
 
@@ -150,6 +148,7 @@ defmodule Archethic.SelfRepair.Notifier do
 
     %{
       address: address,
+      genesis_address: genesis_address,
       prev_storage_nodes: prev_storage_nodes,
       prev_io_nodes: prev_io_nodes,
       new_storage_nodes: new_storage_nodes,
@@ -200,21 +199,24 @@ defmodule Archethic.SelfRepair.Notifier do
   New election is carried out on the set of all authorized omiting unavailable_node.
   The set of previous storage nodes is subtracted from the set of new storage nodes.
   """
-  @spec filter_nodes_to_notify(map()) :: {binary(), list(Crypto.key()), list(Crypto.key())}
-  def filter_nodes_to_notify(%{
-        address: address,
-        new_io_nodes: new_io_nodes,
-        new_storage_nodes: new_storage_nodes,
-        prev_io_nodes: prev_io_nodes,
-        prev_storage_nodes: prev_storage_nodes
-      }) do
+  @spec filter_nodes_to_notify(map()) :: map()
+  def filter_nodes_to_notify(
+        map = %{
+          new_io_nodes: new_io_nodes,
+          new_storage_nodes: new_storage_nodes,
+          prev_io_nodes: prev_io_nodes,
+          prev_storage_nodes: prev_storage_nodes
+        }
+      ) do
     new_storage_nodes = new_storage_nodes -- prev_storage_nodes
 
     already_stored_nodes = Enum.uniq(prev_storage_nodes ++ prev_io_nodes ++ new_storage_nodes)
 
     new_io_nodes = new_io_nodes -- already_stored_nodes
 
-    {address, new_storage_nodes, new_io_nodes}
+    map
+    |> Map.put(:new_storage_nodes, new_storage_nodes)
+    |> Map.put(:new_io_nodes, new_io_nodes)
   end
 
   @doc """
@@ -225,13 +227,19 @@ defmodule Archethic.SelfRepair.Notifier do
     Enum.reduce(
       stream,
       %{},
-      fn {address, new_storage_nodes, new_io_nodes}, acc ->
+      fn %{
+           address: address,
+           genesis_address: genesis_address,
+           new_storage_nodes: new_storage_nodes,
+           new_io_nodes: new_io_nodes
+         },
+         acc ->
         acc =
           Enum.reduce(new_storage_nodes, acc, fn first_public_key, acc ->
             Map.update(
               acc,
               first_public_key,
-              %{last_address: address, io_addresses: []},
+              %{genesis_address: genesis_address, last_address: address, io_addresses: []},
               &Map.put(&1, :last_address, address)
             )
           end)
@@ -240,7 +248,7 @@ defmodule Archethic.SelfRepair.Notifier do
           Map.update(
             acc,
             first_public_key,
-            %{last_address: nil, io_addresses: [address]},
+            %{genesis_address: genesis_address, last_address: nil, io_addresses: [address]},
             &Map.update(&1, :io_addresses, [address], fn addresses -> [address | addresses] end)
           )
         end)
@@ -248,11 +256,16 @@ defmodule Archethic.SelfRepair.Notifier do
     )
   end
 
-  defp notify_nodes(acc, genesis_address) do
+  defp notify_nodes(acc) do
     Task.Supervisor.async_stream_nolink(
       Archethic.task_supervisors(),
       acc,
-      fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
+      fn {node_first_public_key,
+          %{
+            genesis_address: genesis_address,
+            last_address: last_address,
+            io_addresses: io_addresses
+          }} ->
         Logger.info(
           "Send Shard Repair message to #{Base.encode16(node_first_public_key)}" <>
             "with storage_address #{if last_address, do: Base.encode16(last_address), else: nil}, " <>

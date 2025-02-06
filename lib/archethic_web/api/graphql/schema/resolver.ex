@@ -55,32 +55,14 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   end
 
   def get_token(address) do
-    t1 = Task.async(fn -> Archethic.fetch_genesis_address(address) end)
-    t2 = Task.async(fn -> Archethic.search_transaction(address) end)
-
-    with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok, {:ok, tx}} <- Task.yield(t2),
-         res = {:ok, _get_token_properties} <- Utils.get_token_properties(genesis_address, tx) do
+    with {:ok, tx} <- Archethic.search_transaction(address),
+         res = {:ok, _get_token_properties} <- Utils.get_token_properties(tx) do
       res
     else
-      {:ok, {:error, :network_issue}} ->
-        {:error, "Network issue"}
-
-      {:ok, {:error, :transaction_not_exists}} ->
-        {:error, "Transaction not exists"}
-
-      {:error, :decode_error} ->
-        {:error, "Error in decoding transaction"}
-
-      {:error, :not_a_token_transaction} ->
-        {:error, "Transaction is not of type token"}
-
-      {:exit, reason} ->
-        Logger.debug("Task exited with reason #{inspect(reason)}")
-        {:error, "Task Exited!"}
-
-      nil ->
-        {:error, "Task didn't responded within timeout!"}
+      {:error, :network_issue} -> {:error, "Network issue"}
+      {:error, :transaction_not_exists} -> {:error, "Transaction not exists"}
+      {:error, :decode_error} -> {:error, "Error in decoding transaction"}
+      {:error, :not_a_token_transaction} -> {:error, "Transaction is not of type token"}
     end
   end
 

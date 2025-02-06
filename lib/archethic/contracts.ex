@@ -91,8 +91,7 @@ defmodule Archethic.Contracts do
         {:error, :upgrade_not_supported}
 
       %WasmSpec.UpgradeOpts{from: from} ->
-        {:ok, genesis_address} =
-          trigger_tx |> Transaction.previous_address() |> Archethic.fetch_genesis_address()
+        genesis_address = trigger_tx.validation_stamp.genesis_address
 
         if genesis_address == from do
           with {:ok, %{"bytecode" => new_code, "manifest" => manifest}} <-
@@ -218,24 +217,6 @@ defmodule Archethic.Contracts do
 
       with {:ok, args} <- maybe_recipient_arg(maybe_recipient),
            {:ok, args} <- WasmSpec.cast_wasm_input(args, input) do
-        # FIXME: remove the fetch genesis address when it will be integrated in the transaction's structure
-
-        maybe_trigger_tx =
-          case maybe_trigger_tx do
-            nil ->
-              nil
-
-            tx ->
-              Map.put(
-                tx,
-                :genesis,
-                tx
-                |> Transaction.previous_address()
-                |> Archethic.fetch_genesis_address()
-                |> elem(1)
-              )
-          end
-
         WasmModule.execute(
           module,
           trigger.name,
@@ -243,15 +224,7 @@ defmodule Archethic.Contracts do
           state: state,
           balance: UTXO.get_balance(inputs),
           arguments: args,
-          contract:
-            Map.put(
-              contract_tx,
-              :genesis,
-              contract_tx
-              |> Transaction.previous_address()
-              |> Archethic.fetch_genesis_address()
-              |> elem(1)
-            ),
+          contract: contract_tx,
           encrypted_seed: get_encrypted_seed(contract_tx)
         )
       else
@@ -453,12 +426,7 @@ defmodule Archethic.Contracts do
                  balance: UTXO.get_balance(inputs),
                  arguments: arg,
                  encrypted_seed: get_encrypted_seed(contract_tx),
-                 contract:
-                   Map.put(
-                     contract_tx,
-                     :genesis,
-                     Archethic.fetch_genesis_address(contract_tx.address) |> elem(1)
-                   )
+                 contract: contract_tx
                ) do
           {:ok, value, []}
         else
@@ -607,12 +575,8 @@ defmodule Archethic.Contracts do
   @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
   """
-  @spec load_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: Keyword.t()
-        ) :: :ok
-  defdelegate load_transaction(tx, genesis_address, opts), to: Loader
+  @spec load_transaction(tx :: Transaction.t(), opts :: Keyword.t()) :: :ok
+  defdelegate load_transaction(tx, opts), to: Loader
 
   @doc """
   Validate any kind of condition.

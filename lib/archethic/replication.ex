@@ -128,7 +128,6 @@ defmodule Archethic.Replication do
   """
   @spec sync_transaction_chain(
           tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
           nodes :: list(Node.t()),
           opts :: sync_options()
         ) :: :ok
@@ -138,7 +137,6 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        genesis_address,
         download_nodes \\ P2P.authorized_and_available_nodes(),
         opts \\ []
       ) do
@@ -151,24 +149,23 @@ defmodule Archethic.Replication do
       Keyword.put(opts, :io_transaction?, false) |> Keyword.put(:download_nodes, download_nodes)
 
     tx
-    |> stream_previous_chain(genesis_address, download_nodes)
+    |> stream_previous_chain(download_nodes)
     |> Stream.each(fn tx ->
       with :ok <- TransactionChain.write_transaction(tx),
-           true <-
-             ingest_previous_transaction?(tx, first_node_key, download_nodes, genesis_address) do
+           true <- ingest_previous_transaction?(tx, first_node_key, download_nodes) do
         # There is some case where a transaction is not replicated while it should
         # because of some latency or network issue. So when we replicate a past chain
         # we also ingest the transaction if we are storage node of it
 
         opts = Keyword.delete(ingest_opts, :resolved_addresses)
-        ingest_transaction(tx, genesis_address, opts)
+        ingest_transaction(tx, opts)
       end
     end)
     |> Stream.run()
 
     case TransactionChain.write_transaction(tx) do
       :ok ->
-        :ok = ingest_transaction(tx, genesis_address, ingest_opts)
+        :ok = ingest_transaction(tx, ingest_opts)
 
         Logger.info("Replication finished",
           transaction_address: Base.encode16(address),
@@ -195,10 +192,13 @@ defmodule Archethic.Replication do
   end
 
   defp ingest_previous_transaction?(
-         %Transaction{address: address, type: type},
+         %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{genesis_address: genesis_address}
+         },
          first_node_key,
-         download_nodes,
-         genesis_address
+         download_nodes
        ) do
     Transaction.network_type?(type) or
       Election.chain_storage_node?(address, first_node_key, download_nodes) or
@@ -210,18 +210,14 @@ defmodule Archethic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: sync_options()
-        ) :: :ok | {:error, Error.t()}
+  @spec validate_and_store_transaction(tx :: Transaction.t(), opts :: sync_options()) ::
+          :ok | {:error, Error.t()}
   def validate_and_store_transaction(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
         },
-        genesis_address,
         opts \\ []
       )
       when is_list(opts) do
@@ -263,9 +259,7 @@ defmodule Archethic.Replication do
             %{role: :IO}
           )
 
-          if chain?,
-            do: sync_transaction_chain(tx, genesis_address),
-            else: synchronize_io_transaction(tx, genesis_address, opts)
+          if chain?, do: sync_transaction_chain(tx), else: synchronize_io_transaction(tx, opts)
 
         %ValidationContext{mining_error: error} ->
           Logger.warning("Invalid transaction for replication - #{inspect(error)}",
@@ -281,24 +275,19 @@ defmodule Archethic.Replication do
   @doc """
   Synchronize an io transaction into DB an memory table
   """
-  @spec synchronize_io_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: sync_options()
-        ) :: :ok
+  @spec synchronize_io_transaction(tx :: Transaction.t(), opts :: sync_options()) :: :ok
   def synchronize_io_transaction(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        genesis_address,
         opts \\ []
       )
       when is_list(opts) do
     case TransactionChain.write_transaction(tx, :io) do
       :ok ->
-        ingest_transaction(tx, genesis_address, Keyword.put(opts, :io_transaction?, true))
+        ingest_transaction(tx, Keyword.put(opts, :io_transaction?, true))
 
         Logger.info("Replication finished",
           transaction_address: Base.encode16(address),
@@ -313,8 +302,6 @@ defmodule Archethic.Replication do
           transaction_type: type
         )
     end
-
-    # TODO: Should not ingest if write_transaction failed
   end
 
   defp fetch_context(tx = %Transaction{}) do
@@ -325,16 +312,6 @@ defmodule Archethic.Replication do
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
-
-    genesis_task =
-      Task.Supervisor.async(Archethic.task_supervisors(), fn ->
-        fetch_opts =
-          if TransactionChain.first_transaction?(tx),
-            do: [],
-            else: [acceptance_resolver: :accept_different_genesis]
-
-        TransactionContext.fetch_genesis_address(previous_address, fetch_opts)
-      end)
 
     previous_transaction_task =
       Task.Supervisor.async(Archethic.task_supervisors(), fn ->
@@ -351,15 +328,25 @@ defmodule Archethic.Replication do
         TransactionChain.resolve_transaction_addresses!(tx)
       end)
 
-    genesis_address = Task.await(genesis_task)
+    previous_transaction =
+      case Task.yield(previous_transaction_task, Message.get_max_timeout()) ||
+             Task.shutdown(previous_transaction_task) do
+        {:ok, res} -> res
+        _ -> nil
+      end
+
+    genesis_address =
+      case previous_transaction do
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} ->
+          genesis_address
+
+        _ ->
+          previous_address
+      end
 
     unspent_outputs = fetch_unspent_outputs(tx, genesis_address)
 
-    [previous_transaction, resolved_addresses] =
-      Task.await_many(
-        [previous_transaction_task, resolved_addresses_task],
-        Message.get_max_timeout() + 1000
-      )
+    resolved_addresses = Task.await(resolved_addresses_task)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),
@@ -386,10 +373,13 @@ defmodule Archethic.Replication do
     end)
   end
 
-  defp stream_previous_chain(tx, genesis_address, download_nodes) do
+  defp stream_previous_chain(
+         tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}},
+         download_nodes
+       ) do
     previous_address = Transaction.previous_address(tx)
 
-    if previous_address == genesis_address or
+    if TransactionChain.first_transaction?(tx) or
          TransactionChain.transaction_exists?(previous_address) do
       []
     else
@@ -611,12 +601,8 @@ defmodule Archethic.Replication do
   - Transactions with smart contract deploy instances of them or can put in pending state waiting approval signatures
   - Code approval transactions may trigger the TestNets deployments or hot-reloads
   """
-  @spec ingest_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: ingest_options()
-        ) :: :ok
-  def ingest_transaction(tx = %Transaction{}, genesis_address, opts \\ []) when is_list(opts) do
+  @spec ingest_transaction(tx :: Transaction.t(), opts :: ingest_options()) :: :ok
+  def ingest_transaction(tx = %Transaction{}, opts \\ []) when is_list(opts) do
     self_repair? = Keyword.get(opts, :self_repair?, false)
     resolved_addresses = Keyword.get(opts, :resolved_addresses, %{})
     download_nodes = Keyword.get(opts, :download_nodes, P2P.authorized_and_available_nodes())
@@ -627,12 +613,12 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
 
-    UTXO.load_transaction(tx, genesis_address,
+    UTXO.load_transaction(tx,
       resolved_addresses: resolved_addresses,
       download_nodes: download_nodes
     )
 
-    Contracts.load_transaction(tx, genesis_address,
+    Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,
       download_nodes: download_nodes
     )

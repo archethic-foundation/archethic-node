@@ -9,7 +9,6 @@ defmodule Archethic.BeaconChain.Slot.ValidationTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.TransactionFactory
@@ -28,10 +27,10 @@ defmodule Archethic.BeaconChain.Slot.ValidationTest do
 
     test "should return true if all attestation are valid" do
       tx1 = TransactionFactory.create_valid_transaction([], seed: "abc")
-      tx1_summary = TransactionSummary.from_transaction(tx1, Transaction.previous_address(tx1))
+      tx1_summary = TransactionSummary.from_transaction(tx1)
 
       tx2 = TransactionFactory.create_valid_transaction([], seed: "123")
-      tx2_summary = TransactionSummary.from_transaction(tx2, Transaction.previous_address(tx2))
+      tx2_summary = TransactionSummary.from_transaction(tx2)
 
       attestation1 = %ReplicationAttestation{transaction_summary: tx1_summary, confirmations: []}
       attestation2 = %ReplicationAttestation{transaction_summary: tx2_summary, confirmations: []}
@@ -43,10 +42,10 @@ defmodule Archethic.BeaconChain.Slot.ValidationTest do
 
     test "should return false if at least one attestation is invalid" do
       tx1 = TransactionFactory.create_valid_transaction([], seed: "abc")
-      tx1_summary = TransactionSummary.from_transaction(tx1, Transaction.previous_address(tx1))
+      tx1_summary = TransactionSummary.from_transaction(tx1)
 
       tx2 = TransactionFactory.create_valid_transaction([], seed: "123", type: :node)
-      tx2_summary = TransactionSummary.from_transaction(tx2, Transaction.previous_address(tx2))
+      tx2_summary = TransactionSummary.from_transaction(tx2)
 
       attestation1 = %ReplicationAttestation{transaction_summary: tx1_summary, confirmations: []}
       attestation2 = %ReplicationAttestation{transaction_summary: tx2_summary, confirmations: []}

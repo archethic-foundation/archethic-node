@@ -69,35 +69,68 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     prev_storage_nodes = ["node2", "node3"]
     prev_io_nodes = []
-    new_storage_nodes = ["node4", "node1"]
+    new_storage_nodes = ["node4", "node2", "node1"]
     new_io_nodes = []
 
-    result =
-      Notifier.filter_nodes_to_notify(%{
-        address: "Alice1",
-        new_io_nodes: new_io_nodes,
-        new_storage_nodes: new_storage_nodes,
-        prev_io_nodes: prev_io_nodes,
-        prev_storage_nodes: prev_storage_nodes
-      })
-
-    assert {"Alice1", ["node4", "node1"], []} = result
+    assert %{
+             address: "Alice1",
+             genesis_address: "Alice0",
+             new_io_nodes: [],
+             new_storage_nodes: ["node4", "node1"]
+           } =
+             Notifier.filter_nodes_to_notify(%{
+               address: "Alice1",
+               genesis_address: "Alice0",
+               new_io_nodes: new_io_nodes,
+               new_storage_nodes: new_storage_nodes,
+               prev_io_nodes: prev_io_nodes,
+               prev_storage_nodes: prev_storage_nodes
+             })
   end
 
   test "map_last_address_for_node/1 should create a map with last address for each node" do
     tab = [
-      {"Alice1", ["node1"], ["node3"]},
-      {"Alice2", [], ["node1"]},
-      {"Alice3", ["node1"], ["node3"]},
-      {"Alice4", ["node4"], ["node2"]},
-      {"Alice5", ["node3"], []}
+      %{
+        address: "Alice1",
+        genesis_address: "Alice0",
+        new_storage_nodes: ["node1"],
+        new_io_nodes: ["node3"]
+      },
+      %{
+        address: "Alice2",
+        genesis_address: "Alice0",
+        new_storage_nodes: [],
+        new_io_nodes: ["node1"]
+      },
+      %{
+        address: "Alice3",
+        genesis_address: "Alice0",
+        new_storage_nodes: ["node1"],
+        new_io_nodes: ["node3"]
+      },
+      %{
+        address: "Alice4",
+        genesis_address: "Alice0",
+        new_storage_nodes: ["node4"],
+        new_io_nodes: ["node2"]
+      },
+      %{
+        address: "Alice5",
+        genesis_address: "Alice0",
+        new_storage_nodes: ["node3"],
+        new_io_nodes: []
+      }
     ]
 
     expected = %{
-      "node1" => %{last_address: "Alice3", io_addresses: ["Alice2"]},
-      "node2" => %{last_address: nil, io_addresses: ["Alice4"]},
-      "node3" => %{last_address: "Alice5", io_addresses: ["Alice3", "Alice1"]},
-      "node4" => %{last_address: "Alice4", io_addresses: []}
+      "node1" => %{genesis_address: "Alice0", last_address: "Alice3", io_addresses: ["Alice2"]},
+      "node2" => %{genesis_address: "Alice0", last_address: nil, io_addresses: ["Alice4"]},
+      "node3" => %{
+        genesis_address: "Alice0",
+        last_address: "Alice5",
+        io_addresses: ["Alice3", "Alice1"]
+      },
+      "node4" => %{genesis_address: "Alice0", last_address: "Alice4", io_addresses: []}
     }
 
     assert ^expected = Notifier.map_last_addresses_for_node(tab)
@@ -154,18 +187,21 @@ defmodule Archethic.SelfRepair.NotifierTest do
           %Transaction{
             address: "Alice1",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           },
           %Transaction{
             address: "Alice2",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           },
           %Transaction{
             address: "Alice3",
             validation_stamp: %ValidationStamp{
+              genesis_address: "Alice0",
               ledger_operations: %LedgerOperations{transaction_movements: []}
             }
           }
@@ -176,7 +212,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     MockClient
     |> stub(:send_message, fn
-      node, %ShardRepair{genesis_address: "Alice1", storage_address: "Alice2"}, _ ->
+      node, %ShardRepair{genesis_address: "Alice0", storage_address: "Alice2"}, _ ->
         if Enum.member?(new_possible_nodes, node.first_public_key) do
           send(me, :new_node)
         end

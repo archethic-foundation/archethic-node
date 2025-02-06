@@ -11,6 +11,8 @@ defmodule Archethic.UTXO.LoaderTest do
   alias Archethic.UTXO.Loader
   alias Archethic.UTXO.MemoryLedger
 
+  alias Archethic.TransactionFactory
+
   import ArchethicCase
 
   setup do
@@ -53,84 +55,36 @@ defmodule Archethic.UTXO.LoaderTest do
 
   describe "consume_inputs/2" do
     test "should consumed inputs and flush the new unspent outputs into memory and file ledger" do
-      utxo =
-        %UnspentOutput{
-          from: random_address(),
-          type: :UCO,
-          amount: 100_000_000,
-          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-        }
-        |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
-
-      me = self()
-
-      MockUTXOLedger
-      |> stub(:append, fn genesis, utxo ->
-        send(me, {:append, genesis, utxo})
-      end)
-
-      genesis_address = random_address()
-
-      Loader.add_utxo(utxo, genesis_address)
-
-      tx_address = random_address()
-
-      tx = %Transaction{
-        address: tx_address,
-        validation_stamp: %ValidationStamp{
-          protocol_version: current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [],
-            fee: 10_000_000,
-            unspent_outputs: [
-              %UnspentOutput{
-                from: tx_address,
-                amount: 90_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs: [utxo]
-          }
-        },
-        previous_public_key: random_public_key()
+      utxo = %UnspentOutput{
+        from: random_address(),
+        type: :UCO,
+        amount: 100_000_000,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
 
+      tx =
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            genesis_address: genesis,
+            ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
+          }
+        } = TransactionFactory.create_valid_transaction([utxo])
+
+      v_unspent_outputs =
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+
       MockUTXOLedger
-      |> stub(:flush, fn genesis, utxos ->
-        send(me, {:flush, genesis, utxos})
-      end)
+      |> expect(:flush, fn ^genesis, ^v_unspent_outputs -> :ok end)
 
-      Loader.consume_inputs(tx, genesis_address)
+      Loader.consume_inputs(tx)
 
-      assert_receive {:flush, genesis_address,
-                      [
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            from: ^tx_address,
-                            amount: 90_000_000
-                          }
-                        }
-                      ]}
-
-      assert [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{from: ^tx_address, amount: 90_000_000}
-               }
-             ] = MemoryLedger.get_unspent_outputs(genesis_address)
+      assert ^v_unspent_outputs = MemoryLedger.get_unspent_outputs(genesis)
     end
 
     test "should consumed inputs and flush after memory threshold" do
       {:ok, agent_pid} = Agent.start_link(fn -> [] end)
 
-      MockUTXOLedger
-      |> stub(:append, fn _genesis, utxo ->
-        Agent.update(agent_pid, &([utxo | &1] |> Enum.reverse()))
-      end)
-      |> stub(:stream, fn _ -> Agent.get(agent_pid, & &1) end)
-
-      utxos =
+      uco_utxos =
         Enum.map(1..5, fn _ ->
           %UnspentOutput{
             from: random_address(),
@@ -138,173 +92,47 @@ defmodule Archethic.UTXO.LoaderTest do
             amount: 100_000_000,
             timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
           }
-          |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
         end)
 
-      genesis_address = random_address()
-
-      Enum.each(utxos, fn utxo -> Loader.add_utxo(utxo, genesis_address) end)
-
-      assert [] = MemoryLedger.get_unspent_outputs(genesis_address)
-      assert 5 = agent_pid |> Agent.get(& &1) |> length()
-
-      me = self()
-
-      MockUTXOLedger
-      |> stub(:flush, fn genesis, utxos ->
-        send(me, {:flush, genesis, utxos})
-      end)
-
-      tx_address = random_address()
-
-      tx = %Transaction{
-        address: tx_address,
-        validation_stamp: %ValidationStamp{
-          protocol_version: current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [],
-            fee: 10_000_000,
-            unspent_outputs: [
-              %UnspentOutput{
-                from: tx_address,
-                amount: 490_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs: Enum.take(utxos, 2)
-          }
-        },
-        previous_public_key: random_public_key()
-      }
-
-      Loader.consume_inputs(tx, genesis_address)
-
-      assert_receive {:flush, ^genesis_address,
-                      [
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            amount: 100_000_000,
-                            type: :UCO
-                          }
-                        },
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            amount: 100_000_000,
-                            type: :UCO
-                          }
-                        },
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            amount: 100_000_000,
-                            type: :UCO
-                          }
-                        },
-                        %VersionedUnspentOutput{
-                          unspent_output: %UnspentOutput{
-                            from: ^tx_address,
-                            amount: 490_000_000,
-                            type: :UCO,
-                            timestamp: ~U[2023-09-10 05:00:00.000Z]
-                          }
-                        }
-                      ]}
-    end
-
-    test "should consumed inputs and flush after memory threshold and multiple input types" do
-      {:ok, agent_pid} = Agent.start_link(fn -> [] end)
-
-      MockUTXOLedger
-      |> stub(:append, fn _genesis, utxo ->
-        Agent.update(agent_pid, &([utxo | &1] |> Enum.reverse()))
-      end)
-      |> stub(:stream, fn _ -> Agent.get(agent_pid, & &1) end)
-
-      utxos =
-        [
-          %UnspentOutput{
-            from: random_address(),
-            type: :UCO,
-            amount: 100_000_000,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
-          %UnspentOutput{
-            from: random_address(),
-            type: :UCO,
-            amount: 100_000_000,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
+      token_utxos =
+        Enum.map(1..5, fn _ ->
           %UnspentOutput{
             from: random_address(),
             type: {:token, random_address(), 0},
             amount: 100_000_000,
             timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
-          %UnspentOutput{
-            from: random_address(),
-            type: {:token, random_address(), 0},
-            amount: 300_000_000,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
           }
-        ]
+        end)
+
+      utxos = Enum.concat(uco_utxos, token_utxos)
+      v_utxos = VersionedUnspentOutput.wrap_unspent_outputs(utxos, current_protocol_version())
+
+      tx =
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            genesis_address: genesis_address,
+            ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
+          }
+        } = TransactionFactory.create_valid_transaction(utxos)
+
+      assert Enum.all?(unspent_outputs, &(&1.type == :UCO))
+
+      new_unspent_output =
+        token_utxos
+        |> Enum.concat(unspent_outputs)
         |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
 
-      genesis_address = random_address()
-
-      Enum.each(utxos, fn utxo -> Loader.add_utxo(utxo, genesis_address) end)
-
-      assert [] = MemoryLedger.get_unspent_outputs(genesis_address)
-      assert 4 = agent_pid |> Agent.get(& &1) |> length()
-
-      me = self()
-
       MockUTXOLedger
-      |> stub(:flush, fn genesis, utxos ->
-        send(me, {:flush, genesis, utxos})
-      end)
+      |> stub(:append, fn _genesis, utxo -> Agent.update(agent_pid, &(&1 ++ [utxo])) end)
+      |> stub(:stream, fn _ -> Agent.get(agent_pid, & &1) end)
+      |> expect(:flush, fn ^genesis_address, ^new_unspent_output -> :ok end)
 
-      tx_address = random_address()
+      Enum.each(v_utxos, fn utxo -> Loader.add_utxo(utxo, genesis_address) end)
 
-      tx = %Transaction{
-        address: tx_address,
-        validation_stamp: %ValidationStamp{
-          protocol_version: current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [],
-            fee: 10_000_000,
-            unspent_outputs: [
-              %UnspentOutput{
-                from: tx_address,
-                amount: 190_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs: Enum.take(utxos, 2)
-          }
-        },
-        previous_public_key: random_public_key()
-      }
+      assert [] == MemoryLedger.get_unspent_outputs(genesis_address)
+      assert v_utxos == Agent.get(agent_pid, & &1)
 
-      Loader.consume_inputs(tx, genesis_address)
-
-      token_utxos = utxos |> Enum.reject(&(&1.unspent_output.type == :UCO))
-
-      expected_utxos =
-        token_utxos ++
-          [
-            %UnspentOutput{
-              from: tx_address,
-              amount: 190_000_000,
-              type: :UCO,
-              timestamp: ~U[2023-09-10 05:00:00.000Z]
-            }
-            |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
-          ]
-
-      assert_receive {:flush, ^genesis_address, ^expected_utxos}
+      Loader.consume_inputs(tx)
     end
   end
 end

@@ -9,8 +9,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
     :validation_node_public_key,
     :chain_storage_nodes_view,
     :beacon_storage_nodes_view,
-    :io_storage_nodes_view,
-    :previous_storage_nodes_public_keys
+    :io_storage_nodes_view
   ]
   defstruct [
     :address,
@@ -18,8 +17,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
     :validation_node_public_key,
     :chain_storage_nodes_view,
     :beacon_storage_nodes_view,
-    :io_storage_nodes_view,
-    :previous_storage_nodes_public_keys
+    :io_storage_nodes_view
   ]
 
   alias Archethic.Crypto
@@ -36,8 +34,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
           validation_node_public_key: Crypto.key(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
-          io_storage_nodes_view: bitstring(),
-          previous_storage_nodes_public_keys: list(Crypto.key())
+          io_storage_nodes_view: bitstring()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
@@ -46,7 +43,6 @@ defmodule Archethic.P2P.Message.AddMiningContext do
           address: tx_address,
           utxos_hashes: utxos_hashes,
           validation_node_public_key: validation_node,
-          previous_storage_nodes_public_keys: previous_storage_nodes_public_keys,
           chain_storage_nodes_view: chain_storage_nodes_view,
           beacon_storage_nodes_view: beacon_storage_nodes_view,
           io_storage_nodes_view: io_storage_nodes_view
@@ -60,7 +56,6 @@ defmodule Archethic.P2P.Message.AddMiningContext do
           tx_address,
           utxos_hashes,
           validation_node,
-          previous_storage_nodes_public_keys,
           chain_storage_nodes_view,
           beacon_storage_nodes_view,
           io_storage_nodes_view
@@ -76,12 +71,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<rest::bitstring>>) do
     {tx_address, rest} = Utils.deserialize_address(rest)
-
-    {node_public_key, <<nb_previous_storage_nodes::8, rest::bitstring>>} =
-      Utils.deserialize_public_key(rest)
-
-    {previous_storage_nodes_keys, rest} =
-      Utils.deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
+    {node_public_key, rest} = Utils.deserialize_public_key(rest)
 
     <<
       chain_storage_nodes_view_size::8,
@@ -103,8 +93,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
        validation_node_public_key: node_public_key,
        chain_storage_nodes_view: chain_storage_nodes_view,
        beacon_storage_nodes_view: beacon_storage_nodes_view,
-       io_storage_nodes_view: io_storage_nodes_view,
-       previous_storage_nodes_public_keys: previous_storage_nodes_keys
+       io_storage_nodes_view: io_storage_nodes_view
      }, rest}
   end
 
@@ -115,22 +104,16 @@ defmodule Archethic.P2P.Message.AddMiningContext do
         validation_node_public_key: validation_node_public_key,
         chain_storage_nodes_view: chain_storage_nodes_view,
         beacon_storage_nodes_view: beacon_storage_nodes_view,
-        io_storage_nodes_view: io_storage_nodes_view,
-        previous_storage_nodes_public_keys: previous_storage_nodes_public_keys
+        io_storage_nodes_view: io_storage_nodes_view
       }) do
-    utxos_hashes_serialized =
-      utxos_hashes
-      |> :erlang.list_to_binary()
-
+    utxos_hashes_serialized = utxos_hashes |> :erlang.list_to_binary()
     utxos_hashes_length_serialized = length(utxos_hashes) |> VarInt.from_value()
 
-    <<address::binary, validation_node_public_key::binary,
-      length(previous_storage_nodes_public_keys)::8,
-      :erlang.list_to_binary(previous_storage_nodes_public_keys)::binary,
-      bit_size(chain_storage_nodes_view)::8, chain_storage_nodes_view::bitstring,
-      bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring,
-      bit_size(io_storage_nodes_view)::8, io_storage_nodes_view::bitstring,
-      utxos_hashes_length_serialized::binary, utxos_hashes_serialized::bitstring>>
+    <<address::binary, validation_node_public_key::binary, bit_size(chain_storage_nodes_view)::8,
+      chain_storage_nodes_view::bitstring, bit_size(beacon_storage_nodes_view)::8,
+      beacon_storage_nodes_view::bitstring, bit_size(io_storage_nodes_view)::8,
+      io_storage_nodes_view::bitstring, utxos_hashes_length_serialized::binary,
+      utxos_hashes_serialized::bitstring>>
   end
 
   defp deserialize_utxos_hashes(rest, acc, 0), do: {acc, rest}

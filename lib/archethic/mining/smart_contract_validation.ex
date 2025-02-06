@@ -238,7 +238,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   def validate_contract_execution(
         _contract_context,
         nil,
-        _genesis_address,
+        genesis_address,
         next_tx = %Transaction{data: %TransactionData{contract: contract}},
         _chain_unspent_outputs
       )
@@ -246,7 +246,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     case WasmContract.from_transaction(next_tx) do
       {:ok, %WasmContract{module: module}} ->
         if "onInit" in WasmModule.list_exported_functions_name(module) do
-          wasm_init_state(module, next_tx)
+          wasm_init_state(module, genesis_address, next_tx)
         else
           {:ok, nil}
         end
@@ -265,9 +265,11 @@ defmodule Archethic.Mining.SmartContractValidation do
       ),
       do: {:ok, nil}
 
-  defp wasm_init_state(module = %WasmModule{}, next_tx = %Transaction{}) do
-    # FIXME when genesis will be integrated in transaction's structure
-    next_tx = Map.put(next_tx, :genesis, Transaction.previous_address(next_tx))
+  defp wasm_init_state(module = %WasmModule{}, genesis_address, next_tx = %Transaction{}) do
+    next_tx = %Transaction{
+      next_tx
+      | validation_stamp: ValidationStamp.generate_dummy(genesis_address: genesis_address)
+    }
 
     case WasmModule.execute(module, "onInit", transaction: next_tx) do
       {:ok, %ReadResult{value: state}} when is_map(state) ->

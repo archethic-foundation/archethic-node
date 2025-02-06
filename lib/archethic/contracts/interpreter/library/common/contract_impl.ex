@@ -31,7 +31,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
         )
 
     with {:ok, tx} <- Archethic.get_last_transaction(address),
-         {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
+         genesis_address = tx.validation_stamp.genesis_address,
          {:ok, contract} <- Contracts.from_transaction(tx),
          unspent_outputs = Archethic.get_unspent_outputs(genesis_address),
          {:ok, output, _logs} <-

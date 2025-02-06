@@ -6,7 +6,6 @@ defmodule Archethic.Mining.TransactionContext do
   """
 
   alias Archethic.BeaconChain
-  alias Archethic.Crypto
 
   alias Archethic.Election
 
@@ -17,7 +16,7 @@ defmodule Archethic.Mining.TransactionContext do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.Utils
 
@@ -25,84 +24,81 @@ defmodule Archethic.Mining.TransactionContext do
 
   @doc """
   Request concurrently the context of the transaction including the previous transaction,
-  the unspent outputs and P2P view for the storage nodes and validation nodes
+  the unspent outputs, genesis address and P2P view for the storage nodes and validation nodes
   as long as the involved nodes for the retrieval
   """
   @spec get(
-          previous_tx_address :: Crypto.prepended_hash(),
-          genesis_address :: Crypto.prepended_hash(),
-          chain_storage_node_public_keys :: list(Crypto.key()),
-          beacon_storage_nodes_public_keys :: list(Crypto.key()),
-          io_storage_nodes_public_keys :: list(Crypto.key())
-        ) ::
-          {Transaction.t(), list(UnspentOutput.t()), list(Node.t()), bitstring(), bitstring(),
-           bitstring()}
-  def get(
-        previous_address,
-        genesis_address,
-        chain_storage_node_public_keys,
-        beacon_storage_node_public_keys,
-        io_storage_node_public_keys
-      ) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
+          transaction :: Transaction.t(),
+          validation_time :: DateTime.t(),
+          authorized_nodes :: list(Node.t())
+        ) :: Keyword.t()
+  def get(tx, validation_time, authorized_nodes) do
+    resolved_addresses_task =
+      Task.async(fn -> TransactionChain.resolve_transaction_addresses!(tx) end)
 
-    node_public_keys =
-      [
-        chain_storage_node_public_keys,
-        beacon_storage_node_public_keys,
-        io_storage_node_public_keys
-      ]
-      |> List.flatten()
-      |> Enum.uniq()
+    previous_address = Transaction.previous_address(tx)
+    previous_tx = request_previous_tx(previous_address, authorized_nodes)
 
-    prev_tx_task =
-      if previous_address == genesis_address do
-        Task.completed(nil)
-      else
-        request_previous_tx(previous_address, authorized_nodes)
+    genesis_address =
+      case previous_tx do
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} ->
+          genesis_address
+
+        nil ->
+          previous_address
       end
 
     utxos_task = request_utxos(genesis_address, authorized_nodes)
-    nodes_view_task = request_nodes_view(node_public_keys)
 
-    [prev_tx, utxos, nodes_view] = Task.await_many([prev_tx_task, utxos_task, nodes_view_task])
+    resolved_addresses = Task.await(resolved_addresses_task)
+
+    {chain_storage_nodes, beacon_storage_nodes, io_nodes} =
+      get_involved_nodes(
+        tx,
+        genesis_address,
+        resolved_addresses,
+        validation_time,
+        authorized_nodes
+      )
+
+    view_nodes =
+      Enum.concat([chain_storage_nodes, beacon_storage_nodes, io_nodes]) |> P2P.distinct_nodes()
+
+    nodes_view = request_nodes_view(view_nodes)
 
     %{
       chain_nodes_view: chain_storage_nodes_view,
       beacon_nodes_view: beacon_storage_nodes_view,
       io_nodes_view: io_storage_nodes_view
-    } =
-      aggregate_views(
-        nodes_view,
-        chain_storage_node_public_keys,
-        beacon_storage_node_public_keys,
-        io_storage_node_public_keys
-      )
+    } = aggregate_views(nodes_view, chain_storage_nodes, beacon_storage_nodes, io_nodes)
 
-    {prev_tx, utxos, [], chain_storage_nodes_view, beacon_storage_nodes_view,
-     io_storage_nodes_view}
+    utxos = Task.await(utxos_task)
+
+    [
+      chain_storage_nodes: chain_storage_nodes,
+      beacon_storage_nodes: beacon_storage_nodes,
+      io_storage_nodes: io_nodes,
+      resolved_addresses: resolved_addresses,
+      genesis_address: genesis_address,
+      previous_transaction: previous_tx,
+      unspent_outputs: utxos,
+      chain_storage_nodes_view: chain_storage_nodes_view,
+      beacon_storage_nodes_view: beacon_storage_nodes_view,
+      io_storage_nodes_view: io_storage_nodes_view
+    ]
   end
 
   defp request_previous_tx(previous_address, authorized_nodes) do
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
 
-    Task.Supervisor.async(
-      Archethic.task_supervisors(),
-      fn ->
-        # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
-        # from the cross validation nodes
-        case TransactionChain.fetch_transaction(previous_address, previous_storage_nodes,
-               acceptance_resolver: :accept_transaction,
-               timeout: 4000
-             ) do
-          {:ok, tx} ->
-            tx
-
-          {:error, _} ->
-            nil
-        end
-      end
-    )
+    # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
+    # from the cross validation nodes
+    case TransactionChain.fetch_transaction(previous_address, previous_storage_nodes,
+           timeout: 4000
+         ) do
+      {:ok, tx} -> tx
+      {:error, _} -> nil
+    end
   end
 
   defp request_utxos(genesis_address, authorized_nodes) do
@@ -120,79 +116,70 @@ defmodule Archethic.Mining.TransactionContext do
     end)
   end
 
-  defp request_nodes_view(node_public_keys) do
-    Task.Supervisor.async(Archethic.task_supervisors(), fn ->
-      Task.Supervisor.async_stream_nolink(
-        Archethic.task_supervisors(),
-        node_public_keys,
-        fn node_public_key ->
-          {node_public_key, P2P.send_message(node_public_key, %Ping{}, 1000)}
-        end,
-        on_timeout: :kill_task
-      )
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Enum.map(fn
-        {:ok, {node_public_key, {:ok, %Ok{}}}} -> {node_public_key, true}
-        {:ok, {node_public_key, _}} -> {node_public_key, false}
-      end)
-      |> Enum.into(%{})
-    end)
+  defp get_involved_nodes(
+         %Transaction{address: address, type: type},
+         genesis_address,
+         resolved_addresses,
+         validation_time,
+         authorized_nodes
+       ) do
+    chain_storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
+    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
+    beacon_storage_nodes =
+      address
+      |> BeaconChain.subset_from_address()
+      |> Election.beacon_storage_nodes(BeaconChain.next_slot(validation_time), authorized_nodes)
+
+    io_storage_nodes =
+      if Transaction.network_type?(type) do
+        P2P.list_nodes()
+      else
+        resolved_addresses
+        |> Map.values()
+        |> Election.io_storage_nodes(authorized_nodes)
+      end
+
+    io_nodes = io_storage_nodes |> Enum.concat(genesis_storage_nodes) |> P2P.distinct_nodes()
+
+    {chain_storage_nodes, beacon_storage_nodes, io_nodes}
   end
 
-  @doc """
-  Set bitmap of the available nodes for each group of node
+  defp request_nodes_view(nodes) do
+    Task.Supervisor.async_stream_nolink(
+      Archethic.task_supervisors(),
+      nodes,
+      &{&1.first_public_key, P2P.send_message(&1, %Ping{}, 1000)},
+      on_timeout: :kill_task
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.map(fn
+      {:ok, {node_public_key, {:ok, %Ok{}}}} -> {node_public_key, true}
+      {:ok, {node_public_key, _}} -> {node_public_key, false}
+    end)
+    |> Enum.into(%{})
+  end
 
-  ## Examples
-
-      iex> TransactionContext.aggregate_views(
-      ...>   %{
-      ...>     "node1" => true,
-      ...>     "node2" => false,
-      ...>     "node3" => true,
-      ...>     "node4" => true,
-      ...>     "node5" => false
-      ...>   },
-      ...>   ["node1", "node2", "node3"],
-      ...>   ["node4", "node2", "node5"],
-      ...>   ["node2", "node3", "node1"]
-      ...> )
-      %{
-        chain_nodes_view: <<1::1, 0::1, 1::1>>,
-        beacon_nodes_view: <<1::1, 0::1, 0::1>>,
-        io_nodes_view: <<0::1, 1::1, 1::1>>
-      }
-  """
-  @spec aggregate_views(
-          nodes_view :: list({public_key :: Crypto.key(), available? :: boolean()}),
-          chain_storage_node_public_keys :: list(Crypto.key()),
-          beacon_storage_node_public_keys :: list(Crypto.key()),
-          io_storage_node_public_keys :: list(Crypto.key())
-        ) :: %{
-          chain_nodes_view: bitstring(),
-          beacon_nodes_view: bitstring(),
-          io_nodes_view: bitstring()
-        }
-  def aggregate_views(
-        nodes_view,
-        chain_storage_node_public_keys,
-        beacon_storage_node_public_keys,
-        io_storage_node_public_keys
-      ) do
-    nb_chain_storage_nodes = length(chain_storage_node_public_keys)
-    nb_beacon_storage_nodes = length(beacon_storage_node_public_keys)
-    nb_io_storage_nodes = length(io_storage_node_public_keys)
+  defp aggregate_views(nodes_view, chain_storage_nodes, beacon_storage_nodes, io_nodes) do
+    nb_chain_storage_nodes = length(chain_storage_nodes)
+    nb_beacon_storage_nodes = length(beacon_storage_nodes)
+    nb_io_nodes = length(io_nodes)
 
     acc = %{
       chain_nodes_view: <<0::size(nb_chain_storage_nodes)>>,
       beacon_nodes_view: <<0::size(nb_beacon_storage_nodes)>>,
-      io_nodes_view: <<0::size(nb_io_storage_nodes)>>
+      io_nodes_view: <<0::size(nb_io_nodes)>>
     }
 
     Enum.reduce(nodes_view, acc, fn
       {node_public_key, true}, acc ->
-        chain_index = Enum.find_index(chain_storage_node_public_keys, &(&1 == node_public_key))
-        beacon_index = Enum.find_index(beacon_storage_node_public_keys, &(&1 == node_public_key))
-        io_index = Enum.find_index(io_storage_node_public_keys, &(&1 == node_public_key))
+        chain_index =
+          Enum.find_index(chain_storage_nodes, &(&1.first_public_key == node_public_key))
+
+        beacon_index =
+          Enum.find_index(beacon_storage_nodes, &(&1.first_public_key == node_public_key))
+
+        io_index = Enum.find_index(io_nodes, &(&1.first_public_key == node_public_key))
 
         acc
         |> Map.update!(:chain_nodes_view, &set_node_view(&1, chain_index))

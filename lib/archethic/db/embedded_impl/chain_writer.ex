@@ -25,11 +25,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   Append a transaction to a file for the given genesis address
   """
-  @spec append_transaction(binary(), Transaction.t()) ::
-          :ok | {:error, :transaction_already_exists}
-  def append_transaction(genesis_address, tx = %Transaction{}) do
+  @spec append_transaction(Transaction.t()) :: :ok | {:error, :transaction_already_exists}
+  def append_transaction(
+        tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}}
+      ) do
     via_tuple = {:via, PartitionSupervisor, {ChainWriterSupervisor, genesis_address}}
-    GenServer.call(via_tuple, {:append_tx, genesis_address, tx}, :infinity)
+    GenServer.call(via_tuple, {:append_tx, tx}, :infinity)
   end
 
   @doc """
@@ -141,20 +142,19 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     |> File.mkdir_p!()
   end
 
-  def handle_call(
-        {:append_tx, genesis_address, tx},
-        _from,
-        state = %{db_path: db_path}
-      ) do
+  def handle_call({:append_tx, tx}, _from, state = %{db_path: db_path}) do
     if ChainIndex.transaction_exists?(tx.address, db_path) do
       {:reply, {:error, :transaction_already_exists}, state}
     else
-      write_transaction(genesis_address, tx, db_path)
+      write_transaction(tx, db_path)
       {:reply, :ok, state}
     end
   end
 
-  defp write_transaction(genesis_address, tx, db_path) do
+  defp write_transaction(
+         tx = %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}},
+         db_path
+       ) do
     start = System.monotonic_time()
 
     filename = chain_path(db_path, genesis_address)
@@ -167,7 +167,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
       [:append, :binary]
     )
 
-    index_transaction(tx, genesis_address, byte_size(data), db_path)
+    index_transaction(tx, byte_size(data), db_path)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_transaction"
@@ -179,9 +179,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
            address: tx_address,
            type: tx_type,
            previous_public_key: previous_public_key,
-           validation_stamp: %ValidationStamp{timestamp: timestamp}
+           validation_stamp: %ValidationStamp{
+             timestamp: timestamp,
+             genesis_address: genesis_address
+           }
          },
-         genesis_address,
          encoded_size,
          db_path
        ) do
