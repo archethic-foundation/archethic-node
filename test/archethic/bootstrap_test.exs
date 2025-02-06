@@ -203,17 +203,17 @@ defmodule Archethic.BootstrapTest do
            timestamp: DateTime.utc_now(),
            proof_of_work: "",
            proof_of_integrity: "",
-           ledger_operations: %LedgerOperations{}
+           ledger_operations: %LedgerOperations{},
+           genesis_address: Transaction.previous_address(tx)
          }
 
          validated_tx = %{tx | validation_stamp: stamp}
          # This Replication is for the node that received the StartMining message
          # expecting the transaction has been validated and replicated by all other nodes
          :ok = TransactionChain.write_transaction(validated_tx)
-         genesis_address = Transaction.previous_address(validated_tx)
 
          :ok =
-           Replication.ingest_transaction(validated_tx, genesis_address,
+           Replication.ingest_transaction(validated_tx,
              io_transaction?: false,
              self_repair?: false
            )
@@ -221,7 +221,7 @@ defmodule Archethic.BootstrapTest do
          {:ok, validated_tx}
        end},
       {Replication, [:passthrough],
-       sync_transaction_chain: fn _tx, _genesis, _nodes ->
+       sync_transaction_chain: fn _tx, _nodes ->
          # This replication is the one called by the starting node.
          # But we don't replicate here as we previously did in other mock
          :ok
@@ -332,7 +332,7 @@ defmodule Archethic.BootstrapTest do
                  |> Base.decode16!()
                )
 
-      assert_called(Replication.sync_transaction_chain(:_, :_, :_))
+      assert_called(Replication.sync_transaction_chain(:_, :_))
 
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.first_node_public_key()))
     end
@@ -399,7 +399,7 @@ defmodule Archethic.BootstrapTest do
         transport: :tcp
       } = P2P.get_node_info()
 
-      assert_called_exactly(Replication.sync_transaction_chain(:_, :_, :_), 2)
+      assert_called_exactly(Replication.sync_transaction_chain(:_, :_), 2)
       assert first_public_key == Crypto.first_node_public_key()
       assert last_public_key == Crypto.last_node_public_key()
     end
@@ -447,7 +447,7 @@ defmodule Archethic.BootstrapTest do
                  |> Base.decode16!()
                )
 
-      assert_called_exactly(Replication.sync_transaction_chain(:_, :_, :_), 1)
+      assert_called_exactly(Replication.sync_transaction_chain(:_, :_), 1)
 
       Process.sleep(100)
     end

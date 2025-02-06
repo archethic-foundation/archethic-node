@@ -575,12 +575,8 @@ defmodule Archethic.Contracts do
   @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
   """
-  @spec load_transaction(
-          tx :: Transaction.t(),
-          genesis_address :: Crypto.prepended_hash(),
-          opts :: Keyword.t()
-        ) :: :ok
-  defdelegate load_transaction(tx, genesis_address, opts), to: Loader
+  @spec load_transaction(tx :: Transaction.t(), opts :: Keyword.t()) :: :ok
+  defdelegate load_transaction(tx, opts), to: Loader
 
   @doc """
   Validate any kind of condition.

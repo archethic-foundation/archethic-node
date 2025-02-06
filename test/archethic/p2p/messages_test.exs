@@ -380,7 +380,7 @@ defmodule Archethic.P2P.MessageTest do
     test "ReplicateTransaction message" do
       tx = TransactionFactory.create_valid_transaction()
 
-      msg = %ReplicateTransaction{transaction: tx, genesis_address: random_address()}
+      msg = %ReplicateTransaction{transaction: tx}
 
       assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end

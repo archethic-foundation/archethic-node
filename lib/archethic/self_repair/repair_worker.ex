@@ -21,9 +21,9 @@ defmodule Archethic.SelfRepair.RepairWorker do
   The RepairWorker will run until there is no more address to repair.
   """
   @spec repair_addresses(
-          Crypto.prepended_hash(),
-          Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
-          list(Crypto.prepended_hash())
+          genesis_address :: Crypto.prepended_hash(),
+          storage_addresses :: Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
+          io_addresses :: list(Crypto.prepended_hash())
         ) :: :ok
   def repair_addresses(genesis_address, storage_addresses, io_addresses) do
     storage_addresses = List.wrap(storage_addresses)
@@ -61,11 +61,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
       address: Base.encode16(genesis_address)
     )
 
-    data = %{
-      storage_addresses: storage_addresses,
-      io_addresses: io_addresses,
-      genesis_address: genesis_address
-    }
+    data = %{storage_addresses: storage_addresses, io_addresses: io_addresses}
 
     {:ok, start_repair(data)}
   end
@@ -104,38 +100,24 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   def code_change(_version, state, _extra), do: {:ok, state}
 
-  defp start_repair(
-         data = %{
-           storage_addresses: [],
-           io_addresses: [address | rest],
-           genesis_address: genesis_address
-         }
-       ) do
-    pid = repair_task(address, genesis_address, false)
+  defp start_repair(data = %{storage_addresses: [], io_addresses: [address | rest]}) do
+    pid = repair_task(address, false)
 
     data
     |> Map.put(:io_addresses, rest)
     |> Map.put(:task, pid)
   end
 
-  defp start_repair(
-         data = %{
-           storage_addresses: [address | rest],
-           genesis_address: genesis_address
-         }
-       ) do
-    pid = repair_task(address, genesis_address, true)
+  defp start_repair(data = %{storage_addresses: [address | rest]}) do
+    pid = repair_task(address, true)
 
     data
     |> Map.put(:storage_addresses, rest)
     |> Map.put(:task, pid)
   end
 
-  defp repair_task(address, genesis_address, storage?) do
-    %Task{pid: pid} =
-      Task.async(fn ->
-        SelfRepair.replicate_transaction(address, genesis_address, storage?)
-      end)
+  defp repair_task(address, storage?) do
+    %Task{pid: pid} = Task.async(fn -> SelfRepair.replicate_transaction(address, storage?) end)
 
     pid
   end

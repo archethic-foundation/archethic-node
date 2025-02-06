@@ -21,6 +21,7 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.SelfRepair.NetworkView
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -72,11 +73,11 @@ defmodule Archethic.Contracts.LoaderTest do
       end
       """
 
-      tx = ContractFactory.create_valid_contract_tx(code, seed: random_seed())
+      tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis}} =
+        ContractFactory.create_valid_contract_tx(code, seed: random_seed())
 
-      genesis = Transaction.previous_address(tx)
-
-      assert :ok = Loader.load_transaction(tx, genesis, execute_contract?: false)
+      assert :ok = Loader.load_transaction(tx, execute_contract?: false)
       assert [{pid, _}] = Registry.lookup(ContractRegistry, genesis)
 
       assert Enum.any?(
@@ -103,19 +104,19 @@ defmodule Archethic.Contracts.LoaderTest do
       end
       """
 
-      tx1 = ContractFactory.create_valid_contract_tx(code, seed: random_seed())
+      tx1 =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis}} =
+        ContractFactory.create_valid_contract_tx(code, seed: random_seed())
 
       tx2 = ContractFactory.create_next_contract_tx(tx1, seed: random_seed())
 
-      genesis = Transaction.previous_address(tx1)
-
-      assert :ok = Loader.load_transaction(tx1, genesis, execute_contract?: false)
+      assert :ok = Loader.load_transaction(tx1, execute_contract?: false)
       [{pid, _}] = Registry.lookup(ContractRegistry, genesis)
 
       assert {_, %{contract: %Contract{transaction: ^tx1}, genesis_address: ^genesis}} =
                :sys.get_state(pid)
 
-      assert :ok = Loader.load_transaction(tx2, genesis, execute_contract?: false)
+      assert :ok = Loader.load_transaction(tx2, execute_contract?: false)
       [{^pid, _}] = Registry.lookup(ContractRegistry, genesis)
 
       assert {_, %{contract: %Contract{transaction: ^tx2}, genesis_address: ^genesis}} =
@@ -131,12 +132,13 @@ defmodule Archethic.Contracts.LoaderTest do
         end
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code, seed: random_seed())
-      contract_genesis = Transaction.previous_address(contract_tx)
+      contract_tx =
+        %Transaction{validation_stamp: %ValidationStamp{genesis_address: contract_genesis}} =
+        ContractFactory.create_valid_contract_tx(code, seed: random_seed())
 
       :persistent_term.put(:archethic_up, :up)
 
-      Loader.load_transaction(contract_tx, contract_genesis, execute_contract?: false)
+      Loader.load_transaction(contract_tx, execute_contract?: false)
 
       trigger_tx =
         %Transaction{address: trigger_address} =
@@ -148,9 +150,7 @@ defmodule Archethic.Contracts.LoaderTest do
           version: 3
         )
 
-      trigger_genesis = Transaction.previous_address(trigger_tx)
-
-      UTXO.load_transaction(trigger_tx, trigger_genesis)
+      UTXO.load_transaction(trigger_tx)
 
       me = self()
 
@@ -171,7 +171,7 @@ defmodule Archethic.Contracts.LoaderTest do
         end
       )
 
-      Loader.load_transaction(trigger_tx, trigger_genesis, execute_contract?: true)
+      Loader.load_transaction(trigger_tx, execute_contract?: true)
 
       assert_receive :transaction_sent
       :persistent_term.erase(:archethic_up)
@@ -220,7 +220,9 @@ defmodule Archethic.Contracts.LoaderTest do
 
   describe "Invalidate call" do
     setup do
-      contract_genesis = random_address()
+      contract_genesis =
+        Crypto.derive_keypair("contract_seed", 0) |> elem(0) |> Crypto.derive_address()
+
       recipient = %Recipient{address: contract_genesis}
 
       trigger_tx1 =
@@ -236,14 +238,6 @@ defmodule Archethic.Contracts.LoaderTest do
           recipients: [recipient],
           seed: random_seed()
         )
-
-      # v_utxo2 =
-      #   %UnspentOutput{from: trigger_tx1_address, type: :call}
-      #   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
-      #
-      # v_utxo1 =
-      #   %UnspentOutput{from: trigger_tx2_address, type: :call}
-      #   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
 
       MockDB
       |> stub(:get_transaction, fn
@@ -266,10 +260,10 @@ defmodule Archethic.Contracts.LoaderTest do
     } do
       contract_address = random_address()
 
-      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
+      UTXO.load_transaction(trigger_tx1)
       assert {^trigger_tx1, _} = Loader.get_next_call(contract_genesis, contract_address)
 
-      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      UTXO.load_transaction(trigger_tx2)
       assert {^trigger_tx1, _} = Loader.get_next_call(contract_genesis, contract_address)
 
       Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
@@ -286,8 +280,8 @@ defmodule Archethic.Contracts.LoaderTest do
     } do
       previous_contract_address = random_address()
 
-      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
-      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      UTXO.load_transaction(trigger_tx1)
+      UTXO.load_transaction(trigger_tx2)
 
       Loader.invalidate_call(contract_genesis, previous_contract_address, trigger_tx1.address)
       Loader.invalidate_call(contract_genesis, previous_contract_address, trigger_tx2.address)
@@ -310,8 +304,8 @@ defmodule Archethic.Contracts.LoaderTest do
       contract_genesis: contract_genesis
     } do
       contract_address = random_address()
-      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
-      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      UTXO.load_transaction(trigger_tx1)
+      UTXO.load_transaction(trigger_tx2)
       Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
       Loader.invalidate_call(contract_genesis, contract_address, trigger_tx2.address)
       assert nil == Loader.get_next_call(contract_genesis, contract_address)
@@ -350,10 +344,11 @@ defmodule Archethic.Contracts.LoaderTest do
       contract_tx =
         ContractFactory.create_valid_contract_tx(code,
           contract_context: contract_context,
-          inputs: utxos
+          inputs: utxos,
+          seed: "contract_seed"
         )
 
-      Loader.load_transaction(contract_tx, contract_genesis, execute_contract?: false)
+      Loader.load_transaction(contract_tx, execute_contract?: false)
 
       assert [{contract_genesis, contract_address, trigger_tx2.address}] ==
                :ets.lookup(:archethic_invalid_call, contract_genesis)
@@ -366,8 +361,8 @@ defmodule Archethic.Contracts.LoaderTest do
     } do
       contract_address = random_address()
 
-      UTXO.load_transaction(trigger_tx1, Transaction.previous_address(trigger_tx1))
-      UTXO.load_transaction(trigger_tx2, Transaction.previous_address(trigger_tx2))
+      UTXO.load_transaction(trigger_tx1)
+      UTXO.load_transaction(trigger_tx2)
 
       Loader.invalidate_call(contract_genesis, contract_address, trigger_tx1.address)
       Loader.invalidate_call(contract_genesis, contract_address, trigger_tx2.address)

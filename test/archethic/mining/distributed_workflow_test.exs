@@ -871,11 +871,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           send(me, :ack_replication_validation)
           {:ok, %Ok{}}
 
-        %Node{first_public_key: first_public_key},
-        %ReplicatePendingTransactionChain{genesis_address: genesis_address},
-        _ ->
+        %Node{first_public_key: first_public_key}, %ReplicatePendingTransactionChain{}, _ ->
           tx = Agent.get(agent_pid, & &1)
-          tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
+          tx_summary = TransactionSummary.from_transaction(tx)
 
           {other_validator_pub, other_validator_pv} =
             Crypto.generate_deterministic_keypair("seed")
@@ -925,13 +923,15 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %Ok{}}
       end)
 
+      now = DateTime.utc_now()
+
       {:ok, coordinator_pid} =
         Workflow.start_link(
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key,
-          ref_timestamp: DateTime.utc_now()
+          node_public_key: List.first(validation_nodes).first_public_key,
+          ref_timestamp: now
         )
 
       {:ok, cross_validator_pid} =
@@ -939,8 +939,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           transaction: tx,
           welcome_node: welcome_node,
           validation_nodes: validation_nodes,
-          node_public_key: List.last(validation_nodes).last_public_key,
-          ref_timestamp: DateTime.utc_now()
+          node_public_key: List.last(validation_nodes).first_public_key,
+          ref_timestamp: now
         )
 
       previous_storage_nodes = [

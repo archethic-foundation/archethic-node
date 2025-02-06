@@ -220,18 +220,12 @@ defmodule Archethic.TransactionChain do
   @doc """
   Get a transaction summary from a transaction address
   """
-  @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
+  @spec get_transaction_summary(address :: Crypto.prepended_hash()) ::
+          {:ok, TransactionSummary.t()} | {:error, :not_found}
   def get_transaction_summary(address) do
-    case get_transaction(address, [
-           :address,
-           :type,
-           :validation_stamp
-         ]) do
-      {:ok, tx} ->
-        {:ok, TransactionSummary.from_transaction(tx, get_genesis_address(address))}
-
-      _ ->
-        {:error, :not_found}
+    case get_transaction(address, [:address, :type, :validation_stamp]) do
+      {:ok, tx} -> {:ok, TransactionSummary.from_transaction(tx)}
+      _ -> {:error, :not_found}
     end
   end
 

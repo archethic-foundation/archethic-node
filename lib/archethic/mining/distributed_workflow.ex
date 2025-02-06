@@ -665,15 +665,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: address, type: type},
-              validation_time: validation_time,
-              genesis_address: genesis_address
+              validation_time: validation_time
             }
         }
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
          validated_tx <- ValidationContext.get_validated_transaction(context),
-         tx_summary <- TransactionSummary.from_transaction(validated_tx, genesis_address),
+         tx_summary <- TransactionSummary.from_transaction(validated_tx),
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       Logger.debug("Received ack storage",
@@ -723,13 +722,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               welcome_node: welcome_node = %Node{},
-              storage_nodes_confirmations: confirmations,
-              genesis_address: genesis_address
+              storage_nodes_confirmations: confirmations
             }
         }
       ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
-    tx_summary = TransactionSummary.from_transaction(validated_tx, genesis_address)
+    tx_summary = TransactionSummary.from_transaction(validated_tx)
 
     message =
       ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{
@@ -747,10 +745,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     context
     |> ValidationContext.get_io_replication_nodes()
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: validated_tx,
-      genesis_address: genesis_address
-    })
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
 
     :keep_state_and_data
   end
@@ -759,12 +754,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :internal,
         :notify_previous_chain,
         :replication,
-        _data = %{
-          context:
-            context = %ValidationContext{
-              transaction: tx
-            }
-        }
+        _data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
     unless Transaction.network_type?(tx.type) do
       context
@@ -1125,12 +1115,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     end
   end
 
-  defp request_replication(
-         context = %ValidationContext{
-           transaction: tx,
-           genesis_address: genesis_address
-         }
-       ) do
+  defp request_replication(context = %ValidationContext{transaction: tx}) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
@@ -1139,10 +1124,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    message = %ReplicatePendingTransactionChain{
-      address: tx.address,
-      genesis_address: genesis_address
-    }
+    message = %ReplicatePendingTransactionChain{address: tx.address}
 
     P2P.broadcast_message(storage_nodes, message)
   end

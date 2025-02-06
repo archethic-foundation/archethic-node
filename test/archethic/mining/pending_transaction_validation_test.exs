@@ -996,7 +996,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         })
 
       tx =
-        TransactionFactory.create_non_valided_transaction(type: :mint_rewards, content: content)
+        TransactionFactory.create_non_valided_transaction(
+          type: :mint_rewards,
+          content: content,
+          index: 1
+        )
+
+      previous_address = Transaction.previous_address(tx)
 
       {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
 
@@ -1008,10 +1014,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
-      |> stub(:get_last_chain_address, fn _, _ -> {tx.address, DateTime.utc_now()} end)
-      |> stub(:get_last_chain_address, fn _ -> {tx.address, DateTime.utc_now()} end)
+      |> stub(:get_last_chain_address, fn _, date ->
+        {previous_address, DateTime.add(date, -1)}
+      end)
 
-      :persistent_term.put(:reward_gen_addr, Transaction.previous_address(tx))
+      :persistent_term.put(:reward_gen_addr, random_address())
 
       assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
 

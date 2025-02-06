@@ -28,7 +28,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -172,7 +171,7 @@ defmodule Archethic.SelfRepair.SyncTest do
         :ok
       end)
 
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       elected_storage_nodes =
         Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
@@ -288,7 +287,7 @@ defmodule Archethic.SelfRepair.SyncTest do
           timestamp: tx_timestamp
         )
 
-      tx1_summary = TransactionSummary.from_transaction(tx1, Transaction.previous_address(tx1))
+      tx1_summary = TransactionSummary.from_transaction(tx1)
 
       elected_storage_nodes =
         Election.chain_storage_nodes(
@@ -331,7 +330,7 @@ defmodule Archethic.SelfRepair.SyncTest do
           timestamp: DateTime.utc_now() |> DateTime.add(-59, :minute)
         )
 
-      tx2_summary = TransactionSummary.from_transaction(tx2, Transaction.previous_address(tx1))
+      tx2_summary = TransactionSummary.from_transaction(tx2)
 
       elected_storage_nodes =
         Election.chain_storage_nodes(tx2.address, P2P.authorized_and_available_nodes())
@@ -460,11 +459,7 @@ defmodule Archethic.SelfRepair.SyncTest do
           {:ok, %NotFound{}}
       end)
 
-      tx_summary =
-        TransactionSummary.from_transaction(
-          transfer_tx,
-          Transaction.previous_address(transfer_tx)
-        )
+      tx_summary = TransactionSummary.from_transaction(transfer_tx)
 
       index =
         ReplicationAttestation.get_node_index(
@@ -515,11 +510,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       transfer_tx = TransactionFactory.create_valid_transaction([], seed: "transfer_seed")
 
-      tx_summary =
-        TransactionSummary.from_transaction(
-          transfer_tx,
-          Transaction.previous_address(transfer_tx)
-        )
+      tx_summary = TransactionSummary.from_transaction(transfer_tx)
 
       index =
         ReplicationAttestation.get_node_index(
@@ -623,29 +614,30 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       tx = TransactionFactory.create_valid_transaction()
       tx_address = tx.address
-      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       MockClient
-      |> expect(:send_message, fn ^node1, %GetTransaction{}, _ ->
-        {:ok, tx}
-      end)
-      |> expect(:send_message, fn ^node1, %GetTransactionInputs{}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [
-             %VersionedTransactionInput{
-               protocol_version: 8,
-               input: %TransactionInput{
-                 from: random_address(),
-                 amount: 100_000_000,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
+      |> expect(:send_message, 2, fn
+        ^node1, %GetTransaction{}, _ ->
+          {:ok, tx}
+
+        ^node1, %GetTransactionInputs{}, _ ->
+          {:ok,
+           %TransactionInputList{
+             inputs: [
+               %VersionedTransactionInput{
+                 protocol_version: 8,
+                 input: %TransactionInput{
+                   from: random_address(),
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: DateTime.utc_now()
+                 }
                }
-             }
-           ],
-           more?: false,
-           offset: 0
-         }}
+             ],
+             more?: false,
+             offset: 0
+           }}
       end)
 
       MockTransactionLedger
