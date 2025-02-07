@@ -10,9 +10,10 @@ defmodule Archethic.Networking.Scheduler do
   alias Archethic.Networking.PortForwarding
 
   alias Archethic.P2P
-  alias(Archethic.P2P.GeoPatch)
+  alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.Listener, as: P2PListener
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.PubSub
 
@@ -94,49 +95,35 @@ defmodule Archethic.Networking.Scheduler do
   defp do_update do
     Logger.info("Start networking update")
 
+    node =
+      %Node{ip: prev_ip, last_address: last_address, origin_public_key: origin_public_key} =
+      P2P.get_node_info()
+
     with {:ok, p2p_port, web_port} <- open_ports(),
          {:ok, ip} <- IPLookup.get_node_ip(),
-         {:ok, %Node{ip: prev_ip, reward_address: reward_address, transport: transport}}
-         when prev_ip != ip <- P2P.get_node_info(Crypto.first_node_public_key()),
-         genesis_address <- Crypto.first_node_public_key() |> Crypto.derive_address(),
+         true <- prev_ip != ip,
          {:ok, %Transaction{data: %TransactionData{code: code}}} <-
-           TransactionChain.get_last_transaction(genesis_address, data: [:code]) do
-      origin_public_key = Crypto.origin_node_public_key()
-      mining_public_key = Crypto.mining_node_public_key()
-      key_certificate = Crypto.get_key_certificate(origin_public_key)
-      new_geo_patch = GeoPatch.from_ip(ip)
+           TransactionChain.get_transaction(last_address, data: [:code]) do
+      node_config = %NodeConfig{
+        NodeConfig.from_node(node)
+        | origin_certificate: Crypto.get_key_certificate(origin_public_key),
+          geo_patch: GeoPatch.from_ip(ip),
+          port: p2p_port,
+          http_port: web_port
+      }
 
       tx =
         Transaction.new(:node, %TransactionData{
           code: code,
-          content:
-            Node.encode_transaction_content(%{
-              ip: ip,
-              port: p2p_port,
-              http_port: web_port,
-              transport: transport,
-              reward_address: reward_address,
-              origin_public_key: origin_public_key,
-              key_certificate: key_certificate,
-              mining_public_key: mining_public_key,
-              geo_patch: new_geo_patch
-            })
+          content: Node.encode_transaction_content(node_config)
         })
 
       Archethic.send_new_transaction(tx, forward?: true)
       handle_new_ip(tx)
     else
-      :error ->
-        Logger.warning("Cannot open port")
-
-      {:error, :not_found} ->
-        Logger.debug("Skip node update: Not yet bootstrapped")
-
-      {:ok, %Node{}} ->
-        Logger.debug("Skip node update: Same IP - no need to send a new node transaction")
-
-      {:error, _} ->
-        Logger.warning("Cannot fetch IP")
+      :error -> Logger.warning("Cannot open port")
+      false -> Logger.debug("Skip node update: Same IP - no need to send a new node transaction")
+      {:error, _} -> Logger.warning("Cannot fetch IP")
     end
   end
 
@@ -144,8 +131,8 @@ defmodule Archethic.Networking.Scheduler do
     p2p_port = Application.get_env(:archethic, P2PListener) |> Keyword.fetch!(:port)
     web_port = Application.get_env(:archethic, WebEndpoint) |> get_in([:http, :port])
 
-    with {:ok, _} <- PortForwarding.try_open_port(p2p_port, false),
-         {:ok, _} <- PortForwarding.try_open_port(web_port, false) do
+    with {:ok, p2p_port} <- PortForwarding.try_open_port(p2p_port, false),
+         {:ok, web_port} <- PortForwarding.try_open_port(web_port, false) do
       {:ok, p2p_port, web_port}
     end
   end

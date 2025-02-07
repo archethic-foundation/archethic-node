@@ -51,6 +51,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
+  import ArchethicCase
   import Mox
   import Mock
 
@@ -101,7 +102,7 @@ defmodule Archethic.BootstrapTest do
     :ok
   end
 
-  describe "run/5" do
+  describe "run/1" do
     setup do
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
@@ -165,26 +166,12 @@ defmodule Archethic.BootstrapTest do
         Crypto.sign(data, pv)
       end)
 
-      seeds = [
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          first_public_key: Crypto.first_node_public_key(),
-          last_public_key: Crypto.last_node_public_key()
-        }
-      ]
+      MockIPLookup
+      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      assert :ok =
-               Bootstrap.run(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      args = [port: 3000, http_port: 4000, transport: :tcp, reward_address: random_address()]
+
+      assert :ok = Bootstrap.run(args)
 
       assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: :tcp} | _] =
                P2P.list_nodes()
@@ -195,7 +182,7 @@ defmodule Archethic.BootstrapTest do
     end
   end
 
-  describe "run/5 with an initialized network" do
+  describe "run/1 with an initialized network" do
     setup_with_mocks([
       {TransactionHandler, [:passthrough],
        send_transaction: fn tx, _ ->
@@ -320,17 +307,12 @@ defmodule Archethic.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_and_connect_node/1)
 
-      assert :ok =
-               Bootstrap.run(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      MockIPLookup
+      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+
+      args = [port: 3000, http_port: 4000, transport: :tcp, reward_address: random_address()]
+
+      assert :ok = Bootstrap.run(args)
 
       assert_called(Replication.sync_transaction_chain(:_, :_, :_))
 
@@ -352,17 +334,13 @@ defmodule Archethic.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_and_connect_node/1)
 
-      assert :ok =
-               Bootstrap.run(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      MockIPLookup
+      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+      |> expect(:get_node_ip, fn -> {:ok, {200, 50, 20, 10}} end)
+
+      args = [port: 3000, http_port: 4000, transport: :tcp, reward_address: random_address()]
+
+      assert :ok = Bootstrap.run(args)
 
       %Node{
         ip: {127, 0, 0, 1},
@@ -380,17 +358,9 @@ defmodule Archethic.BootstrapTest do
       MockGeoIP
       |> stub(:get_coordinates, fn {200, 50, 20, 10} -> {0.0, 0.0} end)
 
-      assert :ok =
-               Bootstrap.run(
-                 {200, 50, 20, 10},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      args = [port: 3000, http_port: 4000, transport: :tcp, reward_address: random_address()]
+
+      assert :ok = Bootstrap.run(args)
 
       %Node{
         ip: {200, 50, 20, 10},
@@ -419,37 +389,18 @@ defmodule Archethic.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_and_connect_node/1)
 
-      assert :ok =
-               Bootstrap.run(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      MockIPLookup
+      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+
+      args = [port: 3000, http_port: 4000, transport: :tcp, reward_address: random_address()]
+
+      assert :ok = Bootstrap.run(args)
 
       assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.first_node_public_key())
 
-      Process.sleep(200)
-
-      assert :ok ==
-               Bootstrap.run(
-                 {127, 0, 0, 1},
-                 3000,
-                 4000,
-                 :tcp,
-                 seeds,
-                 DateTime.utc_now(),
-                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-                 |> Base.decode16!()
-               )
+      assert :ok == Bootstrap.run(args)
 
       assert_called_exactly(Replication.sync_transaction_chain(:_, :_, :_), 1)
-
-      Process.sleep(100)
     end
   end
 end

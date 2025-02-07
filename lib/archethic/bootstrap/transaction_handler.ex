@@ -1,12 +1,11 @@
 defmodule Archethic.Bootstrap.TransactionHandler do
   @moduledoc false
 
-  alias Archethic.Crypto
-
   alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -68,28 +67,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   @doc """
   Create a new node transaction
   """
-  @spec create_node_transaction(
-          ip_address :: :inet.ip_address(),
-          p2p_port :: :inet.port_number(),
-          http_port :: :inet.port_number(),
-          transport :: P2P.supported_transport(),
-          reward_address :: Crypto.versioned_hash(),
-          geo_patch :: binary()
-        ) ::
-          Transaction.t()
-  def create_node_transaction(
-        ip = {_, _, _, _},
-        port,
-        http_port,
-        transport,
-        reward_address,
-        geo_patch
-      )
-      when is_number(port) and port >= 0 and is_binary(reward_address) do
-    origin_public_key = Crypto.origin_node_public_key()
-    origin_public_certificate = Crypto.get_key_certificate(origin_public_key)
-    mining_public_key = Crypto.mining_node_public_key()
-
+  @spec create_node_transaction(node_config :: NodeConfig.t()) :: Transaction.t()
+  def create_node_transaction(node_config) do
     Transaction.new(:node, %TransactionData{
       code: """
         condition inherit: [
@@ -101,18 +80,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           token_transfers: true
         ]
       """,
-      content:
-        Node.encode_transaction_content(%{
-          ip: ip,
-          port: port,
-          http_port: http_port,
-          transport: transport,
-          reward_address: reward_address,
-          origin_public_key: origin_public_key,
-          key_certificate: origin_public_certificate,
-          mining_public_key: mining_public_key,
-          geo_patch: geo_patch
-        })
+      content: Node.encode_transaction_content(node_config)
     })
   end
 end

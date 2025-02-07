@@ -42,6 +42,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -101,22 +102,24 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     <<_::8, _::8, origin_key::binary>> = origin_public_key
     certificate = Crypto.ECDSA.sign(:secp256r1, ca_pv, origin_key)
 
+    node_config = %NodeConfig{
+      first_public_key: Crypto.first_node_public_key(),
+      ip: {80, 10, 20, 102},
+      port: 3000,
+      http_port: 4000,
+      transport: MockTransport,
+      reward_address:
+        <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
+          234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
+      origin_public_key: origin_public_key,
+      origin_certificate: certificate,
+      mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+      geo_patch: "F1B"
+    }
+
     tx =
       Transaction.new(:node, %TransactionData{
-        content:
-          Node.encode_transaction_content(%{
-            ip: {80, 10, 20, 102},
-            port: 3000,
-            http_port: 4000,
-            transport: MockTransport,
-            reward_address:
-              <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209,
-                6, 234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
-            origin_public_key: origin_public_key,
-            key_certificate: certificate,
-            mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-            geo_patch: "F1B"
-          })
+        content: Node.encode_transaction_content(node_config)
       })
 
     stub(MockGeoIP, :get_coordinates, fn ip ->

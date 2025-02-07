@@ -7,19 +7,19 @@ defmodule Archethic.Networking.IPLookupTest do
   alias Archethic.Networking.IPLookup.NATDiscovery
   alias Archethic.Networking.IPLookup.RemoteDiscovery
 
-  def put_conf(validate_node_ip: validate_node_ip, ip_provider: ip_provider) do
-    Application.put_env(
-      :archethic,
-      Archethic.Networking,
-      validate_node_ip: validate_node_ip
-    )
+  setup do
+    networking = Application.get_env(:archethic, Archethic.Networking)
+    ip_lookup = Application.get_env(:archethic, Archethic.Networking.IPLookup)
 
-    Application.put_env(
-      :archethic,
-      Archethic.Networking.IPLookup,
-      ip_provider,
-      persistent: false
-    )
+    on_exit(fn ->
+      Application.put_env(:archethic, Archethic.Networking, networking)
+      Application.put_env(:archethic, Archethic.Networking.IPLookup, ip_lookup)
+    end)
+  end
+
+  def put_conf(validate_node_ip: validate_node_ip, ip_provider: ip_provider) do
+    Application.put_env(:archethic, Archethic.Networking, validate_node_ip: validate_node_ip)
+    Application.put_env(:archethic, Archethic.Networking.IPLookup, ip_provider)
   end
 
   describe("Mode: :dev, Archethic.Networking.IPLookup.get_node_ip()/0 ") do

@@ -5,6 +5,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
@@ -15,10 +16,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  import ArchethicCase
   import Mox
-
-  setup :verify_on_exit!
-  setup :set_mox_global
 
   @origin_genesis_public_keys Application.compile_env(:archethic, [
                                 NetworkInit,
@@ -34,24 +33,23 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
 
   describe "load_transaction/1" do
     test "should load node transaction and extract origin public key from the tx's content" do
-      origin_public_key = ArchethicCase.random_public_key()
+      origin_public_key = random_public_key()
+
+      node_config = %NodeConfig{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        transport: :tcp,
+        reward_address: random_address(),
+        origin_public_key: origin_public_key,
+        origin_certificate: :crypto.strong_rand_bytes(64),
+        mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
+        geo_patch: "AAA"
+      }
 
       tx = %Transaction{
         type: :node,
-        data: %TransactionData{
-          content:
-            Node.encode_transaction_content(%{
-              ip: {127, 0, 0, 1},
-              port: 3000,
-              http_port: 4000,
-              transport: :tcp,
-              reward_address: ArchethicCase.random_address(),
-              origin_public_key: origin_public_key,
-              key_certificate: :crypto.strong_rand_bytes(32),
-              mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-              geo_patch: "000"
-            })
-        }
+        data: %TransactionData{content: Node.encode_transaction_content(node_config)}
       }
 
       assert :ok = MemTablesLoader.load_transaction(tx)
@@ -61,8 +59,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
     end
 
     test "should load transaction but node add node public key as origin key (already existing)" do
-      first_public_key = ArchethicCase.random_public_key()
-      second_public_key = ArchethicCase.random_public_key()
+      first_public_key = random_public_key()
+      second_public_key = random_public_key()
 
       MockDB
       |> stub(:get_first_public_key, fn _ -> first_public_key end)
@@ -147,24 +145,23 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
         }
       }
 
-      node_origin_public_key = ArchethicCase.random_public_key()
+      node_origin_public_key = random_public_key()
+
+      node_config = %NodeConfig{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        transport: :tcp,
+        reward_address: random_address(),
+        origin_public_key: node_origin_public_key,
+        origin_certificate: :crypto.strong_rand_bytes(64),
+        mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
+        geo_patch: "AAA"
+      }
 
       node_tx = %Transaction{
         type: :node,
-        data: %TransactionData{
-          content:
-            Node.encode_transaction_content(%{
-              ip: {127, 0, 0, 1},
-              port: 3000,
-              http_port: 4000,
-              transport: :tcp,
-              reward_address: ArchethicCase.random_address(),
-              origin_public_key: node_origin_public_key,
-              key_certificate: :crypto.strong_rand_bytes(32),
-              mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-              geo_patch: "000"
-            })
-        }
+        data: %TransactionData{content: Node.encode_transaction_content(node_config)}
       }
 
       node_shared_secrets_tx = %Transaction{
@@ -183,14 +180,9 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
 
       MockDB
       |> stub(:list_transactions_by_type, fn
-        :node, _ ->
-          [node_tx]
-
-        :origin, _ ->
-          [origin_tx]
-
-        :node_shared_secrets, _ ->
-          [node_shared_secrets_tx]
+        :node, _ -> [node_tx]
+        :origin, _ -> [origin_tx]
+        :node_shared_secrets, _ -> [node_shared_secrets_tx]
       end)
 
       assert {:ok, _} = MemTablesLoader.start_link()
