@@ -11,6 +11,7 @@ defmodule Archethic.Bootstrap do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.Replication
 
@@ -32,40 +33,7 @@ defmodule Archethic.Bootstrap do
   Start the bootstrapping as a task
   """
   @spec start_link(list()) :: {:ok, pid()}
-  def start_link(args \\ []) do
-    {:ok, ip} = Networking.get_node_ip()
-    port = Keyword.get(args, :port)
-    http_port = Keyword.get(args, :http_port)
-    transport = Keyword.get(args, :transport)
-
-    reward_address =
-      case Keyword.get(args, :reward_address) do
-        nil ->
-          Crypto.derive_address(Crypto.first_node_public_key())
-
-        "" ->
-          Crypto.derive_address(Crypto.first_node_public_key())
-
-        address ->
-          address
-      end
-
-    last_sync_date = SelfRepair.last_sync_date()
-    bootstrapping_seeds = P2P.list_bootstrapping_seeds()
-
-    Logger.info("Node bootstrapping...")
-    Logger.info("Rewards will be transfered to #{Base.encode16(reward_address)}")
-
-    Task.start_link(__MODULE__, :run, [
-      ip,
-      port,
-      http_port,
-      transport,
-      bootstrapping_seeds,
-      last_sync_date,
-      reward_address
-    ])
-  end
+  def start_link(args \\ []), do: Task.start_link(__MODULE__, :run, [args])
 
   @doc """
   Start the bootstrap workflow.
@@ -80,40 +48,36 @@ defmodule Archethic.Bootstrap do
   Once done, the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its readiness.
   Hence others nodes will be able to communicate with and support new transactions.
   """
-  @spec run(
-          :inet.ip_address(),
-          :inet.port_number(),
-          :inet.port_number(),
-          P2P.supported_transport(),
-          list(Node.t()),
-          DateTime.t() | nil,
-          Crypto.versioned_hash()
-        ) :: :ok
-  def run(
-        ip = {_, _, _, _},
-        port,
-        http_port,
-        transport,
-        bootstrapping_seeds,
-        last_sync_date,
-        reward_address
-      )
-      when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
-    network_patch = get_network_patch(ip)
-    geo_patch = GeoPatch.from_ip(ip)
+  @spec run(args :: Keyword.t()) :: :ok
+  def run(args) do
+    Logger.info("Node bootstrapping...")
 
-    closest_bootstrapping_nodes = get_closest_nodes(bootstrapping_seeds, network_patch)
+    node_config =
+      %NodeConfig{
+        first_public_key: first_public_key,
+        geo_patch: geo_patch,
+        reward_address: reward_address
+      } = get_node_config(args)
 
-    if should_bootstrap?(ip, port, http_port, transport, geo_patch, last_sync_date) do
-      start_bootstrap(
-        ip,
-        port,
-        http_port,
-        transport,
-        geo_patch,
-        closest_bootstrapping_nodes,
-        reward_address
-      )
+    Logger.info("Rewards will be transfered to #{Base.encode16(reward_address)}")
+
+    network_patch =
+      case P2P.get_node_info(first_public_key) do
+        {:ok, %Node{network_patch: patch}} -> patch
+        _ -> geo_patch
+      end
+
+    bootstrapping_seeds = P2P.list_bootstrapping_seeds()
+
+    closest_bootstrapping_nodes =
+      get_closest_nodes(bootstrapping_seeds, network_patch, first_public_key)
+
+    last_sync_date = SelfRepair.last_sync_date()
+
+    if should_bootstrap?(node_config, last_sync_date) do
+      start_bootstrap(node_config, closest_bootstrapping_nodes)
+    else
+      Logger.debug("Node chain doesn't need to be updated")
     end
 
     post_bootstrap(closest_bootstrapping_nodes)
@@ -121,120 +85,129 @@ defmodule Archethic.Bootstrap do
     Logger.info("Bootstrapping finished!")
   end
 
-  defp get_network_patch(ip) do
-    case P2P.get_node_info(Crypto.first_node_public_key()) do
-      {:ok, %Node{network_patch: patch}} ->
-        patch
+  defp get_node_config(args) do
+    node_public_key = Crypto.first_node_public_key()
 
-      _ ->
-        P2P.get_geo_patch(ip)
-    end
+    ip =
+      case Networking.get_node_ip() do
+        {:ok, ip} -> ip
+        {:error, reason} -> raise "Cannot retrieve public ip: #{inspect(reason)}"
+      end
+
+    port = Keyword.get(args, :port)
+    http_port = Keyword.get(args, :http_port)
+    transport = Keyword.get(args, :transport)
+
+    reward_address =
+      case Keyword.get(args, :reward_address) do
+        nil -> Crypto.derive_address(node_public_key)
+        "" -> Crypto.derive_address(node_public_key)
+        address -> address
+      end
+
+    origin_public_key = Crypto.origin_node_public_key()
+    origin_public_certificate = Crypto.get_key_certificate(origin_public_key)
+    mining_public_key = Crypto.mining_node_public_key()
+    geo_patch = GeoPatch.from_ip(ip)
+
+    %NodeConfig{
+      first_public_key: node_public_key,
+      ip: ip,
+      port: port,
+      http_port: http_port,
+      transport: transport,
+      reward_address: reward_address,
+      origin_public_key: origin_public_key,
+      origin_certificate: origin_public_certificate,
+      mining_public_key: mining_public_key,
+      geo_patch: geo_patch
+    }
   end
 
-  defp get_closest_nodes(bootstrapping_seeds, network_patch) do
-    node_first_public_key = Crypto.first_node_public_key()
-
+  defp get_closest_nodes(bootstrapping_seeds, network_patch, first_public_key) do
     case bootstrapping_seeds do
-      [%Node{first_public_key: ^node_first_public_key}] ->
+      [%Node{first_public_key: ^first_public_key}] ->
         bootstrapping_seeds
 
       nodes ->
         P2P.connect_nodes(nodes)
 
         case Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch) do
-          {:ok, closest_nodes} when closest_nodes != [] ->
-            closest_nodes
-
-          _ ->
-            []
+          {:ok, closest_nodes} -> closest_nodes
+          _ -> []
         end
     end
   end
 
-  defp should_bootstrap?(_ip, _port, _http_port, _, _, nil), do: true
+  defp should_bootstrap?(_, nil), do: true
 
-  defp should_bootstrap?(ip, port, http_port, transport, geo_patch, last_sync_date) do
-    case P2P.get_node_info(Crypto.first_node_public_key()) do
-      {:ok, _} ->
-        if Sync.require_update?(ip, port, http_port, transport, geo_patch, last_sync_date) do
-          Logger.debug("Node chain need to updated")
-          true
-        else
-          Logger.debug("Node chain doesn't need to be updated")
-          false
-        end
-
-      _ ->
-        Logger.debug("Node doesn't exists. It will be bootstrap and create a new chain")
-        true
+  defp should_bootstrap?(
+         node_config = %NodeConfig{first_public_key: first_public_key},
+         last_sync_date
+       ) do
+    case P2P.get_node_info(first_public_key) do
+      {:ok, _} -> Sync.require_update?(node_config, last_sync_date)
+      _ -> true
     end
   end
 
   defp start_bootstrap(
-         ip,
-         port,
-         http_port,
-         transport,
-         geo_patch,
-         closest_bootstrapping_nodes,
-         configured_reward_address
+         node_config = %NodeConfig{first_public_key: first_public_key},
+         closest_bootstrapping_nodes
        ) do
-    Logger.info("Bootstrapping starting")
+    if Sync.should_initialize_network?(closest_bootstrapping_nodes, first_public_key) do
+      Logger.info("This node should initialize the network!!")
+      Logger.debug("Create first node transaction")
 
-    cond do
-      Sync.should_initialize_network?(closest_bootstrapping_nodes) ->
-        Logger.info("This node should initialize the network!!")
-        Logger.debug("Create first node transaction")
+      node_config |> TransactionHandler.create_node_transaction() |> Sync.initialize_network()
 
-        tx =
-          TransactionHandler.create_node_transaction(
-            ip,
-            port,
-            http_port,
-            transport,
-            configured_reward_address,
-            geo_patch
-          )
+      SelfRepair.put_last_sync_date(DateTime.utc_now())
+    else
+      node_genesis_address = first_public_key |> Crypto.derive_address()
 
-        Sync.initialize_network(tx)
+      # In case node had lose it's DB, we ask the network if the node chain already exists
+      {:ok, length} =
+        TransactionChain.fetch_size(node_genesis_address, closest_bootstrapping_nodes)
 
-        SelfRepair.put_last_sync_date(DateTime.utc_now())
+      node_config =
+        if length == 0 do
+          Logger.debug("Node doesn't exists. It will be bootstrap and create a new chain")
+          node_config
+        else
+          Logger.debug("Node chain need to be updated")
+          Crypto.set_node_key_index(length)
 
-      Crypto.first_node_public_key() == Crypto.previous_node_public_key() ->
-        Logger.info("Node initialization...")
+          last_reward_address =
+            get_last_reward_address(node_genesis_address, closest_bootstrapping_nodes)
 
-        first_initialization(
-          ip,
-          port,
-          http_port,
-          transport,
-          closest_bootstrapping_nodes,
-          configured_reward_address,
-          geo_patch
-        )
+          %NodeConfig{node_config | reward_address: last_reward_address}
+        end
 
-      true ->
-        Logger.info("Update node chain...")
+      {:ok, validated_tx} =
+        node_config
+        |> TransactionHandler.create_node_transaction()
+        |> TransactionHandler.send_transaction(closest_bootstrapping_nodes)
 
-        {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.get_last_transaction(
-            Crypto.derive_address(Crypto.first_node_public_key())
-          )
+      Sync.load_storage_nonce(closest_bootstrapping_nodes)
 
-        {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate, _mining_public_key,
-         _geo_patch} = Node.decode_transaction_content(content)
-
-        update_node(
-          ip,
-          port,
-          http_port,
-          transport,
-          closest_bootstrapping_nodes,
-          last_reward_address,
-          geo_patch
-        )
+      Replication.sync_transaction_chain(
+        validated_tx,
+        node_genesis_address,
+        closest_bootstrapping_nodes
+      )
     end
+  end
+
+  defp get_last_reward_address(genesis_address, nodes) do
+    {:ok, last_address} = TransactionChain.fetch_last_address(genesis_address, nodes)
+
+    {:ok, %Transaction{data: %TransactionData{content: content}}} =
+      TransactionChain.fetch_transaction(last_address, nodes)
+
+    {:ok, %NodeConfig{reward_address: last_reward_address}} =
+      Node.decode_transaction_content(content)
+
+    last_reward_address
   end
 
   defp post_bootstrap(closest_bootstrapping_nodes) do
@@ -266,97 +239,6 @@ defmodule Archethic.Bootstrap do
 
     :persistent_term.put(:archethic_up, :up)
     Archethic.PubSub.notify_node_status(:node_up)
-  end
-
-  defp first_initialization(
-         ip,
-         port,
-         http_port,
-         transport,
-         closest_bootstrapping_nodes,
-         configured_reward_address,
-         geo_patch
-       ) do
-    # In case node had lose it's DB, we ask the network if the node chain already exists
-    {:ok, length} =
-      Crypto.first_node_public_key()
-      |> Crypto.derive_address()
-      |> TransactionChain.fetch_size(closest_bootstrapping_nodes)
-
-    Crypto.set_node_key_index(length)
-
-    node_genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
-
-    reward_address =
-      if length > 0 do
-        {:ok, last_address} =
-          TransactionChain.fetch_last_address(node_genesis_address, closest_bootstrapping_nodes)
-
-        {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.fetch_transaction(last_address, closest_bootstrapping_nodes)
-
-        {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
-         _key_certificate, _mining_public_key,
-         _geo_patch} = Node.decode_transaction_content(content)
-
-        last_reward_address
-      else
-        configured_reward_address
-      end
-
-    tx =
-      TransactionHandler.create_node_transaction(
-        ip,
-        port,
-        http_port,
-        transport,
-        reward_address,
-        geo_patch
-      )
-
-    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
-
-    :ok = Sync.load_storage_nonce(closest_bootstrapping_nodes)
-
-    Replication.sync_transaction_chain(
-      validated_tx,
-      node_genesis_address,
-      closest_bootstrapping_nodes
-    )
-  end
-
-  defp update_node(_ip, _port, _http_port, _transport, [], _reward_address, _geo_patch) do
-    Logger.warning("Not enough nodes in the network. No node update")
-  end
-
-  defp update_node(
-         ip,
-         port,
-         http_port,
-         transport,
-         closest_bootstrapping_nodes,
-         reward_address,
-         geo_patch
-       ) do
-    tx =
-      TransactionHandler.create_node_transaction(
-        ip,
-        port,
-        http_port,
-        transport,
-        reward_address,
-        geo_patch
-      )
-
-    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
-
-    node_genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
-
-    Replication.sync_transaction_chain(
-      validated_tx,
-      node_genesis_address,
-      closest_bootstrapping_nodes
-    )
   end
 
   @doc """

@@ -20,6 +20,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GetFirstPublicKey
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.Reward
 
@@ -341,67 +342,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           type: :node,
           data: %TransactionData{
             content: content,
-            ledger: %Ledger{
-              token: %TokenLedger{
-                transfers: token_transfers
-              }
-            }
+            ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
           },
           previous_public_key: previous_public_key
         },
         _
       ) do
-    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key,
-          geo_patch} <-
-           Node.decode_transaction_content(content),
-         {:auth_origin, true} <-
-           {:auth_origin,
-            Crypto.authorized_key_origin?(origin_public_key, get_allowed_node_key_origins())},
-         root_ca_public_key <- Crypto.get_root_ca_public_key(origin_public_key),
-         {:auth_cert, true} <-
-           {:auth_cert,
-            Crypto.verify_key_certificate?(
-              origin_public_key,
-              key_certificate,
-              root_ca_public_key,
-              true
-            )},
-         {:conn, :ok} <-
-           {:conn, valid_connection(ip, port, previous_public_key)},
-         {:transfers, true} <-
-           {:transfers, Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address))},
-         {:mining_public_key, true} <-
-           {:mining_public_key,
-            Crypto.valid_public_key?(mining_public_key) and
-              Crypto.get_public_key_curve(mining_public_key) == :bls},
-         {:geo_patch, true} <-
-           {:geo_patch, valid_geopatch?(ip, geo_patch)} do
-      :ok
-    else
-      :error ->
-        {:error, "Invalid node transaction's content"}
-
-      {:auth_cert, false} ->
-        {:error, "Invalid node transaction with invalid certificate"}
-
-      {:auth_origin, false} ->
-        {:error, "Invalid node transaction with invalid key origin"}
-
-      {:conn, {:error, :invalid_ip}} ->
-        {:error, "Invalid node's IP address"}
-
-      {:conn, {:error, :existing_node}} ->
-        {:error,
-         "Invalid node connection (IP/Port) for for the given public key - already existing"}
-
-      {:transfers, false} ->
-        {:error, "Invalid transfers, only mining rewards tokens are allowed"}
-
-      {:mining_public_key, false} ->
-        {:error, "Invalid mining public key"}
-
-      {:geo_patch, false} ->
-        {:error, "Invalid geo patch from IP"}
+    with {:ok, node_config} <- validate_node_tx_content(content),
+         :ok <- validate_node_tx_origin(node_config),
+         :ok <- validate_node_tx_connection(node_config, previous_public_key),
+         :ok <- validate_node_tx_transfers(token_transfers),
+         :ok <- vallidate_node_tx_mining_key(node_config) do
+      validate_node_tx_geopatch(node_config)
     end
   end
 
@@ -725,6 +677,73 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   def validate_type_rules(_, _), do: :ok
 
+  defp validate_node_tx_content(content) do
+    case Node.decode_transaction_content(content) do
+      {:ok, node_config} -> {:ok, node_config}
+      :error -> {:error, "Invalid node transaction's content"}
+    end
+  end
+
+  defp validate_node_tx_origin(%NodeConfig{
+         origin_public_key: origin_public_key,
+         origin_certificate: origin_certificate
+       }) do
+    root_ca_public_key = Crypto.get_root_ca_public_key(origin_public_key)
+
+    cond do
+      not Crypto.authorized_key_origin?(origin_public_key, get_allowed_node_key_origins()) ->
+        {:error, "Invalid node transaction with invalid key origin"}
+
+      not Crypto.verify_key_certificate?(
+        origin_public_key,
+        origin_certificate,
+        root_ca_public_key,
+        true
+      ) ->
+        {:error, "Invalid node transaction with invalid certificate"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_node_tx_connection(%NodeConfig{ip: ip, port: port}, previous_public_key) do
+    cond do
+      {:error, :invalid_ip} == Networking.validate_ip(ip) ->
+        {:error, "Invalid node's IP address"}
+
+      P2P.duplicating_node?(ip, port, previous_public_key) ->
+        {:error,
+         "Invalid node connection (IP/Port) for for the given public key - already existing"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_node_tx_transfers(token_transfers) do
+    if Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address)),
+      do: :ok,
+      else: {:error, "Invalid transfers, only mining rewards tokens are allowed"}
+  end
+
+  defp vallidate_node_tx_mining_key(%NodeConfig{mining_public_key: mining_public_key}) do
+    cond do
+      not Crypto.valid_public_key?(mining_public_key) ->
+        {:error, "Invalid mining public key"}
+
+      Crypto.get_public_key_curve(mining_public_key) != :bls ->
+        {:error, "Node mining public key should be BLS"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_node_tx_geopatch(%NodeConfig{ip: ip, geo_patch: geo_patch}) do
+    if geo_patch == GeoPatch.from_ip(ip), do: :ok, else: {:error, "Invalid geo patch from IP"}
+  end
+
   @doc """
   Ensure network transactions are in the expected chain
   """
@@ -1007,10 +1026,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp valid_geopatch?(ip, calculated_geopatch) do
-    calculated_geopatch == GeoPatch.from_ip(ip)
-  end
-
   defp get_allowed_node_key_origins do
     :archethic
     |> Application.get_env(__MODULE__, [])
@@ -1038,17 +1053,4 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp get_first_public_key([], _), do: {:error, :network_issue}
-
-  defp valid_connection(ip, port, previous_public_key) do
-    with :ok <- Networking.validate_ip(ip),
-         false <- P2P.duplicating_node?(ip, port, previous_public_key) do
-      :ok
-    else
-      true ->
-        {:error, :existing_node}
-
-      {:error, :invalid_ip} ->
-        {:error, :invalid_ip}
-    end
-  end
 end

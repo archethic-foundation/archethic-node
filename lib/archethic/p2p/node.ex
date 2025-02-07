@@ -14,6 +14,7 @@ defmodule Archethic.P2P.Node do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.Utils
 
@@ -40,78 +41,6 @@ defmodule Archethic.P2P.Node do
     availability_update: ~U[2008-10-31 00:00:00Z]
   ]
 
-  @doc """
-  Decode node information from transaction content
-  """
-  @spec decode_transaction_content(binary()) ::
-          {:ok, ip_address :: :inet.ip_address(), p2p_port :: :inet.port_number(),
-           http_port :: :inet.port_number(), P2P.supported_transport(),
-           reward_address :: binary(), origin_public_key :: Crypto.key(),
-           key_certificate :: binary(), mining_public_key :: binary() | nil,
-           geo_patch :: binary() | nil}
-          | :error
-  def decode_transaction_content(
-        <<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>
-      ) do
-    with <<ip0, ip1, ip2, ip3>> <- ip,
-         {reward_address, rest} <- Utils.deserialize_address(rest),
-         {origin_public_key, rest} <- Utils.deserialize_public_key(rest),
-         <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
-           rest::binary>> <- rest,
-         {mining_public_key, rest} <- extract_mining_public_key(rest),
-         {geo_patch, _rest} <- extract_geo_patch(rest) do
-      {:ok, {ip0, ip1, ip2, ip3}, port, http_port, deserialize_transport(transport),
-       reward_address, origin_public_key, key_certificate, mining_public_key, geo_patch}
-    else
-      _ ->
-        :error
-    end
-  end
-
-  def decode_transaction_content(<<>>), do: :error
-
-  @spec extract_mining_public_key(binary()) :: {Crypto.key() | nil, binary()}
-  defp extract_mining_public_key(<<>>), do: {nil, <<>>}
-
-  defp extract_mining_public_key(rest) do
-    Utils.deserialize_public_key(rest)
-  end
-
-  @spec extract_geo_patch(binary()) :: {binary() | nil, binary()}
-  defp extract_geo_patch(<<geo_patch::binary-size(3), rest::binary>>), do: {geo_patch, rest}
-
-  defp extract_geo_patch(rest), do: {nil, rest}
-
-  @doc """
-  Encode node's transaction content
-  """
-  @spec encode_transaction_content(%{
-          ip: :inet.ip_address(),
-          port: :inet.port_number(),
-          http_port: :inet.port_number(),
-          transport: P2P.supported_transport(),
-          reward_address: reward_address :: binary(),
-          origin_public_key: origin_public_key :: Crypto.key(),
-          key_certificate: origin_key_certificate :: binary(),
-          mining_public_key: mining_public_key :: Crypto.key(),
-          geo_patch: geo_patch :: binary()
-        }) :: binary()
-  def encode_transaction_content(%{
-        ip: {ip1, ip2, ip3, ip4},
-        port: port,
-        http_port: http_port,
-        transport: transport,
-        reward_address: reward_address,
-        origin_public_key: origin_public_key,
-        key_certificate: key_certificate,
-        mining_public_key: mining_public_key,
-        geo_patch: geo_patch
-      }) do
-    <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
-      reward_address::binary, origin_public_key::binary, byte_size(key_certificate)::16,
-      key_certificate::binary, mining_public_key::binary, geo_patch::binary-size(3)>>
-  end
-
   @type t() :: %__MODULE__{
           first_public_key: nil | Crypto.key(),
           last_public_key: Crypto.key(),
@@ -133,6 +62,25 @@ defmodule Archethic.P2P.Node do
           last_update_date: DateTime.t(),
           availability_update: DateTime.t()
         }
+
+  @doc """
+  Encode node's transaction content
+  """
+  @spec encode_transaction_content(node_config :: NodeConfig.t()) :: binary()
+  def encode_transaction_content(node_config) do
+    NodeConfig.serialize(node_config)
+  end
+
+  @doc """
+  Decode node information from transaction content
+  """
+  @spec decode_transaction_content(binary()) :: {:ok, NodeConfig.t()} | :error
+  def decode_transaction_content(bin) do
+    case NodeConfig.deserialize(bin) do
+      {node_config, _rest} -> {:ok, node_config}
+      :error -> :error
+    end
+  end
 
   @doc """
   Convert a tuple from NodeLedger to a Node instance

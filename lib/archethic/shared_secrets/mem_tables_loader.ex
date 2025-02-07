@@ -8,6 +8,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   alias Archethic.Utils
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -56,25 +57,18 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node,
-        data: %TransactionData{
-          content: content
-        }
+        data: %TransactionData{content: content}
       }) do
-    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key, _cert,
-     _mining_public_key, _geo_patch} = Node.decode_transaction_content(content)
+    {:ok, %NodeConfig{origin_public_key: origin_public_key}} =
+      Node.decode_transaction_content(content)
 
     <<_::8, origin_id::8, _::binary>> = origin_public_key
 
     family =
       case Crypto.key_origin(origin_id) do
-        :software ->
-          :software
-
-        :tpm ->
-          :hardware
-
-        :on_chain_wallet ->
-          :software
+        :software -> :software
+        :tpm -> :hardware
+        :on_chain_wallet -> :software
       end
 
     :ok = OriginKeyLookup.add_public_key(family, origin_public_key)
@@ -83,8 +77,6 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
       transaction_address: Base.encode16(address),
       transaction_type: :node
     )
-
-    :ok
   end
 
   def load_transaction(%Transaction{

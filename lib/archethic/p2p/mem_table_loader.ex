@@ -11,6 +11,7 @@ defmodule Archethic.P2P.MemTableLoader do
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SelfRepair
 
@@ -93,9 +94,7 @@ defmodule Archethic.P2P.MemTableLoader do
         type: :node,
         previous_public_key: previous_public_key,
         data: %TransactionData{content: content},
-        validation_stamp: %ValidationStamp{
-          timestamp: timestamp
-        }
+        validation_stamp: %ValidationStamp{timestamp: timestamp}
       }) do
     Logger.info("Loading transaction into P2P mem table",
       transaction_address: Base.encode16(address),
@@ -104,8 +103,17 @@ defmodule Archethic.P2P.MemTableLoader do
 
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
-    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate,
-     mining_public_key, geo_patch} = Node.decode_transaction_content(content)
+    {:ok,
+     %NodeConfig{
+       ip: ip,
+       port: port,
+       http_port: http_port,
+       transport: transport,
+       reward_address: reward_address,
+       origin_public_key: origin_public_key,
+       mining_public_key: mining_public_key,
+       geo_patch: geo_patch
+     }} = Node.decode_transaction_content(content)
 
     geo_patch = if geo_patch == nil, do: GeoPatch.from_ip(ip), else: geo_patch
 
