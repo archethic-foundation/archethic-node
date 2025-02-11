@@ -50,7 +50,8 @@ defmodule Archethic.P2P.NodeConfigTest do
         origin_public_key: random_public_key(),
         origin_certificate: :crypto.strong_rand_bytes(32),
         mining_public_key: random_public_key(),
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        geo_patch_update: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       config2 = %NodeConfig{
@@ -63,7 +64,8 @@ defmodule Archethic.P2P.NodeConfigTest do
         origin_public_key: random_public_key(),
         origin_certificate: :crypto.strong_rand_bytes(32),
         mining_public_key: random_public_key(),
-        geo_patch: "BBB"
+        geo_patch: "BBB",
+        geo_patch_update: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       assert NodeConfig.different?(config1, config2)
@@ -80,10 +82,15 @@ defmodule Archethic.P2P.NodeConfigTest do
         origin_public_key: random_public_key(),
         origin_certificate: :crypto.strong_rand_bytes(32),
         mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        geo_patch_update: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
-      same_config = %NodeConfig{config | origin_certificate: :crypto.strong_rand_bytes(32)}
+      same_config = %NodeConfig{
+        config
+        | origin_certificate: :crypto.strong_rand_bytes(32),
+          geo_patch_update: DateTime.utc_now() |> DateTime.add(-2) |> DateTime.truncate(:second)
+      }
 
       refute NodeConfig.different?(config, same_config)
     end
@@ -101,7 +108,8 @@ defmodule Archethic.P2P.NodeConfigTest do
         origin_public_key: random_public_key(),
         origin_certificate: :crypto.strong_rand_bytes(32),
         mining_public_key: random_public_key(),
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        geo_patch_update: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       assert {config, <<>>} == config |> NodeConfig.serialize() |> NodeConfig.deserialize()

@@ -14,6 +14,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
   require Logger
 
+  @geopatch_update_time Application.compile_env!(:archethic, :geopatch_update_time)
+
   @doc """
   Send a transaction to the network towards a welcome node
   """
@@ -68,7 +70,12 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   Create a new node transaction
   """
   @spec create_node_transaction(node_config :: NodeConfig.t()) :: Transaction.t()
-  def create_node_transaction(node_config) do
+  def create_node_transaction(node_config, date \\ DateTime.utc_now()) do
+    node_config = %NodeConfig{
+      node_config
+      | geo_patch_update: DateTime.add(date, @geopatch_update_time, :millisecond)
+    }
+
     Transaction.new(:node, %TransactionData{
       code: """
         condition inherit: [
