@@ -41,6 +41,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   import Mock
   import ArchethicCase
 
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
+
   setup do
     P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.last_node_public_key(),
@@ -612,7 +614,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         origin_public_key: origin_public_key,
         origin_certificate: certificate,
         mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-        geo_patch: "F1B"
+        geo_patch: "F1B",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
       }
 
       content = Node.encode_transaction_content(node_config)
@@ -652,7 +658,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         origin_public_key: origin_public_key,
         origin_certificate: certificate,
         mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-        geo_patch: "FFF"
+        geo_patch: "FFF",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
       }
 
       content = Node.encode_transaction_content(node_config)
@@ -693,7 +703,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         origin_public_key: public_key,
         origin_certificate: certificate,
         mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-        geo_patch: "BBB"
+        geo_patch: "BBB",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
       }
 
       content = Node.encode_transaction_content(node_config)

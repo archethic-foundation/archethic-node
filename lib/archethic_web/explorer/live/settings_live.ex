@@ -23,6 +23,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
   alias ArchethicWeb.TransactionSubscriber
 
   @ip_validate_regex ~r/(^127\.)|(^192\.168\.)/
+  @geopatch_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
   def mount(_params, %{"remote_ip" => remote_ip}, socket) do
     # Only authorized the page in the node's private network
@@ -130,7 +131,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
     node_config = %NodeConfig{
       NodeConfig.from_node(node)
       | origin_certificate: Crypto.get_key_certificate(origin_public_key),
-        reward_address: next_reward_address
+        reward_address: next_reward_address,
+        geo_patch_update: DateTime.add(DateTime.utc_now(), @geopatch_update_time, :millisecond)
     }
 
     genesis_address = Crypto.derive_address(first_public_key)
@@ -162,7 +164,8 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
 
     node_config = %NodeConfig{
       NodeConfig.from_node(node)
-      | origin_certificate: Crypto.get_key_certificate(origin_public_key)
+      | origin_certificate: Crypto.get_key_certificate(origin_public_key),
+        geo_patch_update: DateTime.add(DateTime.utc_now(), @geopatch_update_time, :millisecond)
     }
 
     {:ok, %Transaction{data: %TransactionData{code: code}}} =

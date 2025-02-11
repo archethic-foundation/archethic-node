@@ -7,6 +7,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
   @publickey1 Crypto.generate_deterministic_keypair("seed2")
   @publickey2 Crypto.generate_deterministic_keypair("seed3")
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
@@ -114,7 +115,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       origin_public_key: origin_public_key,
       origin_certificate: certificate,
       mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
-      geo_patch: "F1B"
+      geo_patch: "F1B",
+      geo_patch_update:
+        DateTime.utc_now()
+        |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+        |> DateTime.truncate(:second)
     }
 
     tx =

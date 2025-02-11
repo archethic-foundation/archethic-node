@@ -20,7 +20,11 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
   import ArchethicCase
   import Mox
 
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
+
   test "create_node_transaction/4 should create transaction with ip, geopatch and port encoded in the content" do
+    now = DateTime.utc_now()
+
     node_config = %NodeConfig{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -30,11 +34,13 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
       origin_public_key: random_public_key(),
       origin_certificate: :crypto.strong_rand_bytes(64),
       mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      geo_patch_update:
+        DateTime.add(now, @geo_patch_max_update_time, :millisecond) |> DateTime.truncate(:second)
     }
 
     assert %Transaction{data: %TransactionData{content: content}} =
-             TransactionHandler.create_node_transaction(node_config)
+             TransactionHandler.create_node_transaction(node_config, now)
 
     assert {:ok, node_config} == Node.decode_transaction_content(content)
   end

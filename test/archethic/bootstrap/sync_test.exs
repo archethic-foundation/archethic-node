@@ -419,7 +419,8 @@ defmodule Archethic.Bootstrap.SyncTest do
         origin_public_key: random_public_key(),
         origin_certificate: :crypto.strong_rand_bytes(64),
         mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
-        geo_patch: "000"
+        geo_patch: "000",
+        geo_patch_update: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       node_tx =

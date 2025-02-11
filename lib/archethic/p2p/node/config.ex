@@ -19,7 +19,8 @@ defmodule Archethic.P2P.NodeConfig do
     :origin_public_key,
     :origin_certificate,
     :mining_public_key,
-    :geo_patch
+    :geo_patch,
+    :geo_patch_update
   ]
 
   @type t :: %__MODULE__{
@@ -32,7 +33,8 @@ defmodule Archethic.P2P.NodeConfig do
           origin_public_key: Crypto.key(),
           origin_certificate: nil | binary(),
           mining_public_key: nil | Crypto.key(),
-          geo_patch: nil | binary()
+          geo_patch: nil | binary(),
+          geo_patch_update: nil | DateTime.t()
         }
 
   @doc """
@@ -65,19 +67,19 @@ defmodule Archethic.P2P.NodeConfig do
 
   @doc """
   Returns true if the config are different
-  do not compare origin certificate
+  do not compare origin certificate and geo patch update
   """
   @spec different?(config1 :: t(), config2 :: t()) :: boolean()
   def different?(config1, config2) do
-    config1 = %__MODULE__{config1 | origin_certificate: nil}
-    config2 = %__MODULE__{config2 | origin_certificate: nil}
+    config1 = %__MODULE__{config1 | origin_certificate: nil, geo_patch_update: nil}
+    config2 = %__MODULE__{config2 | origin_certificate: nil, geo_patch_update: nil}
 
     config1 != config2
   end
 
   @doc """
   Serialize a config in binary.
-  Origin certificate should not be nil
+  Origin certificate and geo_patch_update should not be nil
   """
   @spec serialize(node_config :: t()) :: binary()
   def serialize(%__MODULE__{
@@ -89,12 +91,14 @@ defmodule Archethic.P2P.NodeConfig do
         origin_public_key: origin_public_key,
         origin_certificate: origin_certificate,
         mining_public_key: mining_public_key,
-        geo_patch: geo_patch
+        geo_patch: geo_patch,
+        geo_patch_update: geo_patch_update = %DateTime{}
       })
-      when origin_certificate != nil do
+      when is_binary(origin_certificate) do
     <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
       reward_address::binary, origin_public_key::binary, byte_size(origin_certificate)::16,
-      origin_certificate::binary, mining_public_key::binary, geo_patch::binary-size(3)>>
+      origin_certificate::binary, mining_public_key::binary, geo_patch::binary-size(3),
+      DateTime.to_unix(geo_patch_update)::64>>
   end
 
   defp serialize_transport(MockTransport), do: 0
@@ -103,7 +107,6 @@ defmodule Archethic.P2P.NodeConfig do
   @doc """
   Deserialize a binary and return a NodeConfig
   """
-
   @spec deserialize(binary()) :: {t(), binary()} | :error
   def deserialize(<<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>) do
     with <<ip1, ip2, ip3, ip4>> <- ip,
@@ -112,7 +115,7 @@ defmodule Archethic.P2P.NodeConfig do
          <<origin_certificate_size::16, origin_certificate::binary-size(origin_certificate_size),
            rest::binary>> <- rest,
          {mining_public_key, rest} <- extract_mining_public_key(rest),
-         {geo_patch, rest} <- extract_geo_patch(rest) do
+         {geo_patch, geo_patch_update, rest} <- extract_geo_patch(rest) do
       node_config = %__MODULE__{
         ip: {ip1, ip2, ip3, ip4},
         port: port,
@@ -122,7 +125,8 @@ defmodule Archethic.P2P.NodeConfig do
         origin_public_key: origin_public_key,
         origin_certificate: origin_certificate,
         mining_public_key: mining_public_key,
-        geo_patch: geo_patch
+        geo_patch: geo_patch,
+        geo_patch_update: geo_patch_update
       }
 
       {node_config, rest}
@@ -139,6 +143,8 @@ defmodule Archethic.P2P.NodeConfig do
   defp extract_mining_public_key(<<>>), do: {nil, <<>>}
   defp extract_mining_public_key(rest), do: Utils.deserialize_public_key(rest)
 
-  defp extract_geo_patch(<<geo_patch::binary-size(3), rest::binary>>), do: {geo_patch, rest}
-  defp extract_geo_patch(rest), do: {nil, rest}
+  defp extract_geo_patch(<<geo_patch::binary-size(3), geo_patch_update::64, rest::binary>>),
+    do: {geo_patch, DateTime.from_unix!(geo_patch_update), rest}
+
+  defp extract_geo_patch(rest), do: {nil, nil, rest}
 end

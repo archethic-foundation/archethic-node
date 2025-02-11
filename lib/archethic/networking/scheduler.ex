@@ -31,6 +31,8 @@ defmodule Archethic.Networking.Scheduler do
 
   require Logger
 
+  @geopatch_update_time Application.compile_env!(:archethic, :geopatch_update_time)
+
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg)
   end
@@ -108,6 +110,7 @@ defmodule Archethic.Networking.Scheduler do
         NodeConfig.from_node(node)
         | origin_certificate: Crypto.get_key_certificate(origin_public_key),
           geo_patch: GeoPatch.from_ip(ip),
+          geo_patch_update: DateTime.add(DateTime.utc_now(), @geopatch_update_time, :millisecond),
           port: p2p_port,
           http_port: web_port
       }
