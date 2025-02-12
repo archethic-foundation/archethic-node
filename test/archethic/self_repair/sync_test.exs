@@ -647,10 +647,15 @@ defmodule Archethic.SelfRepair.SyncTest do
     tx_summary_bin = TransactionSummary.serialize(tx_summary)
     signature = Crypto.sign(tx_summary_bin, priv)
 
+    index =
+      [node1, node2]
+      |> Enum.sort_by(& &1.first_public_key)
+      |> Enum.find_index(&(&1.first_public_key == pub))
+
     attestations = [
       %ReplicationAttestation{
         transaction_summary: tx_summary,
-        confirmations: [{0, signature}]
+        confirmations: [{index, signature}]
       }
     ]
 

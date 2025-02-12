@@ -28,6 +28,8 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.SharedSecrets
 
+  alias Archethic.Utils
+
   import ArchethicCase
 
   def create_non_valided_transaction(opts \\ []) do
@@ -80,6 +82,7 @@ defmodule Archethic.TransactionFactory do
     protocol_version = Keyword.get(opts, :protocol_version, current_protocol_version())
     contract_context = Keyword.get(opts, :contract_context, nil)
     version = Keyword.get(opts, :version, current_transaction_version())
+    validation_nodes = Keyword.get(opts, :validation_nodes, [])
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -121,37 +124,47 @@ defmodule Archethic.TransactionFactory do
         _ -> TransactionChain.proof_of_integrity([tx, prev_tx])
       end
 
-    validation_stamp =
-      %ValidationStamp{
-        genesis_address: seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
-        timestamp: timestamp,
-        proof_of_work: Crypto.origin_node_public_key(),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
-        proof_of_integrity: poi,
-        ledger_operations: ledger_operations,
-        protocol_version: protocol_version,
-        recipients: Enum.map(recipients, & &1.address)
-      }
-      |> ValidationStamp.sign()
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
-    cross_validation_stamps =
-      CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp) |> List.wrap()
+    validation_stamp = %ValidationStamp{
+      genesis_address: seed |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address(),
+      timestamp: timestamp,
+      proof_of_work: Crypto.origin_node_public_key(),
+      proof_of_election: sorting_seed,
+      proof_of_integrity: poi,
+      ledger_operations: ledger_operations,
+      protocol_version: protocol_version,
+      recipients: Enum.map(recipients, & &1.address)
+    }
+
+    {all_nodes, validation_nodes_seed} = Enum.unzip(validation_nodes)
+
+    elected_nodes_seed =
+      if Enum.empty?(all_nodes) do
+        []
+      else
+        storage_nodes = Election.storage_nodes(tx.address, all_nodes)
+        elected_nodes = Election.validation_nodes(tx, sorting_seed, all_nodes, storage_nodes)
+
+        Enum.map(elected_nodes, fn node ->
+          Enum.find_value(validation_nodes, fn {n, seed} ->
+            if n.first_public_key == node.first_public_key, do: seed, else: false
+          end)
+        end)
+      end
+
+    {validation_stamp, cross_validation_stamps} =
+      create_stamps_signatures(validation_stamp, elected_nodes_seed)
 
     tx =
       if protocol_version <= 8 do
-        cross_stamps =
-          Enum.map(
-            cross_validation_stamps,
-            &%CrossValidationStamp{&1 | node_mining_key: &1.node_public_key}
-          )
-
         %Transaction{
           tx
           | validation_stamp: validation_stamp,
-            cross_validation_stamps: cross_stamps
+            cross_validation_stamps: cross_validation_stamps
         }
       else
-        nodes = [new_node()]
+        nodes = if Enum.empty?(validation_nodes), do: [new_node()], else: all_nodes
 
         proof_of_validation =
           nodes
@@ -164,17 +177,109 @@ defmodule Archethic.TransactionFactory do
             proof_of_validation: proof_of_validation
         }
 
-        replication_signature = tx |> TransactionSummary.from_transaction() |> Signature.create()
+        tx_summary = TransactionSummary.from_transaction(tx)
+
+        replication_signatures =
+          if Enum.empty?(validation_nodes_seed) do
+            tx_summary |> Signature.create() |> List.wrap()
+          else
+            Enum.map(validation_nodes_seed, fn seed ->
+              {pub, pv} = Crypto.generate_deterministic_keypair(seed, :bls)
+              {node_key, _} = Crypto.derive_keypair(seed, 0)
+
+              signature =
+                tx_summary
+                |> TransactionSummary.serialize()
+                |> Utils.wrap_binary()
+                |> Crypto.sign(pv)
+
+              %Signature{signature: signature, node_mining_key: pub, node_public_key: node_key}
+            end)
+          end
 
         proof_of_replication =
           nodes
           |> ProofOfReplication.get_election(tx.address)
-          |> ProofOfReplication.create([replication_signature])
+          |> ProofOfReplication.create(replication_signatures)
 
         %Transaction{tx | proof_of_replication: proof_of_replication}
       end
 
     {tx, cross_validation_stamps}
+  end
+
+  defp create_stamps_signatures(stamp = %ValidationStamp{protocol_version: protocol_version}, [])
+       when protocol_version <= 8 do
+    stamp_sig =
+      stamp
+      |> ValidationStamp.extract_for_signature()
+      |> ValidationStamp.serialize(serialize_genesis?: false)
+      |> Crypto.sign_with_last_node_key()
+
+    signed_stamp = %ValidationStamp{stamp | signature: stamp_sig}
+
+    cross_sig =
+      signed_stamp
+      |> CrossValidationStamp.get_raw_data_to_sign([])
+      |> Crypto.sign_with_last_node_key()
+
+    cross_stamp = %CrossValidationStamp{
+      inconsistencies: [],
+      node_public_key: Crypto.first_node_public_key(),
+      node_mining_key: Crypto.last_node_public_key(),
+      signature: cross_sig
+    }
+
+    {signed_stamp, [cross_stamp]}
+  end
+
+  defp create_stamps_signatures(stamp, []) do
+    signed_stamp = ValidationStamp.sign(stamp)
+
+    cross_validation_stamps =
+      CrossValidationStamp.sign(%CrossValidationStamp{}, stamp) |> List.wrap()
+
+    {signed_stamp, cross_validation_stamps}
+  end
+
+  defp create_stamps_signatures(
+         stamp = %ValidationStamp{protocol_version: protocol_version},
+         [coord_seed | cross]
+       ) do
+    cross = if Enum.empty?(cross), do: [coord_seed], else: cross
+
+    curve = if protocol_version <= 8, do: :ed25519, else: :bls
+    {_, pv} = Crypto.generate_deterministic_keypair(coord_seed, curve)
+
+    stamp_sig =
+      stamp
+      |> ValidationStamp.extract_for_signature()
+      |> ValidationStamp.serialize(serialize_genesis?: protocol_version >= 9)
+      |> Utils.wrap_binary()
+      |> Crypto.sign(pv)
+
+    signed_stamp = %ValidationStamp{stamp | signature: stamp_sig}
+
+    cross_validation_stamps =
+      Enum.map(cross, fn seed ->
+        {pub, pv} = Crypto.generate_deterministic_keypair(seed, curve)
+        {node_key, _} = Crypto.derive_keypair(seed, 0)
+
+        signature =
+          signed_stamp
+          |> CrossValidationStamp.get_raw_data_to_sign([])
+          |> Utils.wrap_binary()
+          |> Crypto.sign(pv)
+
+        %CrossValidationStamp{
+          inconsistencies: [],
+          node_public_key: node_key,
+          node_mining_key: pub,
+          signature: signature
+        }
+      end)
+
+    {signed_stamp, cross_validation_stamps}
   end
 
   def create_valid_transaction(

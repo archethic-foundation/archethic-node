@@ -13,6 +13,7 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
@@ -60,18 +61,19 @@ defmodule Archethic.ReplicationTest do
       }
     ]
 
-    p2p_context()
+    validation_nodes = p2p_context()
 
     {tx, cross_stamps} =
       TransactionFactory.create_valid_transaction_with_cross_stamps(unspent_outputs,
         type: :data,
-        content: "content"
+        content: "content",
+        validation_nodes: validation_nodes
       )
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{}, _ ->
-        {:ok, %NotFound{}}
+      _, %GetTransaction{}, _ -> {:ok, %NotFound{}}
+      _, %GetTransactionSummary{}, _ -> {:ok, %NotFound{}}
     end)
 
     v_utxos =
@@ -113,24 +115,29 @@ defmodule Archethic.ReplicationTest do
     end
     """
 
-    p2p_context()
+    validation_nodes = p2p_context()
 
     encoded_state = State.serialize(%{"key" => "value"})
 
-    prev_tx = ContractFactory.create_valid_contract_tx(code)
+    prev_tx =
+      %Transaction{validation_stamp: %ValidationStamp{genesis_address: genesis_address}} =
+      ContractFactory.create_valid_contract_tx(code, validation_nodes: validation_nodes)
+
     previous_address = prev_tx.address
 
     {next_tx, cross_stamps} =
       ContractFactory.create_next_contract_tx_with_cross_stamps(prev_tx,
         content: "ok",
         state: encoded_state,
-        inputs: unspent_outputs
+        inputs: unspent_outputs,
+        validation_nodes: validation_nodes
       )
-
-    genesis_address = Transaction.previous_address(prev_tx)
 
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransaction{address: ^previous_address}, _ ->
         {:ok, prev_tx}
 
@@ -170,9 +177,12 @@ defmodule Archethic.ReplicationTest do
       }
     ]
 
-    p2p_context()
+    validation_nodes = p2p_context()
 
-    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+    tx =
+      TransactionFactory.create_valid_transaction(unspent_outputs,
+        validation_nodes: validation_nodes
+      )
 
     MockDB
     |> expect(:write_transaction, fn _, _ ->
@@ -186,39 +196,30 @@ defmodule Archethic.ReplicationTest do
   end
 
   defp p2p_context do
-    SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
+    SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-    welcome_node =
-      new_node(
-        first_public_key: "key1",
-        last_public_key: "key1",
-        mining_public_key: "key1",
-        geo_patch: "BBB",
-        network_patch: "BBB"
-      )
+    self_node = new_node()
+    P2P.add_and_connect_node(self_node)
 
-    coordinator_node = new_node()
+    Enum.map(1..2, fn _ ->
+      seed = random_seed()
+      {pub, _} = Crypto.derive_keypair(seed, 0)
+      {mining_pub, _} = Crypto.generate_deterministic_keypair(seed, :bls)
 
-    storage_nodes = [
-      new_node(
-        first_public_key: "key3",
-        last_public_key: "key3",
-        mining_public_key: "key3",
-        geo_patch: "BBB",
-        network_patch: "BBB"
-      )
-    ]
+      node =
+        new_node(
+          first_public_key: pub,
+          last_public_key: pub,
+          mining_public_key: mining_pub,
+          geo_patch: "BBB",
+          network_patch: "BBB"
+        )
 
-    Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
+      P2P.add_and_connect_node(node)
 
-    P2P.add_and_connect_node(welcome_node)
-    P2P.add_and_connect_node(coordinator_node)
-
-    %{
-      welcome_node: welcome_node,
-      coordinator_node: coordinator_node,
-      storage_nodes: storage_nodes
-    }
+      {node, seed}
+    end)
+    |> Enum.concat([{self_node, "seed"}])
   end
 
   describe "acknowledge_previous_storage_nodes/1" do

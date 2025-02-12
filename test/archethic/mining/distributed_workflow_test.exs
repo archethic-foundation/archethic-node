@@ -1,7 +1,7 @@
 defmodule Archethic.Mining.DistributedWorkflowTest do
   use ArchethicCase, async: false
 
-  @moduletag capture_log: false
+  @moduletag capture_log: true
 
   alias Archethic.Crypto
 
@@ -550,8 +550,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         <<>>
       )
 
-      Process.sleep(500)
-
       {:wait_cross_validation_stamps,
        %{
          context: %ValidationContext{
@@ -565,6 +563,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       assert confirmed_cross_validations == <<1::1>>
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1>>
+      Process.exit(coordinator_pid, :kill)
     end
   end
 
@@ -1025,145 +1024,125 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
 
-      receive do
-        {:cross_validate, stamp, tree, confirmed_cross_validation_nodes} ->
-          Workflow.cross_validate(
-            cross_validator_pid,
-            stamp,
-            tree,
-            confirmed_cross_validation_nodes,
-            []
-          )
-      after
-        1000 -> :skip
+      assert_receive {:cross_validate, stamp, tree, confirmed_cross_validation_nodes}
+
+      Workflow.cross_validate(
+        cross_validator_pid,
+        stamp,
+        tree,
+        confirmed_cross_validation_nodes,
+        []
+      )
+
+      assert_receive {:cross_validation_done, _stamp}
+
+      {_, %{context: %ValidationContext{validation_stamp: validation_stamp}}} =
+        :sys.get_state(coordinator_pid)
+
+      if List.last(validation_nodes).last_public_key == Crypto.last_node_public_key() do
+        stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
+
+        send(
+          coordinator_pid,
+          {:add_cross_validation_stamp, stamp, Crypto.first_node_public_key()}
+        )
+      else
+        {pub, _} = Crypto.generate_deterministic_keypair("seed")
+        {mining_pub, priv} = Crypto.generate_deterministic_keypair("seed", :bls)
+
+        sig =
+          validation_stamp
+          |> ValidationStamp.serialize()
+          |> Crypto.sign(priv)
+
+        stamp = %CrossValidationStamp{
+          signature: sig,
+          node_mining_key: mining_pub,
+          node_public_key: pub,
+          inconsistencies: []
+        }
+
+        send(coordinator_pid, {:add_cross_validation_stamp, stamp})
       end
 
-      receive do
-        {:cross_validation_done, _stamp} ->
-          {_, %{context: %ValidationContext{validation_stamp: validation_stamp}}} =
-            :sys.get_state(coordinator_pid)
+      assert_receive {:cross_replication_stamp, tx}
 
-          if List.last(validation_nodes).last_public_key == Crypto.last_node_public_key() do
-            stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
+      cross_stamp1 = %CrossValidationStamp{
+        node_mining_key: elem(mining_node_keypair, 0),
+        node_public_key: elem(storage_node_keypair, 0),
+        inconsistencies: [],
+        signature:
+          CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
+          |> Crypto.sign(elem(mining_node_keypair, 1))
+      }
 
-            send(
-              coordinator_pid,
-              {:add_cross_validation_stamp, stamp, Crypto.first_node_public_key()}
-            )
-          else
-            {pub, _} = Crypto.generate_deterministic_keypair("seed")
-            {mining_pub, priv} = Crypto.generate_deterministic_keypair("seed", :bls)
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp1})
+      send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp1})
 
-            sig =
-              validation_stamp
-              |> ValidationStamp.serialize()
-              |> Crypto.sign(priv)
+      cross_stamp2 = %CrossValidationStamp{
+        node_mining_key: elem(mining_node_keypair2, 0),
+        node_public_key: elem(storage_node_keypair2, 0),
+        inconsistencies: [],
+        signature:
+          CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
+          |> Crypto.sign(elem(mining_node_keypair2, 1))
+      }
 
-            stamp = %CrossValidationStamp{
-              signature: sig,
-              node_mining_key: mining_pub,
-              node_public_key: pub,
-              inconsistencies: []
-            }
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp2})
+      send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp2})
 
-            send(coordinator_pid, {:add_cross_validation_stamp, stamp})
-          end
-      after
-        1000 -> :skip
-      end
+      cross_stamp3 = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
 
-      receive do
-        {:cross_replication_stamp, tx} ->
-          cross_stamp1 = %CrossValidationStamp{
-            node_mining_key: elem(mining_node_keypair, 0),
-            node_public_key: elem(storage_node_keypair, 0),
-            inconsistencies: [],
-            signature:
-              CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
-              |> Crypto.sign(elem(mining_node_keypair, 1))
-          }
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp3})
+      send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp3})
 
-          send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp1})
-          send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp1})
+      {mining_pub, mining_pv} = Crypto.generate_deterministic_keypair("seed", :bls)
 
-          cross_stamp2 = %CrossValidationStamp{
-            node_mining_key: elem(mining_node_keypair2, 0),
-            node_public_key: elem(storage_node_keypair2, 0),
-            inconsistencies: [],
-            signature:
-              CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
-              |> Crypto.sign(elem(mining_node_keypair2, 1))
-          }
+      cross_stamp4 = %CrossValidationStamp{
+        node_mining_key: mining_pub,
+        node_public_key: Crypto.generate_deterministic_keypair("seed") |> elem(0),
+        inconsistencies: [],
+        signature:
+          CrossValidationStamp.get_raw_data_to_sign(tx.validation_stamp, [])
+          |> Crypto.sign(mining_pv)
+      }
 
-          send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp2})
-          send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp2})
+      send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp4})
+      send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp4})
 
-          cross_stamp3 = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
+      assert_receive {:proof_of_validation_done, proof}
 
-          send(coordinator_pid, {:add_cross_validation_stamp, cross_stamp3})
-          send(cross_validator_pid, {:add_cross_validation_stamp, cross_stamp3})
-      after
-        1000 -> :skip
-      end
-
-      receive do
-        {:proof_of_validation_done, proof} ->
-          Workflow.add_proof_of_validation(
-            cross_validator_pid,
-            proof,
-            List.first(validation_nodes).first_public_key
-          )
-      after
-        1000 -> :skip
-      end
+      Workflow.add_proof_of_validation(
+        cross_validator_pid,
+        proof,
+        List.first(validation_nodes).first_public_key
+      )
 
       Enum.each(1..4, fn _ ->
-        receive do
-          {:replication_signature, sig} ->
-            send(coordinator_pid, {:add_replication_signature, sig})
-            send(cross_validator_pid, {:add_replication_signature, sig})
-        after
-          1000 -> :skip
-        end
+        assert_receive {:replication_signature, sig}
+        send(coordinator_pid, {:add_replication_signature, sig})
+        send(cross_validator_pid, {:add_replication_signature, sig})
       end)
 
-      receive do
-        {:proof_of_replication_done, proof} ->
-          Workflow.add_proof_of_replication(
-            cross_validator_pid,
-            proof,
-            List.first(validation_nodes).first_public_key
-          )
-      after
-        1000 -> :skip
-      end
+      assert_receive {:proof_of_replication_done, proof}
 
-      receive do
-        {:ack_replication, sig, pub} -> send(coordinator_pid, {:ack_replication, sig, pub})
-      after
-        1000 -> :skip
-      end
+      Workflow.add_proof_of_replication(
+        cross_validator_pid,
+        proof,
+        List.first(validation_nodes).first_public_key
+      )
 
-      receive do
-        {:ack_replication, sig, pub} ->
-          send(cross_validator_pid, {:ack_replication, sig, pub})
-      after
-        1000 -> :skip
-      end
+      assert_receive {:ack_replication, sig, pub}
+      send(coordinator_pid, {:ack_replication, sig, pub})
 
-      receive do
-        {:ack_replication, sig, pub} ->
-          send(cross_validator_pid, {:ack_replication, sig, pub})
-      after
-        1000 -> :skip
-      end
+      assert_receive {:ack_replication, sig, pub}
+      send(cross_validator_pid, {:ack_replication, sig, pub})
 
-      receive do
-        {:ack_replication, sig, pub} ->
-          send(coordinator_pid, {:ack_replication, sig, pub})
-      after
-        1000 -> :skip
-      end
+      assert_receive {:ack_replication, sig, pub}
+      send(cross_validator_pid, {:ack_replication, sig, pub})
+
+      assert_receive {:ack_replication, sig, pub}
+      send(coordinator_pid, {:ack_replication, sig, pub})
 
       assert_receive :replication_done
       refute_receive :validation_error

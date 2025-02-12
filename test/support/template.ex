@@ -4,7 +4,16 @@ defmodule ArchethicCase do
 
   alias ArchethicWeb.{TransactionSubscriber}
 
-  alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
+  alias Archethic.{
+    Crypto,
+    Crypto.Ed25519,
+    Crypto.ECDSA,
+    Mining,
+    Utils,
+    SharedSecrets,
+    TransactionChain
+  }
+
   alias Archethic.Contracts.Loader
 
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
@@ -79,7 +88,7 @@ defmodule ArchethicCase do
         nil
 
       "bootstrapping_seeds" ->
-        "127.0.0.1:3002:0101044D91A0A1A7CF06A2902D3842F82D2791BCBF3EE6F6DC8DE0F90E53E9991C3CB33684B7B9E66F26E7C9F5302F73C69897BE5F301DE9A63521A08AC4EF34C18728:tcp"
+        "127.0.0.1:3002:000161D6CD8DA68207BD01198909C139C130A3DF3A8BD20F4BACB123C46354CCD52C:tcp"
     end)
     |> stub(:set_bootstrap_info, fn _, _ -> :ok end)
     |> stub(:write_beacon_summaries_aggregate, fn _ -> :ok end)
@@ -104,41 +113,43 @@ defmodule ArchethicCase do
 
     MockCrypto.NodeKeystore
     |> stub(:first_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {pub, _} = Crypto.derive_keypair("seed", 0)
       pub
     end)
     |> stub(:last_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {pub, _} = Crypto.derive_keypair("seed", 0)
       pub
     end)
     |> stub(:previous_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {pub, _} = Crypto.derive_keypair("seed", 0)
       pub
     end)
     |> stub(:next_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 1, :secp256r1)
+      {pub, _} = Crypto.derive_keypair("seed", 1)
       pub
     end)
     |> stub(:persist_next_keypair, fn -> :ok end)
     |> stub(:sign_with_first_key, fn data ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      ECDSA.sign(:secp256r1, pv, data)
+      {_, pv} = Crypto.derive_keypair("seed", 0)
+      Crypto.sign(data, pv)
     end)
     |> stub(:sign_with_last_key, fn data ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      ECDSA.sign(:secp256r1, pv, data)
+      {_, pv} = Crypto.derive_keypair("seed", 0)
+      Crypto.sign(data, pv)
     end)
     |> stub(:sign_with_previous_key, fn data ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      ECDSA.sign(:secp256r1, pv, data)
+      {_, pv} = Crypto.derive_keypair("seed", 0)
+      Crypto.sign(data, pv)
     end)
     |> stub(:diffie_hellman_with_last_key, fn pub ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0)
+      x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
+      :crypto.compute_key(:ecdh, pub, x25519_sk, :x25519)
     end)
     |> stub(:diffie_hellman_with_first_key, fn pub ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0)
+      x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
+      :crypto.compute_key(:ecdh, pub, x25519_sk, :x25519)
     end)
     |> stub(:mining_public_key, fn ->
       {pub, _} = Crypto.generate_deterministic_keypair("seed", :bls)
@@ -201,11 +212,11 @@ defmodule ArchethicCase do
 
     MockCrypto.NodeKeystore.Origin
     |> stub(:sign_with_origin_key, fn data ->
-      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {_, pv} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
       Crypto.sign(data, pv)
     end)
     |> stub(:origin_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {pub, _} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
       pub
     end)
     |> stub(:retrieve_node_seed, fn ->

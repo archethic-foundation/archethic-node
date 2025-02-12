@@ -35,27 +35,33 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   @moduletag :capture_log
 
   setup do
-    SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
+    SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    welcome_node =
+    node = new_node()
+
+    seed = random_seed()
+    {pub, _} = Crypto.derive_keypair(seed, 0)
+    {mining_pub, _} = Crypto.generate_deterministic_keypair(seed, :bls)
+
+    other_node =
       new_node(
-        first_public_key: random_public_key(),
-        last_public_key: random_public_key(),
-        mining_public_key: random_public_key(),
+        first_public_key: pub,
+        last_public_key: pub,
+        mining_public_key: mining_pub,
         geo_patch: "BBB",
         network_patch: "BBB"
       )
 
-    coordinator_node = new_node()
+    P2P.add_and_connect_node(node)
+    P2P.add_and_connect_node(other_node)
 
-    P2P.add_and_connect_node(welcome_node)
-    P2P.add_and_connect_node(coordinator_node)
+    validation_nodes = [{node, "seed"}, {other_node, seed}]
 
-    {:ok, %{welcome_node: welcome_node, coordinator_node: coordinator_node}}
+    {:ok, %{validation_nodes: validation_nodes}}
   end
 
   describe "validate_consensus/1" do
@@ -106,7 +112,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                TransactionValidator.validate_consensus(validation_context)
     end
 
-    test "should return :ok when the transaction is valid" do
+    test "should return :ok when the transaction is valid", %{validation_nodes: validation_nodes} do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -116,7 +122,10 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
-      tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+      tx =
+        TransactionFactory.create_valid_transaction(unspent_outputs,
+          validation_nodes: validation_nodes
+        )
 
       validation_context = %ValidationContext{
         transaction: tx,
@@ -129,7 +138,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   end
 
   describe "validate/1" do
-    test "should return :ok when the transaction is valid" do
+    test "should return :ok when the transaction is valid", %{validation_nodes: validation_nodes} do
       unspent_outputs = [
         %UnspentOutput{
           from: "@Alice2",
@@ -145,7 +154,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       {tx, cross_stamps} =
         TransactionFactory.create_valid_transaction_with_cross_stamps(unspent_outputs,
           type: :data,
-          content: "content"
+          content: "content",
+          validation_nodes: validation_nodes
         )
 
       genesis = Transaction.previous_address(tx)
@@ -166,7 +176,9 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                TransactionValidator.validate(validation_context)
     end
 
-    test "should validate when the transaction coming from a contract is valid" do
+    test "should validate when the transaction coming from a contract is valid", %{
+      validation_nodes: validation_nodes
+    } do
       now = ~U[2023-01-01 00:00:00Z]
 
       code = """
@@ -180,7 +192,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       encoded_state = State.serialize(%{"key" => "value"})
 
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
+      prev_tx = ContractFactory.create_valid_contract_tx(code, validation_nodes: validation_nodes)
 
       inputs = [
         %UnspentOutput{
@@ -198,7 +210,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         ContractFactory.create_next_contract_tx_with_cross_stamps(prev_tx,
           content: "ok",
           state: encoded_state,
-          inputs: inputs
+          inputs: inputs,
+          validation_nodes: validation_nodes
         )
 
       genesis = Transaction.previous_address(prev_tx)

@@ -142,28 +142,16 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
                ref_timestamp: DateTime.utc_now()
              )
 
-    receive do
-      {:cross_replication_stamp, tx} ->
-        cross_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
-        send(pid, {:add_cross_validation_stamp, cross_stamp})
-    after
-      1000 -> :skip
-    end
+    assert_receive {:cross_replication_stamp, tx}
+    cross_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, tx.validation_stamp)
+    send(pid, {:add_cross_validation_stamp, cross_stamp})
 
-    receive do
-      {:replication_signature, tx} ->
-        sig = tx |> TransactionSummary.from_transaction() |> Signature.create()
-        send(pid, {:add_replication_signature, sig})
-    after
-      1000 -> :skip
-    end
+    assert_receive {:replication_signature, tx}
+    sig = tx |> TransactionSummary.from_transaction() |> Signature.create()
+    send(pid, {:add_replication_signature, sig})
 
-    receive do
-      {:ack_replication, sig, public_key} ->
-        send(pid, {:ack_replication, sig, public_key})
-    after
-      1000 -> :skip
-    end
+    assert_receive {:ack_replication, sig, public_key}
+    send(pid, {:ack_replication, sig, public_key})
 
     assert_receive :transaction_replicated
   end
