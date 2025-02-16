@@ -96,8 +96,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
-    {origin_public_key, _} =
-      Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+    {origin_public_key, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
 
     {_, ca_pv} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
     <<_::8, _::8, origin_key::binary>> = origin_public_key

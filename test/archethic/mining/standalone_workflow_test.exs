@@ -23,6 +23,8 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
 
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -36,6 +38,12 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   test "run/1 should auto validate the transaction and request storage" do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({BeaconSummaryTimer, interval: "0 * * * * *"})
+
+    OriginKeyLookup.start_link([])
+
+    # this is the seed used by MockCrypto.NodeKeystore.Origin
+    {public_key, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+    OriginKeyLookup.add_public_key(:software, public_key)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
