@@ -220,10 +220,18 @@ defmodule Archethic.P2P do
   @doc """
   Set the node's average availability
   """
-  @spec set_node_average_availability(first_public_key :: Crypto.key(), float()) :: :ok
-  defdelegate set_node_average_availability(first_public_key, avg_availability),
-    to: MemTable,
-    as: :update_node_average_availability
+  @spec set_node_average_availability(
+          first_public_key :: Crypto.key(),
+          avg_availability :: float(),
+          timestamp :: DateTime.t()
+        ) :: :ok
+  defdelegate set_node_average_availability(
+                first_public_key,
+                avg_availability,
+                timestamp
+              ),
+              to: MemTable,
+              as: :update_node_average_availability
 
   @doc """
   Add a node first public key to the list of authorized nodes
@@ -288,7 +296,7 @@ defmodule Archethic.P2P do
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
   def authorized_nodes(date \\ DateTime.utc_now(), before? \\ false) do
     nodes =
-      MemTable.authorized_nodes()
+      MemTable.authorized_nodes(date)
       |> Enum.filter(fn %Node{authorization_date: authorization_date} ->
         if before?,
           do: DateTime.compare(authorization_date, date) == :lt,

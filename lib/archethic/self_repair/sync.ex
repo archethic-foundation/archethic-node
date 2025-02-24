@@ -610,7 +610,7 @@ defmodule Archethic.SelfRepair.Sync do
       P2P.set_node_globally_unsynced(node_key)
     end
 
-    P2P.set_node_average_availability(node_key, avg_availability)
+    P2P.set_node_average_availability(node_key, avg_availability, availability_update)
     P2P.update_node_network_patch(node_key, network_patch)
 
     %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)

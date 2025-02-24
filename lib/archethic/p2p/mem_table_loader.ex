@@ -73,13 +73,13 @@ defmodule Archethic.P2P.MemTableLoader do
       [{^node_key, _, avg_availability, availability_update, network_patch}] ->
         MemTable.set_node_synced(node_key)
         MemTable.set_node_available(node_key, availability_update)
-        MemTable.update_node_average_availability(node_key, avg_availability)
+        MemTable.update_node_average_availability(node_key, avg_availability, availability_update)
         MemTable.update_node_network_patch(node_key, network_patch)
 
       [] ->
         MemTable.set_node_synced(node_key)
         MemTable.set_node_available(node_key, last_sync_date)
-        MemTable.update_node_average_availability(node_key, 1.0)
+        MemTable.update_node_average_availability(node_key, 1.0, last_sync_date)
 
       _ ->
         Enum.each(p2p_summaries, &load_p2p_summary/1)
@@ -127,6 +127,7 @@ defmodule Archethic.P2P.MemTableLoader do
         first_public_key: first_public_key,
         last_public_key: previous_public_key,
         geo_patch: geo_patch,
+        geo_patch_update: geo_patch_update,
         transport: transport,
         last_address: address,
         reward_address: reward_address,
@@ -147,6 +148,7 @@ defmodule Archethic.P2P.MemTableLoader do
           http_port: http_port,
           last_public_key: previous_public_key,
           geo_patch: geo_patch,
+          geo_patch_update: geo_patch_update,
           transport: transport,
           last_address: address,
           reward_address: reward_address,
@@ -196,7 +198,12 @@ defmodule Archethic.P2P.MemTableLoader do
   defp load_p2p_summary(
          {node_public_key, available?, avg_availability, availability_update, network_patch}
        ) do
-    MemTable.update_node_average_availability(node_public_key, avg_availability)
+    MemTable.update_node_average_availability(
+      node_public_key,
+      avg_availability,
+      availability_update
+    )
+
     MemTable.update_node_network_patch(node_public_key, network_patch)
 
     if available? do
