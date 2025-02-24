@@ -5,7 +5,7 @@ defmodule Archethic.P2P.P2PView do
     :avg_availability
   ]
 
-  @type t :: %{
+  @type t :: %__MODULE__{
           geo_patch: binary(),
           available?: boolean(),
           avg_availability: float()
@@ -34,6 +34,8 @@ defmodule Archethic.P2P.P2PView do
     |> read_nodes()
     |> deserialize()
   end
+
+  def get_p2p_view(timestamp, node_index_at_timestamp(first_public_key, timestamp))
 
   @spec update_node(
           changes :: Keyword.t(),
@@ -100,6 +102,10 @@ defmodule Archethic.P2P.P2PView do
       :ets.next(@archethic_db_p2pview, unix_timestamp),
       index_at_timestamp
     )
+  end
+
+  defp should_apply_change?({_, {nil, _}}, _) do
+    false
   end
 
   defp should_apply_change?({key, {_, changed?}}, bin_node) do

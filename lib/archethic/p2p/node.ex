@@ -28,6 +28,7 @@ defmodule Archethic.P2P.Node do
     :port,
     :http_port,
     :geo_patch,
+    :geo_patch_update,
     :network_patch,
     :enrollment_date,
     available?: false,
@@ -51,6 +52,7 @@ defmodule Archethic.P2P.Node do
           port: nil | :inet.port_number(),
           http_port: nil | :inet.port_number(),
           geo_patch: nil | binary(),
+          geo_patch_update: nil | DateTime.t(),
           network_patch: nil | binary(),
           available?: boolean(),
           synced?: boolean(),
@@ -85,12 +87,12 @@ defmodule Archethic.P2P.Node do
   @doc """
   Convert a tuple from NodeLedger to a Node instance
   """
-  @spec cast(tuple()) :: t()
+  @spec cast(tuple(), p2pview :: P2PView.t()) :: t()
   def cast(
-        {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
-         average_availability, enrollment_date, transport, reward_address, last_address,
-         origin_public_key, synced?, last_update_date, available?, availability_update,
-         mining_public_key}
+        {first_public_key, last_public_key, ip, port, http_port, _, network_patch, _,
+         enrollment_date, transport, reward_address, last_address, origin_public_key, synced?,
+         last_update_date, _, _, mining_public_key},
+        p2pview
       ) do
     %__MODULE__{
       ip: ip,
@@ -98,9 +100,9 @@ defmodule Archethic.P2P.Node do
       http_port: http_port,
       first_public_key: first_public_key,
       last_public_key: last_public_key,
-      geo_patch: geo_patch,
+      geo_patch: p2pview.geo_patch,
       network_patch: network_patch,
-      average_availability: average_availability,
+      average_availability: p2pview.avg_availability,
       enrollment_date: enrollment_date,
       synced?: synced?,
       transport: transport,
@@ -108,7 +110,7 @@ defmodule Archethic.P2P.Node do
       last_address: last_address,
       origin_public_key: origin_public_key,
       last_update_date: last_update_date,
-      available?: available?,
+      available?: p2pview.available?,
       availability_update: availability_update,
       mining_public_key: mining_public_key
     }
