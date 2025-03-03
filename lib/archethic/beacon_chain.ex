@@ -326,22 +326,17 @@ defmodule Archethic.BeaconChain do
       Task.Supervisor.async_stream(
         Archethic.task_supervisors(),
         summaries_by_node,
-        fn {node, addresses} ->
-          fetch_beacon_summaries(node, addresses)
-        end,
+        fn {node, addresses} -> fetch_beacon_summaries(node, addresses) end,
         ordered: false,
         max_concurrency: System.schedulers_online() * 10
       )
       |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.map(fn {:ok, summaries} -> summaries end)
-
+      |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
       # aggregate the summaries
       # this transform here is equivalent to a Stream.reduce
       |> Stream.transform(
         fn -> %SummaryAggregate{summary_time: date} end,
-        fn summaries, acc ->
-          {[], Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))}
-        end,
+        fn summary, acc -> {[], SummaryAggregate.add_summary(acc, summary)} end,
         fn acc -> {[acc], nil} end,
         & &1
       )

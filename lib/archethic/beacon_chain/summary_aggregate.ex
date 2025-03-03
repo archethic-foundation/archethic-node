@@ -59,15 +59,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         }
       ) do
     agg =
-      Map.update!(
-        agg,
-        :replication_attestations,
-        fn prev ->
-          transaction_attestations
-          |> Enum.filter(&(ReplicationAttestation.validate(&1) == :ok))
-          |> Enum.concat(prev)
-        end
-      )
+      agg
+      |> Map.update!(:replication_attestations, &Enum.concat(transaction_attestations, &1))
       |> Map.update!(:availability_adding_time, &[availability_adding_time | &1])
 
     if node_availabilities != <<>> or not Enum.empty?(node_average_availabilities) or
@@ -125,6 +118,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     |> Map.update!(:replication_attestations, fn attestations ->
       attestations
       |> ReplicationAttestation.reduce_confirmations()
+      |> Stream.filter(&(ReplicationAttestation.validate(&1) == :ok))
       |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
     end)
     |> Map.update!(:availability_adding_time, fn

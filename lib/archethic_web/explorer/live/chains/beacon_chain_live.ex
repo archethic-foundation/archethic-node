@@ -8,6 +8,7 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.PubSub
+  alias Archethic.SelfRepair
   alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.Explorer.TransactionCache
   alias ArchethicWeb.Explorer.Components.TransactionsList
@@ -103,48 +104,22 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
     {:noreply, new_socket}
   end
 
-  def handle_info({:load_at, date}, socket = %{assigns: %{current_date_page: 2}}) do
-    # Try to fetch from the cache, other fetch from the beacon summaries
-    {:ok, transactions} =
-      TransactionCache.resolve(date, fn ->
-        list_transactions_from_summaries(date)
-      end)
-
-    transactions =
-      case transactions do
-        [] ->
-          date
-          |> list_transactions_from_summaries()
-          |> tap(fn txs -> TransactionCache.put(date, txs) end)
-
-        txs ->
-          txs
-      end
-
-    new_assign =
-      socket
-      |> assign(:fetching, false)
-      |> assign(:transactions, transactions)
-
-    {:noreply, new_assign}
-  end
-
   def handle_info({:load_at, date}, socket) do
+    now = DateTime.utc_now()
+    summary_aggregate_creation_date = SelfRepair.next_repair_time(date)
+
+    func =
+      if DateTime.compare(now, summary_aggregate_creation_date) == :gt,
+        do: &list_transactions_from_aggregate/1,
+        else: &list_transactions_from_summaries/1
+
     # Try to fetch from the cache, other fetch from the beacon aggregate
-    {:ok, transactions} =
-      TransactionCache.resolve(date, fn ->
-        list_transactions_from_aggregate(date)
-      end)
+    {:ok, transactions} = TransactionCache.resolve(date, fn -> func.(date) end)
 
     transactions =
       case transactions do
-        [] ->
-          date
-          |> list_transactions_from_aggregate()
-          |> tap(fn txs -> TransactionCache.put(date, txs) end)
-
-        txs ->
-          txs
+        [] -> date |> func.() |> tap(fn txs -> TransactionCache.put(date, txs) end)
+        txs -> txs
       end
 
     new_assign =

@@ -291,8 +291,8 @@ defmodule Archethic.SelfRepair do
   @doc """
   Get the next repair time from the scheduler
   """
-  @spec next_repair_time() :: DateTime.t()
-  defdelegate next_repair_time, to: Scheduler
+  @spec next_repair_time(DateTime.t()) :: DateTime.t()
+  defdelegate next_repair_time(data \\ DateTime.utc_now()), to: Scheduler
 
   @doc """
   Synchronously synchronize all the transactions that happened since previous summary aggregate
