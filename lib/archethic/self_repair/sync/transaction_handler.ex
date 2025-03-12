@@ -138,15 +138,19 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
          },
          storage_nodes
        ) do
-    acceptance_resolver = fn tx = %Transaction{} ->
-      # TODO:
-      # we can add a verification to ensure the proof of integrity is the right one
-      # using the previous transaction and hence asserting the TransactionSummary.validation_stamp_checksum
-      # in order to remove malicious node given false transaction's data
+    acceptance_resolver = fn
+      tx = %Transaction{} ->
+        # TODO:
+        # we can add a verification to ensure the proof of integrity is the right one
+        # using the previous transaction and hence asserting the TransactionSummary.validation_stamp_checksum
+        # in order to remove malicious node given false transaction's data
 
-      tx
-      |> TransactionSummary.from_transaction(genesis_address, version)
-      |> TransactionSummary.equals?(expected_summary)
+        tx
+        |> TransactionSummary.from_transaction(genesis_address, version)
+        |> TransactionSummary.equals?(expected_summary)
+
+      _ ->
+        false
     end
 
     TransactionChain.fetch_transaction(address, storage_nodes,
