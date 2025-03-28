@@ -59,14 +59,15 @@ defmodule Archethic.Mining.Fee do
   def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _, _), do: 0
 
   def calculate(
-       _tx,
+        _tx,
         _contract_context,
         _uco_price_in_usd,
         _timestamp,
         _encoded_state,
         _contract_recipient_fee,
         9
-  ), do: 0
+      ),
+      do: 1
 
   def calculate(
         tx = %Transaction{address: address, type: type},
@@ -76,7 +77,8 @@ defmodule Archethic.Mining.Fee do
         encoded_state,
         contract_recipient_fee,
         protocol_version
-      ) when protocol_version < 9 do
+      )
+      when protocol_version < 9 do
     cond do
       address == Bootstrap.genesis_address() ->
         0
