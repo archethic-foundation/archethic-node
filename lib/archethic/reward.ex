@@ -32,8 +32,8 @@ defmodule Archethic.Reward do
   @doc """
   Get rewards amount for validation nodes
   """
-  @spec validation_nodes_reward() :: pos_integer()
-  def validation_nodes_reward do
+  @spec validation_nodes_reward(protocol_version :: pos_integer()) :: pos_integer()
+  def validation_nodes_reward(protocol_version \\ Archethic.Mining.protocol_version()) do
     date = DateTime.utc_now()
 
     uco_usd_price =
@@ -43,7 +43,13 @@ defmodule Archethic.Reward do
 
     number_of_reward_occurences_per_month = number_of_reward_occurences_per_month()
 
-    trunc(50 / uco_usd_price / number_of_reward_occurences_per_month * @unit_uco)
+    case protocol_version do
+      10 ->
+        # Limit rewards to 4000 UCO  per day to create more sustainable rewards when the price is very low !!
+        trunc(min(50 / uco_usd_price / number_of_reward_occurences_per_month, 4000) * @unit_uco)
+      _ ->
+        trunc(50 / uco_usd_price / number_of_reward_occurences_per_month * @unit_uco)
+    end
   end
 
   defp number_of_reward_occurences_per_month() do
@@ -123,9 +129,9 @@ defmodule Archethic.Reward do
   @doc """
   Return the list of transfers to rewards the validation nodes
   """
-  @spec get_transfers() :: reward_transfers :: list(Transfer.t())
-  def get_transfers() do
-    uco_amount = validation_nodes_reward()
+  @spec get_transfers(protocol_version :: pos_integer()) :: reward_transfers :: list(Transfer.t())
+  def get_transfers(protocol_version \\ Archethic.Mining.protocol_version()) do
+    uco_amount = validation_nodes_reward(protocol_version)
 
     nodes =
       P2P.authorized_and_available_nodes()
