@@ -43,7 +43,8 @@ defmodule Archethic.Reward do
 
     number_of_reward_occurences_per_month = number_of_reward_occurences_per_month()
 
-    trunc(50 / uco_usd_price / number_of_reward_occurences_per_month * @unit_uco)
+    # Limit rewards to 4000 UCO  per day to create more sustainable rewards when the price is very low !!
+    trunc(min(50 / uco_usd_price / number_of_reward_occurences_per_month, 4000) * @unit_uco)
   end
 
   defp number_of_reward_occurences_per_month() do
