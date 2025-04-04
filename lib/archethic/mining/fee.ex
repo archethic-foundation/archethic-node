@@ -59,6 +59,18 @@ defmodule Archethic.Mining.Fee do
   def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _, _), do: 0
 
   def calculate(
+        _tx,
+        _contract_context,
+        _uco_price_in_usd,
+        _timestamp,
+        _encoded_state,
+        _contract_recipient_fee,
+        protocol_version
+      )
+      when protocol_version > 9,
+      do: 0
+
+  def calculate(
         %Transaction{address: address, type: type},
         _contract_context,
         _uco_price_in_usd,
