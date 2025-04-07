@@ -9,7 +9,7 @@
     "amount": {
       "type": "integer",
       "description": "Amount of token to send in BigInt",
-      "minimum": 0
+      "minimum": 1
     },
     "tokenAddress": {
       "$ref": "file://schemas/base/address.json",
