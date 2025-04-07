@@ -12,7 +12,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
   @behaviour Impl
 
-  @precision_digits 5
+  @precision_digits 8
 
   @pairs ["usd", "eur"]
 
