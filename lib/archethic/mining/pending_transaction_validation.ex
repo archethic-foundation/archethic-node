@@ -350,7 +350,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         },
         _
       ) do
-    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key} <-
+    with :ok <- validate_whitelisted_node(previous_public_key),
+         {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,
@@ -374,6 +375,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               Crypto.get_public_key_curve(mining_public_key) == :bls} do
       :ok
     else
+      {:error, :node_blacklisted} ->
+        {:error, "Invalid node transaction - Node isn't authorized"}
+
       :error ->
         {:error, "Invalid node transaction's content"}
 
@@ -717,6 +721,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       do: {:error, "Invalid data type transaction - Both content & ownership are empty"}
 
   def validate_type_rules(_, _), do: :ok
+
+  defp validate_whitelisted_node(public_key) do
+    first_public_key = TransactionChain.get_first_public_key(public_key)
+
+    blacklisted? =
+      File.read!(Application.app_dir(:archethic, "priv/blacklist.txt"))
+      |> String.split("\n", trim: true)
+      |> Enum.any?(&(Base.encode16(first_public_key) == &1))
+
+    if blacklisted?,
+      do: {:error, :node_blacklisted},
+      else: :ok
+  end
 
   @doc """
   Ensure network transactions are in the expected chain
