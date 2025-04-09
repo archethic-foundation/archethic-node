@@ -69,17 +69,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
 
-  @prod? Mix.env() == :prod
+  # @prod? Mix.env() == :prod
 
   @doc """
   Ensure transaction version is allowed
   Used to differentiate mainnet / testnet network
   """
   @spec(validate_transaction_version(transaction :: Transaction.t()) :: :ok, {:error, String.t()})
-  def validate_transaction_version(%Transaction{version: version}) do
-    if @prod? and System.get_env("ARCHETHIC_NETWORK_TYPE") != "testnet" and version >= 4,
-      do: {:error, "Transaction V4 are not yet supported on mainnet"},
-      else: :ok
+  def validate_transaction_version(_tx) do
+    :ok
+    # if @prod? and System.get_env("ARCHETHIC_NETWORK_TYPE") != "testnet" and version >= 4,
+    #   do: {:error, "Transaction V4 are not yet supported on mainnet"},
+    #   else: :ok
   end
 
   @doc """
