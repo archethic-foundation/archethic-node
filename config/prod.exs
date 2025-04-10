@@ -100,42 +100,8 @@ config :archethic, Archethic.Crypto,
   #
   # public-key.pem > sanitize (1line) > decode64 > encode16 > drop 26 first bytes
   root_ca_public_keys: [
-    software:
-      case System.get_env("ARCHETHIC_NETWORK_TYPE") do
-        "testnet" ->
-          [
-            # secp256r1:
-            #   Base.decode16!(
-            #     "0488BA8DA36E0B7DD6B331F5A5BBBB79CFD92FECCD81C895973BC78C1CCDF9115C46AE92C74D180F8D8C1995046A86636D24C69EF7DBC2DC239369DF1DE04202FB"
-            #   )
-          ]
-
-        _ ->
-          [
-            secp256r1:
-              Base.decode16!(
-                "043F2A2CF930CFDDBCD13BCEC3753089940DAE5ABC6D63BBB2643DB5DB9F746C373079264C91BC65055C4ADEEFF9E9F3668BCDCEDA15E3E9458A5AEEE8FFA7B5D1"
-              )
-          ]
-      end,
-    tpm:
-      case System.get_env("ARCHETHIC_NETWORK_TYPE") do
-        "testnet" ->
-          [
-            # secp256r1:
-            #   Base.decode16!(
-            #     "0488BA8DA36E0B7DD6B331F5A5BBBB79CFD92FECCD81C895973BC78C1CCDF9115C46AE92C74D180F8D8C1995046A86636D24C69EF7DBC2DC239369DF1DE04202FB"
-            #   )
-          ]
-
-        _ ->
-          [
-            secp256r1:
-              Base.decode16!(
-                "043F2A2CF930CFDDBCD13BCEC3753089940DAE5ABC6D63BBB2643DB5DB9F746C373079264C91BC65055C4ADEEFF9E9F3668BCDCEDA15E3E9458A5AEEE8FFA7B5D1"
-              )
-          ]
-      end
+    software: [],
+    tpm: []
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
@@ -145,7 +111,10 @@ config :archethic,
 
 config :archethic,
        Archethic.Crypto.NodeKeystore.Origin,
-       (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM") |> String.upcase()) do
+       (case(
+          System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE")
+          |> String.upcase()
+        ) do
           "TPM" ->
             Archethic.Crypto.NodeKeystore.Origin.TPMImpl
 
