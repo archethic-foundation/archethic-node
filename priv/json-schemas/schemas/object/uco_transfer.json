@@ -9,7 +9,7 @@
     "amount": {
       "type": "integer",
       "description": "Amount of UCO to send in BigInt",
-      "minimum": 1
+      "minimum": 0
     }
   },
   "required": [
