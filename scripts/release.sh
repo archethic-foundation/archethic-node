@@ -177,6 +177,69 @@ else
   WantedBy=multi-user.target
 EOF
 
+  # Check if environment file exists, if not create it with appropriate configuration
+  ENV_FILE="/etc/default/archethic$SERVICE_NAME.env"
+
+  if [[ ! -f $ENV_FILE ]]; then
+    echo "Environment file $ENV_FILE does not exist. Creating it..."
+
+    STORAGE_PATH="/home/$(whoami)/aebot"
+
+    if [[ "$SUFFIX" == "-testnet" ]]; then
+      ARCHETHIC_NETWORK_TYPE=testnet
+      ARCHETHIC_VM_ARGS_NAME=testnet@127.0.0.1
+      ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=185.34.143.63:3002:000177FEF58186F5AC3FA2B8D25310E61C2C2AF8D963895644CEC88A50416DAC9978:tcp
+    else
+      ARCHETHIC_NETWORK_TYPE=mainnet
+      ARCHETHIC_VM_ARGS_NAME=mainnet@127.0.0.1
+      ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=185.34.143.66:30002:00010F2A0E4C424582A94BD90E05FE6931628F91988ABBE387D365994F1F3FCF5A12:tcp
+    fi
+
+    # Create the environment file
+  sudo bash -c "cat > $ENV_FILE" << EOF
+# Archethic Node Environment Configuration for archethic$SUFFIX
+
+MIX_ENV=prod
+ARCHETHIC_LOGGER_LEVEL=debug
+ARCHETHIC_NETWORK_TYPE="$ARCHETHIC_NETWORK_TYPE"
+ARCHETHIC_VM_ARGS_NAME="$ARCHETHIC_VM_ARGS_NAME"
+
+ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS="$ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS"
+ARCHETHIC_REWARD_ADDRESS="change_this_to_your_reward_address"
+
+ARCHETHIC_ROOT_MUT_DIR="$STORAGE_PATH"
+
+# Desactivate port forwading (upnp not working or port opened manually)
+# ARCHETHIC_NETWORKING_PORT_FORWARDING=false
+
+# Retrieve public IP from remote (upnp not working)
+# ARCHETHIC_NETWORKING_IMPL=REMOTE
+
+# Set manually public IP
+# ARCHETHIC_NETWORKING_IMPL=STATIC
+# ARCHETHIC_STATIC_IP=XXX
+
+# By default, the node will use the sofware key generation
+# If you want to use TPM origin key
+# ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL=TPM
+
+# Default Network configuration
+# ARCHETHIC_P2P_PORT=30002
+# ARCHETHIC_HTTP_PORT=40000
+# ARCHETHIC_HTTPS_PORT=50000
+# ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD=1296000
+# ARCHETHIC_NETWORKING_UPDATE_SCHEDULER=0 */5 * * * * * # Interval to update node IP and port if necessary
+
+# Default Web configuration
+# ARCHETHIC_THROTTLE_IP_LOW=20 # Throttle IP if too many requests for Explorer & API
+# ARCHETHIC_THROTTLE_IP_HIGH=500 # Throttle IP if too many requests for AEWeb
+# ARCHETHIC_THROTTLE_IP_AND_PATH=20 # Throttle IP & Path if too many requests for AEWeb
+
+EOF
+  fi
+
+  echo "Created environment file at $ENV_FILE"
+
   # restart daemon, enable
   echo "Reloading daemon and enabling service"
   sudo systemctl daemon-reload
