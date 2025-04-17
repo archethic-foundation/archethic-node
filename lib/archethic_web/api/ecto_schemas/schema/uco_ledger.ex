@@ -27,6 +27,6 @@ defmodule ArchethicWeb.API.Schema.UCOLedger do
     changeset
     |> cast(params, [:to, :amount])
     |> validate_required([:to, :amount])
-    |> validate_number(:amount, greater_than: 0)
+    |> validate_number(:amount, greater_than_or_equal_to: 0)
   end
 end

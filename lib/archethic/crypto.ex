@@ -1221,7 +1221,6 @@ defmodule Archethic.Crypto do
       nil ->
         "no_key"
 
-      # Only for dev
       [] ->
         ""
 
