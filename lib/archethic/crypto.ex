@@ -1313,7 +1313,7 @@ defmodule Archethic.Crypto do
           for_node? :: boolean()
         ) ::
           boolean()
-  def verify_key_certificate?(_, "", "", true), do: true
+  def verify_key_certificate?(_, _, "", true), do: true
   def verify_key_certificate?(_, "", _, true), do: false
 
   def verify_key_certificate?(<<_::8, 0::8, _::binary>>, "", _, false), do: true
