@@ -31,6 +31,12 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
     GenServer.call(__MODULE__, {:get_coordinates, ip})
   end
 
+    @impl GeoIP
+  def get_coordinates_city(ip) when is_tuple(ip) do
+    GenServer.call(__MODULE__, {:get_coordinates_city, ip})
+  end
+
+
   @impl GenServer
   def handle_call({:get_coordinates, ip}, _from, {meta, tree, data}) do
     case MMDB2Decoder.lookup(ip, meta, tree, data) do
@@ -41,4 +47,23 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
         {:reply, {0.0, 0.0}, {meta, tree, data}}
     end
   end
+
+
+@impl GenServer
+def handle_call({:get_coordinates_city, ip}, _from, {meta, tree, data}) do
+  case MMDB2Decoder.lookup(ip, meta, tree, data) do
+    {:ok, %{
+      "location" => %{"latitude" => lat, "longitude" => lon},
+      "city" => %{"names" => %{"en" => city}},
+      "country" => %{"names" => %{"en" => country}}
+    }} ->
+      {:reply, {lat, lon, city, country}, {meta, tree, data}}
+
+    _ ->
+      {:reply, {0.0, 0.0, nil, nil}, {meta, tree, data}}
+  end
+end
+
+
+
 end

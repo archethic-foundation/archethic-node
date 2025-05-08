@@ -9,11 +9,17 @@ import {
   updateNetworkTransactionsAvgDurationChart,
   updateNodeTransactionsCountChart
 } from "./metric_config.js";
-import { createWorldmap, updateWorldmap } from "./worldmap";
+import { createWorldmap, updateWorldmap } from "./worldmap_v2";
 
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import { html as diff2html } from "diff2html";
+
+
+import L from 'leaflet';
+import 'leaflet.markercluster';
+
+
 
 import hljs from "highlight.js/lib/core";
 import xml from "highlight.js/lib/languages/xml";
@@ -215,3 +221,4 @@ window.diff2html = diff2html;
 if (window.history.replaceState) {
   window.history.replaceState(null, null, window.location.href);
 }
+
