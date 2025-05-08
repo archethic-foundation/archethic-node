@@ -1,0 +1,39 @@
+#map {
+  height: 90vh;
+  position: relative;
+  color: #0f0;
+}
+
+.leaflet-control-zoom-in span {
+  color: #000 !important;
+}
+
+.leaflet-control-zoom-out span{
+  color: #000 !important;
+}
+ 
+.marker-up, .marker-down {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 3px;
+}
+
+.marker-up {
+  background-color: green;
+  box-shadow-color: green;
+}
+
+.marker-down {
+  background-color: red;
+  box-shadow-color: red;
+}
+
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+ 
+
+ 
