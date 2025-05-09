@@ -5,7 +5,7 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
 
   alias Archethic.P2P
   alias Archethic.PubSub
-  #alias Archethic.P2P.Node
+  # alias Archethic.P2P.Node
   alias Archethic.P2P.GeoPatch.GeoIP
 
   @type worldmap_data :: %{
@@ -19,61 +19,59 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
 
   @spec get_nodes_data() :: list(map())
   defp get_nodes_data() do
- 
-  Enum.map(P2P.available_nodes(), fn node ->
- 
-  case GeoIP.get_coordinates_city(node.ip) do
-    {lat, lon, city, country} when lat != 0.0 or lon != 0.0 ->
-      %{
-        ip: Tuple.to_list(node.ip) |> Enum.join("."),
-        port: node.port,
-        http_port: node.http_port,
-        enrollment_date: node.enrollment_date,
-        first_public_key: Base.encode16(node.first_public_key, case: :lower),
-        lat: lat,
-        lng: lon,
-        city: city,
-        country: country,
-        average_availability: node.average_availability,
-        authorized:  node.authorized?,
-        global_availability:   node.synced?,
-        local_availability:   node.available?
-      }
+    Enum.map(P2P.available_nodes(), fn node ->
+      case GeoIP.get_coordinates_city(node.ip) do
+        {lat, lon, city, country} when lat != 0.0 or lon != 0.0 ->
+          %{
+            ip: Tuple.to_list(node.ip) |> Enum.join("."),
+            port: node.port,
+            http_port: node.http_port,
+            enrollment_date: node.enrollment_date,
+            first_public_key: Base.encode16(node.first_public_key, case: :lower),
+            lat: lat,
+            lng: lon,
+            city: city,
+            country: country,
+            average_availability: node.average_availability,
+            authorized: node.authorized?,
+            global_availability: node.synced?,
+            local_availability: node.available?
+          }
 
-    _ ->
-      # Fallback node sans géolocalisation
-      %{
-        ip: Tuple.to_list(node.ip) |> Enum.join("."),
-        port: node.port,
-        http_port: node.http_port,
-        enrollment_date: node.enrollment_date,
-        first_public_key: Base.encode16(node.first_public_key, case: :lower),
-        lat: nil,
-        lng: nil,
-        city: nil,
-        country: nil,
-        average_availability: 0.0,
-        authorized: false,
-        global_availability:   false,
-        local_availability:  false
-      }
+        _ ->
+          # Fallback node sans géolocalisation
+          %{
+            ip: Tuple.to_list(node.ip) |> Enum.join("."),
+            port: node.port,
+            http_port: node.http_port,
+            enrollment_date: node.enrollment_date,
+            first_public_key: Base.encode16(node.first_public_key, case: :lower),
+            lat: nil,
+            lng: nil,
+            city: nil,
+            country: nil,
+            average_availability: 0.0,
+            authorized: false,
+            global_availability: false,
+            local_availability: false
+          }
+      end
+    end)
   end
-end)
-end
- 
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
       PubSub.register_to_node_update()
     end
-     w_data = get_nodes_data();
-      IO.inspect(w_data, label: "Liste des nœuds retournés")
+
+    w_data = get_nodes_data()
+
     {:ok, socket |> push_event("worldmap_init_datas", %{worldmap_datas: w_data})}
   end
 
   def handle_info({:node_update, _}, socket) do
-    w_data = get_nodes_data();
-     IO.inspect(w_data, label: "Liste des nœuds retournés")
+    w_data = get_nodes_data()
+
     {:noreply, socket |> push_event("worldmap_update_datas", %{worldmap_datas: w_data})}
   end
 end
