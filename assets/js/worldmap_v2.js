@@ -14,7 +14,7 @@ function shortAddress(addressBytes) {
     .join("");
 
   const short = `${hex.slice(0, 8)}...${hex.slice(-4)}`;
- 
+
   // Create elements
   const span = document.createElement("span");
   span.className = "mono";
@@ -82,11 +82,12 @@ function formatPopupBody(node) {
 
 export function createWorldmap(worldmapDatas) {
 
+
+  map = L.map('map').setView([20, 0], 2);
   if (!window.map) {
-    window.map = L.map('map').setView([20, 0], 2);
+    window.map = map;
   }
 
-  const map = L.map('map').setView([20, 0], 2);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; CARTO',
@@ -138,12 +139,13 @@ export function createWorldmap(worldmapDatas) {
       className: node.status === 'up' ? 'marker-up' : 'marker-down',
       iconSize: [20, 20]
     });
-
-    const marker = L.marker([node.lat, node.lng], {
-      icon,
-      status: node.status
-    }).bindPopup(formatPopupBody(node));
-    markers.addLayer(marker);
+    if ((node.lat != null) && (node.lng != null)) {
+      const marker = L.marker([node.lat, node.lng], {
+        icon,
+        status: node.status
+      }).bindPopup(formatPopupBody(node));
+      markers.addLayer(marker);
+    }
   });
 
   map.addLayer(markers);
@@ -164,14 +166,15 @@ export function updateWorldmap(worldmapDatas) {
         iconSize: [20, 20]
       });
 
+      if ((node.lat != null) && (node.lng != null)) {
+        const marker = L.marker([node.lat, node.lng], {
+          icon,
+          status: node.status
+        }).bindPopup(formatPopupBody(node));
+        markers.addLayer(marker);
+      }
 
-
-
-      const marker = L.marker([node.lat, node.lng], {
-        icon,
-        status: node.status
-      }).bindPopup(formatPopupBody(node));
-      markers.addLayer(marker);
     });
+ 
   }
 }
