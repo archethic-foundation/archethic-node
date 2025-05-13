@@ -82,7 +82,7 @@ function formatPopupBody(node) {
 
 export function createWorldmap(worldmapDatas) {
 
-onsole.log("createWorldmap");
+console.log("createWorldmap");
   map = L.map('map').setView([20, 0], 2);
   if (!window.map) {
     window.map = map;
