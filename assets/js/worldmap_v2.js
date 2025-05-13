@@ -82,7 +82,7 @@ function formatPopupBody(node) {
 
 export function createWorldmap(worldmapDatas) {
 
-
+onsole.log("createWorldmap");
   map = L.map('map').setView([20, 0], 2);
   if (!window.map) {
     window.map = map;
@@ -133,7 +133,7 @@ export function createWorldmap(worldmapDatas) {
   });
 
   const nodes = formatData(worldmapDatas, true);
-
+  console.log(nodes);
   nodes.forEach(node => {
     const icon = L.divIcon({
       className: node.status === 'up' ? 'marker-up' : 'marker-down',
@@ -157,9 +157,9 @@ export function createWorldmap(worldmapDatas) {
 export function updateWorldmap(worldmapDatas) {
 
   if (map) {
-
-    const nodes = formatData(worldmapDatas, true);
-
+    console.log("updateWorldmap");
+    const nodes = formatData(worldmapDatas, true); 
+    console.log(nodes);
     nodes.forEach(node => {
       const icon = L.divIcon({
         className: node.status === 'up' ? 'marker-up' : 'marker-down',
