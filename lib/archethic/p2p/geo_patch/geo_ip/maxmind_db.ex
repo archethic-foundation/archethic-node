@@ -52,7 +52,7 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
 
   lookup_result = MMDB2Decoder.lookup(ip, meta, tree, data)
 
- Logger.debug(inspect(result, pretty: true, limit: :infinity))
+ Logger.debug(inspect(lookup_result , pretty: true, limit: :infinity))
 
     case lookup_result  do
       {:ok,
