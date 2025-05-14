@@ -61,14 +61,20 @@ function formatData(datas, authorized) {
 
 function formatPopupBody(node) {
 
-  const color = node.status === "up" ? "green" : "red";
+  const status =  node.global_availability || node.local_availability || node.authorized;
+
+  const color_global_availability = node.global_availability  ? "green" : "red";
+  const color_local_availability = node.local_availability  ? "green" : "red";
+  const color_authorised = node.authorized ? "green" : "red";
+  const color = status  === "up" ? "green" : "red";
 
   let body = "<div style='color:black;min-width:250px'>";
   body += `<h1 style='width:100%;text-align: center;display:block;font-weight:bold;color:black;Line-height: 20px;font-size:20px'>${shortAddress(node.name)}</h1>`;
   body += `<hr style="border: none; border-top: 2px solid #666; margin: 8px 0;"></hr>`;
-  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color};margin-right:5px;"></span>   Authorized</p>`;
-  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color};margin-right:5px;"></span>   Global availability</p>`;
-  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color};margin-right:5px;"></span>   Local availability</p>`;
+  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_authorised};margin-right:5px;"></span>   Authorized</p>`;
+  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_global_availability};margin-right:5px;"></span>   Global availability</p>`;
+  body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_local_availability};margin-right:5px;"></span>   Local availability</p>`;
+   body += `<p style="color:black;Line-height: 10px">Availability : <strong>${node.availability}</strong></p>`;
   body += `<hr style="border: none; border-top: 2px solid #666; margin: 8px 0;"></hr>`;
   body += `<p style="color:black;Line-height: 10px">Location: <strong>${node.city}, ${node.country}</strong></p>`;
   body += `<p style="color:black;Line-height: 10px">ip : <strong>${node.ip}</strong></p>`;
