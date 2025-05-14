@@ -972,7 +972,7 @@ defmodule Archethic.Utils do
 
         {key, number_of_reward_occurences_per_month(interval, date)}
       end,
-      timeout: 10_000
+      timeout: 80_000
     )
     |> Stream.map(fn {:ok, v} -> v end)
     |> Map.new()
