@@ -52,8 +52,7 @@ function formatData(datas, authorized) {
         "country": data.country,
         "authorized": data.authorized,
         "global_availability": data.global_availability,
-        "local_availability": data.local_availability,
-        "status": data.status
+        "local_availability": data.local_availability 
       }
     })
 }
