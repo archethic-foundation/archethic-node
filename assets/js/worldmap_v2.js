@@ -50,6 +50,7 @@ function formatData(datas, authorized) {
         "lng": data.lng,
         "city": data.city,
         "country": data.country,
+        "average_availability": data.average_availability,
         "authorized": data.authorized,
         "global_availability": data.global_availability,
         "local_availability": data.local_availability 
@@ -75,7 +76,7 @@ function formatPopupBody(node) {
   body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_authorised};margin-right:5px;"></span>   Authorized</p>`;
   body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_global_availability};margin-right:5px;"></span>   Global availability</p>`;
   body += `<p style='color:black;Line-height: 8px'><span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color_local_availability};margin-right:5px;"></span>   Local availability</p>`;
-   body += `<p style="color:black;Line-height: 10px">Availability : <strong>${node.availability}</strong></p>`;
+   body += `<p style="color:black;Line-height: 10px">Availability : <strong>${node.average_availability}</strong></p>`;
   body += `<hr style="border: none; border-top: 2px solid #666; margin: 8px 0;"></hr>`;
   body += `<p style="color:black;Line-height: 10px">Location: <strong>${node.city}, ${node.country}</strong></p>`;
   body += `<p style="color:black;Line-height: 10px">ip : <strong>${node.ip}</strong></p>`;
