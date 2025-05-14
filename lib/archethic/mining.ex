@@ -36,7 +36,8 @@ defmodule Archethic.Mining do
   # version 7->8 movement resolved address are now the genesis address of the destination
   # version 8 -> 9: fee 1 UCO
   # version 9 -> 10: no more fee
-  @protocol_version 10
+  # version 10 -> 11: fee 1 UCO
+  @protocol_version 11
 
   @lock_threshold 0.75
 

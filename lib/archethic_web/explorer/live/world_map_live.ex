@@ -50,10 +50,10 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
             lng:  2.3387,
             city: "unknown",
             country: "unknown",
-            average_availability: 0.0,
-            authorized: false,
-            global_availability: false,
-            local_availability: false
+            average_availability:  node.average_availability,
+            authorized: node.authorized?,
+            global_availability: node.synced?,
+            local_availability: node.available?
           }
       end
     end)
