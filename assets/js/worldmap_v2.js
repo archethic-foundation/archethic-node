@@ -65,7 +65,9 @@ function formatPopupBody(node) {
   const color_global_availability = node.global_availability  ? "green" : "red";
   const color_local_availability = node.local_availability  ? "green" : "red";
   const color_authorised = node.authorized ? "green" : "red";
-  const color = status  === "up" ? "green" : "red";
+
+  const status =  node.global_availability && node.local_availability && node.authorized;
+  const color = status  ? "green" : "red";
 
   let body = "<div style='color:black;min-width:250px'>";
   body += `<h1 style='width:100%;text-align: center;display:block;font-weight:bold;color:black;Line-height: 20px;font-size:20px'>${shortAddress(node.name)}</h1>`;
@@ -86,8 +88,7 @@ function formatPopupBody(node) {
 
 
 export function createWorldmap(worldmapDatas) {
-
-console.log("createWorldmap");
+ 
   map = L.map('map').setView([20, 0], 2);
   if (!window.map) {
     window.map = map;
@@ -138,16 +139,18 @@ console.log("createWorldmap");
   });
 
   const nodes = formatData(worldmapDatas, true);
-  console.log(nodes);
+     console.log(nodes);
   nodes.forEach(node => {
+     const status =  node.global_availability && node.local_availability && node.authorized;
+    
     const icon = L.divIcon({
-      className: node.status === 'up' ? 'marker-up' : 'marker-down',
+      className: status ? 'marker-up' : 'marker-down',
       iconSize: [20, 20]
     });
     if ((node.lat != null) && (node.lng != null)) {
       const marker = L.marker([node.lat, node.lng], {
         icon,
-        status: node.status
+        status: status
       }).bindPopup(formatPopupBody(node));
       markers.addLayer(marker);
     }
@@ -166,15 +169,17 @@ export function updateWorldmap(worldmapDatas) {
     const nodes = formatData(worldmapDatas, true); 
     console.log(nodes);
     nodes.forEach(node => {
+       const status =  node.global_availability && node.local_availability && node.authorized;
+    
       const icon = L.divIcon({
-        className: node.status === 'up' ? 'marker-up' : 'marker-down',
+        className: status ? 'marker-up' : 'marker-down',
         iconSize: [20, 20]
       });
 
       if ((node.lat != null) && (node.lng != null)) {
         const marker = L.marker([node.lat, node.lng], {
           icon,
-          status: node.status
+          status:status
         }).bindPopup(formatPopupBody(node));
         markers.addLayer(marker);
       }
