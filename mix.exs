@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "1.6.23",
+      version: "1.6.24",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
