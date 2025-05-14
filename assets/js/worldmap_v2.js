@@ -60,7 +60,7 @@ function formatData(datas, authorized) {
 
 function formatPopupBody(node) {
 
-  const status =  node.global_availability || node.local_availability || node.authorized;
+ 
 
   const color_global_availability = node.global_availability  ? "green" : "red";
   const color_local_availability = node.local_availability  ? "green" : "red";
