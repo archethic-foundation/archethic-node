@@ -39,17 +39,17 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
           }
 
         _ ->
-          # Fallback node sans géolocalisation
+          # Fallback node no geolocalisation
           %{
             ip: Tuple.to_list(node.ip) |> Enum.join("."),
             port: node.port,
             http_port: node.http_port,
             enrollment_date: node.enrollment_date,
             first_public_key: Base.encode16(node.first_public_key, case: :lower),
-            lat: nil,
-            lng: nil,
-            city: nil,
-            country: nil,
+            lat:  48.8582,
+            lng:  2.3387,
+            city: "unknown",
+            country: "unknown",
             average_availability: 0.0,
             authorized: false,
             global_availability: false,
