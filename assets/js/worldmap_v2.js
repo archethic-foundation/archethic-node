@@ -105,7 +105,7 @@ export function createWorldmap(worldmapDatas) {
     iconCreateFunction: function (cluster) {
       const children = cluster.getAllChildMarkers();
       const total = children.length;
-      const upCount = children.filter(m => m.options.status === 'up').length;
+      const upCount = children.filter(m => m.options.status  ).length;
       const downCount = total - upCount;
       const upPercent = (upCount / total) * 100;
       const downPercent = 100 - upPercent;
