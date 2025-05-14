@@ -47,9 +47,9 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
     end
   end
 
-@impl GenServer
-def handle_call({:get_coordinates, ip}, _from, {meta, tree, data}) do
-  case MMDB2Decoder.lookup(ip, meta, tree, data) do
+ @impl GenServer
+  def handle_call({:get_coordinates_city, ip}, _from, {meta, tree, data}) do
+    case MMDB2Decoder.lookup(ip, meta, tree, data) do
     {:ok, result} ->
       lat = get_in(result, ["location", "latitude"]) || 0.0
       lon = get_in(result, ["location", "longitude"]) || 0.0
@@ -60,7 +60,6 @@ def handle_call({:get_coordinates, ip}, _from, {meta, tree, data}) do
 
     _ ->
       {:reply, {0.0, 0.0, "unknown", "unknown"}, {meta, tree, data}}
-  end
-end
+   end
   end
 end
