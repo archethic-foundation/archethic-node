@@ -11,7 +11,7 @@
   </head>
   <body>
     <div class="container">
-      <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
+      <nav class="navbar is-transparent" role="navigation" aria-label="main navigation" style="z-index:800">
         <div class="navbar-brand">
           <a
             class="navbar-item is-size-5"
@@ -55,7 +55,7 @@
             <% end %>
             <div class="navbar-item has-dropdown is-hoverable">
               <span class="navbar-link">Chains</span>
-              <div class="navbar-dropdown is-boxed">
+              <div class="navbar-dropdown is-boxed" style="z-index:800">
                 <a
                   class="navbar-item"
                   href={Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionChainLive)}
