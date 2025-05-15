@@ -75,10 +75,10 @@ defmodule Archethic.Mining.Fee do
       true == Transaction.network_type?(type) ->
         0
 
-      true ->  1*@unit_uco 
+      true ->
+        1 * @unit_uco
     end
   end
-
 
   def calculate(
         _tx,
@@ -91,7 +91,6 @@ defmodule Archethic.Mining.Fee do
       )
       when protocol_version == 10,
       do: 0
-
 
   def calculate(
         %Transaction{address: address, type: type},
