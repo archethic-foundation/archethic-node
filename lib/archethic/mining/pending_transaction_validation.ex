@@ -16,9 +16,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.OracleChain
 
   alias Archethic.P2P
+  alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GetFirstPublicKey
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.Reward
 
@@ -68,6 +70,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                          |> ExJsonSchema.Schema.resolve()
 
   @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+
+  @mining_timeout Application.compile_env!(:archethic, [
+                    Archethic.Mining.DistributedWorkflow,
+                    :global_timeout
+                  ])
+
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
   # @prod? Mix.env() == :prod
 
@@ -341,65 +350,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           type: :node,
           data: %TransactionData{
             content: content,
-            ledger: %Ledger{
-              token: %TokenLedger{
-                transfers: token_transfers
-              }
-            }
+            ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
           },
           previous_public_key: previous_public_key
         },
-        _
+        validation_time
       ) do
-    with :ok <- validate_whitelisted_node(previous_public_key),
-         {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate, mining_public_key} <-
-           Node.decode_transaction_content(content),
-         {:auth_origin, true} <-
-           {:auth_origin,
-            Crypto.authorized_key_origin?(origin_public_key, get_allowed_node_key_origins())},
-         root_ca_public_key <- Crypto.get_root_ca_public_key(origin_public_key),
-         {:auth_cert, true} <-
-           {:auth_cert,
-            Crypto.verify_key_certificate?(
-              origin_public_key,
-              key_certificate,
-              root_ca_public_key,
-              true
-            )},
-         {:conn, :ok} <-
-           {:conn, valid_connection(ip, port, previous_public_key)},
-         {:transfers, true} <-
-           {:transfers, Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address))},
-         {:mining_public_key, true} <-
-           {:mining_public_key,
-            Crypto.valid_public_key?(mining_public_key) and
-              Crypto.get_public_key_curve(mining_public_key) == :bls} do
-      :ok
-    else
-      {:error, :node_blacklisted} ->
-        {:error, "Invalid node transaction - Node isn't authorized"}
-
-      :error ->
-        {:error, "Invalid node transaction's content"}
-
-      {:auth_cert, false} ->
-        {:error, "Invalid node transaction with invalid certificate"}
-
-      {:auth_origin, false} ->
-        {:error, "Invalid node transaction with invalid key origin"}
-
-      {:conn, {:error, :invalid_ip}} ->
-        {:error, "Invalid node's IP address"}
-
-      {:conn, {:error, :existing_node}} ->
-        {:error,
-         "Invalid node connection (IP/Port) for for the given public key - already existing"}
-
-      {:transfers, false} ->
-        {:error, "Invalid transfers, only mining rewards tokens are allowed"}
-
-      {:mining_public_key, false} ->
-        {:error, "Invalid mining public key"}
+    with {:ok, node_config} <- validate_node_tx_content(content),
+         :ok <- validate_node_tx_origin(node_config),
+         :ok <- validate_node_tx_connection(node_config, previous_public_key),
+         :ok <- validate_node_tx_transfers(token_transfers),
+         :ok <- vallidate_node_tx_mining_key(node_config) do
+      validate_node_tx_geopatch(node_config, validation_time)
     end
   end
 
@@ -723,19 +685,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   def validate_type_rules(_, _), do: :ok
 
-  defp validate_whitelisted_node(public_key) do
-    first_public_key = TransactionChain.get_first_public_key(public_key)
-
-    blacklisted? =
-      File.read!(Application.app_dir(:archethic, "priv/blacklist.txt"))
-      |> String.split("\n", trim: true)
-      |> Enum.any?(&(Base.encode16(first_public_key) == &1))
-
-    if blacklisted?,
-      do: {:error, :node_blacklisted},
-      else: :ok
-  end
-
   @doc """
   Ensure network transactions are in the expected chain
   """
@@ -1045,17 +994,4 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp get_first_public_key([], _), do: {:error, :network_issue}
-
-  defp valid_connection(ip, port, previous_public_key) do
-    with :ok <- Networking.validate_ip(ip),
-         false <- P2P.duplicating_node?(ip, port, previous_public_key) do
-      :ok
-    else
-      true ->
-        {:error, :existing_node}
-
-      {:error, :invalid_ip} ->
-        {:error, :invalid_ip}
-    end
-  end
 end

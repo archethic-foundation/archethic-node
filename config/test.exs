@@ -225,3 +225,6 @@ config :archethic, Archethic.P2P.Message.GetUnspentOutputs, threshold: 1_000
 config :archethic, Archethic.P2P.Message.ValidateSmartContractCall, timeout: 50
 
 config :archethic, Archethic.Contracts.Wasm.IO, MockWasmIO
+
+# Apply geopatch in 1min 10 sec (needs to be over global timeout)
+config :archethic, :geopatch_update_time, 70000

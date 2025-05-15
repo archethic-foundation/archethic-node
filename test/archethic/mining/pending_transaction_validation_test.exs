@@ -14,6 +14,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.Reward.Scheduler
 
@@ -39,6 +40,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   import Mox
   import Mock
   import ArchethicCase
+
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -180,7 +183,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             ledger: %Ledger{
               uco: %UCOLedger{
                 transfers: [
-                  %UCOLedger.Transfer{to: ArchethicCase.random_address(), amount: 100_000_000}
+                  %UCOLedger.Transfer{to: random_address(), amount: 100_000_000}
                 ]
               }
             }
@@ -601,18 +604,24 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       <<_::8, _::8, origin_key::binary>> = origin_public_key
       certificate = Crypto.ECDSA.sign(:secp256r1, ca_pv, origin_key)
 
-      content =
-        Node.encode_transaction_content(
-          {80, 20, 10, 200},
-          3000,
-          4000,
-          :tcp,
-          <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118, 139, 7,
-            48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
-          origin_public_key,
-          certificate,
-          Crypto.generate_random_keypair(:bls) |> elem(0)
-        )
+      node_config = %NodeConfig{
+        first_public_key: Crypto.first_node_public_key(),
+        ip: {88, 22, 30, 229},
+        port: 3000,
+        http_port: 4000,
+        transport: MockTransport,
+        reward_address: random_address(),
+        origin_public_key: origin_public_key,
+        origin_certificate: certificate,
+        mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+        geo_patch: "F1B",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
+      }
+
+      content = Node.encode_transaction_content(node_config)
 
       tx = TransactionFactory.create_non_valided_transaction(type: :node, content: content)
 
@@ -621,7 +630,59 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         address
       end)
 
+      stub(MockGeoIP, :get_coordinates, fn ip ->
+        case ip do
+          {88, 22, 30, 229} ->
+            {38.345170, -0.481490}
+        end
+      end)
+
       assert :ok = PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
+    end
+
+    test "should return an error if the geo_patch is not the expected one" do
+      {origin_public_key, _} =
+        Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+
+      {_, ca_pv} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
+      <<_::8, _::8, origin_key::binary>> = origin_public_key
+      certificate = Crypto.ECDSA.sign(:secp256r1, ca_pv, origin_key)
+
+      node_config = %NodeConfig{
+        first_public_key: Crypto.first_node_public_key(),
+        ip: {88, 22, 30, 229},
+        port: 3000,
+        http_port: 4000,
+        transport: MockTransport,
+        reward_address: random_address(),
+        origin_public_key: origin_public_key,
+        origin_certificate: certificate,
+        mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+        geo_patch: "FFF",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
+      }
+
+      content = Node.encode_transaction_content(node_config)
+
+      tx = TransactionFactory.create_non_valided_transaction(type: :node, content: content)
+
+      MockDB
+      |> stub(:get_last_chain_address, fn address ->
+        address
+      end)
+
+      stub(MockGeoIP, :get_coordinates, fn ip ->
+        case ip do
+          {88, 22, 30, 229} ->
+            {38.345170, -0.481490}
+        end
+      end)
+
+      assert {:error, "Invalid geo patch from IP"} =
+               PendingTransactionValidation.validate_type_rules(tx, DateTime.utc_now())
     end
 
     test "should return an error when a node transaction public key used on non allowed origin" do
@@ -632,18 +693,24 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       {public_key, _} = Crypto.derive_keypair("seed", 0)
       certificate = Crypto.get_key_certificate(public_key)
 
-      content =
-        Node.encode_transaction_content(
-          {80, 20, 10, 200},
-          3000,
-          4000,
-          :tcp,
-          <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118, 139, 7,
-            48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
-          <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          certificate,
-          Crypto.generate_random_keypair(:bls) |> elem(0)
-        )
+      node_config = %NodeConfig{
+        first_public_key: Crypto.first_node_public_key(),
+        ip: {88, 22, 30, 229},
+        port: 3000,
+        http_port: 4000,
+        transport: MockTransport,
+        reward_address: random_address(),
+        origin_public_key: public_key,
+        origin_certificate: certificate,
+        mining_public_key: Crypto.generate_random_keypair(:bls) |> elem(0),
+        geo_patch: "BBB",
+        geo_patch_update:
+          DateTime.utc_now()
+          |> DateTime.add(@geo_patch_max_update_time, :millisecond)
+          |> DateTime.truncate(:second)
+      }
+
+      content = Node.encode_transaction_content(node_config)
 
       tx =
         TransactionFactory.create_non_valided_transaction(

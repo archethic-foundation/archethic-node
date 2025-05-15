@@ -16,6 +16,7 @@ defmodule Archethic.Mining.ProofOfWork do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SharedSecrets
 
@@ -137,12 +138,10 @@ defmodule Archethic.Mining.ProofOfWork do
 
   defp do_list_origin_public_keys_candidates(%Transaction{
          type: :node,
-         data: %TransactionData{
-           content: content
-         }
+         data: %TransactionData{content: content}
        }) do
-    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key,
-     _origin_certificate, _mining_public_key} = Node.decode_transaction_content(content)
+    {:ok, %NodeConfig{origin_public_key: origin_public_key}} =
+      Node.decode_transaction_content(content)
 
     [origin_public_key]
   end

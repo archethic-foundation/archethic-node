@@ -15,6 +15,7 @@ defmodule Archethic.Bootstrap.Sync do
   alias Archethic.P2P.Message.GetStorageNonce
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SharedSecrets
 
@@ -36,68 +37,53 @@ defmodule Archethic.Bootstrap.Sync do
   @doc """
   Determines if network should be initialized
   """
-  @spec should_initialize_network?(list(Node.t())) :: boolean()
-  def should_initialize_network?([]) do
+  @spec should_initialize_network?(boostrapping_nodes :: list(Node.t()), node_key :: Crypto.key()) ::
+          boolean()
+  def should_initialize_network?([], _) do
     TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
 
-  def should_initialize_network?([%Node{first_public_key: node_key} | _]) do
-    node_key == Crypto.first_node_public_key() and
-      TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
+  def should_initialize_network?([%Node{first_public_key: bootstrapping_node_key} | _], node_key)
+      when bootstrapping_node_key == node_key do
+    TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
 
-  def should_initialize_network?(_), do: false
+  def should_initialize_network?(_, _), do: false
 
   @doc """
   Determines if the node requires an update
   """
-  @spec require_update?(
-          :inet.ip_address(),
-          :inet.port_number(),
-          :inet.port_number(),
-          P2P.supported_transport(),
-          DateTime.t() | nil
-        ) :: boolean()
-  def require_update?(_ip, _port, _http_port, _transport, nil), do: false
+  @spec require_update?(node_conig :: NodeConfig.t(), last_sync_date :: DateTime.t()) :: boolean()
+  def require_update?(_, nil), do: false
 
-  def require_update?(ip, port, http_port, transport, last_sync_date) do
-    first_node_public_key = Crypto.first_node_public_key()
+  def require_update?(
+        node_config = %NodeConfig{first_public_key: first_public_key},
+        last_sync_date
+      ) do
+    current_config = P2P.get_node_info() |> NodeConfig.from_node()
+    diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
 
-    case P2P.authorized_and_available_nodes() do
-      [%Node{first_public_key: ^first_node_public_key}] ->
-        false
-
-      _ ->
-        diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
-
-        case P2P.get_node_info(first_node_public_key) do
-          {:ok,
-           %Node{
-             ip: prev_ip,
-             port: prev_port,
-             http_port: prev_http_port,
-             transport: prev_transport
-           }}
-          when ip != prev_ip or port != prev_port or http_port != prev_http_port or
-                 diff_sync > @out_of_sync_date_threshold or
-                 prev_transport != transport ->
-            true
-
-          _ ->
-            false
-        end
+    cond do
+      first_node?(first_public_key) -> false
+      diff_sync > @out_of_sync_date_threshold -> true
+      true -> NodeConfig.different?(node_config, current_config)
     end
+  end
+
+  defp first_node?(first_node_public_key) do
+    nodes = P2P.authorized_and_available_nodes()
+    match?([%Node{first_public_key: ^first_node_public_key}], nodes)
   end
 
   @doc """
   Initialize the network by predefining the storage nonce, the first node transaction and the first node shared secrets and the genesis fund allocations
   """
   @spec initialize_network(Transaction.t()) :: :ok
-  def initialize_network(node_tx = %Transaction{}) do
+  def initialize_network(node_tx = %Transaction{previous_public_key: first_public_key}) do
     NetworkInit.create_storage_nonce()
 
     secret_key = :crypto.strong_rand_bytes(32)
-    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.last_node_public_key())
+    encrypted_secret_key = Crypto.ec_encrypt(secret_key, first_public_key)
 
     encrypted_daily_nonce_seed = Crypto.aes_encrypt(@genesis_daily_nonce_seed, secret_key)
     encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
@@ -108,19 +94,13 @@ defmodule Archethic.Bootstrap.Sync do
         encrypted_reward_seed::binary>>
 
     :ok = Crypto.unwrap_secrets(secrets, encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
+    :ok = node_tx |> NetworkInit.self_validation() |> NetworkInit.self_replication()
 
-    :ok =
-      node_tx
-      |> NetworkInit.self_validation()
-      |> NetworkInit.self_replication()
+    now = DateTime.utc_now()
 
-    P2P.set_node_globally_available(Crypto.first_node_public_key(), DateTime.utc_now())
-    P2P.set_node_globally_synced(Crypto.first_node_public_key())
-
-    P2P.authorize_node(
-      Crypto.last_node_public_key(),
-      SharedSecrets.next_application_date(DateTime.utc_now())
-    )
+    P2P.set_node_globally_available(first_public_key, now)
+    P2P.set_node_globally_synced(first_public_key)
+    P2P.authorize_node(first_public_key, SharedSecrets.next_application_date(now))
 
     NetworkInit.init_software_origin_chain()
     NetworkInit.init_node_shared_secrets_chain()
