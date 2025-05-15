@@ -18,11 +18,10 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchethicWeb.Explorer.Components.TransactionsList
 
-
-defp format_float(value, precision) when is_float(value) do
-  :io_lib.format("~.#{precision}f", [value])
-  |> IO.iodata_to_binary()
-end
+  defp format_float(value, precision) when is_float(value) do
+    :io_lib.format("~.#{precision}f", [value])
+    |> IO.iodata_to_binary()
+  end
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
