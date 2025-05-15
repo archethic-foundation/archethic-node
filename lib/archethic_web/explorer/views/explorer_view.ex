@@ -15,6 +15,7 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   alias Archethic.SharedSecrets.NodeRenewal
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -51,25 +52,33 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   end
 
   def format_transaction_content(:node, content) do
-    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, key_certificate,
-     mining_public_key} = Node.decode_transaction_content(content)
+    {:ok,
+     %NodeConfig{
+       ip: ip,
+       port: port,
+       http_port: http_port,
+       transport: transport,
+       reward_address: reward_address,
+       origin_public_key: origin_public_key,
+       origin_certificate: origin_certificate,
+       mining_public_key: mining_public_key,
+       geo_patch: geo_patch
+     }} = Node.decode_transaction_content(content)
 
     content = """
     IP: #{:inet.ntoa(ip)}
+    GeoPatch: #{geo_patch}
     P2P Port: #{port}
     HTTP Port: #{http_port}
     Transport: #{transport}
     Reward address: #{Base.encode16(reward_address)}
     Origin public key: #{Base.encode16(origin_public_key)}
-    Key certificate: #{Base.encode16(key_certificate)}
+    Origin certificate: #{Base.encode16(origin_certificate)}
     """
 
     case mining_public_key do
-      nil ->
-        content
-
-      _ ->
-        content <> "Mining public key: #{Base.encode16(mining_public_key)}"
+      nil -> content
+      _ -> content <> "Mining public key: #{Base.encode16(mining_public_key)}"
     end
   end
 

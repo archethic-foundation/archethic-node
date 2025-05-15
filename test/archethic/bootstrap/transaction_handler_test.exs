@@ -11,31 +11,38 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
   alias Archethic.P2P.Message.Ok
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  import ArchethicCase
   import Mox
 
-  test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
-    assert %Transaction{
-             data: %TransactionData{
-               content: content
-             }
-           } =
-             TransactionHandler.create_node_transaction(
-               {127, 0, 0, 1},
-               3000,
-               4000,
-               :tcp,
-               <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-             )
+  @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
-    assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, _reward_address, _origin_public_key, _cert,
-            mining_public_key} = Node.decode_transaction_content(content)
+  test "create_node_transaction/4 should create transaction with ip, geopatch and port encoded in the content" do
+    now = DateTime.utc_now()
 
-    assert Archethic.Crypto.mining_node_public_key() == mining_public_key
+    node_config = %NodeConfig{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      http_port: 4000,
+      transport: :tcp,
+      reward_address: random_address(),
+      origin_public_key: random_public_key(),
+      origin_certificate: :crypto.strong_rand_bytes(64),
+      mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
+      geo_patch: "AAA",
+      geo_patch_update:
+        DateTime.add(now, @geo_patch_max_update_time, :millisecond) |> DateTime.truncate(:second)
+    }
+
+    assert %Transaction{data: %TransactionData{content: content}} =
+             TransactionHandler.create_node_transaction(node_config, now)
+
+    assert {:ok, node_config} == Node.decode_transaction_content(content)
   end
 
   test "send_transaction/2 should send the transaction to a welcome node" do
@@ -53,14 +60,19 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
     :ok = P2P.add_and_connect_node(node)
 
-    tx =
-      TransactionHandler.create_node_transaction(
-        {127, 0, 0, 1},
-        3000,
-        4000,
-        :tcp,
-        "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
-      )
+    node_config = %NodeConfig{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      http_port: 4000,
+      transport: :tcp,
+      reward_address: random_address(),
+      origin_public_key: random_public_key(),
+      origin_certificate: :crypto.strong_rand_bytes(64),
+      mining_public_key: <<3::8, 2::8, :crypto.strong_rand_bytes(48)::binary>>,
+      geo_patch: "AAA"
+    }
+
+    tx = TransactionHandler.create_node_transaction(node_config)
 
     validated_transaction = %Transaction{
       tx
@@ -70,11 +82,8 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %NewTransaction{}, _ ->
-        {:ok, %Ok{}}
-
-      _, %GetTransaction{}, _ ->
-        {:ok, validated_transaction}
+      _, %NewTransaction{}, _ -> {:ok, %Ok{}}
+      _, %GetTransaction{}, _ -> {:ok, validated_transaction}
     end)
 
     assert {:ok, ^validated_transaction} = TransactionHandler.send_transaction(tx, [node])

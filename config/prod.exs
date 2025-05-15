@@ -283,3 +283,6 @@ config :archethic, :throttle,
     period: 1000,
     limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "20") |> String.to_integer()
   ]
+
+# Apply geopatch in 10 min (needs to be over global timeout)
+config :archethic, :geopatch_update_time, 600_000

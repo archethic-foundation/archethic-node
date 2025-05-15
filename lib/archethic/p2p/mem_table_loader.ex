@@ -8,9 +8,11 @@ defmodule Archethic.P2P.MemTableLoader do
 
   alias Archethic.DB
 
+  alias Archethic.P2P
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Node
+  alias Archethic.P2P.NodeConfig
 
   alias Archethic.SelfRepair
 
@@ -85,7 +87,7 @@ defmodule Archethic.P2P.MemTableLoader do
   end
 
   @doc """
-  Load the transaction and update the P2P view
+  Load the transaction and update the P2P view.
   """
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{
@@ -93,9 +95,7 @@ defmodule Archethic.P2P.MemTableLoader do
         type: :node,
         previous_public_key: previous_public_key,
         data: %TransactionData{content: content},
-        validation_stamp: %ValidationStamp{
-          timestamp: timestamp
-        }
+        validation_stamp: %ValidationStamp{timestamp: timestamp}
       }) do
     Logger.info("Loading transaction into P2P mem table",
       transaction_address: Base.encode16(address),
@@ -104,8 +104,20 @@ defmodule Archethic.P2P.MemTableLoader do
 
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
-    {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate,
-     mining_public_key} = Node.decode_transaction_content(content)
+    {:ok,
+     %NodeConfig{
+       ip: ip,
+       port: port,
+       http_port: http_port,
+       transport: transport,
+       reward_address: reward_address,
+       origin_public_key: origin_public_key,
+       mining_public_key: mining_public_key,
+       geo_patch: geo_patch,
+       geo_patch_update: geo_patch_update
+     }} = Node.decode_transaction_content(content)
+
+    geo_patch = if geo_patch == nil, do: GeoPatch.from_ip(ip), else: geo_patch
 
     if first_node_change?(first_public_key, previous_public_key) do
       node = %Node{
@@ -114,7 +126,7 @@ defmodule Archethic.P2P.MemTableLoader do
         http_port: http_port,
         first_public_key: first_public_key,
         last_public_key: previous_public_key,
-        geo_patch: GeoPatch.from_ip(ip),
+        geo_patch: geo_patch,
         transport: transport,
         last_address: address,
         reward_address: reward_address,
@@ -123,29 +135,32 @@ defmodule Archethic.P2P.MemTableLoader do
         mining_public_key: mining_public_key
       }
 
-      node
-      |> Node.enroll(timestamp)
-      |> MemTable.add_node()
+      node = Node.enroll(node, timestamp)
+      MemTable.add_node(node)
     else
       {:ok, node} = MemTable.get_node(first_public_key)
 
-      MemTable.add_node(%{
+      updated_node = %Node{
         node
         | ip: ip,
           port: port,
           http_port: http_port,
           last_public_key: previous_public_key,
-          geo_patch: GeoPatch.from_ip(ip),
+          geo_patch: geo_patch,
           transport: transport,
           last_address: address,
           reward_address: reward_address,
           origin_public_key: origin_public_key,
           last_update_date: timestamp,
           mining_public_key: mining_public_key
-      })
+      }
+
+      MemTable.add_node(updated_node)
+
+      handle_geo_patch_update(node, updated_node, geo_patch_update)
     end
 
-    Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+    Logger.info("Node loaded into in-memory P2P tables", node: Base.encode16(first_public_key))
   end
 
   def load_transaction(%Transaction{
@@ -190,5 +205,28 @@ defmodule Archethic.P2P.MemTableLoader do
     else
       MemTable.set_node_unavailable(node_public_key, availability_update)
     end
+  end
+
+  defp handle_geo_patch_update(
+         %Node{first_public_key: first_public_key, geo_patch: prev_geo_patch},
+         %Node{geo_patch: new_geo_patch},
+         geo_patch_update
+       )
+       when prev_geo_patch != new_geo_patch do
+    Logger.info("GeoPatch changed for node", node: Base.encode16(first_public_key))
+    Logger.info("Starting Notifier for GeoPatch change")
+
+    new_nodes = P2P.authorized_and_available_nodes(geo_patch_update)
+
+    previous_nodes =
+      Enum.map(new_nodes, fn
+        node = %Node{first_public_key: ^first_public_key} ->
+          %Node{node | geo_patch: prev_geo_patch}
+
+        node ->
+          node
+      end)
+
+    SelfRepair.start_notifier(previous_nodes, new_nodes, geo_patch_update)
   end
 end
