@@ -183,8 +183,8 @@ config :archethic, Archethic.Networking.IPLookup.Static,
 # -----end-of-Networking-prod-configs-----
 
 config :archethic, Archethic.Networking.Scheduler,
-  # Every 5 minutes
-  interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 */5 * * * * *")
+  # Every 6 hours (at min 22)
+  interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 22 */6 * * * *")
 
 config :archethic, Archethic.OracleChain.Scheduler,
   # Poll new changes every minute
