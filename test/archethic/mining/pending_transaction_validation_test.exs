@@ -44,6 +44,30 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   @geo_patch_max_update_time Application.compile_env!(:archethic, :geopatch_update_time)
 
   setup do
+    OriginKeyLookup.start_link([])
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      http_port: 4000,
+      first_public_key: Crypto.derive_keypair("node_key1", 0) |> elem(0),
+      last_public_key: Crypto.derive_keypair("node_key1", 1) |> elem(0),
+      available?: true
+    })
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      http_port: 4000,
+      first_public_key: Crypto.derive_keypair("node_key2", 0) |> elem(0),
+      last_public_key: Crypto.derive_keypair("node_key2", 1) |> elem(0),
+      available?: true
+    })
+
+    # this is the seed used by MockCrypto.NodeKeystore.Origin
+    {public_key, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+    OriginKeyLookup.add_public_key(:software, public_key)
+
     P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA",
@@ -597,8 +621,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   describe "Node" do
     test "should return :ok when a node transaction data content contains node endpoint information" do
-      {origin_public_key, _} =
-        Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+      {origin_public_key, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
 
       {_, ca_pv} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
       <<_::8, _::8, origin_key::binary>> = origin_public_key
@@ -731,24 +754,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   describe "Node Shared Secrets" do
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        http_port: 4000,
-        first_public_key: Crypto.derive_keypair("node_key1", 0) |> elem(0),
-        last_public_key: Crypto.derive_keypair("node_key1", 1) |> elem(0),
-        available?: true
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        http_port: 4000,
-        first_public_key: Crypto.derive_keypair("node_key2", 0) |> elem(0),
-        last_public_key: Crypto.derive_keypair("node_key2", 1) |> elem(0),
-        available?: true
-      })
-
       MockDB
       |> expect(:get_latest_tps, 2, fn -> 1000.0 end)
 

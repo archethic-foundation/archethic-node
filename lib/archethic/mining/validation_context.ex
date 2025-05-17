@@ -728,10 +728,12 @@ defmodule Archethic.Mining.ValidationContext do
     {context, ledger_operations} =
       get_ledger_operations(context, fee, validation_time, encoded_state)
 
+    {context, pow} = validate_origin_signature(context)
+
     validation_stamp = %ValidationStamp{
       protocol_version: Mining.protocol_version(),
       timestamp: validation_time,
-      proof_of_work: do_proof_of_work(tx),
+      proof_of_work: pow,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
       ledger_operations: ledger_operations,
@@ -743,6 +745,22 @@ defmodule Archethic.Mining.ValidationContext do
     validation_stamp = set_stamp_error(validation_stamp, context) |> ValidationStamp.sign()
 
     %__MODULE__{context | validation_stamp: validation_stamp}
+  end
+
+  defp validate_origin_signature(context = %__MODULE__{transaction: tx}) do
+    pow = do_proof_of_work(tx)
+
+    {
+      case pow do
+        "" ->
+          context
+          |> set_mining_error(Error.new(:invalid_origin_signature, "Invalid origin signature"))
+
+        _ ->
+          context
+      end,
+      pow
+    }
   end
 
   defp validate_smart_contract(context, resolved_recipients) do
@@ -1113,6 +1131,8 @@ defmodule Archethic.Mining.ValidationContext do
 
     context = validate_inherit_condition(context, stamp)
 
+    {context, _} = validate_origin_signature(context)
+
     inconsistencies =
       validation_stamp_inconsistencies(
         context,
@@ -1175,7 +1195,7 @@ defmodule Archethic.Mining.ValidationContext do
          transaction: tx
        }) do
     case pow do
-      "" ->
+      <<0::16, 0::256>> ->
         do_proof_of_work(tx) == ""
 
       _ ->
