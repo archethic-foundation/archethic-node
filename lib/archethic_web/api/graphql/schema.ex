@@ -91,8 +91,11 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
     """
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
+      @desc "Specify the origin address of the transaction chain. Cannot use :from and paging address in same request."
       arg(:paging_address, :address)
+      @desc "Specify the origin timestamp to find. Cannot use :from and paging address in same request."
       arg(:from, :timestamp)
+      @desc "Determines whether to search for blocks before or after the paging_address or :from. (ASC: previous blocks, DESC: next blocks). Default is ASC."
       arg(:order, :sort_order)
 
       resolve(fn args = %{address: address}, _ ->
@@ -130,8 +133,11 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
     Query the network to list the transaction inputs from an address
     """
     field :transaction_inputs, list_of(:transaction_input) do
+      @desc "Specify the address to get inputs."
       arg(:address, non_null(:address))
+      @desc "Specify the offet to get inputs. It must be an integer and equal or greater than 0."
       arg(:paging_offset, :non_neg_integer)
+      @desc "Specify the limit of inputs to get. It must be an integer and equal or greater than 0."
       arg(:limit, :pos_integer)
 
       resolve(fn args = %{address: address}, _ ->
