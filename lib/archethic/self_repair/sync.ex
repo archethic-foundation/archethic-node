@@ -489,17 +489,37 @@ defmodule Archethic.SelfRepair.Sync do
       max_concurrency: System.schedulers_online() * 2,
       timeout: Message.get_max_timeout() + 2000
     )
-    |> Stream.each(fn {:ok, {attestation, tx, inputs}} ->
-      :ok =
-        TransactionHandler.process_transaction_data(
-          attestation,
-          tx,
-          inputs,
-          download_nodes,
-          node_key
-        )
+    |> Stream.zip(attestations)
+    |> Stream.each(fn
+      {{:ok, {attestation, tx, inputs}}, _original_attestation} ->
+        :ok =
+          TransactionHandler.process_transaction_data(
+            attestation,
+            tx,
+            inputs,
+            download_nodes,
+            node_key
+          )
+
+      {{:exit, reason}, %ReplicationAttestation{
+         transaction_summary: %TransactionSummary{address: address}
+       }} ->
+        log_synchronization_failure(address, reason)
+        :ok
+
+      {{:error, reason}, %ReplicationAttestation{
+         transaction_summary: %TransactionSummary{address: address}
+       }} ->
+        log_synchronization_failure(address, reason)
+        :ok
     end)
     |> Stream.run()
+  end
+
+  defp log_synchronization_failure(address, reason) do
+    Logger.error(
+      "Failed to synchronize transaction #{Base.encode16(address)}: #{inspect(reason)}"
+    )
   end
 
   defp consolidate_recipients(
