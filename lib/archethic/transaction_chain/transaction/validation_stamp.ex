@@ -30,6 +30,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           | :invalid_recipients_execution
           | :recipients_not_distinct
           | :invalid_contract_context_inputs
+          | :invalid_origin_signature
 
   @typedoc """
   Validation performed by a coordinator:
@@ -278,6 +279,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   defp serialize_error(:invalid_recipients_execution), do: 5
   defp serialize_error(:recipients_not_distinct), do: 6
   defp serialize_error(:invalid_contract_context_inputs), do: 7
+  defp serialize_error(:invalid_origin_signature), do: 8
 
   defp deserialize_error(0), do: nil
   defp deserialize_error(1), do: :invalid_pending_transaction
@@ -287,4 +289,5 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   defp deserialize_error(5), do: :invalid_recipients_execution
   defp deserialize_error(6), do: :recipients_not_distinct
   defp deserialize_error(7), do: :invalid_contract_context_inputs
+  defp deserialize_error(8), do: :invalid_origin_signature
 end
