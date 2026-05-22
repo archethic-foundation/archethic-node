@@ -5,7 +5,7 @@
     "alpinejs": "^3.12.0",
     "bulma-tooltip": "^3.0.2",
     "chokidar": "^4.0.0",
-    "diff2html": "^3.4.35",
+    "diff2html": "^3.4.56",
     "echarts": "^5.4.2",
     "highlight.js": "^11.8.0",
     "leaflet": "^1.9.4",
